@@ -4,8 +4,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
 MISE_CONFIG="${ROOT_DIR}/mise/.config/mise/config.toml"
-STOW_PACKAGES=(kitty mise nvim zsh)
-VERIFY_WARNING="WARNING: in simulation mode so not modifying filesystem."
 OH_MY_ZSH_DIR="${HOME}/.oh-my-zsh"
 OH_MY_ZSH_REPO="https://github.com/ohmyzsh/ohmyzsh.git"
 ZSHRC="${HOME}/.zshrc"
@@ -15,9 +13,7 @@ MANAGED_ZPROFILE="${ROOT_DIR}/zsh/.zprofile"
 BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
 WORK_BREWFILE=""
 
-log() {
-  echo "==> $*"
-}
+source "${ROOT_DIR}/scripts/logging.sh"
 
 resolve_symlink_target() {
   local path="$1"
@@ -42,7 +38,7 @@ require_command() {
   local context="$2"
 
   if ! command -v "${command_name}" >/dev/null 2>&1; then
-    echo "${command_name} is required ${context}."
+    log_error "${command_name} is required ${context}."
     exit 1
   fi
 }
@@ -57,7 +53,7 @@ backup_path() {
   fi
 
   mkdir -p "$(dirname "${backup}")"
-  log "Backing up unmanaged ${path} -> ${backup}"
+  log_warn "Backing up unmanaged ${path} -> ${backup}"
   mv "${path}" "${backup}"
 }
 
@@ -67,18 +63,18 @@ verify_symlink_target() {
   local label="$3"
 
   if [[ ! -L "${path}" ]]; then
-    echo "${label} was not installed as a symlink: ${path}"
+    log_error "${label} was not installed as a symlink: ${path}"
     exit 1
   fi
 
   if [[ "$(resolve_symlink_target "${path}")" != "${expected}" ]]; then
-    echo "${label} points to the wrong target: ${path}"
-    echo "Expected: ${expected}"
-    echo "Resolved: $(resolve_symlink_target "${path}")"
+    log_error "${label} points to the wrong target: ${path}"
+    log_info "Expected: ${expected}"
+    log_info "Resolved: $(resolve_symlink_target "${path}")"
     exit 1
   fi
 
-  log "Verified ${label}."
+  log_success "Verified ${label}."
 }
 
 verify_path_missing() {
@@ -86,32 +82,11 @@ verify_path_missing() {
   local label="$2"
 
   if [[ -e "${path}" || -L "${path}" ]]; then
-    echo "${label} should not exist: ${path}"
+    log_error "${label} should not exist: ${path}"
     exit 1
   fi
 
-  log "Verified ${label} is absent."
-}
-
-verify_stow_packages() {
-  local verify_output=""
-  local verify_status=0
-  local filtered_output=""
-
-  verify_output="$(stow --simulate --verbose=1 --dir "${ROOT_DIR}" --target "${HOME}" "${STOW_PACKAGES[@]}" 2>&1)" || verify_status=$?
-  filtered_output="$(printf '%s\n' "${verify_output}" | grep -vFx "${VERIFY_WARNING}" || true)"
-
-  if (( verify_status != 0 )) || [[ -n "${filtered_output//[$'\n\r\t ']}" ]]; then
-    echo "stow-managed configs are not fully installed yet." >&2
-
-    if [[ -n "${filtered_output//[$'\n\r\t ']}" ]]; then
-      printf '%s\n' "${filtered_output}" >&2
-    fi
-
-    exit 1
-  fi
-
-  log "Verified stow-managed configs."
+  log_success "Verified ${label} is absent."
 }
 
 git_profile_is_managed() {
@@ -138,12 +113,12 @@ verify_profile_symlink() {
   local path="${ROOT_DIR}/git/profile.gitconfig"
 
   if ! git_profile_is_managed; then
-    echo "git profile config points outside the managed profiles directory: ${path}"
-    echo "Resolved: $(resolve_symlink_target "${path}" 2>/dev/null || echo missing)"
+    log_error "git profile config points outside the managed profiles directory: ${path}"
+    log_info "Resolved: $(resolve_symlink_target "${path}" 2>/dev/null || echo missing)"
     exit 1
   fi
 
-  log "Verified git profile config."
+  log_success "Verified git profile config."
 }
 
 ensure_git_profile() {
@@ -158,13 +133,13 @@ ensure_git_profile() {
 
 ensure_xcode_clt() {
   if xcode-select -p >/dev/null 2>&1; then
-    log "Xcode Command Line Tools already installed."
+    log_success "Xcode Command Line Tools already installed."
     return
   fi
 
-  echo "Xcode Command Line Tools are required. Launching installer..."
+  log_warn "Xcode Command Line Tools are required. Launching installer..."
   xcode-select --install || true
-  echo "Finish the Xcode Command Line Tools install, then re-run ./bootstrap.sh"
+  log_info "Finish the Xcode Command Line Tools install, then re-run ./bootstrap.sh"
   exit 1
 }
 
@@ -174,9 +149,11 @@ ensure_homebrew() {
     NONINTERACTIVE=1 /bin/bash -c \
       "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   else
-    log "Homebrew already installed."
+    log_success "Homebrew already installed."
   fi
 
+  # Homebrew uses different default prefixes on Apple Silicon and Intel Macs.
+  # Load whichever one exists so freshly installed tools are on PATH immediately.
   if [[ -x /opt/homebrew/bin/brew ]]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
   elif [[ -x /usr/local/bin/brew ]]; then
@@ -189,6 +166,8 @@ ensure_homebrew() {
 oh_my_zsh_is_installed() {
   local remote=""
 
+  # A directory named ~/.oh-my-zsh is not enough; it must be an upstream Oh My
+  # Zsh checkout so bootstrap can update or replace it predictably.
   if [[ ! -d "${OH_MY_ZSH_DIR}/.git" ]]; then
     return 1
   fi
@@ -209,19 +188,38 @@ ensure_oh_my_zsh() {
   require_command git "to install Oh My Zsh"
 
   if oh_my_zsh_is_installed; then
-    log "Oh My Zsh already installed."
-    return
+    # Local plugin/theme edits make an in-place update risky. Back up the whole
+    # checkout and clone fresh so the final shell framework is known-good.
+    if [[ -n "$(git -C "${OH_MY_ZSH_DIR}" status --porcelain)" ]]; then
+      log "Existing Oh My Zsh checkout has unmanaged changes."
+      backup_path "${OH_MY_ZSH_DIR}"
+    else
+      log "Updating Oh My Zsh in ${OH_MY_ZSH_DIR}."
+      if ! git -C "${OH_MY_ZSH_DIR}" fetch --quiet origin; then
+        log_error "Could not fetch Oh My Zsh updates. Check your network and re-run bootstrap."
+        exit 1
+      fi
+
+      if git -C "${OH_MY_ZSH_DIR}" merge --ff-only --quiet '@{u}'; then
+        return
+      fi
+
+      log "Existing Oh My Zsh checkout could not be fast-forwarded."
+      backup_path "${OH_MY_ZSH_DIR}"
+    fi
+  else
+    backup_path "${OH_MY_ZSH_DIR}"
   fi
 
-  backup_path "${OH_MY_ZSH_DIR}"
-
-  log "Installing Oh My Zsh into ${OH_MY_ZSH_DIR}."
-  git clone --quiet --depth=1 "${OH_MY_ZSH_REPO}" "${OH_MY_ZSH_DIR}"
+  if [[ ! -d "${OH_MY_ZSH_DIR}" ]]; then
+    log "Installing Oh My Zsh into ${OH_MY_ZSH_DIR}."
+    git clone --quiet --depth=1 "${OH_MY_ZSH_REPO}" "${OH_MY_ZSH_DIR}"
+  fi
 }
 
 ensure_mise_trust() {
   if ! command -v mise >/dev/null 2>&1; then
-    echo "mise is required but was not found after Homebrew install."
+    log_error "mise is required but was not found after Homebrew install."
     exit 1
   fi
 
@@ -232,7 +230,6 @@ ensure_mise_trust() {
 verify_managed_links() {
   log "Verifying managed links..."
   verify_symlink_target "${HOME}/.config/mise" "${ROOT_DIR}/mise/.config/mise" "mise config directory"
-  verify_stow_packages
   verify_symlink_target "${HOME}/.gitconfig" "${ROOT_DIR}/git/.gitconfig" "home gitconfig"
   verify_path_missing "${HOME}/.config/git" "legacy git config directory"
   verify_symlink_target "${HOME}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty" "kitty config directory"
@@ -240,10 +237,10 @@ verify_managed_links() {
   verify_symlink_target "${ZSHRC}" "${MANAGED_ZSHRC}" "zshrc"
   verify_symlink_target "${ZPROFILE}" "${MANAGED_ZPROFILE}" "zprofile"
   if ! oh_my_zsh_is_installed; then
-    echo "Oh My Zsh was not installed correctly: ${OH_MY_ZSH_DIR}"
+    log_error "Oh My Zsh was not installed correctly: ${OH_MY_ZSH_DIR}"
     exit 1
   fi
-  log "Verified Oh My Zsh."
+  log_success "Verified Oh My Zsh."
   verify_profile_symlink
 }
 
@@ -253,7 +250,7 @@ prepare_brewfile() {
   cp "${BREWFILE}" "${WORK_BREWFILE}"
 
   if [[ -d /Applications/Docker.app ]] && ! brew list --cask docker-desktop >/dev/null 2>&1; then
-    echo "Skipping Docker cask because /Applications/Docker.app already exists outside Homebrew."
+    log_warn "Skipping Docker cask because /Applications/Docker.app already exists outside Homebrew."
     awk '$0 != "cask \"docker-desktop\""' "${WORK_BREWFILE}" > "${WORK_BREWFILE}.tmp"
     mv "${WORK_BREWFILE}.tmp" "${WORK_BREWFILE}"
   else
@@ -270,6 +267,7 @@ cleanup() {
 main() {
   trap cleanup EXIT
 
+  log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Starting initd bootstrap for macOS."
   ensure_xcode_clt
   ensure_homebrew
@@ -303,7 +301,7 @@ main() {
   verify_managed_links
 
   echo
-  log "initd finished for macOS."
+  log_success "initd finished for macOS."
 }
 
 main "$@"

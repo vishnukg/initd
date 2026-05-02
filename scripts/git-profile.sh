@@ -6,19 +6,19 @@ PROFILE="${1:-personal}"
 SOURCE="${ROOT_DIR}/git/profiles/${PROFILE}.gitconfig"
 TARGET="${ROOT_DIR}/git/profile.gitconfig"
 
-log() {
-  echo "==> $*"
-}
+source "${ROOT_DIR}/scripts/logging.sh"
 
 if [[ ! -f "${SOURCE}" ]]; then
-  echo "Unknown git profile: ${PROFILE}"
-  echo "Available profiles: personal, work"
+  log_error "Unknown git profile: ${PROFILE}"
+  log_info "Available profiles: personal, work"
   exit 1
 fi
 
+# profile.gitconfig is intentionally a repo-local symlink so ~/.gitconfig can
+# include one stable path while this script switches between named profiles.
 log "Linking git profile ${PROFILE}."
 (
   cd "$(dirname "${TARGET}")"
   ln -snf "profiles/${PROFILE}.gitconfig" "$(basename "${TARGET}")"
 )
-log "Active git profile: ${PROFILE}"
+log_success "Active git profile: ${PROFILE}"

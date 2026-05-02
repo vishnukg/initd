@@ -19,9 +19,7 @@ LEGACY_LINKS=(
   "${HOME}/.config/mise/config.toml:${ROOT_DIR}/mise.toml"
 )
 
-log() {
-  echo "==> $*"
-}
+source "${ROOT_DIR}/scripts/logging.sh"
 
 usage() {
   cat <<EOF
@@ -81,7 +79,7 @@ remove_link() {
   resolved="$(resolve_symlink_target "${path}")"
 
   if [[ "${resolved}" != "${expected}" ]]; then
-    log "Leaving symlink outside initd ownership: ${path} -> $(readlink "${path}")"
+    log_warn "Leaving symlink outside initd ownership: ${path} -> $(readlink "${path}")"
     return
   fi
 
@@ -90,6 +88,8 @@ remove_link() {
     return
   fi
 
+  # Only symlinks that resolve to known initd targets are removed; real files and
+  # unrelated symlinks are intentionally left in place.
   log "Removing ${label}: ${path}"
   rm "${path}"
 }
@@ -146,7 +146,7 @@ main() {
         return
         ;;
       *)
-        echo "Unknown argument: $1" >&2
+        log_error "Unknown argument: $1"
         usage >&2
         exit 1
         ;;
@@ -154,6 +154,7 @@ main() {
     shift
   done
 
+  log_info "Dry run: ${DRY_RUN}; legacy-only: ${LEGACY_ONLY}"
   log "Removing initd-managed symlinks from ${HOME}"
 
   if (( ! LEGACY_ONLY )); then
@@ -170,7 +171,7 @@ main() {
     remove_empty_dir "${HOME}/.config/mise"
   fi
 
-  log "Cleanup complete."
+  log_success "Cleanup complete."
 }
 
 main "$@"
