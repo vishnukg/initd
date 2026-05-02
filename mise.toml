@@ -1,0 +1,6 @@
+[tools]
+go = "1.24"
+node = "lts"
+python = "3.12"
+ruby = "3.3"
+terraform = "latest"
