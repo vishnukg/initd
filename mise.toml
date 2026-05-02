@@ -1,6 +1,6 @@
 [tools]
-go = "1.24"
+go = "1.26"
 node = "lts"
-python = "3.12"
-ruby = "3.3"
+python = "3.14"
+ruby = "4.0"
 terraform = "latest"
