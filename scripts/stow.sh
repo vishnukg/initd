@@ -21,9 +21,7 @@ STOW_OUTPUT=""
 VERIFY_WARNING="WARNING: in simulation mode so not modifying filesystem."
 BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
 
-log() {
-  echo "==> $*"
-}
+source "${ROOT_DIR}/scripts/logging.sh"
 
 cleanup() {
   if [[ -n "${STOW_OUTPUT}" && -f "${STOW_OUTPUT}" ]]; then
@@ -73,7 +71,7 @@ backup_path() {
   fi
 
   mkdir -p "$(dirname "${backup}")"
-  log "Backing up unmanaged ${path} -> ${backup}"
+  log_warn "Backing up unmanaged ${path} -> ${backup}"
   mv "${path}" "${backup}"
 }
 
@@ -110,6 +108,8 @@ fold_existing_directory() {
 
     found_entry=1
 
+    # If any entry is not already an initd-managed symlink, preserve the whole
+    # existing directory in backups instead of merging user files with ours.
     if ! entry_points_into_source "${entry}" "${source}"; then
       backup_path "${target}"
       return
@@ -170,6 +170,8 @@ prepare_zsh_file() {
     return
   fi
 
+  # Older initd layouts used tiny loader files and different symlink targets.
+  # Remove those known shims, but back up any real user-authored config.
   if [[ -L "${path}" && "$(resolve_symlink_target "${path}")" == "${legacy_target}" ]]; then
     log "Removing legacy ${path} symlink."
     rm "${path}"
@@ -205,7 +207,7 @@ remove_legacy_zsh_links() {
 }
 
 remove_xdg_gitconfig_link() {
-  if [[ -L "${GITCONFIG}" && "$(readlink "${GITCONFIG}")" == "${XDG_GITCONFIG}" ]]; then
+  if [[ -L "${GITCONFIG}" && "$(resolve_symlink_target "${GITCONFIG}")" == "${XDG_GITCONFIG}" ]]; then
     log "Removing XDG ${GITCONFIG} symlink."
     rm "${GITCONFIG}"
   fi
@@ -243,7 +245,7 @@ verify_install() {
   filtered_output="$(printf '%s\n' "${verify_output}" | grep -vFx "${VERIFY_WARNING}" || true)"
 
   if (( verify_status != 0 )) || [[ -n "${filtered_output//[$'\n\r\t ']}" ]]; then
-    echo "stow finished but the managed links are not fully installed yet." >&2
+    log_error "stow finished but the managed links are not fully installed yet."
 
     if [[ -n "${filtered_output//[$'\n\r\t ']}" ]]; then
       printf '%s\n' "${filtered_output}" >&2
@@ -252,12 +254,13 @@ verify_install() {
     exit 1
   fi
 
-  log "Managed symlinks verified."
+  log_success "Managed symlinks verified."
 }
 
 main() {
   trap cleanup EXIT
   STOW_OUTPUT="$(mktemp)"
+  log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Stowing packages: ${PACKAGES[*]}"
   log "Target home directory: ${HOME}"
   remove_xdg_gitconfig_link
@@ -274,12 +277,12 @@ main() {
 
   if grep -q "would cause conflicts" "${STOW_OUTPUT}"; then
     echo
-    echo "Stow found existing files in ${HOME} that are not symlinks yet."
-    echo "Remove or move the conflicting files, then re-run one of:"
-    echo "  ~/.config/initd/scripts/stow.sh"
-    echo "  bash ~/.config/initd/bootstrap.sh"
+    log_error "Stow found existing files in ${HOME} that are not symlinks yet."
+    log_info "Remove or move the conflicting files, then re-run one of:"
+    log_info "  ~/.config/initd/scripts/stow.sh"
+    log_info "  bash ~/.config/initd/bootstrap.sh"
   else
-    echo "stow failed before managed links were fully installed." >&2
+    log_error "stow failed before managed links were fully installed."
   fi
 
   exit 1

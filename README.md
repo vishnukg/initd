@@ -146,7 +146,7 @@ Bootstrap installs Oh My Zsh into:
 ~/.oh-my-zsh
 ```
 
-If `~/.oh-my-zsh` already exists but is not an Oh My Zsh checkout, bootstrap backs it up to `~/.config/initd-backups/<timestamp>/.oh-my-zsh` before cloning Oh My Zsh.
+If `~/.oh-my-zsh` already exists as a clean Oh My Zsh checkout, bootstrap fetches and fast-forwards it. If it is missing, is not an Oh My Zsh checkout, has unmanaged changes, or cannot be fast-forwarded, bootstrap backs it up to `~/.config/initd-backups/<timestamp>/.oh-my-zsh` before cloning a fresh copy.
 
 The managed `.zshrc`:
 
@@ -186,7 +186,7 @@ If Xcode Command Line Tools are missing, macOS will prompt for installation firs
 
 ## Existing machine migration
 
-If you already have files at managed config paths such as `~/.config/nvim`, `~/.config/kitty`, `~/.gitconfig`, `~/.zshrc`, `~/.zprofile`, or `~/.oh-my-zsh`, bootstrap moves unmanaged files into `~/.config/initd-backups/<timestamp>/` and makes `initd` the default setup.
+If you already have files at managed config paths such as `~/.config/nvim`, `~/.config/kitty`, `~/.gitconfig`, `~/.zshrc`, `~/.zprofile`, or `~/.oh-my-zsh`, bootstrap moves unmanaged files into `~/.config/initd-backups/<timestamp>/`, refreshes clean Oh My Zsh checkouts, and makes `initd` the default setup.
 
 ```bash
 bash ~/.config/initd/bootstrap.sh
