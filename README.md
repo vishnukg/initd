@@ -64,7 +64,7 @@ stow --restow --dir ~/.config/initd --target "$HOME" git kitty nvim shell
 - `~/.gitconfig` -> `~/.config/initd/git/.gitconfig`
 - `~/.config/zsh/initd.zsh` -> `~/.config/initd/shell/.config/zsh/initd.zsh`
 
-Because `--restow` is used, rerunning bootstrap is safe: existing managed links are refreshed in place.
+Because `--restow` is used, rerunning bootstrap is safe: existing managed links are refreshed in place. The stow step now also does a follow-up verification pass and fails if any managed links are still missing.
 
 ## Git profiles
 
@@ -121,7 +121,7 @@ If you already have files at `~/.config/nvim`, `~/.config/kitty`, or `~/.gitconf
 bash ~/.config/initd/bootstrap.sh
 ```
 
-If stow reports conflicts, move or delete the existing files first, then run bootstrap again.
+If stow reports conflicts, move or delete the existing files first, then either rerun `~/.config/initd/scripts/stow.sh` to repair links only or rerun `bash ~/.config/initd/bootstrap.sh` for the full flow. A rerun only reports success after stow verifies there is no remaining link work to do.
 
 If `/Applications/Docker.app` already exists but is not managed by Homebrew, bootstrap skips the `docker` cask instead of failing. A fresh machine still installs Docker normally.
 
