@@ -43,9 +43,9 @@ prepare_brewfile() {
   WORK_BREWFILE="$(mktemp)"
   cp "${BREWFILE}" "${WORK_BREWFILE}"
 
-  if [[ -d /Applications/Docker.app ]] && ! brew list --cask docker >/dev/null 2>&1; then
+  if [[ -d /Applications/Docker.app ]] && ! brew list --cask docker-desktop >/dev/null 2>&1; then
     echo "Skipping Docker cask because /Applications/Docker.app already exists outside Homebrew."
-    awk '$0 != "cask \"docker\""' "${WORK_BREWFILE}" > "${WORK_BREWFILE}.tmp"
+    awk '$0 != "cask \"docker-desktop\""' "${WORK_BREWFILE}" > "${WORK_BREWFILE}.tmp"
     mv "${WORK_BREWFILE}.tmp" "${WORK_BREWFILE}"
   fi
 }
@@ -82,6 +82,11 @@ main() {
 
   echo "Stowing managed configs..."
   "${ROOT_DIR}/scripts/stow.sh"
+
+  if [[ ! -e "${HOME}/.config/git/profile.gitconfig" ]]; then
+    echo "Setting default git profile..."
+    "${ROOT_DIR}/scripts/git-profile.sh" personal
+  fi
 
   echo
   echo "initd finished for macOS."

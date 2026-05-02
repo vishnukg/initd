@@ -1,6 +1,12 @@
 [core]
 	pager = delta
 
+[user]
+	name = Vishnu Ganesan
+ 
+[include]
+	path = ~/.config/git/profile.gitconfig
+
 [interactive]
 	diffFilter = delta --color-only
 

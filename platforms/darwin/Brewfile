@@ -33,7 +33,7 @@ brew "threedotslabs/tap/tdl"
 
 cask "betterdisplay"
 cask "copilot-cli"
-cask "docker"
+cask "docker-desktop"
 cask "font-fira-code"
 cask "font-fira-code-nerd-font"
 cask "font-hack-nerd-font"
