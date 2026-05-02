@@ -107,9 +107,9 @@ git clone <repo-url> ~/.config/initd
 bash ~/.config/initd/bootstrap.sh
 ```
 
-On a fresh machine, `bootstrap.sh` installs Homebrew packages, symlinks `~/.config/mise/config.toml` to this repo's `mise.toml`, installs runtimes from the repo root, and stows configs into place.
+On a fresh machine, `bootstrap.sh` installs Homebrew packages, symlinks `~/.config/mise/config.toml` to this repo's `mise.toml`, installs runtimes from the repo root, stows configs into place, and links `~/.zshrc` to the managed file in this repo.
 
-Bootstrap also ensures `~/.zprofile` and `~/.zshrc` source the managed snippets in `~/.config/zsh/`, so interactive zsh shells load Homebrew, mise, zoxide, and starship consistently on both fresh and existing machines.
+Bootstrap also ensures `~/.zprofile` sources the managed snippet in `~/.config/zsh/`. If `~/.zshrc` already exists, bootstrap preserves it and adds the initd sourcing line instead of replacing it.
 
 If Xcode Command Line Tools are missing, macOS will prompt for installation first. Re-run `bash ~/.config/initd/bootstrap.sh` after that finishes.
 
@@ -136,6 +136,7 @@ Examples:
 - Git config: `~/.config/initd/git/.gitconfig`
 - Git profiles: `~/.config/initd/git/.config/git/profiles`
 - Runtime versions: `~/.config/initd/mise.toml`
+- Managed home zshrc: `~/.config/initd/zsh-home/.zshrc`
 - Managed zsh snippets: `~/.config/initd/shell/.config/zsh`
 
 After editing, re-apply links with either:

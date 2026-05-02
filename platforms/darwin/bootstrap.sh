@@ -7,12 +7,33 @@ MISE_CONFIG="${ROOT_DIR}/mise.toml"
 MISE_GLOBAL_CONFIG="${HOME}/.config/mise/config.toml"
 ZSHRC="${HOME}/.zshrc"
 ZPROFILE="${HOME}/.zprofile"
+MANAGED_ZSHRC="${ROOT_DIR}/zsh-home/.zshrc"
 INITD_ZSH="${HOME}/.config/zsh/initd.zsh"
 INITD_ZPROFILE="${HOME}/.config/zsh/initd.zprofile"
+ZSHRC_SOURCE_LINE='[[ -f "${HOME}/.config/zsh/initd.zsh" ]] && source "${HOME}/.config/zsh/initd.zsh"'
+ZPROFILE_SOURCE_LINE='[[ -f "${HOME}/.config/zsh/initd.zprofile" ]] && source "${HOME}/.config/zsh/initd.zprofile"'
 WORK_BREWFILE=""
 
 log() {
   echo "==> $*"
+}
+
+resolve_symlink_target() {
+  local path="$1"
+  local target=""
+
+  target="$(readlink "${path}")"
+
+  if [[ "${target}" = /* ]]; then
+    printf '%s\n' "${target}"
+    return
+  fi
+
+  (
+    cd "$(dirname "${path}")"
+    cd "$(dirname "${target}")"
+    printf '%s/%s\n' "$(pwd -P)" "$(basename "${target}")"
+  )
 }
 
 require_command() {
@@ -23,6 +44,87 @@ require_command() {
     echo "${command_name} is required ${context}."
     exit 1
   fi
+}
+
+verify_symlink_target() {
+  local path="$1"
+  local expected="$2"
+  local label="$3"
+
+  if [[ ! -L "${path}" ]]; then
+    echo "${label} was not installed as a symlink: ${path}"
+    exit 1
+  fi
+
+  if [[ "$(resolve_symlink_target "${path}")" != "${expected}" ]]; then
+    echo "${label} points to the wrong target: ${path}"
+    echo "Expected: ${expected}"
+    echo "Resolved: $(resolve_symlink_target "${path}")"
+    exit 1
+  fi
+
+  log "Verified ${label}."
+}
+
+git_profile_is_managed() {
+  local path="${HOME}/.config/git/profile.gitconfig"
+  local resolved=""
+
+  if [[ ! -L "${path}" ]]; then
+    return 1
+  fi
+
+  resolved="$(resolve_symlink_target "${path}")"
+
+  case "${resolved}" in
+    "${ROOT_DIR}/git/.config/git/profiles/"*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+verify_profile_symlink() {
+  local path="${HOME}/.config/git/profile.gitconfig"
+
+  if ! git_profile_is_managed; then
+    echo "git profile config points outside the managed profiles directory: ${path}"
+    echo "Resolved: $(resolve_symlink_target "${path}" 2>/dev/null || echo missing)"
+    exit 1
+  fi
+
+  log "Verified git profile config."
+}
+
+ensure_git_profile() {
+  if git_profile_is_managed; then
+    log "Git profile already configured."
+    return
+  fi
+
+  log "Setting default git profile to personal."
+  "${ROOT_DIR}/scripts/git-profile.sh" personal
+}
+
+zshrc_is_managed() {
+  [[ -L "${ZSHRC}" ]] && [[ "$(resolve_symlink_target "${ZSHRC}")" == "${MANAGED_ZSHRC}" ]]
+}
+
+verify_zshrc() {
+  if zshrc_is_managed; then
+    log "Verified zshrc symlink."
+    return
+  fi
+
+  if [[ -f "${ZSHRC}" ]] && grep -qxF "${ZSHRC_SOURCE_LINE}" "${ZSHRC}"; then
+    log "Verified zshrc sourcing in existing file."
+    return
+  fi
+
+  echo "zshrc is not managed correctly: ${ZSHRC}"
+  exit 1
 }
 
 ensure_xcode_clt() {
@@ -87,8 +189,27 @@ ensure_line_in_file() {
 }
 
 ensure_zsh_startup() {
-  ensure_line_in_file "${ZPROFILE}" "[[ -f \"${INITD_ZPROFILE}\" ]] && source \"${INITD_ZPROFILE}\"" "initd zprofile sourcing"
-  ensure_line_in_file "${ZSHRC}" "[[ -f \"${INITD_ZSH}\" ]] && source \"${INITD_ZSH}\"" "initd zshrc sourcing"
+  if zshrc_is_managed; then
+    log "Managed .zshrc symlink already installed."
+  elif [[ ! -e "${ZSHRC}" ]]; then
+    log "Linking managed .zshrc into ${HOME}."
+    ln -snf "${MANAGED_ZSHRC}" "${ZSHRC}"
+  else
+    log ".zshrc already exists; preserving it and ensuring initd sourcing."
+    ensure_line_in_file "${ZSHRC}" "${ZSHRC_SOURCE_LINE}" "initd zshrc sourcing"
+  fi
+
+  ensure_line_in_file "${ZPROFILE}" "${ZPROFILE_SOURCE_LINE}" "initd zprofile sourcing"
+}
+
+verify_managed_links() {
+  log "Verifying managed links..."
+  verify_symlink_target "${HOME}/.config/mise/config.toml" "${MISE_CONFIG}" "mise config"
+  verify_symlink_target "${HOME}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty" "kitty config"
+  verify_symlink_target "${HOME}/.config/nvim" "${ROOT_DIR}/nvim/.config/nvim" "nvim config"
+  verify_symlink_target "${HOME}/.gitconfig" "${ROOT_DIR}/git/.gitconfig" "git config"
+  verify_zshrc
+  verify_profile_symlink
 }
 
 prepare_brewfile() {
@@ -145,12 +266,9 @@ main() {
   log "Ensuring zsh startup files source initd snippets..."
   ensure_zsh_startup
 
-  if [[ ! -e "${HOME}/.config/git/profile.gitconfig" ]]; then
-    log "Setting default git profile to personal."
-    "${ROOT_DIR}/scripts/git-profile.sh" personal
-  else
-    log "Git profile already configured."
-  fi
+  ensure_git_profile
+
+  verify_managed_links
 
   echo
   log "initd finished for macOS."
