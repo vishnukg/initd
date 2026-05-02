@@ -6,10 +6,13 @@ BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
 MISE_CONFIG="${ROOT_DIR}/mise/.config/mise/config.toml"
 STOW_PACKAGES=(kitty mise nvim zsh)
 VERIFY_WARNING="WARNING: in simulation mode so not modifying filesystem."
+OH_MY_ZSH_DIR="${HOME}/.oh-my-zsh"
+OH_MY_ZSH_REPO="https://github.com/ohmyzsh/ohmyzsh.git"
 ZSHRC="${HOME}/.zshrc"
 ZPROFILE="${HOME}/.zprofile"
 MANAGED_ZSHRC="${ROOT_DIR}/zsh/.zshrc"
 MANAGED_ZPROFILE="${ROOT_DIR}/zsh/.zprofile"
+BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
 WORK_BREWFILE=""
 
 log() {
@@ -42,6 +45,20 @@ require_command() {
     echo "${command_name} is required ${context}."
     exit 1
   fi
+}
+
+backup_path() {
+  local path="$1"
+  local relative="${path#"${HOME}/"}"
+  local backup="${BACKUP_ROOT}/${relative}"
+
+  if [[ ! -e "${path}" && ! -L "${path}" ]]; then
+    return
+  fi
+
+  mkdir -p "$(dirname "${backup}")"
+  log "Backing up unmanaged ${path} -> ${backup}"
+  mv "${path}" "${backup}"
 }
 
 verify_symlink_target() {
@@ -169,6 +186,39 @@ ensure_homebrew() {
   require_command brew "but was not found after Homebrew setup"
 }
 
+oh_my_zsh_is_installed() {
+  local remote=""
+
+  if [[ ! -d "${OH_MY_ZSH_DIR}/.git" ]]; then
+    return 1
+  fi
+
+  remote="$(git -C "${OH_MY_ZSH_DIR}" remote get-url origin 2>/dev/null || true)"
+
+  case "${remote}" in
+    "${OH_MY_ZSH_REPO}"|"git@github.com:ohmyzsh/ohmyzsh.git")
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+ensure_oh_my_zsh() {
+  require_command git "to install Oh My Zsh"
+
+  if oh_my_zsh_is_installed; then
+    log "Oh My Zsh already installed."
+    return
+  fi
+
+  backup_path "${OH_MY_ZSH_DIR}"
+
+  log "Installing Oh My Zsh into ${OH_MY_ZSH_DIR}."
+  git clone --quiet --depth=1 "${OH_MY_ZSH_REPO}" "${OH_MY_ZSH_DIR}"
+}
+
 ensure_mise_trust() {
   if ! command -v mise >/dev/null 2>&1; then
     echo "mise is required but was not found after Homebrew install."
@@ -189,6 +239,11 @@ verify_managed_links() {
   verify_symlink_target "${HOME}/.config/nvim" "${ROOT_DIR}/nvim/.config/nvim" "nvim config directory"
   verify_symlink_target "${ZSHRC}" "${MANAGED_ZSHRC}" "zshrc"
   verify_symlink_target "${ZPROFILE}" "${MANAGED_ZPROFILE}" "zprofile"
+  if ! oh_my_zsh_is_installed; then
+    echo "Oh My Zsh was not installed correctly: ${OH_MY_ZSH_DIR}"
+    exit 1
+  fi
+  log "Verified Oh My Zsh."
   verify_profile_symlink
 }
 
@@ -224,6 +279,9 @@ main() {
   brew bundle --file "${WORK_BREWFILE}"
   require_command mise "after brew bundle"
   require_command stow "after brew bundle"
+
+  log "Ensuring Oh My Zsh is installed..."
+  ensure_oh_my_zsh
 
   log "Stowing managed configs into ${HOME}..."
   "${ROOT_DIR}/scripts/stow.sh"

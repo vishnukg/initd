@@ -2,6 +2,17 @@ if [[ -x /opt/homebrew/bin/brew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
+export ZSH="${HOME}/.oh-my-zsh"
+ZSH_THEME=""
+plugins=(git)
+
+if [[ -f "${ZSH}/oh-my-zsh.sh" ]]; then
+  source "${ZSH}/oh-my-zsh.sh"
+fi
+
+alias vi="nvim"
+alias vim="nvim"
+
 if command -v zoxide >/dev/null 2>&1; then
   eval "$(zoxide init zsh)"
 fi
