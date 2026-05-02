@@ -5,7 +5,7 @@
 	name = Vishnu Ganesan
  
 [include]
-	path = ~/.config/git/profile.gitconfig
+	path = ~/.config/initd/git/profile.gitconfig
 
 [interactive]
 	diffFilter = delta --color-only

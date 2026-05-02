@@ -3,15 +3,13 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
-MISE_CONFIG="${ROOT_DIR}/mise.toml"
-MISE_GLOBAL_CONFIG="${HOME}/.config/mise/config.toml"
+MISE_CONFIG="${ROOT_DIR}/mise/.config/mise/config.toml"
+STOW_PACKAGES=(kitty mise nvim zsh)
+VERIFY_WARNING="WARNING: in simulation mode so not modifying filesystem."
 ZSHRC="${HOME}/.zshrc"
 ZPROFILE="${HOME}/.zprofile"
-MANAGED_ZSHRC="${ROOT_DIR}/zsh-home/.zshrc"
-INITD_ZSH="${HOME}/.config/zsh/initd.zsh"
-INITD_ZPROFILE="${HOME}/.config/zsh/initd.zprofile"
-ZSHRC_SOURCE_LINE='[[ -f "${HOME}/.config/zsh/initd.zsh" ]] && source "${HOME}/.config/zsh/initd.zsh"'
-ZPROFILE_SOURCE_LINE='[[ -f "${HOME}/.config/zsh/initd.zprofile" ]] && source "${HOME}/.config/zsh/initd.zprofile"'
+MANAGED_ZSHRC="${ROOT_DIR}/zsh/.zshrc"
+MANAGED_ZPROFILE="${ROOT_DIR}/zsh/.zprofile"
 WORK_BREWFILE=""
 
 log() {
@@ -66,8 +64,41 @@ verify_symlink_target() {
   log "Verified ${label}."
 }
 
+verify_path_missing() {
+  local path="$1"
+  local label="$2"
+
+  if [[ -e "${path}" || -L "${path}" ]]; then
+    echo "${label} should not exist: ${path}"
+    exit 1
+  fi
+
+  log "Verified ${label} is absent."
+}
+
+verify_stow_packages() {
+  local verify_output=""
+  local verify_status=0
+  local filtered_output=""
+
+  verify_output="$(stow --simulate --verbose=1 --dir "${ROOT_DIR}" --target "${HOME}" "${STOW_PACKAGES[@]}" 2>&1)" || verify_status=$?
+  filtered_output="$(printf '%s\n' "${verify_output}" | grep -vFx "${VERIFY_WARNING}" || true)"
+
+  if (( verify_status != 0 )) || [[ -n "${filtered_output//[$'\n\r\t ']}" ]]; then
+    echo "stow-managed configs are not fully installed yet." >&2
+
+    if [[ -n "${filtered_output//[$'\n\r\t ']}" ]]; then
+      printf '%s\n' "${filtered_output}" >&2
+    fi
+
+    exit 1
+  fi
+
+  log "Verified stow-managed configs."
+}
+
 git_profile_is_managed() {
-  local path="${HOME}/.config/git/profile.gitconfig"
+  local path="${ROOT_DIR}/git/profile.gitconfig"
   local resolved=""
 
   if [[ ! -L "${path}" ]]; then
@@ -77,7 +108,7 @@ git_profile_is_managed() {
   resolved="$(resolve_symlink_target "${path}")"
 
   case "${resolved}" in
-    "${ROOT_DIR}/git/.config/git/profiles/"*)
+    "${ROOT_DIR}/git/profiles/"*)
       return 0
       ;;
     *)
@@ -87,7 +118,7 @@ git_profile_is_managed() {
 }
 
 verify_profile_symlink() {
-  local path="${HOME}/.config/git/profile.gitconfig"
+  local path="${ROOT_DIR}/git/profile.gitconfig"
 
   if ! git_profile_is_managed; then
     echo "git profile config points outside the managed profiles directory: ${path}"
@@ -106,25 +137,6 @@ ensure_git_profile() {
 
   log "Setting default git profile to personal."
   "${ROOT_DIR}/scripts/git-profile.sh" personal
-}
-
-zshrc_is_managed() {
-  [[ -L "${ZSHRC}" ]] && [[ "$(resolve_symlink_target "${ZSHRC}")" == "${MANAGED_ZSHRC}" ]]
-}
-
-verify_zshrc() {
-  if zshrc_is_managed; then
-    log "Verified zshrc symlink."
-    return
-  fi
-
-  if [[ -f "${ZSHRC}" ]] && grep -qxF "${ZSHRC_SOURCE_LINE}" "${ZSHRC}"; then
-    log "Verified zshrc sourcing in existing file."
-    return
-  fi
-
-  echo "zshrc is not managed correctly: ${ZSHRC}"
-  exit 1
 }
 
 ensure_xcode_clt() {
@@ -167,48 +179,16 @@ ensure_mise_trust() {
   mise trust "${MISE_CONFIG}"
 }
 
-sync_mise_config() {
-  log "Linking ${MISE_GLOBAL_CONFIG} -> ${MISE_CONFIG}"
-  mkdir -p "$(dirname "${MISE_GLOBAL_CONFIG}")"
-  ln -snf "${MISE_CONFIG}" "${MISE_GLOBAL_CONFIG}"
-}
-
-ensure_line_in_file() {
-  local file="$1"
-  local line="$2"
-  local label="$3"
-
-  touch "${file}"
-
-  if ! grep -qxF "${line}" "${file}"; then
-    printf '\n%s\n' "${line}" >> "${file}"
-    log "Added ${label} to ${file}."
-  else
-    log "${label} already present in ${file}."
-  fi
-}
-
-ensure_zsh_startup() {
-  if zshrc_is_managed; then
-    log "Managed .zshrc symlink already installed."
-  elif [[ ! -e "${ZSHRC}" ]]; then
-    log "Linking managed .zshrc into ${HOME}."
-    ln -snf "${MANAGED_ZSHRC}" "${ZSHRC}"
-  else
-    log ".zshrc already exists; preserving it and ensuring initd sourcing."
-    ensure_line_in_file "${ZSHRC}" "${ZSHRC_SOURCE_LINE}" "initd zshrc sourcing"
-  fi
-
-  ensure_line_in_file "${ZPROFILE}" "${ZPROFILE_SOURCE_LINE}" "initd zprofile sourcing"
-}
-
 verify_managed_links() {
   log "Verifying managed links..."
-  verify_symlink_target "${HOME}/.config/mise/config.toml" "${MISE_CONFIG}" "mise config"
-  verify_symlink_target "${HOME}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty" "kitty config"
-  verify_symlink_target "${HOME}/.config/nvim" "${ROOT_DIR}/nvim/.config/nvim" "nvim config"
-  verify_symlink_target "${HOME}/.gitconfig" "${ROOT_DIR}/git/.gitconfig" "git config"
-  verify_zshrc
+  verify_symlink_target "${HOME}/.config/mise" "${ROOT_DIR}/mise/.config/mise" "mise config directory"
+  verify_stow_packages
+  verify_symlink_target "${HOME}/.gitconfig" "${ROOT_DIR}/git/.gitconfig" "home gitconfig"
+  verify_path_missing "${HOME}/.config/git" "legacy git config directory"
+  verify_symlink_target "${HOME}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty" "kitty config directory"
+  verify_symlink_target "${HOME}/.config/nvim" "${ROOT_DIR}/nvim/.config/nvim" "nvim config directory"
+  verify_symlink_target "${ZSHRC}" "${MANAGED_ZSHRC}" "zshrc"
+  verify_symlink_target "${ZPROFILE}" "${MANAGED_ZPROFILE}" "zprofile"
   verify_profile_symlink
 }
 
@@ -245,8 +225,8 @@ main() {
   require_command mise "after brew bundle"
   require_command stow "after brew bundle"
 
-  log "Syncing global mise config..."
-  sync_mise_config
+  log "Stowing managed configs into ${HOME}..."
+  "${ROOT_DIR}/scripts/stow.sh"
 
   log "Ensuring shared mise config is trusted..."
   ensure_mise_trust
@@ -259,12 +239,6 @@ main() {
 
   log "Applying macOS defaults..."
   "${ROOT_DIR}/platforms/darwin/macos.sh"
-
-  log "Stowing managed configs into ${HOME}..."
-  "${ROOT_DIR}/scripts/stow.sh"
-
-  log "Ensuring zsh startup files source initd snippets..."
-  ensure_zsh_startup
 
   ensure_git_profile
 
