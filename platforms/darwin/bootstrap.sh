@@ -63,11 +63,6 @@ main() {
   ensure_homebrew
   prepare_brewfile
 
-  if command -v mise >/dev/null 2>&1; then
-    echo "Trusting shared mise config..."
-    ensure_mise_trust
-  fi
-
   echo "Installing macOS packages..."
   brew bundle --file "${WORK_BREWFILE}"
 
@@ -75,7 +70,10 @@ main() {
   ensure_mise_trust
 
   echo "Installing shared runtimes..."
-  mise install --yes
+  (
+    cd "${ROOT_DIR}"
+    mise install --yes
+  )
 
   echo "Applying macOS defaults..."
   "${ROOT_DIR}/platforms/darwin/macos.sh"

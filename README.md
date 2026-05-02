@@ -87,14 +87,15 @@ To switch later:
 
 The macOS flow installs:
 
-- CLI tools: `git`, `git-delta`, `ripgrep`, `fd`, `fzf`
-- config manager: `stow`
+- CLI tools and terminal utilities such as `git`, `gh`, `git-delta`, `ripgrep`, `fd`, `fzf`, `tmux`, `tig`, `zoxide`, and `stow`
 - editor tooling: `neovim`, `tree-sitter`, `tree-sitter-cli`
 - runtimes manager: `mise`
-- apps: `kitty`, `docker`
-- font: `FiraCode Nerd Font`
-- runtimes via mise: `node`, `python`, `ruby`, `go`, `terraform`
+- runtimes via mise: `dotnet`, `go`, `node`, `python`, `ruby`, `terraform`
+- apps: `BetterDisplay`, `Copilot CLI`, `Docker Desktop`, `Ghostty`, `iTerm2`, `Kitty`, and `Visual Studio Code`
+- fonts including `FiraCode Nerd Font`, `Hack Nerd Font`, `JetBrains Mono Nerd Font`, `Meslo LG Nerd Font`, and `Victor Mono Nerd Font`
 - managed configs into runtime paths such as `~/.config/nvim`, `~/.config/kitty`, and `~/.gitconfig`
+
+See `platforms/darwin/Brewfile` for the authoritative package list.
 
 ## Usage
 
@@ -103,7 +104,7 @@ git clone <repo-url> ~/.config/initd
 bash ~/.config/initd/bootstrap.sh
 ```
 
-On a fresh machine, `bootstrap.sh` installs Homebrew packages, trusts `mise.toml`, installs runtimes, and stows configs into place.
+On a fresh machine, `bootstrap.sh` installs Homebrew packages, trusts `mise.toml`, installs runtimes from the repo root, and stows configs into place.
 
 If Xcode Command Line Tools are missing, macOS will prompt for installation first. Re-run `bash ~/.config/initd/bootstrap.sh` after that finishes.
 
@@ -143,3 +144,20 @@ bash ~/.config/initd/bootstrap.sh
 ```
 
 For Neovim plugin changes, update the files under `nvim/.config/nvim`, then open Neovim and run your normal plugin workflow such as `:Lazy sync`.
+
+## Updating the curated Brewfile
+
+`platforms/darwin/Brewfile` is intended to stay curated. Installing a package with `brew install` or `brew install --cask` does **not** update it automatically.
+
+When you decide a package should be part of bootstrap:
+
+1. Add or remove the relevant `brew` or `cask` entry in `platforms/darwin/Brewfile`.
+2. Re-run `bash ~/.config/initd/bootstrap.sh` to confirm the curated list still applies cleanly.
+
+If you want Homebrew to dump your machine's current state as a starting point, you can use:
+
+```bash
+brew bundle dump --force --file ~/.config/initd/platforms/darwin/Brewfile
+```
+
+Review the result carefully before committing it. `brew bundle dump` exports everything installed on the current machine, which can add packages you do not want in the shared bootstrap.
