@@ -1,4 +1,5 @@
 [tools]
+dotnet = "latest"
 go = "1.26"
 node = "lts"
 python = "3.14"
