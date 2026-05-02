@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
+WORK_BREWFILE=""
 
 ensure_xcode_clt() {
   if xcode-select -p >/dev/null 2>&1; then
@@ -38,12 +39,37 @@ ensure_mise_trust() {
   mise trust "${ROOT_DIR}/mise.toml"
 }
 
+prepare_brewfile() {
+  WORK_BREWFILE="$(mktemp)"
+  cp "${BREWFILE}" "${WORK_BREWFILE}"
+
+  if [[ -d /Applications/Docker.app ]] && ! brew list --cask docker >/dev/null 2>&1; then
+    echo "Skipping Docker cask because /Applications/Docker.app already exists outside Homebrew."
+    awk '$0 != "cask \"docker\""' "${WORK_BREWFILE}" > "${WORK_BREWFILE}.tmp"
+    mv "${WORK_BREWFILE}.tmp" "${WORK_BREWFILE}"
+  fi
+}
+
+cleanup() {
+  if [[ -n "${WORK_BREWFILE}" && -f "${WORK_BREWFILE}" ]]; then
+    rm -f "${WORK_BREWFILE}"
+  fi
+}
+
 main() {
+  trap cleanup EXIT
+
   ensure_xcode_clt
   ensure_homebrew
+  prepare_brewfile
+
+  if command -v mise >/dev/null 2>&1; then
+    echo "Trusting shared mise config..."
+    ensure_mise_trust
+  fi
 
   echo "Installing macOS packages..."
-  brew bundle --file "${BREWFILE}"
+  brew bundle --file "${WORK_BREWFILE}"
 
   echo "Trusting shared mise config..."
   ensure_mise_trust

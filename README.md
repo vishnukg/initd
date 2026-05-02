@@ -55,10 +55,12 @@ If Xcode Command Line Tools are missing, macOS will prompt for installation firs
 
 ## Existing machine migration
 
-If you already have files at `~/.config/nvim`, `~/.config/kitty`, or `~/.gitconfig`, `stow` will refuse to overwrite them. For a one-time adoption into `initd`, run:
+If you already have files at `~/.config/nvim`, `~/.config/kitty`, or `~/.gitconfig`, `stow` will refuse to overwrite them.
 
 ```bash
-INITD_STOW_ADOPT=1 bash ~/.config/initd/bootstrap.sh
+bash ~/.config/initd/bootstrap.sh
 ```
 
-That uses `stow --adopt` so pre-existing files are absorbed into the package layout instead of causing conflicts.
+If stow reports conflicts, move or delete the existing files first, then run bootstrap again.
+
+If `/Applications/Docker.app` already exists but is not managed by Homebrew, bootstrap skips the `docker` cask instead of failing. A fresh machine still installs Docker normally.
