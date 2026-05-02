@@ -15,6 +15,7 @@ The repo is structured for **multi-platform support later**, while only **macOS*
 initd/
 ├── bootstrap.sh              # OS dispatcher
 ├── mise.toml                 # Runtime versions symlinked to ~/.config/mise/config.toml
+├── shell/                    # Stow package -> ~/.config/zsh/initd.{zsh,zprofile}
 ├── git/                      # Stow package -> ~/.gitconfig
 ├── kitty/                    # Stow package -> ~/.config/kitty
 ├── nvim/                     # Stow package -> ~/.config/nvim
@@ -29,7 +30,7 @@ initd/
 
 ## How it is set up
 
-- **stow packages** (`git/`, `kitty/`, `nvim/`): the source of truth for files that end up in `$HOME`
+- **stow packages** (`shell/`, `git/`, `kitty/`, `nvim/`): the source of truth for files that end up in `$HOME`
 - **`platforms/<os>/`**: package managers, OS defaults, and platform-specific setup
 - **`mise.toml`**: shared language runtimes across platforms, symlinked to `~/.config/mise/config.toml`
 - **`scripts/`**: shared helper scripts used by all platforms
@@ -44,6 +45,7 @@ Each top-level package mirrors the final runtime location:
 | `git/.config/git/profiles/...` | `~/.config/git/profiles/...` |
 | `kitty/.config/kitty/...` | `~/.config/kitty/...` |
 | `nvim/.config/nvim/...` | `~/.config/nvim/...` |
+| `shell/.config/zsh/initd.*` | `~/.config/zsh/initd.*` |
 
 That means you edit the files **inside `initd`**, and `stow` links them into the correct places in your home directory.
 
@@ -52,7 +54,7 @@ That means you edit the files **inside `initd`**, and `stow` links them into the
 `bootstrap.sh` eventually runs `scripts/stow.sh`, which does:
 
 ```bash
-stow --restow --dir ~/.config/initd --target "$HOME" git kitty nvim
+stow --restow --dir ~/.config/initd --target "$HOME" git kitty nvim shell
 ```
 
 `stow` creates symlinks from your home directory back into this repo. For example:
@@ -60,6 +62,7 @@ stow --restow --dir ~/.config/initd --target "$HOME" git kitty nvim
 - `~/.config/nvim` -> `~/.config/initd/nvim/.config/nvim`
 - `~/.config/kitty` -> `~/.config/initd/kitty/.config/kitty`
 - `~/.gitconfig` -> `~/.config/initd/git/.gitconfig`
+- `~/.config/zsh/initd.zsh` -> `~/.config/initd/shell/.config/zsh/initd.zsh`
 
 Because `--restow` is used, rerunning bootstrap is safe: existing managed links are refreshed in place.
 
@@ -106,6 +109,8 @@ bash ~/.config/initd/bootstrap.sh
 
 On a fresh machine, `bootstrap.sh` installs Homebrew packages, symlinks `~/.config/mise/config.toml` to this repo's `mise.toml`, installs runtimes from the repo root, and stows configs into place.
 
+Bootstrap also ensures `~/.zprofile` and `~/.zshrc` source the managed snippets in `~/.config/zsh/`, so interactive zsh shells load Homebrew, mise, zoxide, and starship consistently on both fresh and existing machines.
+
 If Xcode Command Line Tools are missing, macOS will prompt for installation first. Re-run `bash ~/.config/initd/bootstrap.sh` after that finishes.
 
 ## Existing machine migration
@@ -131,6 +136,7 @@ Examples:
 - Git config: `~/.config/initd/git/.gitconfig`
 - Git profiles: `~/.config/initd/git/.config/git/profiles`
 - Runtime versions: `~/.config/initd/mise.toml`
+- Managed zsh snippets: `~/.config/initd/shell/.config/zsh`
 
 After editing, re-apply links with either:
 
