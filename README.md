@@ -14,7 +14,7 @@ The repo is structured for **multi-platform support later**, while only **macOS*
 ```text
 initd/
 ├── bootstrap.sh              # OS dispatcher
-├── mise.toml                 # Cross-platform runtime installs
+├── mise.toml                 # Runtime versions symlinked to ~/.config/mise/config.toml
 ├── git/                      # Stow package -> ~/.gitconfig
 ├── kitty/                    # Stow package -> ~/.config/kitty
 ├── nvim/                     # Stow package -> ~/.config/nvim
@@ -31,7 +31,7 @@ initd/
 
 - **stow packages** (`git/`, `kitty/`, `nvim/`): the source of truth for files that end up in `$HOME`
 - **`platforms/<os>/`**: package managers, OS defaults, and platform-specific setup
-- **`mise.toml`**: shared language runtimes across platforms
+- **`mise.toml`**: shared language runtimes across platforms, symlinked to `~/.config/mise/config.toml`
 - **`scripts/`**: shared helper scripts used by all platforms
 
 ### Stow package mapping
@@ -104,7 +104,7 @@ git clone <repo-url> ~/.config/initd
 bash ~/.config/initd/bootstrap.sh
 ```
 
-On a fresh machine, `bootstrap.sh` installs Homebrew packages, trusts `mise.toml`, installs runtimes from the repo root, and stows configs into place.
+On a fresh machine, `bootstrap.sh` installs Homebrew packages, symlinks `~/.config/mise/config.toml` to this repo's `mise.toml`, installs runtimes from the repo root, and stows configs into place.
 
 If Xcode Command Line Tools are missing, macOS will prompt for installation first. Re-run `bash ~/.config/initd/bootstrap.sh` after that finishes.
 
@@ -130,6 +130,7 @@ Examples:
 - Kitty config: `~/.config/initd/kitty/.config/kitty`
 - Git config: `~/.config/initd/git/.gitconfig`
 - Git profiles: `~/.config/initd/git/.config/git/profiles`
+- Runtime versions: `~/.config/initd/mise.toml`
 
 After editing, re-apply links with either:
 
@@ -144,6 +145,8 @@ bash ~/.config/initd/bootstrap.sh
 ```
 
 For Neovim plugin changes, update the files under `nvim/.config/nvim`, then open Neovim and run your normal plugin workflow such as `:Lazy sync`.
+
+For runtime version changes, edit `~/.config/initd/mise.toml`. Because `~/.config/mise/config.toml` is a symlink to that file, `mise up --bump` inside `~/.config/initd` updates the live global config too. Re-run `bash ~/.config/initd/bootstrap.sh` when you want bootstrap to refresh installed runtimes on the machine.
 
 ## Updating the curated Brewfile
 
