@@ -96,6 +96,7 @@ Examples:
 | `~/.config/nvim` | `~/.config/initd-backups/<timestamp>/.config/nvim` |
 | `~/.zshrc` | `~/.config/initd-backups/<timestamp>/.zshrc` |
 | `~/.zprofile` | `~/.config/initd-backups/<timestamp>/.zprofile` |
+| `~/.oh-my-zsh` | `~/.config/initd-backups/<timestamp>/.oh-my-zsh` |
 | legacy `~/.config/git` | `~/.config/initd-backups/<timestamp>/.config/git` |
 | legacy `~/.config/zsh` | `~/.config/initd-backups/<timestamp>/.config/zsh` |
 
@@ -130,6 +131,31 @@ To switch later:
 
 The profile switcher updates `git/profile.gitconfig` inside the repo. No `~/.config/git` runtime directory is needed.
 
+## Zsh and Oh My Zsh
+
+Zsh startup files are managed by `initd`:
+
+```text
+~/.zshrc     -> ~/.config/initd/zsh/.zshrc
+~/.zprofile  -> ~/.config/initd/zsh/.zprofile
+```
+
+Bootstrap installs Oh My Zsh into:
+
+```text
+~/.oh-my-zsh
+```
+
+If `~/.oh-my-zsh` already exists but is not an Oh My Zsh checkout, bootstrap backs it up to `~/.config/initd-backups/<timestamp>/.oh-my-zsh` before cloning Oh My Zsh.
+
+The managed `.zshrc`:
+
+1. Loads Homebrew shell environment when available
+2. Sets `ZSH="${HOME}/.oh-my-zsh"`
+3. Sources `oh-my-zsh.sh`
+4. Enables the `git` Oh My Zsh plugin
+5. Initializes `zoxide`, `mise`, and `starship` when those commands are installed
+
 ## Current macOS setup
 
 The macOS flow installs:
@@ -138,6 +164,7 @@ The macOS flow installs:
 - editor tooling: `neovim`, `tree-sitter`, `tree-sitter-cli`
 - runtimes manager: `mise`
 - runtimes via mise: `dotnet`, `go`, `node`, `python`, `ruby`, `terraform`
+- shell framework: Oh My Zsh installed into `~/.oh-my-zsh`
 - apps: `BetterDisplay`, `Copilot CLI`, `Docker Desktop`, `Ghostty`, `iTerm2`, `Kitty`, and `Visual Studio Code`
 - fonts including `FiraCode Nerd Font`, `Hack Nerd Font`, `JetBrains Mono Nerd Font`, `Meslo LG Nerd Font`, and `Victor Mono Nerd Font`
 - managed configs into runtime paths such as `~/.config/nvim`, `~/.config/kitty`, and `~/.gitconfig`
@@ -151,7 +178,7 @@ git clone <repo-url> ~/.config/initd
 bash ~/.config/initd/bootstrap.sh
 ```
 
-On a fresh machine, `bootstrap.sh` installs Homebrew packages, links configs into place, trusts the managed mise config, and installs runtimes from the repo root.
+On a fresh machine, `bootstrap.sh` installs Homebrew packages, installs Oh My Zsh, links configs into place, trusts the managed mise config, and installs runtimes from the repo root.
 
 Bootstrap verifies that all managed runtime config paths are symlinks into `~/.config/initd`.
 
@@ -159,7 +186,7 @@ If Xcode Command Line Tools are missing, macOS will prompt for installation firs
 
 ## Existing machine migration
 
-If you already have files at managed config paths such as `~/.config/nvim`, `~/.config/kitty`, `~/.gitconfig`, `~/.zshrc`, or `~/.zprofile`, bootstrap moves unmanaged files into `~/.config/initd-backups/<timestamp>/` and makes `initd` the default setup.
+If you already have files at managed config paths such as `~/.config/nvim`, `~/.config/kitty`, `~/.gitconfig`, `~/.zshrc`, `~/.zprofile`, or `~/.oh-my-zsh`, bootstrap moves unmanaged files into `~/.config/initd-backups/<timestamp>/` and makes `initd` the default setup.
 
 ```bash
 bash ~/.config/initd/bootstrap.sh
