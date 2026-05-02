@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
+MISE_CONFIG="${ROOT_DIR}/mise.toml"
+MISE_GLOBAL_CONFIG="${HOME}/.config/mise/config.toml"
 WORK_BREWFILE=""
 
 ensure_xcode_clt() {
@@ -36,7 +38,12 @@ ensure_mise_trust() {
     exit 1
   fi
 
-  mise trust "${ROOT_DIR}/mise.toml"
+  mise trust "${MISE_CONFIG}"
+}
+
+sync_mise_config() {
+  mkdir -p "$(dirname "${MISE_GLOBAL_CONFIG}")"
+  ln -snf "${MISE_CONFIG}" "${MISE_GLOBAL_CONFIG}"
 }
 
 prepare_brewfile() {
@@ -65,6 +72,9 @@ main() {
 
   echo "Installing macOS packages..."
   brew bundle --file "${WORK_BREWFILE}"
+
+  echo "Syncing global mise config..."
+  sync_mise_config
 
   echo "Trusting shared mise config..."
   ensure_mise_trust
