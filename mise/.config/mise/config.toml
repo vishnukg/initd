@@ -2,6 +2,8 @@
 dotnet = "latest"
 go = "1.26"
 node = "lts"
+npm = "latest"
 python = "3.14"
 ruby = "4.0"
 terraform = "latest"
+yarn = "latest"
