@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PACKAGES=(git kitty nvim)
+PACKAGES=(git kitty nvim shell)
 STOW_FLAGS=(--restow --dir "${ROOT_DIR}" --target "${HOME}")
 STOW_OUTPUT=""
 

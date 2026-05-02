@@ -5,6 +5,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
 MISE_CONFIG="${ROOT_DIR}/mise.toml"
 MISE_GLOBAL_CONFIG="${HOME}/.config/mise/config.toml"
+ZSHRC="${HOME}/.zshrc"
+ZPROFILE="${HOME}/.zprofile"
+INITD_ZSH="${HOME}/.config/zsh/initd.zsh"
+INITD_ZPROFILE="${HOME}/.config/zsh/initd.zprofile"
 WORK_BREWFILE=""
 
 ensure_xcode_clt() {
@@ -44,6 +48,22 @@ ensure_mise_trust() {
 sync_mise_config() {
   mkdir -p "$(dirname "${MISE_GLOBAL_CONFIG}")"
   ln -snf "${MISE_CONFIG}" "${MISE_GLOBAL_CONFIG}"
+}
+
+ensure_line_in_file() {
+  local file="$1"
+  local line="$2"
+
+  touch "${file}"
+
+  if ! grep -qxF "${line}" "${file}"; then
+    printf '\n%s\n' "${line}" >> "${file}"
+  fi
+}
+
+ensure_zsh_startup() {
+  ensure_line_in_file "${ZPROFILE}" "[[ -f \"${INITD_ZPROFILE}\" ]] && source \"${INITD_ZPROFILE}\""
+  ensure_line_in_file "${ZSHRC}" "[[ -f \"${INITD_ZSH}\" ]] && source \"${INITD_ZSH}\""
 }
 
 prepare_brewfile() {
@@ -90,6 +110,9 @@ main() {
 
   echo "Stowing managed configs..."
   "${ROOT_DIR}/scripts/stow.sh"
+
+  echo "Wiring zsh startup..."
+  ensure_zsh_startup
 
   if [[ ! -e "${HOME}/.config/git/profile.gitconfig" ]]; then
     echo "Setting default git profile..."
