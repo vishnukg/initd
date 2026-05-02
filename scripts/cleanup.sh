@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DRY_RUN=0
+LEGACY_ONLY=0
+MANAGED_LINKS=(
+  "${HOME}/.gitconfig:${ROOT_DIR}/git/.gitconfig"
+  "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
+  "${HOME}/.config/nvim:${ROOT_DIR}/nvim/.config/nvim"
+  "${HOME}/.config/mise:${ROOT_DIR}/mise/.config/mise"
+  "${HOME}/.zshrc:${ROOT_DIR}/zsh/.zshrc"
+  "${HOME}/.zprofile:${ROOT_DIR}/zsh/.zprofile"
+)
+LEGACY_LINKS=(
+  "${HOME}/.config/git:${ROOT_DIR}/git/.config/git"
+  "${HOME}/.config/zsh:${ROOT_DIR}/shell/.config/zsh"
+  "${HOME}/.zshrc:${ROOT_DIR}/zsh-home/.zshrc"
+  "${HOME}/.config/mise/config.toml:${ROOT_DIR}/mise.toml"
+)
+
+log() {
+  echo "==> $*"
+}
+
+usage() {
+  cat <<EOF
+Usage: ${0##*/} [--dry-run]
+
+Remove initd-managed symlinks from \$HOME.
+
+Options:
+  --dry-run      Print what would be removed without changing files.
+  --legacy-only  Remove only legacy initd symlinks from older layouts.
+  -h, --help     Show this help.
+EOF
+}
+
+resolve_symlink_target() {
+  local path="$1"
+  local target=""
+  local target_dir=""
+  local target_base=""
+
+  target="$(readlink "${path}")"
+
+  if [[ "${target}" = /* ]]; then
+    printf '%s\n' "${target}"
+    return
+  fi
+
+  target_dir="$(dirname "${path}")/$(dirname "${target}")"
+  target_base="$(basename "${target}")"
+
+  if [[ -d "${target_dir}" ]]; then
+    (
+      cd "${target_dir}"
+      printf '%s/%s\n' "$(pwd -P)" "${target_base}"
+    )
+    return
+  fi
+
+  printf '%s/%s\n' "${target_dir}" "${target_base}"
+}
+
+remove_link() {
+  local path="$1"
+  local expected="$2"
+  local label="$3"
+  local resolved=""
+
+  if [[ ! -L "${path}" ]]; then
+    if [[ -e "${path}" ]]; then
+      log "Leaving non-symlink ${path}"
+    else
+      log "Already absent: ${path}"
+    fi
+    return
+  fi
+
+  resolved="$(resolve_symlink_target "${path}")"
+
+  if [[ "${resolved}" != "${expected}" ]]; then
+    log "Leaving symlink outside initd ownership: ${path} -> $(readlink "${path}")"
+    return
+  fi
+
+  if (( DRY_RUN )); then
+    log "Would remove ${label}: ${path} -> $(readlink "${path}")"
+    return
+  fi
+
+  log "Removing ${label}: ${path}"
+  rm "${path}"
+}
+
+remove_legacy_link() {
+  local path="$1"
+  local expected="$2"
+  local resolved=""
+
+  if [[ ! -L "${path}" ]]; then
+    return
+  fi
+
+  resolved="$(resolve_symlink_target "${path}")"
+
+  if [[ "${resolved}" != "${expected}" ]]; then
+    return
+  fi
+
+  if (( DRY_RUN )); then
+    log "Would remove legacy symlink: ${path} -> $(readlink "${path}")"
+    return
+  fi
+
+  log "Removing legacy symlink: ${path}"
+  rm "${path}"
+}
+
+remove_empty_dir() {
+  local path="$1"
+
+  if [[ ! -d "${path}" || -L "${path}" ]]; then
+    return
+  fi
+
+  if rmdir "${path}" 2>/dev/null; then
+    log "Removed empty directory: ${path}"
+  fi
+}
+
+main() {
+  local link=""
+
+  while (($#)); do
+    case "$1" in
+      --dry-run)
+        DRY_RUN=1
+        ;;
+      --legacy-only)
+        LEGACY_ONLY=1
+        ;;
+      -h|--help)
+        usage
+        return
+        ;;
+      *)
+        echo "Unknown argument: $1" >&2
+        usage >&2
+        exit 1
+        ;;
+    esac
+    shift
+  done
+
+  log "Removing initd-managed symlinks from ${HOME}"
+
+  if (( ! LEGACY_ONLY )); then
+    for link in "${MANAGED_LINKS[@]}"; do
+      remove_link "${link%%:*}" "${link#*:}" "managed symlink"
+    done
+  fi
+
+  for link in "${LEGACY_LINKS[@]}"; do
+    remove_legacy_link "${link%%:*}" "${link#*:}"
+  done
+
+  if (( ! DRY_RUN && ! LEGACY_ONLY )); then
+    remove_empty_dir "${HOME}/.config/mise"
+  fi
+
+  log "Cleanup complete."
+}
+
+main "$@"
