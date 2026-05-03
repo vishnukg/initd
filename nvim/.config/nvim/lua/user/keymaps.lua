@@ -32,11 +32,13 @@ keymap("n", "<Right>", ':echoe "Use l"<cr>', opts)
 keymap("n", "<Up>", ':echoe "Use k"<cr>', opts)
 keymap("n", "<Down>", ':echoe "Use j"<cr>', opts)
 
--- Resize with Alt+arrows
+-- Resize with Alt+arrows and Ctrl-w angle keys
 keymap("n", "<A-Up>", ":resize +2<CR>", opts)
 keymap("n", "<A-Down>", ":resize -2<CR>", opts)
 keymap("n", "<A-Left>", ":vertical resize -2<CR>", opts)
 keymap("n", "<A-Right>", ":vertical resize +2<CR>", opts)
+keymap("n", "<C-w><", ":vertical resize -2<CR>", opts)
+keymap("n", "<C-w>>", ":vertical resize +2<CR>", opts)
 
 -- Navigate buffers
 keymap("n", "<S-l>", ":bnext<CR>", opts)
