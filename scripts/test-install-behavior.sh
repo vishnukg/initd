@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This test script lives in scripts/, so .. is the repository root.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# TEST_ROOT is created in main and removed by cleanup on exit.
 TEST_ROOT=""
 
 source "${ROOT_DIR}/scripts/logging.sh"

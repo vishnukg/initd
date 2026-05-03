@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This script lives in scripts/, so .. is the repository root.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DRY_RUN=0
 LEGACY_ONLY=0
+
+# Each item is "runtime path:expected initd source". Cleanup removes only links
+# that resolve to the expected source, leaving real user files untouched.
 MANAGED_LINKS=(
   "${HOME}/.gitconfig:${ROOT_DIR}/git/.gitconfig"
   "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
@@ -12,6 +16,8 @@ MANAGED_LINKS=(
   "${HOME}/.zshrc:${ROOT_DIR}/zsh/.zshrc"
   "${HOME}/.zprofile:${ROOT_DIR}/zsh/.zprofile"
 )
+
+# Known symlinks from older initd layouts. These can be removed safely when found.
 LEGACY_LINKS=(
   "${HOME}/.config/git:${ROOT_DIR}/git/.config/git"
   "${HOME}/.config/zsh:${ROOT_DIR}/shell/.config/zsh"
@@ -24,7 +30,7 @@ source "${ROOT_DIR}/scripts/fs.sh"
 
 usage() {
   cat <<EOF
-Usage: ${0##*/} [--dry-run]
+Usage: ${0##*/} [--dry-run] [--legacy-only]
 
 Remove initd-managed symlinks from \$HOME.
 
@@ -136,11 +142,13 @@ main() {
   # Normal cleanup removes current managed links first. Legacy cleanup always
   # runs too, because old initd shims can safely coexist with current links.
   if (( ! LEGACY_ONLY )); then
+    log "Checking current managed symlinks..."
     for link in "${MANAGED_LINKS[@]}"; do
       remove_link "${link%%:*}" "${link#*:}" "managed symlink"
     done
   fi
 
+  log "Checking legacy initd symlinks..."
   for link in "${LEGACY_LINKS[@]}"; do
     remove_legacy_link "${link%%:*}" "${link#*:}"
   done

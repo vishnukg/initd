@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This script lives in scripts/, so .. is the repository root.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# These package names match top-level stow package directories in the repo.
 PACKAGES=(kitty mise nvim zsh)
+
+# Stow reads from ROOT_DIR and creates links under HOME.
 STOW_FLAGS=(--restow --dir "${ROOT_DIR}" --target "${HOME}")
+
+# Each item is "HOME-relative target:repo-relative source".
 DIRECTORY_LINKS=(
   ".config/kitty:kitty/.config/kitty"
   ".config/mise:mise/.config/mise"
@@ -19,6 +26,8 @@ MANAGED_GITCONFIG="${ROOT_DIR}/git/.gitconfig"
 LEGACY_MISE_CONFIG="${ROOT_DIR}/mise.toml"
 STOW_OUTPUT=""
 VERIFY_WARNING="WARNING: in simulation mode so not modifying filesystem."
+
+# One timestamp per run keeps all preserved user files grouped together.
 BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
 
 source "${ROOT_DIR}/scripts/logging.sh"
@@ -244,6 +253,7 @@ main() {
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Stowing packages: ${PACKAGES[*]}"
   log "Target home directory: ${HOME}"
+  log "Preparing legacy paths and existing config directories..."
   remove_xdg_gitconfig_link
   remove_legacy_git_config_dir
   remove_legacy_zsh_links
@@ -251,6 +261,7 @@ main() {
   ensure_gitconfig_link
   fold_directory_links
 
+  log "Running GNU Stow for managed packages..."
   # Capture stow stderr so conflict errors can get a clearer, repo-specific
   # message while still streaming the original output to the terminal.
   if stow "${STOW_FLAGS[@]}" "${PACKAGES[@]}" 2> >(tee "${STOW_OUTPUT}" >&2); then
