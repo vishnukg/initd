@@ -20,6 +20,7 @@ LEGACY_LINKS=(
 )
 
 source "${ROOT_DIR}/scripts/logging.sh"
+source "${ROOT_DIR}/scripts/fs.sh"
 
 usage() {
   cat <<EOF
@@ -32,33 +33,6 @@ Options:
   --legacy-only  Remove only legacy initd symlinks from older layouts.
   -h, --help     Show this help.
 EOF
-}
-
-resolve_symlink_target() {
-  local path="$1"
-  local target=""
-  local target_dir=""
-  local target_base=""
-
-  target="$(readlink "${path}")"
-
-  if [[ "${target}" = /* ]]; then
-    printf '%s\n' "${target}"
-    return
-  fi
-
-  target_dir="$(dirname "${path}")/$(dirname "${target}")"
-  target_base="$(basename "${target}")"
-
-  if [[ -d "${target_dir}" ]]; then
-    (
-      cd "${target_dir}"
-      printf '%s/%s\n' "$(pwd -P)" "${target_base}"
-    )
-    return
-  fi
-
-  printf '%s/%s\n' "${target_dir}" "${target_base}"
 }
 
 remove_link() {
@@ -125,6 +99,8 @@ remove_empty_dir() {
     return
   fi
 
+  # Cleanup should not remove directories that still contain user files. rmdir
+  # gives us that safety for free because it only succeeds on empty directories.
   if rmdir "${path}" 2>/dev/null; then
     log "Removed empty directory: ${path}"
   fi
@@ -157,6 +133,8 @@ main() {
   log_info "Dry run: ${DRY_RUN}; legacy-only: ${LEGACY_ONLY}"
   log "Removing initd-managed symlinks from ${HOME}"
 
+  # Normal cleanup removes current managed links first. Legacy cleanup always
+  # runs too, because old initd shims can safely coexist with current links.
   if (( ! LEGACY_ONLY )); then
     for link in "${MANAGED_LINKS[@]}"; do
       remove_link "${link%%:*}" "${link#*:}" "managed symlink"

@@ -22,29 +22,12 @@ VERIFY_WARNING="WARNING: in simulation mode so not modifying filesystem."
 BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
 
 source "${ROOT_DIR}/scripts/logging.sh"
+source "${ROOT_DIR}/scripts/fs.sh"
 
 cleanup() {
   if [[ -n "${STOW_OUTPUT}" && -f "${STOW_OUTPUT}" ]]; then
     rm -f "${STOW_OUTPUT}"
   fi
-}
-
-resolve_symlink_target() {
-  local path="$1"
-  local target=""
-
-  target="$(readlink "${path}")"
-
-  if [[ "${target}" = /* ]]; then
-    printf '%s\n' "${target}"
-    return
-  fi
-
-  (
-    cd "$(dirname "${path}")"
-    cd "$(dirname "${target}")"
-    printf '%s/%s\n' "$(pwd -P)" "$(basename "${target}")"
-  )
 }
 
 entry_points_into_source() {
@@ -61,20 +44,6 @@ entry_points_into_source() {
   [[ "${resolved}" == "${source_dir}" || "${resolved}" == "${source_dir}/"* ]]
 }
 
-backup_path() {
-  local path="$1"
-  local relative="${path#"${HOME}/"}"
-  local backup="${BACKUP_ROOT}/${relative}"
-
-  if [[ ! -e "${path}" && ! -L "${path}" ]]; then
-    return
-  fi
-
-  mkdir -p "$(dirname "${backup}")"
-  log_warn "Backing up unmanaged ${path} -> ${backup}"
-  mv "${path}" "${backup}"
-}
-
 fold_existing_directory() {
   local target_relative="$1"
   local source_relative="$2"
@@ -87,6 +56,8 @@ fold_existing_directory() {
     return
   fi
 
+  # Direct directory symlinks are the preferred final shape. Anything else at the
+  # package root is either already correct or must be preserved before stow runs.
   if [[ -L "${target}" ]]; then
     if [[ "$(resolve_symlink_target "${target}")" == "${source}" ]]; then
       return
@@ -191,6 +162,8 @@ remove_legacy_zsh_config_dir() {
   local path="${HOME}/.config/zsh"
   local legacy_target="${ROOT_DIR}/shell/.config/zsh"
 
+  # The old zsh package lived under ~/.config/zsh. Current initd owns ~/.zshrc
+  # and ~/.zprofile directly, so only the known legacy symlink is removed.
   if [[ -L "${path}" && "$(resolve_symlink_target "${path}")" == "${legacy_target}" ]]; then
     log "Removing legacy ${path} symlink."
     rm "${path}"
@@ -207,6 +180,8 @@ remove_legacy_zsh_links() {
 }
 
 remove_xdg_gitconfig_link() {
+  # Older layouts pointed ~/.gitconfig at an XDG git config. Current initd keeps
+  # ~/.gitconfig as the compatibility entrypoint, so remove only that known shim.
   if [[ -L "${GITCONFIG}" && "$(resolve_symlink_target "${GITCONFIG}")" == "${XDG_GITCONFIG}" ]]; then
     log "Removing XDG ${GITCONFIG} symlink."
     rm "${GITCONFIG}"
@@ -214,6 +189,8 @@ remove_xdg_gitconfig_link() {
 }
 
 remove_legacy_git_config_dir() {
+  # ~/.config/git is no longer a runtime path. Preserve real user content, but
+  # remove the old initd symlink so Git has a single source of truth again.
   if [[ -L "${LEGACY_GIT_CONFIG_DIR}" && "$(resolve_symlink_target "${LEGACY_GIT_CONFIG_DIR}")" == "${LEGACY_GIT_CONFIG_SOURCE}" ]]; then
     log "Removing legacy ${LEGACY_GIT_CONFIG_DIR} symlink."
     rm "${LEGACY_GIT_CONFIG_DIR}"
@@ -224,6 +201,8 @@ remove_legacy_git_config_dir() {
 }
 
 ensure_gitconfig_link() {
+  # Git is linked manually instead of through stow because ~/.gitconfig is a
+  # home-level compatibility file while profile data lives inside git/.
   if [[ -L "${GITCONFIG}" && "$(resolve_symlink_target "${GITCONFIG}")" == "${MANAGED_GITCONFIG}" ]]; then
     return
   fi
@@ -241,6 +220,8 @@ verify_install() {
   local verify_status=0
   local filtered_output=""
 
+  # A successful stow command is not enough: simulation should report no pending
+  # link operations once everything is installed.
   verify_output="$(stow --simulate --verbose=1 --dir "${ROOT_DIR}" --target "${HOME}" "${PACKAGES[@]}" 2>&1)" || verify_status=$?
   filtered_output="$(printf '%s\n' "${verify_output}" | grep -vFx "${VERIFY_WARNING}" || true)"
 
@@ -270,6 +251,8 @@ main() {
   ensure_gitconfig_link
   fold_directory_links
 
+  # Capture stow stderr so conflict errors can get a clearer, repo-specific
+  # message while still streaming the original output to the terminal.
   if stow "${STOW_FLAGS[@]}" "${PACKAGES[@]}" 2> >(tee "${STOW_OUTPUT}" >&2); then
     verify_install
     return

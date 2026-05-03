@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
 MISE_CONFIG="${ROOT_DIR}/mise/.config/mise/config.toml"
+DOCKER_CASK="docker-desktop"
+DOCKER_APP="/Applications/Docker.app"
 OH_MY_ZSH_DIR="${HOME}/.oh-my-zsh"
 OH_MY_ZSH_REPO="https://github.com/ohmyzsh/ohmyzsh.git"
 ZSHRC="${HOME}/.zshrc"
@@ -14,24 +16,7 @@ BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
 WORK_BREWFILE=""
 
 source "${ROOT_DIR}/scripts/logging.sh"
-
-resolve_symlink_target() {
-  local path="$1"
-  local target=""
-
-  target="$(readlink "${path}")"
-
-  if [[ "${target}" = /* ]]; then
-    printf '%s\n' "${target}"
-    return
-  fi
-
-  (
-    cd "$(dirname "${path}")"
-    cd "$(dirname "${target}")"
-    printf '%s/%s\n' "$(pwd -P)" "$(basename "${target}")"
-  )
-}
+source "${ROOT_DIR}/scripts/fs.sh"
 
 require_command() {
   local command_name="$1"
@@ -41,20 +26,6 @@ require_command() {
     log_error "${command_name} is required ${context}."
     exit 1
   fi
-}
-
-backup_path() {
-  local path="$1"
-  local relative="${path#"${HOME}/"}"
-  local backup="${BACKUP_ROOT}/${relative}"
-
-  if [[ ! -e "${path}" && ! -L "${path}" ]]; then
-    return
-  fi
-
-  mkdir -p "$(dirname "${backup}")"
-  log_warn "Backing up unmanaged ${path} -> ${backup}"
-  mv "${path}" "${backup}"
 }
 
 verify_symlink_target() {
@@ -99,6 +70,8 @@ git_profile_is_managed() {
 
   resolved="$(resolve_symlink_target "${path}")"
 
+  # The active profile is allowed to change, but it must stay inside the curated
+  # profile directory so ~/.gitconfig never includes an arbitrary file.
   case "${resolved}" in
     "${ROOT_DIR}/git/profiles/"*)
       return 0
@@ -138,6 +111,9 @@ ensure_xcode_clt() {
   fi
 
   log_warn "Xcode Command Line Tools are required. Launching installer..."
+  # The installer command returns before the GUI install completes, and may also
+  # report that installation is already in progress. Either way, the user must
+  # finish it outside this script and rerun bootstrap.
   xcode-select --install || true
   log_info "Finish the Xcode Command Line Tools install, then re-run ./bootstrap.sh"
   exit 1
@@ -227,7 +203,22 @@ ensure_mise_trust() {
   mise trust "${MISE_CONFIG}"
 }
 
+verify_docker_desktop() {
+  # The Brewfile installs Docker Desktop on fresh machines. If Docker.app already
+  # existed before bootstrap, prepare_brewfile may skip the cask to avoid a
+  # Homebrew conflict; either case should leave Docker available on the machine.
+  if brew list --cask "${DOCKER_CASK}" >/dev/null 2>&1 || [[ -d "${DOCKER_APP}" ]]; then
+    log_success "Verified Docker Desktop."
+    return
+  fi
+
+  log_error "Docker Desktop was not installed. Re-run bootstrap or install the ${DOCKER_CASK} cask."
+  exit 1
+}
+
 verify_managed_links() {
+  # Bootstrap finishes only after checking the important user-visible paths. This
+  # catches partial stow runs or legacy paths that would otherwise fail later.
   log "Verifying managed links..."
   verify_symlink_target "${HOME}/.config/mise" "${ROOT_DIR}/mise/.config/mise" "mise config directory"
   verify_symlink_target "${HOME}/.gitconfig" "${ROOT_DIR}/git/.gitconfig" "home gitconfig"
@@ -249,9 +240,12 @@ prepare_brewfile() {
   log "Preparing Brewfile from ${BREWFILE}."
   cp "${BREWFILE}" "${WORK_BREWFILE}"
 
-  if [[ -d /Applications/Docker.app ]] && ! brew list --cask docker-desktop >/dev/null 2>&1; then
+  # Docker is commonly installed manually before this repo is adopted. Removing
+  # just this cask from the temporary Brewfile keeps bootstrap idempotent without
+  # changing the curated source Brewfile.
+  if [[ -d "${DOCKER_APP}" ]] && ! brew list --cask "${DOCKER_CASK}" >/dev/null 2>&1; then
     log_warn "Skipping Docker cask because /Applications/Docker.app already exists outside Homebrew."
-    awk '$0 != "cask \"docker-desktop\""' "${WORK_BREWFILE}" > "${WORK_BREWFILE}.tmp"
+    awk -v cask="${DOCKER_CASK}" '$0 != "cask \"" cask "\""' "${WORK_BREWFILE}" > "${WORK_BREWFILE}.tmp"
     mv "${WORK_BREWFILE}.tmp" "${WORK_BREWFILE}"
   else
     log "Using Brewfile as-is."
@@ -267,6 +261,8 @@ cleanup() {
 main() {
   trap cleanup EXIT
 
+  # Keep this flow as a high-level checklist; detailed migration and safety logic
+  # lives in helper functions or scripts.
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Starting initd bootstrap for macOS."
   ensure_xcode_clt
@@ -275,6 +271,7 @@ main() {
 
   log "Installing Homebrew packages and casks..."
   brew bundle --file "${WORK_BREWFILE}"
+  verify_docker_desktop
   require_command mise "after brew bundle"
   require_command stow "after brew bundle"
 
