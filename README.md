@@ -13,6 +13,7 @@ The repo is structured for **multi-platform support later**, while only **macOS*
 
 ```text
 initd/
+├── brewinstall               # Add formulae/casks to the curated Brewfile and install them
 ├── bootstrap.sh              # OS dispatcher
 ├── docs/                     # Maintenance notes and Bash reference
 ├── git/                      # Source of truth -> ~/.gitconfig
@@ -21,6 +22,7 @@ initd/
 ├── nvim/                     # Stow package -> ~/.config/nvim
 ├── zsh/                      # Stow package -> ~/.zshrc and ~/.zprofile
 ├── scripts/                  # Shared helper scripts
+│   ├── brewinstall.sh
 │   ├── cleanup.sh
 │   ├── fs.sh
 │   ├── git-profile.sh
@@ -262,8 +264,10 @@ For runtime version changes, edit `~/.config/initd/mise/.config/mise/config.toml
 
 When you decide a package should be part of bootstrap:
 
-1. Add or remove the relevant `brew` or `cask` entry in `platforms/darwin/Brewfile`.
+1. Add it with `./brewinstall <package>`, `./brewinstall --cask <package>`, or `./brewinstall --formula <package>`.
 2. Re-run `bash ~/.config/initd/bootstrap.sh` to confirm the curated list still applies cleanly.
+
+`brewinstall` detects whether a package is a formula or cask when possible, updates `platforms/darwin/Brewfile`, keeps Brewfile sections sorted and deduplicated, and applies the Brewfile locally with `brew bundle`.
 
 If you want Homebrew to dump your machine's current state as a starting point, you can use:
 

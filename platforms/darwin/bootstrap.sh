@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This script lives in platforms/darwin, so ../.. is the repository root.
+# Using an absolute ROOT_DIR lets bootstrap be run from any directory.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# Derived paths: keep source files in the repo, then point tools at them.
 BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
 MISE_CONFIG="${ROOT_DIR}/mise/.config/mise/config.toml"
 DOCKER_CASK="docker-desktop"
@@ -12,6 +16,8 @@ ZSHRC="${HOME}/.zshrc"
 ZPROFILE="${HOME}/.zprofile"
 MANAGED_ZSHRC="${ROOT_DIR}/zsh/.zshrc"
 MANAGED_ZPROFILE="${ROOT_DIR}/zsh/.zprofile"
+
+# One timestamp per run keeps all preserved user files grouped together.
 BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
 WORK_BREWFILE=""
 

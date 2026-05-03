@@ -33,6 +33,9 @@ resolve_symlink_target() {
 
 backup_path() {
   local path="$1"
+
+  # Convert an absolute HOME path into a HOME-relative path, so backups keep the
+  # same directory shape under BACKUP_ROOT.
   local relative="${path#"${HOME}/"}"
   local backup=""
 

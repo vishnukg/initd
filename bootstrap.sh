@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# BASH_SOURCE[0] is this script. dirname gives its folder, and pwd turns that
+# into an absolute repo path so the script works from any current directory.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OS="$(uname -s)"
 
