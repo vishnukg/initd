@@ -4,6 +4,11 @@ if not status_ok then
 end
 
 fzf.setup({
+	buffers = {
+		fzf_opts = {
+			["--header-lines"] = false,
+		},
+	},
 	keymap = {
 		fzf = {
 			["ctrl-n"] = "down",
