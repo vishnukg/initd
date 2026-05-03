@@ -14,6 +14,7 @@ The repo is structured for **multi-platform support later**, while only **macOS*
 ```text
 initd/
 ├── bootstrap.sh              # OS dispatcher
+├── docs/                     # Maintenance notes and Bash reference
 ├── git/                      # Source of truth -> ~/.gitconfig
 ├── kitty/                    # Stow package -> ~/.config/kitty
 ├── mise/                     # Stow package -> ~/.config/mise
@@ -21,8 +22,11 @@ initd/
 ├── zsh/                      # Stow package -> ~/.zshrc and ~/.zprofile
 ├── scripts/                  # Shared helper scripts
 │   ├── cleanup.sh
+│   ├── fs.sh
 │   ├── git-profile.sh
-│   └── stow.sh
+│   ├── logging.sh
+│   ├── stow.sh
+│   └── test-install-behavior.sh
 ├── platforms/
 │   └── darwin/
 │       ├── Brewfile
@@ -184,6 +188,14 @@ Bootstrap verifies that all managed runtime config paths are symlinks into `~/.c
 
 If Xcode Command Line Tools are missing, macOS will prompt for installation first. Re-run `bash ~/.config/initd/bootstrap.sh` after that finishes.
 
+If you are new to maintaining these scripts, see [`docs/bash-primer.md`](docs/bash-primer.md) for a repo-specific Bash reference.
+
+To safely check install, migration, and cleanup behavior without touching your real home directory:
+
+```bash
+~/.config/initd/scripts/test-install-behavior.sh
+```
+
 ## Existing machine migration
 
 If you already have files at managed config paths such as `~/.config/nvim`, `~/.config/kitty`, `~/.gitconfig`, `~/.zshrc`, `~/.zprofile`, or `~/.oh-my-zsh`, bootstrap moves unmanaged files into `~/.config/initd-backups/<timestamp>/`, refreshes clean Oh My Zsh checkouts, and makes `initd` the default setup.
@@ -194,7 +206,7 @@ bash ~/.config/initd/bootstrap.sh
 
 A rerun only reports success after stow verifies there is no remaining link work to do.
 
-If `/Applications/Docker.app` already exists but is not managed by Homebrew, bootstrap skips the `docker` cask instead of failing. A fresh machine still installs Docker normally.
+If `/Applications/Docker.app` already exists but is not managed by Homebrew, bootstrap skips the `docker-desktop` cask instead of failing. A fresh machine still installs Docker Desktop normally, and bootstrap verifies Docker Desktop is present after `brew bundle`.
 
 ## Updating configs later
 
