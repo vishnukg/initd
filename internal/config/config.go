@@ -10,13 +10,6 @@ import (
 	"path/filepath"
 )
 
-const (
-	// ProfilePersonal is the default Git profile used by the current bootstrap.
-	ProfilePersonal = "personal"
-	// ProfileWork is the alternate Git profile supported by scripts/git-profile.sh.
-	ProfileWork = "work"
-)
-
 // Env carries the filesystem roots used by initd.
 //
 // Passing these paths explicitly keeps internal packages testable and avoids
@@ -24,25 +17,6 @@ const (
 type Env struct {
 	HomeDir string
 	RootDir string
-}
-
-// ManagedLink describes one runtime path that should point at this repo.
-//
-// The absolute paths are what filesystem code should use. The relative paths are
-// kept for clear tests and for messages that explain the repo mapping.
-type ManagedLink struct {
-	Label          string
-	RuntimePath    string
-	SourcePath     string
-	RuntimeRelPath string
-	SourceRelPath  string
-}
-
-// GitProfile describes a complete Git config profile managed by initd.
-type GitProfile struct {
-	Name          string
-	SourcePath    string
-	SourceRelPath string
 }
 
 // NewEnv validates and normalizes the two roots that every initd operation uses.
@@ -60,14 +34,14 @@ func NewEnv(homeDir, rootDir string) (Env, error) {
 	}, nil
 }
 
-// HomePath converts a home-relative runtime path into an absolute path.
-func (e Env) HomePath(rel string) string {
-	return filepath.Join(e.HomeDir, rel)
+// HomePath converts a path relative to the user's home into an absolute path.
+func (e Env) HomePath(path string) string {
+	return filepath.Join(e.HomeDir, path)
 }
 
-// RootPath converts a repo-relative source path into an absolute path.
-func (e Env) RootPath(rel string) string {
-	return filepath.Join(e.RootDir, rel)
+// RootPath converts a path relative to the initd repo into an absolute path.
+func (e Env) RootPath(path string) string {
+	return filepath.Join(e.RootDir, path)
 }
 
 // StowPackages returns the package names used by the existing GNU Stow command.
@@ -75,14 +49,35 @@ func (e Env) StowPackages() []string {
 	return []string{"kitty", "mise", "nvim", "zsh"}
 }
 
+// Link describes one runtime path that should point at this repo.
+//
+// Target is relative to HomeDir, and Source is relative to RootDir. Keeping the
+// data relative makes the mapping easy to read and avoids storing the same path
+// twice in different forms.
+type Link struct {
+	Label  string
+	Target string
+	Source string
+}
+
+// LinkTarget returns the absolute runtime path for a link.
+func (e Env) LinkTarget(link Link) string {
+	return e.HomePath(link.Target)
+}
+
+// LinkSource returns the absolute repo source path for a link.
+func (e Env) LinkSource(link Link) string {
+	return e.RootPath(link.Source)
+}
+
 // DirectoryLinks returns config directories that should become direct symlinks.
 //
 // scripts/stow.sh has special migration logic for these paths before Stow runs.
-func (e Env) DirectoryLinks() []ManagedLink {
-	return []ManagedLink{
-		e.managedLink("kitty config directory", ".config/kitty", "kitty/.config/kitty"),
-		e.managedLink("mise config directory", ".config/mise", "mise/.config/mise"),
-		e.managedLink("nvim config directory", ".config/nvim", "nvim/.config/nvim"),
+func (e Env) DirectoryLinks() []Link {
+	return []Link{
+		{"kitty config directory", ".config/kitty", "kitty/.config/kitty"},
+		{"mise config directory", ".config/mise", "mise/.config/mise"},
+		{"nvim config directory", ".config/nvim", "nvim/.config/nvim"},
 	}
 }
 
@@ -90,13 +85,13 @@ func (e Env) DirectoryLinks() []ManagedLink {
 //
 // Git is excluded because ~/.gitconfig points at the active profile instead of a
 // single fixed source path.
-func (e Env) ManagedLinks() []ManagedLink {
-	return []ManagedLink{
-		e.managedLink("kitty config directory", ".config/kitty", "kitty/.config/kitty"),
-		e.managedLink("mise config directory", ".config/mise", "mise/.config/mise"),
-		e.managedLink("nvim config directory", ".config/nvim", "nvim/.config/nvim"),
-		e.managedLink("zshrc", ".zshrc", "zsh/.zshrc"),
-		e.managedLink("zprofile", ".zprofile", "zsh/.zprofile"),
+func (e Env) ManagedLinks() []Link {
+	return []Link{
+		{"kitty config directory", ".config/kitty", "kitty/.config/kitty"},
+		{"mise config directory", ".config/mise", "mise/.config/mise"},
+		{"nvim config directory", ".config/nvim", "nvim/.config/nvim"},
+		{"zshrc", ".zshrc", "zsh/.zshrc"},
+		{"zprofile", ".zprofile", "zsh/.zprofile"},
 	}
 }
 
@@ -104,14 +99,32 @@ func (e Env) ManagedLinks() []ManagedLink {
 //
 // Cleanup can remove these safely only when the runtime path resolves to the
 // expected legacy source path.
-func (e Env) LegacyLinks() []ManagedLink {
-	return []ManagedLink{
-		e.managedLink("legacy gitconfig", ".gitconfig", "git/.gitconfig"),
-		e.managedLink("legacy git config directory", ".config/git", "git/.config/git"),
-		e.managedLink("legacy zsh config directory", ".config/zsh", "shell/.config/zsh"),
-		e.managedLink("legacy zshrc", ".zshrc", "zsh-home/.zshrc"),
-		e.managedLink("legacy mise config", ".config/mise/config.toml", "mise.toml"),
+func (e Env) LegacyLinks() []Link {
+	return []Link{
+		{"legacy gitconfig", ".gitconfig", "git/.gitconfig"},
+		{"legacy git config directory", ".config/git", "git/.config/git"},
+		{"legacy zsh config directory", ".config/zsh", "shell/.config/zsh"},
+		{"legacy zshrc", ".zshrc", "zsh-home/.zshrc"},
+		{"legacy mise config", ".config/mise/config.toml", "mise.toml"},
 	}
+}
+
+const (
+	// ProfilePersonal is the default Git profile used by the current bootstrap.
+	ProfilePersonal = "personal"
+	// ProfileWork is the alternate Git profile supported by scripts/git-profile.sh.
+	ProfileWork = "work"
+)
+
+// GitProfile describes a complete Git config profile managed by initd.
+type GitProfile struct {
+	Name   string
+	Source string
+}
+
+// GitProfileSource returns the absolute repo source path for a Git profile.
+func (e Env) GitProfileSource(profile GitProfile) string {
+	return e.RootPath(profile.Source)
 }
 
 // GitConfigPath returns the runtime Git config path read by Git.
@@ -121,14 +134,14 @@ func (e Env) GitConfigPath() string {
 
 // DefaultGitProfile returns the profile selected by bootstrap on first setup.
 func (e Env) DefaultGitProfile() GitProfile {
-	return e.gitProfile(ProfilePersonal)
+	return GitProfile{ProfilePersonal, "git/profiles/personal.gitconfig"}
 }
 
 // GitProfiles returns the complete Git profiles supported by initd.
 func (e Env) GitProfiles() []GitProfile {
 	return []GitProfile{
-		e.gitProfile(ProfilePersonal),
-		e.gitProfile(ProfileWork),
+		{ProfilePersonal, "git/profiles/personal.gitconfig"},
+		{ProfileWork, "git/profiles/work.gitconfig"},
 	}
 }
 
@@ -161,24 +174,4 @@ func (e Env) LegacyZshrcContent() string {
 // LegacyZprofileContent returns the old one-line zprofile shim that initd can replace.
 func (e Env) LegacyZprofileContent() string {
 	return `[[ -f "${HOME}/.config/zsh/initd.zprofile" ]] && source "${HOME}/.config/zsh/initd.zprofile"`
-}
-
-func (e Env) managedLink(label, runtimeRelPath, sourceRelPath string) ManagedLink {
-	return ManagedLink{
-		Label:          label,
-		RuntimePath:    e.HomePath(runtimeRelPath),
-		SourcePath:     e.RootPath(sourceRelPath),
-		RuntimeRelPath: runtimeRelPath,
-		SourceRelPath:  sourceRelPath,
-	}
-}
-
-func (e Env) gitProfile(name string) GitProfile {
-	sourceRelPath := filepath.Join("git", "profiles", name+".gitconfig")
-
-	return GitProfile{
-		Name:          name,
-		SourcePath:    e.RootPath(sourceRelPath),
-		SourceRelPath: sourceRelPath,
-	}
 }

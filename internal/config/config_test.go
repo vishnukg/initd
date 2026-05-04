@@ -38,10 +38,15 @@ func TestGivenHomeAndRootInputs_WhenNewEnvIsCalled_ThenRequiredPathsAreValidated
 func TestGivenEnv_WhenHomeAndRootPathsAreExpanded_ThenAbsolutePathsUseTheExpectedRoots(t *testing.T) {
 	// Arrange
 	env := mustEnv(t)
+	link := Link{Target: ".config/nvim", Source: "nvim/.config/nvim"}
+	profile := GitProfile{Name: "work", Source: "git/profiles/work.gitconfig"}
 
 	// Act
 	gotHomePath := env.HomePath(".config/nvim")
 	gotRootPath := env.RootPath("nvim/.config/nvim")
+	gotLinkTarget := env.LinkTarget(link)
+	gotLinkSource := env.LinkSource(link)
+	gotGitProfileSource := env.GitProfileSource(profile)
 
 	// Assert
 	if want := filepath.Join(env.HomeDir, ".config/nvim"); gotHomePath != want {
@@ -50,6 +55,18 @@ func TestGivenEnv_WhenHomeAndRootPathsAreExpanded_ThenAbsolutePathsUseTheExpecte
 
 	if want := filepath.Join(env.RootDir, "nvim/.config/nvim"); gotRootPath != want {
 		t.Fatalf("RootPath = %q, want %q", gotRootPath, want)
+	}
+
+	if want := filepath.Join(env.HomeDir, ".config/nvim"); gotLinkTarget != want {
+		t.Fatalf("LinkTarget = %q, want %q", gotLinkTarget, want)
+	}
+
+	if want := filepath.Join(env.RootDir, "nvim/.config/nvim"); gotLinkSource != want {
+		t.Fatalf("LinkSource = %q, want %q", gotLinkSource, want)
+	}
+
+	if want := filepath.Join(env.RootDir, "git/profiles/work.gitconfig"); gotGitProfileSource != want {
+		t.Fatalf("GitProfileSource = %q, want %q", gotGitProfileSource, want)
 	}
 }
 
@@ -137,7 +154,7 @@ func TestGivenEnv_WhenGitProfilesAreRequested_ThenTheyMatchGitProfileScript(t *t
 	gotProfiles := env.GitProfiles()
 	got := make([][2]string, 0, len(gotProfiles))
 	for _, profile := range gotProfiles {
-		got = append(got, [2]string{profile.Name, profile.SourceRelPath})
+		got = append(got, [2]string{profile.Name, profile.Source})
 	}
 
 	// Assert
@@ -157,8 +174,8 @@ func TestGivenKnownGitProfileName_WhenGitProfileIsRequested_ThenProfileIsReturne
 	if !ok {
 		t.Fatal("GitProfile(work) returned ok=false")
 	}
-	if profile.SourcePath != filepath.Join(env.RootDir, "git/profiles/work.gitconfig") {
-		t.Fatalf("work profile source = %q", profile.SourcePath)
+	if profile.Source != "git/profiles/work.gitconfig" {
+		t.Fatalf("work profile source = %q", profile.Source)
 	}
 }
 
@@ -210,10 +227,10 @@ func TestGivenEnv_WhenSpecialLegacyPathsAreRequested_ThenTheyMatchCurrentMigrati
 	}
 }
 
-func linkRelPairs(links []ManagedLink) [][2]string {
+func linkRelPairs(links []Link) [][2]string {
 	pairs := make([][2]string, 0, len(links))
 	for _, link := range links {
-		pairs = append(pairs, [2]string{link.RuntimeRelPath, link.SourceRelPath})
+		pairs = append(pairs, [2]string{link.Target, link.Source})
 	}
 
 	return pairs

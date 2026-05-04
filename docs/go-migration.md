@@ -142,12 +142,15 @@ real home directory.
 Represent managed paths directly:
 
 ```go
-type ManagedLink struct {
-    RuntimePath string
-    SourcePath  string
-    Label       string
+type Link struct {
+    Label  string
+    Target string // relative to HomeDir
+    Source string // relative to RootDir
 }
 ```
+
+Keep link data relative and let `Env` expand it to absolute paths when needed.
+This avoids storing both relative and absolute versions of the same path.
 
 The current managed runtime paths are:
 
