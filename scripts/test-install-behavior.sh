@@ -97,7 +97,7 @@ test_clean_stow_install() {
   assert_symlink_resolves_to "${home}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty"
   assert_symlink_resolves_to "${home}/.config/mise" "${ROOT_DIR}/mise/.config/mise"
   assert_symlink_resolves_to "${home}/.config/nvim" "${ROOT_DIR}/nvim/.config/nvim"
-  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/.gitconfig"
+  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/personal.gitconfig"
   assert_symlink_resolves_to "${home}/.zshrc" "${ROOT_DIR}/zsh/.zshrc"
   assert_symlink_resolves_to "${home}/.zprofile" "${ROOT_DIR}/zsh/.zprofile"
 
@@ -138,6 +138,26 @@ test_backup_unmanaged_configs() {
   log_success "unmanaged config backup"
 }
 
+test_git_profile_switcher() {
+  local home=""
+  local output=""
+
+  home="$(new_home)"
+  output="${TEST_ROOT}/git-profile.out"
+
+  run_stow "${home}" "${output}"
+
+  HOME="${home}" "${ROOT_DIR}/scripts/git-profile.sh" work >>"${output}" 2>&1
+  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/work.gitconfig"
+  assert_output_contains "${output}" "Active git profile: work"
+
+  HOME="${home}" "${ROOT_DIR}/scripts/git-profile.sh" personal >>"${output}" 2>&1
+  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/personal.gitconfig"
+  assert_output_contains "${output}" "Active git profile: personal"
+
+  log_success "git profile switcher"
+}
+
 test_cleanup_managed_links() {
   local home=""
   local output=""
@@ -146,7 +166,7 @@ test_cleanup_managed_links() {
   output="${TEST_ROOT}/cleanup-managed.out"
 
   mkdir -p "${home}/.config" "${home}/outside"
-  ln -s "${ROOT_DIR}/git/.gitconfig" "${home}/.gitconfig"
+  ln -s "${ROOT_DIR}/git/profiles/work.gitconfig" "${home}/.gitconfig"
   ln -s "${ROOT_DIR}/kitty/.config/kitty" "${home}/.config/kitty"
   ln -s "${ROOT_DIR}/mise/.config/mise" "${home}/.config/mise"
   ln -s "${ROOT_DIR}/nvim/.config/nvim" "${home}/.config/nvim"
@@ -188,7 +208,7 @@ test_legacy_only_cleanup() {
   # Legacy-only mode is for tidying old layouts without touching current links.
   HOME="${home}" "${ROOT_DIR}/scripts/cleanup.sh" --legacy-only >"${output}" 2>&1
 
-  assert_symlink "${home}/.gitconfig"
+  assert_path_missing "${home}/.gitconfig"
   assert_path_missing "${home}/.config/git"
   assert_path_missing "${home}/.config/zsh"
   assert_path_missing "${home}/.zshrc"
@@ -241,7 +261,7 @@ test_legacy_stow_migration() {
   # be real user config.
   run_stow "${home}" "${output}"
 
-  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/.gitconfig"
+  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/personal.gitconfig"
   assert_path_missing "${home}/.config/git"
   assert_symlink_resolves_to "${home}/.config/mise" "${ROOT_DIR}/mise/.config/mise"
   assert_symlink_resolves_to "${home}/.zshrc" "${ROOT_DIR}/zsh/.zshrc"
@@ -261,6 +281,7 @@ main() {
   log "Running install behavior tests in ${TEST_ROOT}"
   test_clean_stow_install
   test_backup_unmanaged_configs
+  test_git_profile_switcher
   test_cleanup_managed_links
   test_legacy_only_cleanup
   test_directory_folding

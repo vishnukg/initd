@@ -22,7 +22,8 @@ GITCONFIG="${HOME}/.gitconfig"
 XDG_GITCONFIG="${HOME}/.config/git/.gitconfig"
 LEGACY_GIT_CONFIG_DIR="${HOME}/.config/git"
 LEGACY_GIT_CONFIG_SOURCE="${ROOT_DIR}/git/.config/git"
-MANAGED_GITCONFIG="${ROOT_DIR}/git/.gitconfig"
+DEFAULT_GIT_PROFILE="${ROOT_DIR}/git/profiles/personal.gitconfig"
+LEGACY_GITCONFIG="${ROOT_DIR}/git/.gitconfig"
 LEGACY_MISE_CONFIG="${ROOT_DIR}/mise.toml"
 STOW_OUTPUT=""
 VERIFY_WARNING="WARNING: in simulation mode so not modifying filesystem."
@@ -210,18 +211,30 @@ remove_legacy_git_config_dir() {
 }
 
 ensure_gitconfig_link() {
+  local resolved=""
+
   # Git is linked manually instead of through stow because ~/.gitconfig is a
-  # home-level compatibility file while profile data lives inside git/.
-  if [[ -L "${GITCONFIG}" && "$(resolve_symlink_target "${GITCONFIG}")" == "${MANAGED_GITCONFIG}" ]]; then
-    return
+  # home-level compatibility file while profile data lives inside git/profiles/.
+  if [[ -L "${GITCONFIG}" ]]; then
+    resolved="$(resolve_symlink_target "${GITCONFIG}")"
+
+    case "${resolved}" in
+      "${ROOT_DIR}/git/profiles/personal.gitconfig"|"${ROOT_DIR}/git/profiles/work.gitconfig")
+        return
+        ;;
+      "${LEGACY_GITCONFIG}")
+        log "Replacing legacy ${GITCONFIG} Git config link."
+        rm "${GITCONFIG}"
+        ;;
+    esac
   fi
 
   if [[ -e "${GITCONFIG}" || -L "${GITCONFIG}" ]]; then
     backup_path "${GITCONFIG}"
   fi
 
-  log "Linking ${GITCONFIG} -> ${MANAGED_GITCONFIG}."
-  ln -s "${MANAGED_GITCONFIG}" "${GITCONFIG}"
+  log "Linking ${GITCONFIG} -> ${DEFAULT_GIT_PROFILE}."
+  ln -s "${DEFAULT_GIT_PROFILE}" "${GITCONFIG}"
 }
 
 verify_install() {

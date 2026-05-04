@@ -9,7 +9,6 @@ LEGACY_ONLY=0
 # Each item is "runtime path:expected initd source". Cleanup removes only links
 # that resolve to the expected source, leaving real user files untouched.
 MANAGED_LINKS=(
-  "${HOME}/.gitconfig:${ROOT_DIR}/git/.gitconfig"
   "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
   "${HOME}/.config/nvim:${ROOT_DIR}/nvim/.config/nvim"
   "${HOME}/.config/mise:${ROOT_DIR}/mise/.config/mise"
@@ -19,6 +18,7 @@ MANAGED_LINKS=(
 
 # Known symlinks from older initd layouts. These can be removed safely when found.
 LEGACY_LINKS=(
+  "${HOME}/.gitconfig:${ROOT_DIR}/git/.gitconfig"
   "${HOME}/.config/git:${ROOT_DIR}/git/.config/git"
   "${HOME}/.config/zsh:${ROOT_DIR}/shell/.config/zsh"
   "${HOME}/.zshrc:${ROOT_DIR}/zsh-home/.zshrc"
@@ -72,6 +72,37 @@ remove_link() {
   # unrelated symlinks are intentionally left in place.
   log "Removing ${label}: ${path}"
   rm "${path}"
+}
+
+remove_git_profile_link() {
+  local path="${HOME}/.gitconfig"
+  local resolved=""
+
+  if [[ ! -L "${path}" ]]; then
+    if [[ -e "${path}" ]]; then
+      log "Leaving non-symlink ${path}"
+    else
+      log "Already absent: ${path}"
+    fi
+    return
+  fi
+
+  resolved="$(resolve_symlink_target "${path}")"
+
+  case "${resolved}" in
+    "${ROOT_DIR}/git/profiles/personal.gitconfig"|"${ROOT_DIR}/git/profiles/work.gitconfig")
+      if (( DRY_RUN )); then
+        log "Would remove managed Git profile symlink: ${path} -> $(readlink "${path}")"
+        return
+      fi
+
+      log "Removing managed Git profile symlink: ${path}"
+      rm "${path}"
+      ;;
+    *)
+      log_warn "Leaving symlink outside initd ownership: ${path} -> $(readlink "${path}")"
+      ;;
+  esac
 }
 
 remove_legacy_link() {
@@ -143,6 +174,7 @@ main() {
   # runs too, because old initd shims can safely coexist with current links.
   if (( ! LEGACY_ONLY )); then
     log "Checking current managed symlinks..."
+    remove_git_profile_link
     for link in "${MANAGED_LINKS[@]}"; do
       remove_link "${link%%:*}" "${link#*:}" "managed symlink"
     done

@@ -67,7 +67,7 @@ verify_path_missing() {
 }
 
 git_profile_is_managed() {
-  local path="${ROOT_DIR}/git/profile.gitconfig"
+  local path="${HOME}/.gitconfig"
   local resolved=""
 
   if [[ ! -L "${path}" ]]; then
@@ -76,10 +76,10 @@ git_profile_is_managed() {
 
   resolved="$(resolve_symlink_target "${path}")"
 
-  # The active profile is allowed to change, but it must stay inside the curated
-  # profile directory so ~/.gitconfig never includes an arbitrary file.
+  # The active profile is allowed to change, but ~/.gitconfig must point directly
+  # at one of the curated profile files.
   case "${resolved}" in
-    "${ROOT_DIR}/git/profiles/"*)
+    "${ROOT_DIR}/git/profiles/personal.gitconfig"|"${ROOT_DIR}/git/profiles/work.gitconfig")
       return 0
       ;;
     *)
@@ -89,10 +89,10 @@ git_profile_is_managed() {
 }
 
 verify_profile_symlink() {
-  local path="${ROOT_DIR}/git/profile.gitconfig"
+  local path="${HOME}/.gitconfig"
 
   if ! git_profile_is_managed; then
-    log_error "git profile config points outside the managed profiles directory: ${path}"
+    log_error "home gitconfig points outside the managed profiles directory: ${path}"
     log_info "Resolved: $(resolve_symlink_target "${path}" 2>/dev/null || echo missing)"
     exit 1
   fi
@@ -227,7 +227,6 @@ verify_managed_links() {
   # catches partial stow runs or legacy paths that would otherwise fail later.
   log "Verifying managed links..."
   verify_symlink_target "${HOME}/.config/mise" "${ROOT_DIR}/mise/.config/mise" "mise config directory"
-  verify_symlink_target "${HOME}/.gitconfig" "${ROOT_DIR}/git/.gitconfig" "home gitconfig"
   verify_path_missing "${HOME}/.config/git" "legacy git config directory"
   verify_symlink_target "${HOME}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty" "kitty config directory"
   verify_symlink_target "${HOME}/.config/nvim" "${ROOT_DIR}/nvim/.config/nvim" "nvim config directory"

@@ -16,7 +16,7 @@ initd/
 ├── brewinstall               # Add formulae/casks to the curated Brewfile and install them
 ├── bootstrap.sh              # OS dispatcher
 ├── docs/                     # Maintenance notes and Bash reference
-├── git/                      # Source of truth -> ~/.gitconfig
+├── git/                      # Git profiles -> ~/.gitconfig
 ├── kitty/                    # Stow package -> ~/.config/kitty
 ├── mise/                     # Stow package -> ~/.config/mise
 ├── nvim/                     # Stow package -> ~/.config/nvim
@@ -48,7 +48,7 @@ initd/
 
 | Runtime path | Source in `initd` | Managed by |
 |---|---|
-| `~/.gitconfig` | `git/.gitconfig` | `scripts/stow.sh` |
+| `~/.gitconfig` | `git/profiles/personal.gitconfig` or `git/profiles/work.gitconfig` | `scripts/stow.sh` and `scripts/git-profile.sh` |
 | `~/.config/kitty` | `kitty/.config/kitty` | GNU Stow via `scripts/stow.sh` |
 | `~/.config/mise` | `mise/.config/mise` | GNU Stow via `scripts/stow.sh` |
 | `~/.config/nvim` | `nvim/.config/nvim` | GNU Stow via `scripts/stow.sh` |
@@ -65,16 +65,16 @@ That means you edit files **inside `initd`**, not the live paths in `$HOME`.
 stow --restow --dir ~/.config/initd --target "$HOME" kitty mise nvim zsh
 ```
 
-Git is handled separately because `~/.gitconfig` is a single home-level compatibility file while the rest of the Git source lives under `initd/git`:
+Git is handled separately because `~/.gitconfig` is a single home-level compatibility file while profiles live under `initd/git/profiles`:
 
-- `~/.gitconfig` is linked directly to `~/.config/initd/git/.gitconfig`
+- `~/.gitconfig` is linked directly to the active full profile file
 
 The resulting live symlinks are:
 
 - `~/.config/nvim` -> `~/.config/initd/nvim/.config/nvim`
 - `~/.config/kitty` -> `~/.config/initd/kitty/.config/kitty`
 - `~/.config/mise` -> `~/.config/initd/mise/.config/mise`
-- `~/.gitconfig` -> `~/.config/initd/git/.gitconfig`
+- `~/.gitconfig` -> `~/.config/initd/git/profiles/personal.gitconfig` or `~/.config/initd/git/profiles/work.gitconfig`
 - `~/.zshrc` -> `~/.config/initd/zsh/.zshrc`
 - `~/.zprofile` -> `~/.config/initd/zsh/.zprofile`
 
@@ -110,17 +110,11 @@ The backup directory is outside the repo, so it is not stowed and does not becom
 
 ## Git profiles
 
-Git name is managed in `git/.gitconfig`, and the active email is selected by the repo-local symlink:
+Each Git profile is a complete Git config. The files intentionally duplicate shared settings so switching profiles is just changing the `~/.gitconfig` symlink:
 
 ```bash
-~/.config/initd/git/profile.gitconfig
-```
-
-`git/.gitconfig` includes that file directly:
-
-```ini
-[include]
-	path = ~/.config/initd/git/profile.gitconfig
+~/.config/initd/git/profiles/personal.gitconfig
+~/.config/initd/git/profiles/work.gitconfig
 ```
 
 Bootstrap sets the default profile to **personal** on first run:
@@ -135,7 +129,7 @@ To switch later:
 ~/.config/initd/scripts/git-profile.sh work
 ```
 
-The profile switcher updates `git/profile.gitconfig` inside the repo. No `~/.config/git` runtime directory is needed.
+The profile switcher updates `~/.gitconfig` directly. No common include file or `~/.config/git` runtime directory is needed.
 
 ## Zsh and Oh My Zsh
 
@@ -218,7 +212,6 @@ Examples:
 
 - Neovim config: `~/.config/initd/nvim/.config/nvim`
 - Kitty config: `~/.config/initd/kitty/.config/kitty`
-- Git config: `~/.config/initd/git/.gitconfig`
 - Git profiles: `~/.config/initd/git/profiles`
 - Runtime versions: `~/.config/initd/mise/.config/mise/config.toml`
 - Zsh startup: `~/.config/initd/zsh`
