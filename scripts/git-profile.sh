@@ -7,18 +7,39 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Default to the personal profile when no profile name is provided.
 PROFILE="${1:-personal}"
 
-# SOURCE is the requested profile; TARGET is the stable include path used by git/.gitconfig.
+# SOURCE is the requested profile; TARGET is the Git config path that Git reads.
 SOURCE="${ROOT_DIR}/git/profiles/${PROFILE}.gitconfig"
-TARGET="${ROOT_DIR}/git/profile.gitconfig"
+TARGET="${HOME}/.gitconfig"
+LEGACY_GITCONFIG="${ROOT_DIR}/git/.gitconfig"
 
 source "${ROOT_DIR}/scripts/logging.sh"
+source "${ROOT_DIR}/scripts/fs.sh"
 
 usage() {
   cat <<EOF
 Usage: ${0##*/} [personal|work]
 
-Switch the repo-local Git profile used by ~/.gitconfig.
+Switch ~/.gitconfig to the requested initd Git profile.
 EOF
+}
+
+gitconfig_is_switchable() {
+  local resolved=""
+
+  if [[ ! -L "${TARGET}" ]]; then
+    return 1
+  fi
+
+  resolved="$(resolve_symlink_target "${TARGET}")"
+
+  case "${resolved}" in
+    "${ROOT_DIR}/git/profiles/personal.gitconfig"|"${ROOT_DIR}/git/profiles/work.gitconfig"|"${LEGACY_GITCONFIG}")
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 if [[ "${PROFILE}" == "-h" || "${PROFILE}" == "--help" ]]; then
@@ -33,11 +54,12 @@ if [[ ! -f "${SOURCE}" ]]; then
   exit 1
 fi
 
-# profile.gitconfig is intentionally a repo-local symlink so ~/.gitconfig can
-# include one stable path while this script switches between named profiles.
-log "Linking git profile ${PROFILE}."
-(
-  cd "$(dirname "${TARGET}")"
-  ln -snf "profiles/${PROFILE}.gitconfig" "$(basename "${TARGET}")"
-)
+if [[ -e "${TARGET}" || -L "${TARGET}" ]] && ! gitconfig_is_switchable; then
+  log_error "${TARGET} already exists and is not an initd-managed Git profile link."
+  log_info "Run scripts/stow.sh or back up the file before switching profiles."
+  exit 1
+fi
+
+log "Linking ${TARGET} -> ${SOURCE}."
+ln -snf "${SOURCE}" "${TARGET}"
 log_success "Active git profile: ${PROFILE}"
