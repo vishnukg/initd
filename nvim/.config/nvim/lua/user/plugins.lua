@@ -260,6 +260,19 @@ return lazy.setup({
 	{
 		"GustavEikaas/easy-dotnet.nvim",
 		dependencies = { "nvim-lua/plenary.nvim", "ibhagwan/fzf-lua" },
+		cmd = "Dotnet",
+		event = {
+			"BufReadPost *.csproj",
+			"BufReadPost *.fsproj",
+			"BufReadPost *.vbproj",
+			"BufReadPost *.sln",
+			"BufReadPost *.slnx",
+			"BufNewFile *.csproj",
+			"BufNewFile *.fsproj",
+			"BufNewFile *.vbproj",
+			"BufNewFile *.sln",
+			"BufNewFile *.slnx",
+		},
 		config = function()
 			require("easy-dotnet").setup({
 				picker = "fzf",
