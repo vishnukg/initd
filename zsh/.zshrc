@@ -2,6 +2,11 @@ if [[ -x /opt/homebrew/bin/brew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
+local_bin="${HOME}/.local/bin"
+if [[ -d "${local_bin}" && ":${PATH}:" != *":${local_bin}:"* ]]; then
+  export PATH="${local_bin}:${PATH}"
+fi
+
 dotnet_tools="${HOME}/.dotnet/tools"
 if [[ -d "${dotnet_tools}" && ":${PATH}:" != *":${dotnet_tools}:"* ]]; then
   export PATH="${dotnet_tools}:${PATH}"
