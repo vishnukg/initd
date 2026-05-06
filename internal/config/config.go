@@ -44,11 +44,6 @@ func (e Env) RootPath(path string) string {
 	return filepath.Join(e.RootDir, path)
 }
 
-// StowPackages returns the package names used by the existing GNU Stow command.
-func (e Env) StowPackages() []string {
-	return []string{"kitty", "mise", "nvim", "zsh"}
-}
-
 // Link describes one runtime path that should point at this repo.
 //
 // Target is relative to HomeDir, and Source is relative to RootDir. Keeping the
@@ -72,7 +67,7 @@ func (e Env) LinkSource(link Link) string {
 
 // DirectoryLinks returns config directories that should become direct symlinks.
 //
-// scripts/stow.sh has special migration logic for these paths before Stow runs.
+// scripts/link.sh has special migration logic for these paths before linking.
 func (e Env) DirectoryLinks() []Link {
 	return []Link{
 		{"kitty config directory", ".config/kitty", "kitty/.config/kitty"},
