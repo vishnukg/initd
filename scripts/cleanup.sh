@@ -1,32 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# This script lives in scripts/, so .. is the repository root.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DRY_RUN=0
 LEGACY_ONLY=0
 
-# Each item is "runtime path:expected initd source". Cleanup removes only links
-# that resolve to the expected source, leaving real user files untouched.
-MANAGED_LINKS=(
-  "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
-  "${HOME}/.config/nvim:${ROOT_DIR}/nvim/.config/nvim"
-  "${HOME}/.config/mise:${ROOT_DIR}/mise/.config/mise"
-  "${HOME}/.zshrc:${ROOT_DIR}/zsh/.zshrc"
-  "${HOME}/.zprofile:${ROOT_DIR}/zsh/.zprofile"
-)
-
-# Known symlinks from older initd layouts. These can be removed safely when found.
-LEGACY_LINKS=(
-  "${HOME}/.gitconfig:${ROOT_DIR}/git/.gitconfig"
-  "${HOME}/.config/git:${ROOT_DIR}/git/.config/git"
-  "${HOME}/.config/zsh:${ROOT_DIR}/shell/.config/zsh"
-  "${HOME}/.zshrc:${ROOT_DIR}/zsh-home/.zshrc"
-  "${HOME}/.config/mise/config.toml:${ROOT_DIR}/mise.toml"
-)
-
 source "${ROOT_DIR}/scripts/logging.sh"
 source "${ROOT_DIR}/scripts/fs.sh"
+source "${ROOT_DIR}/scripts/paths.sh"
 
 usage() {
   cat <<EOF
@@ -89,8 +70,8 @@ remove_git_profile_link() {
 
   resolved="$(resolve_symlink_target "${path}")"
 
-  case "${resolved}" in
-    "${ROOT_DIR}/git/profiles/personal.gitconfig"|"${ROOT_DIR}/git/profiles/work.gitconfig")
+  for expected in "${GIT_PROFILE_TARGETS[@]}"; do
+    if [[ "${resolved}" == "${expected}" ]]; then
       if (( DRY_RUN )); then
         log "Would remove managed Git profile symlink: ${path} -> $(readlink "${path}")"
         return
@@ -98,11 +79,11 @@ remove_git_profile_link() {
 
       log "Removing managed Git profile symlink: ${path}"
       rm "${path}"
-      ;;
-    *)
-      log_warn "Leaving symlink outside initd ownership: ${path} -> $(readlink "${path}")"
-      ;;
-  esac
+      return
+    fi
+  done
+
+  log_warn "Leaving symlink outside initd ownership: ${path} -> $(readlink "${path}")"
 }
 
 remove_legacy_link() {

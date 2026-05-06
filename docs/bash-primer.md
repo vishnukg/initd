@@ -325,20 +325,12 @@ command -v brew >/dev/null 2>&1
 | `2>&1` | Send standard error to the same place as standard output. |
 | `>&2` | Print to standard error. |
 
-Process substitution appears in `scripts/stow.sh`:
-
-```bash
-stow ... 2> >(tee "${STOW_OUTPUT}" >&2)
-```
-
-This sends stow's error output to `tee`, which both writes it to a temp file and prints it to the terminal.
-
 ## Pipelines and fallbacks
 
 Pipelines connect commands:
 
 ```bash
-printf '%s\n' "${verify_output}" | grep -vFx "${VERIFY_WARNING}" || true
+grep -v '^[[:space:]]*$' "${path}" || true
 ```
 
 `|| true` means "do not fail the script if the previous command found nothing." This is important with `set -e`, because `grep` exits with failure when there are no matches.
@@ -393,9 +385,10 @@ trap cleanup EXIT
 ```bash
 source "${ROOT_DIR}/scripts/logging.sh"
 source "${ROOT_DIR}/scripts/fs.sh"
+source "${ROOT_DIR}/scripts/paths.sh"
 ```
 
-This is how scripts share `log`, `log_error`, `resolve_symlink_target`, and `backup_path`.
+This is how scripts share `log`, `log_error`, `resolve_symlink_target`, `backup_path`, and the managed path lists.
 
 ## Logging helpers
 
@@ -405,7 +398,7 @@ The repo uses small wrappers instead of plain `echo`:
 log "Starting initd bootstrap for macOS."
 log_success "Managed symlinks verified."
 log_warn "Backing up unmanaged ${path} -> ${backup}"
-log_error "stow failed before managed links were fully installed."
+log_error "Managed path points to the wrong target: ${path}"
 ```
 
 These helpers live in `scripts/logging.sh` and keep output consistent.
@@ -424,7 +417,6 @@ These helpers live in `scripts/logging.sh` and keep output consistent.
 | `mktemp` | Create a temporary file. |
 | `grep` | Search or filter text. |
 | `awk` | Filter one line out of the temporary Brewfile. |
-| `stow` | Create managed dotfile symlinks. |
 | `brew bundle` | Install Homebrew packages from the Brewfile. |
 | `mise trust` / `mise install` | Trust config and install runtimes. |
 
@@ -432,17 +424,18 @@ These helpers live in `scripts/logging.sh` and keep output consistent.
 
 1. Keep `main` readable. It should describe the flow at a high level.
 2. Put reusable filesystem logic in `scripts/fs.sh`.
-3. Put logging changes in `scripts/logging.sh`.
-4. Prefer small functions with names like `ensure_*`, `verify_*`, `remove_*`, and `prepare_*`.
-5. Always quote variables unless you intentionally want word splitting.
-6. Be careful with `rm`, `mv`, and symlink logic. Test with a temporary `HOME` first.
+3. Put shared ownership paths in `scripts/paths.sh`.
+4. Put logging changes in `scripts/logging.sh`.
+5. Prefer small functions with names like `ensure_*`, `verify_*`, `remove_*`, and `prepare_*`.
+6. Always quote variables unless you intentionally want word splitting.
+7. Be careful with `rm`, `mv`, and symlink logic. Test with a temporary `HOME` first.
 
 ## Validation commands
 
 Run syntax checks after edits:
 
 ```bash
-bash -n bootstrap.sh platforms/darwin/bootstrap.sh platforms/darwin/macos.sh scripts/stow.sh scripts/cleanup.sh scripts/git-profile.sh scripts/logging.sh scripts/fs.sh scripts/test-install-behavior.sh
+bash -n bootstrap.sh platforms/darwin/bootstrap.sh platforms/darwin/macos.sh scripts/link.sh scripts/cleanup.sh scripts/git-profile.sh scripts/logging.sh scripts/fs.sh scripts/paths.sh scripts/test-install-behavior.sh
 ```
 
 Check for whitespace errors:
@@ -459,11 +452,11 @@ scripts/test-install-behavior.sh
 
 The test script creates temporary homes and checks clean installs, unmanaged config backups, cleanup behavior, legacy-only cleanup, directory folding, and legacy migrations.
 
-You can also test stow manually with a temporary home:
+You can also test managed links manually with a temporary home:
 
 ```bash
 tmp_home="$(mktemp -d)"
-HOME="${tmp_home}" scripts/stow.sh
+HOME="${tmp_home}" scripts/link.sh
 rm -rf "${tmp_home}"
 ```
 

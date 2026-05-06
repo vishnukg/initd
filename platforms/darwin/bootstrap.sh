@@ -12,10 +12,6 @@ DOCKER_CASK="docker-desktop"
 DOCKER_APP="/Applications/Docker.app"
 OH_MY_ZSH_DIR="${HOME}/.oh-my-zsh"
 OH_MY_ZSH_REPO="https://github.com/ohmyzsh/ohmyzsh.git"
-ZSHRC="${HOME}/.zshrc"
-ZPROFILE="${HOME}/.zprofile"
-MANAGED_ZSHRC="${ROOT_DIR}/zsh/.zshrc"
-MANAGED_ZPROFILE="${ROOT_DIR}/zsh/.zprofile"
 
 # One timestamp per run keeps all preserved user files grouped together.
 BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
@@ -23,6 +19,7 @@ WORK_BREWFILE=""
 
 source "${ROOT_DIR}/scripts/logging.sh"
 source "${ROOT_DIR}/scripts/fs.sh"
+source "${ROOT_DIR}/scripts/paths.sh"
 
 require_command() {
   local command_name="$1"
@@ -69,6 +66,7 @@ verify_path_missing() {
 git_profile_is_managed() {
   local path="${HOME}/.gitconfig"
   local resolved=""
+  local expected=""
 
   if [[ ! -L "${path}" ]]; then
     return 1
@@ -76,16 +74,13 @@ git_profile_is_managed() {
 
   resolved="$(resolve_symlink_target "${path}")"
 
-  # The active profile is allowed to change, but ~/.gitconfig must point directly
-  # at one of the curated profile files.
-  case "${resolved}" in
-    "${ROOT_DIR}/git/profiles/personal.gitconfig"|"${ROOT_DIR}/git/profiles/work.gitconfig")
+  for expected in "${GIT_PROFILE_TARGETS[@]}"; do
+    if [[ "${resolved}" == "${expected}" ]]; then
       return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
+    fi
+  done
+
+  return 1
 }
 
 verify_profile_symlink() {
@@ -223,15 +218,15 @@ verify_docker_desktop() {
 }
 
 verify_managed_links() {
+  local link=""
+
   # Bootstrap finishes only after checking the important user-visible paths. This
-  # catches partial stow runs or legacy paths that would otherwise fail later.
+  # catches partial link runs or legacy paths that would otherwise fail later.
   log "Verifying managed links..."
-  verify_symlink_target "${HOME}/.config/mise" "${ROOT_DIR}/mise/.config/mise" "mise config directory"
   verify_path_missing "${HOME}/.config/git" "legacy git config directory"
-  verify_symlink_target "${HOME}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty" "kitty config directory"
-  verify_symlink_target "${HOME}/.config/nvim" "${ROOT_DIR}/nvim/.config/nvim" "nvim config directory"
-  verify_symlink_target "${ZSHRC}" "${MANAGED_ZSHRC}" "zshrc"
-  verify_symlink_target "${ZPROFILE}" "${MANAGED_ZPROFILE}" "zprofile"
+  for link in "${MANAGED_LINKS[@]}"; do
+    verify_symlink_target "${link%%:*}" "${link#*:}" "${link%%:*}"
+  done
   if ! oh_my_zsh_is_installed; then
     log_error "Oh My Zsh was not installed correctly: ${OH_MY_ZSH_DIR}"
     exit 1
@@ -278,13 +273,12 @@ main() {
   brew bundle --file "${WORK_BREWFILE}"
   verify_docker_desktop
   require_command mise "after brew bundle"
-  require_command stow "after brew bundle"
 
   log "Ensuring Oh My Zsh is installed..."
   ensure_oh_my_zsh
 
-  log "Stowing managed configs into ${HOME}..."
-  "${ROOT_DIR}/scripts/stow.sh"
+  log "Linking managed configs into ${HOME}..."
+  "${ROOT_DIR}/scripts/link.sh"
 
   log "Ensuring shared mise config is trusted..."
   ensure_mise_trust

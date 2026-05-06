@@ -70,21 +70,7 @@ func TestGivenEnv_WhenHomeAndRootPathsAreExpanded_ThenAbsolutePathsUseTheExpecte
 	}
 }
 
-func TestGivenEnv_WhenStowPackagesAreRequested_ThenTheyMatchTheShellScriptPackages(t *testing.T) {
-	// Arrange
-	env := mustEnv(t)
-	want := []string{"kitty", "mise", "nvim", "zsh"}
-
-	// Act
-	got := env.StowPackages()
-
-	// Assert
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("StowPackages = %#v, want %#v", got, want)
-	}
-}
-
-func TestGivenEnv_WhenDirectoryLinksAreRequested_ThenTheyMatchTheStowPreparationLinks(t *testing.T) {
+func TestGivenEnv_WhenDirectoryLinksAreRequested_ThenTheyMatchDirectoryPreparationLinks(t *testing.T) {
 	// Arrange
 	env := mustEnv(t)
 	want := [][2]string{

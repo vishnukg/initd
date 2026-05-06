@@ -76,23 +76,23 @@ assert_symlink_resolves_to() {
   [[ "${resolved}" == "${expected}" ]] || fail "Expected ${path} to resolve to ${expected}, got ${resolved}"
 }
 
-run_stow() {
+run_link() {
   local home="$1"
   local output="$2"
 
-  HOME="${home}" "${ROOT_DIR}/scripts/stow.sh" >"${output}" 2>&1
+  HOME="${home}" "${ROOT_DIR}/scripts/link.sh" >"${output}" 2>&1
   assert_output_contains "${output}" "Managed symlinks verified."
 }
 
-test_clean_stow_install() {
+test_clean_link_install() {
   local home=""
   local output=""
 
   home="$(new_home)"
-  output="${TEST_ROOT}/clean-stow.out"
+  output="${TEST_ROOT}/clean-link.out"
 
   # Fresh machines should end with every managed runtime path linked into initd.
-  run_stow "${home}" "${output}"
+  run_link "${home}" "${output}"
 
   assert_symlink_resolves_to "${home}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty"
   assert_symlink_resolves_to "${home}/.config/mise" "${ROOT_DIR}/mise/.config/mise"
@@ -101,7 +101,7 @@ test_clean_stow_install() {
   assert_symlink_resolves_to "${home}/.zshrc" "${ROOT_DIR}/zsh/.zshrc"
   assert_symlink_resolves_to "${home}/.zprofile" "${ROOT_DIR}/zsh/.zprofile"
 
-  log_success "clean stow install"
+  log_success "clean link install"
 }
 
 test_backup_unmanaged_configs() {
@@ -121,7 +121,7 @@ test_backup_unmanaged_configs() {
   printf 'user zprofile\n' > "${home}/.zprofile"
 
   # Existing user-authored files must be preserved before initd takes ownership.
-  run_stow "${home}" "${output}"
+  run_link "${home}" "${output}"
 
   assert_symlink "${home}/.config/kitty"
   assert_symlink "${home}/.config/mise"
@@ -145,11 +145,15 @@ test_git_profile_switcher() {
   home="$(new_home)"
   output="${TEST_ROOT}/git-profile.out"
 
-  run_stow "${home}" "${output}"
+  run_link "${home}" "${output}"
 
   HOME="${home}" "${ROOT_DIR}/scripts/git-profile.sh" work >>"${output}" 2>&1
   assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/work.gitconfig"
   assert_output_contains "${output}" "Active git profile: work"
+
+  # Re-applying managed links must not reset an explicitly selected profile.
+  run_link "${home}" "${output}"
+  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/work.gitconfig"
 
   HOME="${home}" "${ROOT_DIR}/scripts/git-profile.sh" personal >>"${output}" 2>&1
   assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/personal.gitconfig"
@@ -230,9 +234,9 @@ test_directory_folding() {
   ln -s "${ROOT_DIR}/mise/.config/mise/config.toml" "${home}/.config/mise/config.toml"
   ln -s "${ROOT_DIR}/nvim/.config/nvim/init.lua" "${home}/.config/nvim/init.lua"
 
-  # Older stow output may be many file-level symlinks. The desired shape is one
+  # Older link output may be many file-level symlinks. The desired shape is one
   # direct directory symlink per package root.
-  run_stow "${home}" "${output}"
+  run_link "${home}" "${output}"
 
   assert_symlink_resolves_to "${home}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty"
   assert_symlink_resolves_to "${home}/.config/mise" "${ROOT_DIR}/mise/.config/mise"
@@ -242,12 +246,12 @@ test_directory_folding() {
   log_success "managed directory folding"
 }
 
-test_legacy_stow_migration() {
+test_legacy_link_migration() {
   local home=""
   local output=""
 
   home="$(new_home)"
-  output="${TEST_ROOT}/legacy-stow.out"
+  output="${TEST_ROOT}/legacy-link.out"
 
   mkdir -p "${home}/.config/mise"
   ln -s "${home}/.config/git/.gitconfig" "${home}/.gitconfig"
@@ -259,7 +263,7 @@ test_legacy_stow_migration() {
 
   # Migration removes known old initd shims while preserving anything that might
   # be real user config.
-  run_stow "${home}" "${output}"
+  run_link "${home}" "${output}"
 
   assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/personal.gitconfig"
   assert_path_missing "${home}/.config/git"
@@ -268,24 +272,23 @@ test_legacy_stow_migration() {
   assert_symlink_resolves_to "${home}/.zprofile" "${ROOT_DIR}/zsh/.zprofile"
   assert_path_missing "${home}/.config/zsh"
 
-  log_success "legacy stow migration"
+  log_success "legacy link migration"
 }
 
 main() {
-  require_command stow
   require_command find
 
   TEST_ROOT="$(mktemp -d)"
   trap cleanup EXIT
 
   log "Running install behavior tests in ${TEST_ROOT}"
-  test_clean_stow_install
+  test_clean_link_install
   test_backup_unmanaged_configs
   test_git_profile_switcher
   test_cleanup_managed_links
   test_legacy_only_cleanup
   test_directory_folding
-  test_legacy_stow_migration
+  test_legacy_link_migration
   log_success "All install behavior tests passed."
 }
 

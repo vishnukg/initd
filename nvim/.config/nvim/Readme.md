@@ -73,7 +73,7 @@ require "user"        -- 2. lazy.nvim + all plugins + LSP + keymaps
 bash ~/.config/initd/bootstrap.sh
 ```
 
-This Neovim config is managed by the `initd` repo and stowed into `~/.config/nvim`.
+This Neovim config is managed by the `initd` repo and linked into `~/.config/nvim`.
 
 ### 2. Install system dependencies
 
@@ -87,7 +87,7 @@ This Neovim config is managed by the `initd` repo and stowed into `~/.config/nvi
 | C compiler (gcc/clang) | Builds Treesitter parsers | Xcode CLT on macOS |
 | [FiraCode Nerd Font](https://www.nerdfonts.com/) | Icons & special characters | Installed by `initd` |
 
-> `initd` installs these dependencies via Homebrew and stows this config into place.
+> `initd` installs these dependencies via Homebrew and links this config into place.
 
 > **Linux only:** install `xclip` for clipboard support.
 

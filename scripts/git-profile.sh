@@ -8,12 +8,13 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROFILE="${1:-personal}"
 
 # SOURCE is the requested profile; TARGET is the Git config path that Git reads.
-SOURCE="${ROOT_DIR}/git/profiles/${PROFILE}.gitconfig"
 TARGET="${HOME}/.gitconfig"
-LEGACY_GITCONFIG="${ROOT_DIR}/git/.gitconfig"
 
 source "${ROOT_DIR}/scripts/logging.sh"
 source "${ROOT_DIR}/scripts/fs.sh"
+source "${ROOT_DIR}/scripts/paths.sh"
+
+SOURCE="${GIT_PROFILES_DIR}/${PROFILE}.gitconfig"
 
 usage() {
   cat <<EOF
@@ -25,6 +26,7 @@ EOF
 
 gitconfig_is_switchable() {
   local resolved=""
+  local expected=""
 
   if [[ ! -L "${TARGET}" ]]; then
     return 1
@@ -32,14 +34,17 @@ gitconfig_is_switchable() {
 
   resolved="$(resolve_symlink_target "${TARGET}")"
 
-  case "${resolved}" in
-    "${ROOT_DIR}/git/profiles/personal.gitconfig"|"${ROOT_DIR}/git/profiles/work.gitconfig"|"${LEGACY_GITCONFIG}")
+  if [[ "${resolved}" == "${LEGACY_GITCONFIG}" ]]; then
+    return 0
+  fi
+
+  for expected in "${GIT_PROFILE_TARGETS[@]}"; do
+    if [[ "${resolved}" == "${expected}" ]]; then
       return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
+    fi
+  done
+
+  return 1
 }
 
 if [[ "${PROFILE}" == "-h" || "${PROFILE}" == "--help" ]]; then
@@ -56,7 +61,7 @@ fi
 
 if [[ -e "${TARGET}" || -L "${TARGET}" ]] && ! gitconfig_is_switchable; then
   log_error "${TARGET} already exists and is not an initd-managed Git profile link."
-  log_info "Run scripts/stow.sh or back up the file before switching profiles."
+  log_info "Run scripts/link.sh to migrate managed links, or back up the file before switching profiles."
   exit 1
 fi
 

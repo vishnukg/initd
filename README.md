@@ -5,7 +5,7 @@
 It owns both:
 
 - **machine setup**: Homebrew, apps, runtimes, macOS defaults
-- **user config**: Neovim, Kitty, Git, and other dotfiles via GNU Stow
+- **user config**: Neovim, Kitty, Git, and other dotfiles via managed symlinks
 
 The repo is structured for **multi-platform support later**, while only **macOS** is implemented today.
 
@@ -17,17 +17,18 @@ initd/
 ├── bootstrap.sh              # OS dispatcher
 ├── docs/                     # Maintenance notes and Bash reference
 ├── git/                      # Git profiles -> ~/.gitconfig
-├── kitty/                    # Stow package -> ~/.config/kitty
-├── mise/                     # Stow package -> ~/.config/mise
-├── nvim/                     # Stow package -> ~/.config/nvim
-├── zsh/                      # Stow package -> ~/.zshrc and ~/.zprofile
+├── kitty/                    # Source linked to ~/.config/kitty
+├── mise/                     # Source linked to ~/.config/mise
+├── nvim/                     # Source linked to ~/.config/nvim
+├── zsh/                      # Source linked to ~/.zshrc and ~/.zprofile
 ├── scripts/                  # Shared helper scripts
 │   ├── brewinstall.sh
 │   ├── cleanup.sh
 │   ├── fs.sh
 │   ├── git-profile.sh
+│   ├── link.sh
 │   ├── logging.sh
-│   ├── stow.sh
+│   ├── paths.sh
 │   └── test-install-behavior.sh
 ├── platforms/
 │   └── darwin/
@@ -48,26 +49,18 @@ initd/
 
 | Runtime path | Source in `initd` | Managed by |
 |---|---|
-| `~/.gitconfig` | `git/profiles/personal.gitconfig` or `git/profiles/work.gitconfig` | `scripts/stow.sh` and `scripts/git-profile.sh` |
-| `~/.config/kitty` | `kitty/.config/kitty` | GNU Stow via `scripts/stow.sh` |
-| `~/.config/mise` | `mise/.config/mise` | GNU Stow via `scripts/stow.sh` |
-| `~/.config/nvim` | `nvim/.config/nvim` | GNU Stow via `scripts/stow.sh` |
-| `~/.zshrc` | `zsh/.zshrc` | GNU Stow via `scripts/stow.sh` |
-| `~/.zprofile` | `zsh/.zprofile` | GNU Stow via `scripts/stow.sh` |
+| `~/.gitconfig` | `git/profiles/personal.gitconfig` or `git/profiles/work.gitconfig` | `scripts/link.sh` and `scripts/git-profile.sh` |
+| `~/.config/kitty` | `kitty/.config/kitty` | `scripts/link.sh` |
+| `~/.config/mise` | `mise/.config/mise` | `scripts/link.sh` |
+| `~/.config/nvim` | `nvim/.config/nvim` | `scripts/link.sh` |
+| `~/.zshrc` | `zsh/.zshrc` | `scripts/link.sh` |
+| `~/.zprofile` | `zsh/.zprofile` | `scripts/link.sh` |
 
 That means you edit files **inside `initd`**, not the live paths in `$HOME`.
 
-## How stow works
+## How managed links work
 
-`bootstrap.sh` eventually runs `scripts/stow.sh`, which stows:
-
-```bash
-stow --restow --dir ~/.config/initd --target "$HOME" kitty mise nvim zsh
-```
-
-Git is handled separately because `~/.gitconfig` is a single home-level compatibility file while profiles live under `initd/git/profiles`:
-
-- `~/.gitconfig` is linked directly to the active full profile file
+`bootstrap.sh` eventually runs `scripts/link.sh`, which creates explicit symlinks from runtime paths in `$HOME` back to this repo. Git is linked directly to the active full profile file because `~/.gitconfig` is a single home-level compatibility file while profiles live under `initd/git/profiles`.
 
 The resulting live symlinks are:
 
@@ -78,15 +71,15 @@ The resulting live symlinks are:
 - `~/.zshrc` -> `~/.config/initd/zsh/.zshrc`
 - `~/.zprofile` -> `~/.config/initd/zsh/.zprofile`
 
-For package roots such as `~/.config/kitty`, `~/.config/mise`, and `~/.config/nvim`, `scripts/stow.sh` prefers direct directory symlinks. If an existing directory already contains only symlinks back into the matching `initd` package, the script folds it into one direct symlink.
+For package roots such as `~/.config/kitty`, `~/.config/mise`, and `~/.config/nvim`, `scripts/link.sh` prefers direct directory symlinks. If an existing directory already contains only symlinks back into the matching `initd` package, the script folds it into one direct symlink.
 
-Because `--restow` is used, rerunning bootstrap is safe: existing managed links are refreshed in place. The stow step also does a follow-up verification pass and fails if any managed links are still missing.
+Rerunning bootstrap is safe: existing managed links are left in place, unmanaged files are backed up before initd takes ownership, and the link step fails if any managed link is missing or points to the wrong source.
 
 ## Existing config backups
 
 On an existing machine, bootstrap makes `initd` the default setup without deleting your old unmanaged configs.
 
-If a managed runtime path already exists and is not an `initd` symlink, `scripts/stow.sh` moves it to:
+If a managed runtime path already exists and is not an `initd` symlink, `scripts/link.sh` moves it to:
 
 ```text
 ~/.config/initd-backups/<timestamp>/<original-path>
@@ -106,7 +99,7 @@ Examples:
 | legacy `~/.config/git` | `~/.config/initd-backups/<timestamp>/.config/git` |
 | legacy `~/.config/zsh` | `~/.config/initd-backups/<timestamp>/.config/zsh` |
 
-The backup directory is outside the repo, so it is not stowed and does not become config source.
+The backup directory is outside the repo, so it is not linked and does not become config source.
 
 ## Git profiles
 
@@ -160,7 +153,7 @@ The managed `.zshrc`:
 
 The macOS flow installs:
 
-- CLI tools and terminal utilities such as `git`, `gh`, `git-delta`, `ripgrep`, `fd`, `fzf`, `tmux`, `tig`, `zoxide`, and `stow`
+- CLI tools and terminal utilities such as `git`, `gh`, `git-delta`, `ripgrep`, `fd`, `fzf`, `tmux`, `tig`, and `zoxide`
 - editor tooling: `neovim`, `tree-sitter`, `tree-sitter-cli`
 - runtimes manager: `mise`
 - runtimes via mise: `dotnet`, `go`, `node`, `python`, `ruby`, `terraform`
@@ -200,7 +193,7 @@ If you already have files at managed config paths such as `~/.config/nvim`, `~/.
 bash ~/.config/initd/bootstrap.sh
 ```
 
-A rerun only reports success after stow verifies there is no remaining link work to do.
+A rerun only reports success after every managed link is verified.
 
 If `/Applications/Docker.app` already exists but is not managed by Homebrew, bootstrap skips the `docker-desktop` cask instead of failing. A fresh machine still installs Docker Desktop normally, and bootstrap verifies Docker Desktop is present after `brew bundle`.
 
@@ -219,7 +212,7 @@ Examples:
 After editing, re-apply links with either:
 
 ```bash
-~/.config/initd/scripts/stow.sh
+~/.config/initd/scripts/link.sh
 ```
 
 or the full bootstrap:

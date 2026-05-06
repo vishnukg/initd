@@ -30,7 +30,7 @@ tested and intentionally wired in:
 
 ```bash
 bash ~/.config/initd/bootstrap.sh
-~/.config/initd/scripts/stow.sh
+~/.config/initd/scripts/link.sh
 ~/.config/initd/scripts/cleanup.sh
 ~/.config/initd/scripts/git-profile.sh personal
 ~/.config/initd/scripts/git-profile.sh work
@@ -47,11 +47,12 @@ Completed:
 - Step 1 started: `go.mod`, `cmd/initd/main.go`, and basic CLI tests exist.
 - The Go CLI currently supports only `help` and `version`.
 - Step 2 completed: `internal/config` models home/root paths, managed links,
-  legacy links, Stow package names, and Git profiles.
+  legacy links, and Git profiles.
 - A root `Makefile` exists for Go development:
   - `make test` runs `go test ./...`.
   - `make build` builds the CLI into `bin/initd`.
-- No Bash entrypoints have been changed.
+- Bash still owns the stable workflow. `scripts/link.sh` creates direct
+  managed symlinks instead of shelling out to GNU Stow.
 
 Next step:
 
@@ -302,7 +303,7 @@ Responsibilities:
 - Confirm managed source paths exist.
 - Inspect runtime symlink state.
 - Report missing, correct, and incorrect links.
-- Check required external commands when relevant: `git`, `brew`, `mise`, `stow`.
+- Check required external commands when relevant: `git`, `brew`, and `mise`.
 - Report the current Git profile symlink state.
 
 Requirements:
@@ -423,7 +424,7 @@ Responsibilities:
 - Remove the legacy mise config symlink.
 - Create the default Git profile link if needed.
 - Fold existing managed config directories into direct symlinks when safe.
-- Back up unmanaged config directories before Stow runs.
+- Back up unmanaged config directories before linking runs.
 
 Tests:
 
@@ -436,7 +437,7 @@ Tests:
 - Backs up directories containing unmanaged files.
 - Creates default personal Git profile link.
 
-At this step, GNU Stow can still be run by the existing shell script.
+The existing shell script already manages links directly.
 
 ### Step 8: Add `initd link`
 
@@ -449,27 +450,18 @@ go run ./cmd/initd link
 Responsibilities:
 
 - Run the same preparation as `initd link --prepare`.
-- Call GNU Stow using `os/exec`:
-
-  ```bash
-  stow --restow --dir <root> --target <home> kitty mise nvim zsh
-  ```
-
+- Create the same explicit managed symlinks as `scripts/link.sh`.
 - Verify that the managed links are fully installed.
-- Show clear errors if Stow reports conflicts.
+- Back up unmanaged files before taking ownership.
 
 Tests:
 
-- Unit-test preparation and verification logic with temp directories.
-- Keep external Stow execution thin and easy to inspect.
-- Where possible, use integration tests that skip when `stow` is unavailable.
+- Unit-test preparation, linking, backup, and verification logic with temp directories.
 
-Only after behavior matches `scripts/stow.sh`, consider changing
-`scripts/stow.sh` into a compatibility wrapper around the Go command.
+Only after behavior matches `scripts/link.sh`, consider changing
+`scripts/link.sh` into a compatibility wrapper around the Go command.
 
-### Step 9: Consider replacing GNU Stow
-
-This is optional and should happen only after `initd link` is stable.
+### Step 9: Keep direct linking simple
 
 The repo currently prefers direct symlinks for major config directories:
 
@@ -481,15 +473,9 @@ The repo currently prefers direct symlinks for major config directories:
 ~/.zprofile     -> <repo>/zsh/.zprofile
 ```
 
-Because of that, Go may eventually be able to manage all links directly without
-GNU Stow.
-
-Requirements before removing Stow:
-
-- Go link tests cover every managed path.
-- Go link behavior matches the existing install behavior test.
-- README no longer claims GNU Stow is the active implementation.
-- Bootstrap no longer requires Stow unless another feature needs it.
+Because of that, the active Bash implementation no longer depends on GNU Stow.
+The Go replacement should preserve the same direct-link behavior instead of
+reintroducing a generic dotfile package manager.
 
 ### Step 10: Add macOS platform checks
 
@@ -583,7 +569,7 @@ Examples:
 ```bash
 scripts/git-profile.sh -> initd git-profile "$@"
 scripts/cleanup.sh     -> initd cleanup "$@"
-scripts/stow.sh        -> initd link "$@"
+scripts/link.sh        -> initd link "$@"
 ```
 
 Requirements:
@@ -626,7 +612,7 @@ Only remove Bash files after all of these are true:
 
 - `initd bootstrap` fully replaces `bootstrap.sh` and
   `platforms/darwin/bootstrap.sh`.
-- `initd link` fully replaces `scripts/stow.sh`.
+- `initd link` fully replaces `scripts/link.sh`.
 - `initd cleanup` fully replaces `scripts/cleanup.sh`.
 - `initd git-profile` fully replaces `scripts/git-profile.sh`.
 - Tests cover backup, cleanup, linking, Git profile switching, and bootstrap
@@ -646,7 +632,7 @@ Before continuing this migration:
 3. Run the current validation commands if relevant:
 
    ```bash
-   bash -n bootstrap.sh platforms/darwin/bootstrap.sh platforms/darwin/macos.sh scripts/stow.sh scripts/cleanup.sh scripts/git-profile.sh scripts/logging.sh scripts/fs.sh
+   bash -n bootstrap.sh platforms/darwin/bootstrap.sh platforms/darwin/macos.sh scripts/link.sh scripts/cleanup.sh scripts/git-profile.sh scripts/logging.sh scripts/fs.sh scripts/paths.sh
    ~/.config/initd/scripts/test-install-behavior.sh
    ```
 
