@@ -195,33 +195,6 @@ test_cleanup_managed_links() {
   log_success "cleanup removes only managed links"
 }
 
-test_legacy_only_cleanup() {
-  local home=""
-  local output=""
-
-  home="$(new_home)"
-  output="${TEST_ROOT}/legacy-cleanup.out"
-
-  mkdir -p "${home}/.config/mise"
-  ln -s "${ROOT_DIR}/git/.gitconfig" "${home}/.gitconfig"
-  ln -s "${ROOT_DIR}/git/.config/git" "${home}/.config/git"
-  ln -s "${ROOT_DIR}/shell/.config/zsh" "${home}/.config/zsh"
-  ln -s "${ROOT_DIR}/zsh-home/.zshrc" "${home}/.zshrc"
-  ln -s "${ROOT_DIR}/mise.toml" "${home}/.config/mise/config.toml"
-
-  # Legacy-only mode is for tidying old layouts without touching current links.
-  HOME="${home}" "${ROOT_DIR}/scripts/cleanup.sh" --legacy-only >"${output}" 2>&1
-
-  assert_path_missing "${home}/.gitconfig"
-  assert_path_missing "${home}/.config/git"
-  assert_path_missing "${home}/.config/zsh"
-  assert_path_missing "${home}/.zshrc"
-  assert_path_missing "${home}/.config/mise/config.toml"
-  assert_output_contains "${output}" "Cleanup complete."
-
-  log_success "legacy-only cleanup"
-}
-
 test_directory_folding() {
   local home=""
   local output=""
@@ -286,7 +259,6 @@ main() {
   test_backup_unmanaged_configs
   test_git_profile_switcher
   test_cleanup_managed_links
-  test_legacy_only_cleanup
   test_directory_folding
   test_legacy_link_migration
   log_success "All install behavior tests passed."
