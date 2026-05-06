@@ -31,78 +31,16 @@ require_command() {
   fi
 }
 
-verify_symlink_target() {
-  local path="$1"
-  local expected="$2"
-  local label="$3"
-
-  if [[ ! -L "${path}" ]]; then
-    log_error "${label} was not installed as a symlink: ${path}"
-    exit 1
-  fi
-
-  if [[ "$(resolve_symlink_target "${path}")" != "${expected}" ]]; then
-    log_error "${label} points to the wrong target: ${path}"
-    log_info "Expected: ${expected}"
-    log_info "Resolved: $(resolve_symlink_target "${path}")"
-    exit 1
-  fi
-
-  log_success "Verified ${label}."
-}
-
 verify_path_missing() {
   local path="$1"
   local label="$2"
 
-  if [[ -e "${path}" || -L "${path}" ]]; then
+  if path_exists "${path}"; then
     log_error "${label} should not exist: ${path}"
     exit 1
   fi
 
   log_success "Verified ${label} is absent."
-}
-
-git_profile_is_managed() {
-  local path="${HOME}/.gitconfig"
-  local resolved=""
-  local expected=""
-
-  if [[ ! -L "${path}" ]]; then
-    return 1
-  fi
-
-  resolved="$(resolve_symlink_target "${path}")"
-
-  for expected in "${GIT_PROFILE_TARGETS[@]}"; do
-    if [[ "${resolved}" == "${expected}" ]]; then
-      return 0
-    fi
-  done
-
-  return 1
-}
-
-verify_profile_symlink() {
-  local path="${HOME}/.gitconfig"
-
-  if ! git_profile_is_managed; then
-    log_error "home gitconfig points outside the managed profiles directory: ${path}"
-    log_info "Resolved: $(resolve_symlink_target "${path}" 2>/dev/null || echo missing)"
-    exit 1
-  fi
-
-  log_success "Verified git profile config."
-}
-
-ensure_git_profile() {
-  if git_profile_is_managed; then
-    log "Git profile already configured."
-    return
-  fi
-
-  log "Setting default git profile to personal."
-  "${ROOT_DIR}/scripts/git-profile.sh" personal
 }
 
 ensure_xcode_clt() {
@@ -217,7 +155,7 @@ verify_docker_desktop() {
   exit 1
 }
 
-verify_managed_links() {
+  verify_managed_links() {
   local link=""
 
   # Bootstrap finishes only after checking the important user-visible paths. This
@@ -232,7 +170,7 @@ verify_managed_links() {
     exit 1
   fi
   log_success "Verified Oh My Zsh."
-  verify_profile_symlink
+  verify_git_profile_link "${HOME}/.gitconfig" "git profile config"
 }
 
 prepare_brewfile() {
@@ -291,8 +229,6 @@ main() {
 
   log "Applying macOS defaults..."
   "${ROOT_DIR}/platforms/darwin/macos.sh"
-
-  ensure_git_profile
 
   verify_managed_links
 

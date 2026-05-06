@@ -10,21 +10,19 @@ source "${ROOT_DIR}/scripts/logging.sh"
 source "${ROOT_DIR}/scripts/fs.sh"
 source "${ROOT_DIR}/scripts/paths.sh"
 
-entry_points_to_source() {
+is_initd_link_inside_package() {
   local entry="$1"
   local source_dir="$2"
-  local resolved=""
 
   if [[ ! -L "${entry}" ]]; then
     return 1
   fi
 
-  resolved="$(resolve_symlink_target "${entry}")"
-
+  local resolved="$(resolve_symlink_target "${entry}")"
   [[ "${resolved}" == "${source_dir}" || "${resolved}" == "${source_dir}/"* ]]
 }
 
-prepare_directory_target() {
+replace_old_file_links_with_directory_link() {
   local target="$1"
   local source="$2"
   local entry=""
@@ -35,13 +33,13 @@ prepare_directory_target() {
   fi
 
   for entry in "${target}"/* "${target}"/.[!.]* "${target}"/..?*; do
-    if [[ ! -e "${entry}" && ! -L "${entry}" ]]; then
+    if ! path_exists "${entry}"; then
       continue
     fi
 
     found_entry=1
 
-    if ! entry_points_to_source "${entry}" "${source}"; then
+    if ! is_initd_link_inside_package "${entry}" "${source}"; then
       backup_path "${target}"
       return
     fi
@@ -50,7 +48,7 @@ prepare_directory_target() {
   if (( found_entry )); then
     log "Folding ${target} into a direct symlink."
     for entry in "${target}"/* "${target}"/.[!.]* "${target}"/..?*; do
-      if [[ -e "${entry}" || -L "${entry}" ]]; then
+      if path_exists "${entry}"; then
         rm "${entry}"
       fi
     done
@@ -61,26 +59,20 @@ prepare_directory_target() {
   rmdir "${target}"
 }
 
-link_managed_path() {
+install_managed_link() {
   local path="$1"
   local source="$2"
-  local resolved=""
 
-  if [[ -L "${path}" ]]; then
-    resolved="$(resolve_symlink_target "${path}")"
-    if [[ "${resolved}" == "${source}" ]]; then
-      log "Already linked: ${path}"
-      return
-    fi
-
-    backup_path "${path}"
-  elif [[ -d "${path}" && -d "${source}" ]]; then
-    prepare_directory_target "${path}" "${source}"
-  elif [[ -e "${path}" ]]; then
-    backup_path "${path}"
+  if symlink_points_to "${path}" "${source}"; then
+    log "Already linked: ${path}"
+    return
   fi
 
-  if [[ -e "${path}" || -L "${path}" ]]; then
+  if [[ -d "${path}" && -d "${source}" && ! -L "${path}" ]]; then
+    replace_old_file_links_with_directory_link "${path}" "${source}"
+  fi
+
+  if path_exists "${path}"; then
     backup_path "${path}"
   fi
 
@@ -89,7 +81,7 @@ link_managed_path() {
   ln -s "${source}" "${path}"
 }
 
-file_contains_only_line() {
+file_has_only_expected_line() {
   local path="$1"
   local expected="$2"
   local content=""
@@ -102,53 +94,37 @@ file_contains_only_line() {
   [[ "${content}" == "${expected}" ]]
 }
 
-remove_known_legacy_link() {
+remove_legacy_link_if_present() {
   local path="$1"
   local expected="$2"
 
-  if [[ -L "${path}" && "$(resolve_symlink_target "${path}")" == "${expected}" ]]; then
+  if symlink_points_to "${path}" "${expected}"; then
     log "Removing legacy ${path} symlink."
     rm "${path}"
   fi
 }
 
-remove_legacy_loader_file() {
+remove_legacy_loader_file_if_present() {
   local path="$1"
   local expected="$2"
 
-  if file_contains_only_line "${path}" "${expected}"; then
+  if file_has_only_expected_line "${path}" "${expected}"; then
     log "Replacing legacy ${path} with a managed symlink."
     rm "${path}"
   fi
 }
 
-remove_legacy_xdg_gitconfig_link() {
-  if [[ -L "${GITCONFIG}" && "$(resolve_symlink_target "${GITCONFIG}")" == "${LEGACY_XDG_GITCONFIG}" ]]; then
-    log "Removing XDG ${GITCONFIG} symlink."
+ensure_git_profile_link() {
+  if git_profile_link_is_managed "${GITCONFIG}"; then
+    return
+  fi
+
+  if symlink_points_to "${GITCONFIG}" "${LEGACY_GITCONFIG}"; then
+    log "Replacing legacy ${GITCONFIG} Git config link."
     rm "${GITCONFIG}"
   fi
-}
 
-ensure_gitconfig_link() {
-  local resolved=""
-  local expected=""
-
-  if [[ -L "${GITCONFIG}" ]]; then
-    resolved="$(resolve_symlink_target "${GITCONFIG}")"
-
-    for expected in "${GIT_PROFILE_TARGETS[@]}"; do
-      if [[ "${resolved}" == "${expected}" ]]; then
-        return
-      fi
-    done
-
-    if [[ "${resolved}" == "${LEGACY_GITCONFIG}" ]]; then
-      log "Replacing legacy ${GITCONFIG} Git config link."
-      rm "${GITCONFIG}"
-    fi
-  fi
-
-  if [[ -e "${GITCONFIG}" || -L "${GITCONFIG}" ]]; then
+  if path_exists "${GITCONFIG}"; then
     backup_path "${GITCONFIG}"
   fi
 
@@ -156,63 +132,34 @@ ensure_gitconfig_link() {
   ln -s "${DEFAULT_GIT_PROFILE}" "${GITCONFIG}"
 }
 
-prepare_legacy_paths() {
-  remove_legacy_xdg_gitconfig_link
-  remove_known_legacy_link "${LEGACY_GIT_CONFIG_DIR}" "${LEGACY_GIT_CONFIG_SOURCE}"
-  backup_path "${LEGACY_GIT_CONFIG_DIR}"
-
-  remove_known_legacy_link "${HOME}/.zshrc" "${ROOT_DIR}/zsh-home/.zshrc"
-  remove_known_legacy_link "${HOME}/.zprofile" "${ROOT_DIR}/shell/.config/zsh/initd.zprofile"
-  remove_legacy_loader_file "${HOME}/.zshrc" "${LEGACY_ZSHRC_SOURCE}"
-  remove_legacy_loader_file "${HOME}/.zprofile" "${LEGACY_ZPROFILE_SOURCE}"
-  remove_known_legacy_link "${LEGACY_ZSH_CONFIG_DIR}" "${LEGACY_ZSH_CONFIG_SOURCE}"
-  backup_path "${LEGACY_ZSH_CONFIG_DIR}"
-
-  remove_known_legacy_link "${HOME}/.config/mise/config.toml" "${ROOT_DIR}/mise.toml"
-}
-
-verify_symlink_target() {
-  local path="$1"
-  local expected="$2"
-
-  if [[ ! -L "${path}" ]]; then
-    log_error "Managed path was not installed as a symlink: ${path}"
-    exit 1
-  fi
-
-  if [[ "$(resolve_symlink_target "${path}")" != "${expected}" ]]; then
-    log_error "Managed path points to the wrong target: ${path}"
-    log_info "Expected: ${expected}"
-    log_info "Resolved: $(resolve_symlink_target "${path}")"
-    exit 1
-  fi
-}
-
-verify_git_profile_link() {
-  local resolved=""
-  local expected=""
-
-  if [[ ! -L "${GITCONFIG}" ]]; then
-    log_error "Managed Git profile was not installed as a symlink: ${GITCONFIG}"
-    exit 1
-  fi
-
-  resolved="$(resolve_symlink_target "${GITCONFIG}")"
-  for expected in "${GIT_PROFILE_TARGETS[@]}"; do
-    if [[ "${resolved}" == "${expected}" ]]; then
-      return
-    fi
-  done
-
-  log_error "Managed Git profile points outside initd profiles: ${GITCONFIG}"
-  log_info "Resolved: ${resolved}"
-  exit 1
-}
-
-verify_install() {
+remove_old_initd_layout() {
   local link=""
 
-  verify_git_profile_link
+  remove_legacy_link_if_present "${GITCONFIG}" "${LEGACY_XDG_GITCONFIG}"
+  for link in "${LEGACY_LINKS[@]}"; do
+    remove_legacy_link_if_present "${link%%:*}" "${link#*:}"
+  done
+
+  backup_path "${LEGACY_GIT_CONFIG_DIR}"
+
+  remove_legacy_link_if_present "${HOME}/.zprofile" "${ROOT_DIR}/shell/.config/zsh/initd.zprofile"
+  remove_legacy_loader_file_if_present "${HOME}/.zshrc" "${LEGACY_ZSHRC_SOURCE}"
+  remove_legacy_loader_file_if_present "${HOME}/.zprofile" "${LEGACY_ZPROFILE_SOURCE}"
+  backup_path "${LEGACY_ZSH_CONFIG_DIR}"
+}
+
+install_managed_links() {
+  local link=""
+
+  for link in "${MANAGED_LINKS[@]}"; do
+    install_managed_link "${link%%:*}" "${link#*:}"
+  done
+}
+
+verify_all_links() {
+  local link=""
+
+  verify_git_profile_link "${GITCONFIG}"
   for link in "${MANAGED_LINKS[@]}"; do
     verify_symlink_target "${link%%:*}" "${link#*:}"
   done
@@ -220,20 +167,16 @@ verify_install() {
 }
 
 main() {
-  local link=""
-
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Target home directory: ${HOME}"
   log "Preparing legacy paths and existing config directories..."
-  prepare_legacy_paths
-  ensure_gitconfig_link
+  remove_old_initd_layout
+  ensure_git_profile_link
 
   log "Linking managed config paths..."
-  for link in "${MANAGED_LINKS[@]}"; do
-    link_managed_path "${link%%:*}" "${link#*:}"
-  done
+  install_managed_links
 
-  verify_install
+  verify_all_links
 }
 
 main "$@"

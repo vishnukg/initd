@@ -25,26 +25,11 @@ EOF
 }
 
 gitconfig_is_switchable() {
-  local resolved=""
-  local expected=""
-
   if [[ ! -L "${TARGET}" ]]; then
     return 1
   fi
 
-  resolved="$(resolve_symlink_target "${TARGET}")"
-
-  if [[ "${resolved}" == "${LEGACY_GITCONFIG}" ]]; then
-    return 0
-  fi
-
-  for expected in "${GIT_PROFILE_TARGETS[@]}"; do
-    if [[ "${resolved}" == "${expected}" ]]; then
-      return 0
-    fi
-  done
-
-  return 1
+  git_profile_link_is_managed "${TARGET}" || symlink_points_to "${TARGET}" "${LEGACY_GITCONFIG}"
 }
 
 if [[ "${PROFILE}" == "-h" || "${PROFILE}" == "--help" ]]; then
@@ -59,7 +44,7 @@ if [[ ! -f "${SOURCE}" ]]; then
   exit 1
 fi
 
-if [[ -e "${TARGET}" || -L "${TARGET}" ]] && ! gitconfig_is_switchable; then
+if path_exists "${TARGET}" && ! gitconfig_is_switchable; then
   log_error "${TARGET} already exists and is not an initd-managed Git profile link."
   log_info "Run scripts/link.sh to migrate managed links, or back up the file before switching profiles."
   exit 1

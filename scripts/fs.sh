@@ -31,6 +31,37 @@ resolve_symlink_target() {
   printf '%s/%s\n' "${target_dir}" "${target_base}"
 }
 
+path_exists() {
+  local path="$1"
+
+  [[ -e "${path}" || -L "${path}" ]]
+}
+
+symlink_points_to() {
+  local path="$1"
+  local expected="$2"
+
+  [[ -L "${path}" ]] && [[ "$(resolve_symlink_target "${path}")" == "${expected}" ]]
+}
+
+verify_symlink_target() {
+  local path="$1"
+  local expected="$2"
+  local label="${3:-Managed path}"
+
+  if [[ ! -L "${path}" ]]; then
+    log_error "${label} was not installed as a symlink: ${path}"
+    exit 1
+  fi
+
+  if ! symlink_points_to "${path}" "${expected}"; then
+    log_error "${label} points to the wrong target: ${path}"
+    log_info "Expected: ${expected}"
+    log_info "Resolved: $(resolve_symlink_target "${path}")"
+    exit 1
+  fi
+}
+
 backup_path() {
   local path="$1"
 
@@ -44,7 +75,7 @@ backup_path() {
   : "${BACKUP_ROOT:?BACKUP_ROOT must be set before calling backup_path}"
   backup="${BACKUP_ROOT}/${relative}"
 
-  if [[ ! -e "${path}" && ! -L "${path}" ]]; then
+  if ! path_exists "${path}"; then
     return
   fi
 

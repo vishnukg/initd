@@ -1,229 +1,188 @@
 # Bash primer for initd
 
-This is a small reference for maintaining the Bash scripts in this repo. It focuses on the syntax and patterns used by `bootstrap.sh`, `platforms/darwin/*.sh`, and `scripts/*.sh`.
+This repo intentionally uses Bash because setup is mostly command orchestration:
+Homebrew, Git, mise, macOS defaults, symlinks, temporary files, and `$HOME`
+paths. Keeping this in Bash means a fresh machine does not need Node, Go, or a
+build step before bootstrap can run.
 
-## How to read the scripts
+The goal is not "clever Bash". The goal is readable, defensive scripts that a
+developer can follow like a checklist.
 
-Start with the `main` function near the bottom of each larger script. It usually reads like a checklist:
+## Current script map
+
+| File | Purpose |
+|---|---|
+| `bootstrap.sh` | Detect the operating system and hand off to the platform bootstrap. |
+| `platforms/darwin/bootstrap.sh` | macOS setup checklist: Xcode CLT, Homebrew, Brewfile, Oh My Zsh, links, mise, macOS defaults, verification. |
+| `scripts/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files, and migrate known old initd layouts. |
+| `scripts/cleanup.sh` | Remove only symlinks that are known to be owned by initd. |
+| `scripts/git-profile.sh` | Switch `~/.gitconfig` between the curated Git profiles. |
+| `scripts/brewinstall.sh` | Add a formula or cask to the curated Brewfile and apply it locally. |
+| `scripts/fs.sh` | Shared filesystem safety helpers. |
+| `scripts/paths.sh` | Shared list of paths initd owns or knows how to migrate. |
+| `scripts/logging.sh` | Shared log formatting helpers. |
+| `scripts/test-install-behavior.sh` | Behavior tests that run against temporary home directories. |
+
+## How to read a script
+
+Start at `main`, usually near the bottom. The larger scripts are written so
+`main` reads like a plain-English checklist.
+
+For example, `scripts/link.sh` is structured like this:
 
 ```bash
 main() {
-  trap cleanup EXIT
+  log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
+  log "Target home directory: ${HOME}"
+  log "Preparing legacy paths and existing config directories..."
+  remove_old_initd_layout
+  ensure_git_profile_link
 
-  ensure_xcode_clt
-  ensure_homebrew
-  prepare_brewfile
-  brew bundle --file "${WORK_BREWFILE}"
+  log "Linking managed config paths..."
+  install_managed_links
+
+  verify_all_links
 }
-
-main "$@"
 ```
 
-Most of the detail lives in helper functions above `main`.
+If you only want to understand what the script does, read `main` first. Then
+open the helper function whose name matches the step you care about.
 
-## Script header
+## Design rules used here
 
-Most scripts start like this:
+1. **Keep policy data in one place.** `scripts/paths.sh` says which runtime paths
+   initd owns and which legacy paths it can migrate.
+2. **Keep filesystem mechanics in one place.** `scripts/fs.sh` owns helpers like
+   `path_exists`, `symlink_points_to`, `backup_path`, and
+   `verify_symlink_target`.
+3. **Prefer readable helper names.** Names like
+   `remove_old_initd_layout` and `install_managed_links` explain intent without
+   requiring the reader to understand every Bash condition.
+4. **Do not delete user files.** Existing unmanaged files are moved to
+   `~/.config/initd-backups/<timestamp>/` before initd takes ownership.
+5. **Only remove links initd owns.** Cleanup checks where each symlink points
+   before removing it.
+6. **Test with temporary homes.** The behavior tests exercise install, backup,
+   cleanup, directory folding, Git profile switching, and legacy migration
+   without touching your real `$HOME`.
+
+## Important data lists
+
+`scripts/paths.sh` contains the main ownership rules:
+
+```bash
+MANAGED_LINKS=(
+  "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
+  "${HOME}/.config/mise:${ROOT_DIR}/mise/.config/mise"
+  "${HOME}/.config/nvim:${ROOT_DIR}/nvim/.config/nvim"
+  "${HOME}/.zshrc:${ROOT_DIR}/zsh/.zshrc"
+  "${HOME}/.zprofile:${ROOT_DIR}/zsh/.zprofile"
+)
+```
+
+Each item is `runtime path:repo source`. Scripts split those pairs like this:
+
+```bash
+path="${link%%:*}"
+source="${link#*:}"
+```
+
+`LEGACY_LINKS` is similar, but it lists known old initd symlinks that are safe
+to remove during migration or cleanup.
+
+## Why links are direct
+
+`scripts/link.sh` creates direct symlinks such as:
+
+```text
+~/.config/nvim -> ~/.config/initd/nvim/.config/nvim
+~/.zshrc       -> ~/.config/initd/zsh/.zshrc
+```
+
+Direct links are easier to understand than a generic dotfile package manager for
+this repo because the managed paths are small, explicit, and tested.
+
+## Backups and safety
+
+If initd finds a real file or unrelated symlink where it needs to install a
+managed link, it backs that path up first:
+
+```bash
+backup_path "${path}"
+```
+
+`backup_path` preserves the home-relative path under one timestamped backup root.
+For example:
+
+```text
+~/.zshrc -> ~/.config/initd-backups/<timestamp>/.zshrc
+```
+
+This is why scripts must set `BACKUP_ROOT` before calling `backup_path`.
+
+## Bash syntax used most often
+
+### Script header
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 ```
 
-`#!/usr/bin/env bash` tells the system to run the file with Bash.
-
-`set -euo pipefail` enables safer defaults:
-
 | Option | Meaning |
 |---|---|
-| `-e` | Exit when a command fails. |
-| `-u` | Error when using an unset variable. |
-| `-o pipefail` | A pipeline fails if any command in it fails, not just the last command. |
+| `-e` | Stop when a command fails. |
+| `-u` | Fail when reading an unset variable. |
+| `pipefail` | Fail a pipeline if any command in it fails. |
 
-## Entrypoints and arguments
+### Root directory
 
-Larger scripts end with:
-
-```bash
-main "$@"
-```
-
-This calls the `main` function and forwards all command-line arguments.
-
-| Syntax | Meaning |
-|---|---|
-| `$@` | All arguments, preserving each argument separately when quoted as `"$@"`. |
-| `$*` | All arguments as one string when quoted as `"$*"`. Used in logging to join a message. |
-| `$#` | Number of arguments. |
-| `$0` | Script name as invoked. |
-| `$1`, `$2` | First and second arguments. |
-
-The top-level `bootstrap.sh` uses `exec`:
-
-```bash
-exec "${ROOT_DIR}/platforms/darwin/bootstrap.sh"
-```
-
-`exec` replaces the current process with the macOS bootstrap script. That means the OS dispatcher does not keep running after handing off.
-
-## Variables
-
-Assign variables without spaces:
-
-```bash
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORK_BREWFILE=""
-```
-
-`BASH_SOURCE[0]` is the path to the current script file. It is more reliable than `$0` when a file is sourced by another script.
-
-Use variables with quotes:
-
-```bash
-printf '%s\n' "${ROOT_DIR}"
-```
-
-Quoting prevents paths with spaces from being split into multiple arguments.
-
-## Command substitution
-
-`$(...)` runs a command and captures its output:
-
-```bash
-OS="$(uname -s)"
-target="$(readlink "${path}")"
-```
-
-Nested command substitution is common when resolving paths:
+Most scripts compute the repo root from their own path:
 
 ```bash
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ```
 
-Read it from the inside out:
+This lets scripts work no matter which directory the user runs them from.
 
-1. `dirname "${BASH_SOURCE[0]}"` finds the script directory.
-2. `cd ...` moves there.
-3. `pwd` prints the absolute path.
-4. `ROOT_DIR=...` stores that path.
+### Quoting
 
-## Functions
-
-Functions group reusable logic:
+Always quote variables unless you intentionally want word splitting:
 
 ```bash
-require_command() {
-  local command_name="$1"
-  local context="$2"
-
-  if ! command -v "${command_name}" >/dev/null 2>&1; then
-    log_error "${command_name} is required ${context}."
-    exit 1
-  fi
-}
+ln -s "${source}" "${path}"
 ```
 
-Inside functions:
+### Path checks
 
-| Syntax | Meaning |
-|---|---|
-| `local name="value"` | Function-scoped variable. |
-| `$1`, `$2` | First and second function arguments. |
-| `return` | Leave the function. |
-| `exit 1` | Stop the whole script with failure. |
-
-## Conditionals
-
-The repo mostly uses `[[ ... ]]` for checks:
+Use helpers when possible:
 
 ```bash
-if [[ -L "${path}" ]]; then
-  log "Path is a symlink."
+if path_exists "${path}"; then
+  backup_path "${path}"
+fi
+
+if symlink_points_to "${path}" "${expected}"; then
+  rm "${path}"
 fi
 ```
 
-Useful checks used here:
+The helpers hide the `[[ -e ... || -L ... ]]` and symlink-resolution details.
 
-| Check | Meaning |
-|---|---|
-| `[[ -e "${path}" ]]` | Path exists. |
-| `[[ -f "${path}" ]]` | Path is a regular file. |
-| `[[ -d "${path}" ]]` | Path is a directory. |
-| `[[ -L "${path}" ]]` | Path is a symlink. |
-| `[[ -x "${path}" ]]` | Path exists and is executable. |
-| `[[ -n "${value}" ]]` | String is not empty. |
-| `[[ -z "${value}" ]]` | String is empty. |
-| `[[ "${a}" == "${b}" ]]` | Strings are equal. |
-| `[[ "${path}" == "${dir}/"* ]]` | String starts with `${dir}/`. |
-| `[[ "${value}" =~ ^[0-9]+$ ]]` | String matches a regular expression. |
-
-Use `!` to negate a command or condition:
-
-```bash
-if ! command -v brew >/dev/null 2>&1; then
-  log "Homebrew is missing."
-fi
-```
-
-## Integer checks
-
-The repo uses `(( ... ))` for numeric tests:
-
-```bash
-if (( DRY_RUN )); then
-  log "Would remove ${path}"
-fi
-
-if (( verify_status != 0 )); then
-  exit 1
-fi
-```
-
-Use `[[ ... ]]` for strings and files. Use `(( ... ))` for numbers.
-
-## Case statements
-
-`case` is used when there are a few known string choices:
-
-```bash
-case "${OS}" in
-  Darwin)
-    exec "${ROOT_DIR}/platforms/darwin/bootstrap.sh"
-    ;;
-  Linux)
-    log_warn "Linux support is planned but not implemented yet."
-    exit 1
-    ;;
-  *)
-    log_error "Unsupported operating system: ${OS}"
-    exit 1
-    ;;
-esac
-```
-
-`*)` is the fallback branch.
-
-Multiple patterns can share a branch:
-
-```bash
-case "${remote}" in
-  "${OH_MY_ZSH_REPO}"|"git@github.com:ohmyzsh/ohmyzsh.git")
-    return 0
-    ;;
-esac
-```
-
-## Loops
-
-Loop over arrays:
+### Loops over managed links
 
 ```bash
 for link in "${MANAGED_LINKS[@]}"; do
-  remove_link "${link%%:*}" "${link#*:}" "managed symlink"
+  install_managed_link "${link%%:*}" "${link#*:}"
 done
 ```
 
-Loop over command-line arguments:
+This is why adding a new managed config usually means adding one line to
+`MANAGED_LINKS`, then updating tests/docs.
+
+### Argument parsing
+
+Small scripts parse arguments with `case`:
 
 ```bash
 while (($#)); do
@@ -231,242 +190,118 @@ while (($#)); do
     --dry-run)
       DRY_RUN=1
       ;;
+    -h|--help)
+      usage
+      return
+      ;;
+    *)
+      log_error "Unknown argument: $1"
+      usage >&2
+      exit 1
+      ;;
   esac
   shift
 done
 ```
 
-`$#` is the number of remaining arguments. `shift` drops the first argument so the next one becomes `$1`.
+## Logging
 
-Loop over files with globs:
-
-```bash
-for entry in "${target}"/* "${target}"/.[!.]* "${target}"/..?*; do
-  if [[ ! -e "${entry}" && ! -L "${entry}" ]]; then
-    continue
-  fi
-done
-```
-
-This checks normal files, dotfiles like `.gitignore`, and dotfiles with two or more characters. The guard skips unmatched glob patterns.
-
-## Arrays
-
-Arrays hold multiple values:
+Use the shared logging helpers instead of raw `echo`:
 
 ```bash
-PACKAGES=(kitty mise nvim zsh)
-```
-
-Use all array values safely with:
-
-```bash
-"${PACKAGES[@]}"
-```
-
-This preserves each item as its own argument.
-
-## String trimming
-
-Some scripts store pairs as `left:right` and split them with parameter expansion:
-
-```bash
-path="${link%%:*}"
-expected="${link#*:}"
-```
-
-| Syntax | Meaning |
-|---|---|
-| `${link%%:*}` | Remove the longest `:*` from the end. This keeps everything before the first colon. |
-| `${link#*:}` | Remove the shortest `*:` from the start. This keeps everything after the first colon. |
-| `${path#"${HOME}/"}` | Remove the `$HOME/` prefix if present. |
-| `${0##*/}` | Keep only the script name from a path. |
-
-## Heredocs
-
-`scripts/cleanup.sh` uses a heredoc to print help text:
-
-```bash
-cat <<EOF
-Usage: ${0##*/} [--dry-run]
-EOF
-```
-
-Everything until the closing `EOF` is passed to `cat`.
-
-## Default and required variable forms
-
-The scripts use a few safer variable forms:
-
-```bash
-local stream="${4:-stdout}"
-: "${BACKUP_ROOT:?BACKUP_ROOT must be set before calling backup_path}"
-```
-
-| Syntax | Meaning |
-|---|---|
-| `${4:-stdout}` | Use `$4` if set and non-empty, otherwise use `stdout`. |
-| `${BACKUP_ROOT:?message}` | Fail with `message` if `BACKUP_ROOT` is unset or empty. |
-
-The leading `:` is a no-op command. It is used here only to trigger the required-variable check.
-
-## Redirection
-
-The scripts redirect output to keep logs useful:
-
-```bash
-command -v brew >/dev/null 2>&1
-```
-
-| Syntax | Meaning |
-|---|---|
-| `>/dev/null` | Discard standard output. |
-| `2>/dev/null` | Discard standard error. |
-| `2>&1` | Send standard error to the same place as standard output. |
-| `>&2` | Print to standard error. |
-
-## Pipelines and fallbacks
-
-Pipelines connect commands:
-
-```bash
-grep -v '^[[:space:]]*$' "${path}" || true
-```
-
-`|| true` means "do not fail the script if the previous command found nothing." This is important with `set -e`, because `grep` exits with failure when there are no matches.
-
-Use `&&` when the next command should run only after success:
-
-```bash
-cd "${ROOT_DIR}" && pwd
-```
-
-Use command conditions directly when the exit status is what matters:
-
-```bash
-if git -C "${OH_MY_ZSH_DIR}" merge --ff-only --quiet '@{u}'; then
-  return
-fi
-```
-
-This runs the `then` branch only if the command succeeds.
-
-## Subshells
-
-Parentheses run commands in a subshell:
-
-```bash
-(
-  cd "${ROOT_DIR}"
-  mise install --yes
-)
-```
-
-The `cd` only affects the subshell. After the block finishes, the parent script is still in its original directory.
-
-## Traps and cleanup
-
-Temporary files should be removed even when a script fails:
-
-```bash
-cleanup() {
-  rm -f "${WORK_BREWFILE}"
-}
-
-trap cleanup EXIT
-```
-
-`trap cleanup EXIT` runs `cleanup` when the script exits for any reason.
-
-## Sourcing helper files
-
-`source` loads functions and variables from another file into the current script:
-
-```bash
-source "${ROOT_DIR}/scripts/logging.sh"
-source "${ROOT_DIR}/scripts/fs.sh"
-source "${ROOT_DIR}/scripts/paths.sh"
-```
-
-This is how scripts share `log`, `log_error`, `resolve_symlink_target`, `backup_path`, and the managed path lists.
-
-## Logging helpers
-
-The repo uses small wrappers instead of plain `echo`:
-
-```bash
-log "Starting initd bootstrap for macOS."
+log "Linking managed config paths..."
 log_success "Managed symlinks verified."
 log_warn "Backing up unmanaged ${path} -> ${backup}"
 log_error "Managed path points to the wrong target: ${path}"
 ```
 
-These helpers live in `scripts/logging.sh` and keep output consistent.
+They keep output consistent and make it clear what is happening.
 
-## Common commands used by this repo
+## Testing strategy
 
-| Command | Used for |
-|---|---|
-| `command -v name` | Check whether a command exists. |
-| `readlink path` | Read where a symlink points. |
-| `ln -s source target` | Create a symlink. |
-| `ln -snf source target` | Replace a symlink safely. |
-| `rm path` / `rm -f path` | Remove files or symlinks. |
-| `mv source dest` | Move unmanaged configs into backups. |
-| `mkdir -p dir` | Create a directory and parents if needed. |
-| `mktemp` | Create a temporary file. |
-| `grep` | Search or filter text. |
-| `awk` | Filter one line out of the temporary Brewfile. |
-| `brew bundle` | Install Homebrew packages from the Brewfile. |
-| `mise trust` / `mise install` | Trust config and install runtimes. |
+### Existing behavior tests
 
-## How to safely change these scripts
-
-1. Keep `main` readable. It should describe the flow at a high level.
-2. Put reusable filesystem logic in `scripts/fs.sh`.
-3. Put shared ownership paths in `scripts/paths.sh`.
-4. Put logging changes in `scripts/logging.sh`.
-5. Prefer small functions with names like `ensure_*`, `verify_*`, `remove_*`, and `prepare_*`.
-6. Always quote variables unless you intentionally want word splitting.
-7. Be careful with `rm`, `mv`, and symlink logic. Test with a temporary `HOME` first.
-
-## Validation commands
-
-Run syntax checks after edits:
-
-```bash
-bash -n bootstrap.sh platforms/darwin/bootstrap.sh platforms/darwin/macos.sh scripts/link.sh scripts/cleanup.sh scripts/git-profile.sh scripts/logging.sh scripts/fs.sh scripts/paths.sh scripts/test-install-behavior.sh
-```
-
-Check for whitespace errors:
-
-```bash
-git diff --check
-```
-
-Run behavior tests without touching your real home directory:
+Run:
 
 ```bash
 scripts/test-install-behavior.sh
 ```
 
-The test script creates temporary homes and checks clean installs, unmanaged config backups, cleanup behavior, legacy-only cleanup, directory folding, and legacy migrations.
+This is the most important test. It creates temporary `$HOME` directories and
+checks user-visible behavior:
 
-You can also test managed links manually with a temporary home:
+- clean link install
+- backup of unmanaged configs
+- Git profile switching
+- cleanup removes only initd-owned symlinks
+- old file-level links fold into direct directory links
+- legacy layouts migrate during normal link setup
+
+These are closer to integration tests than tiny unit tests, but they are the
+right default for setup scripts because the risky behavior is filesystem state.
+
+### Can we write unit tests for Bash?
+
+Yes, but use them selectively.
+
+Good candidates for Bash unit tests:
+
+- pure helper behavior in `scripts/fs.sh`
+- path list parsing from `scripts/paths.sh`
+- small functions that return success/failure without modifying real files
+
+Poor candidates:
+
+- full bootstrap flows
+- Homebrew or mise orchestration
+- functions that intentionally move or remove files
+
+If we add unit tests later, the simplest dependency-free approach is another
+Bash test script that sources helper files and uses `mktemp -d`:
 
 ```bash
-tmp_home="$(mktemp -d)"
-HOME="${tmp_home}" scripts/link.sh
-rm -rf "${tmp_home}"
+ROOT_DIR="$(pwd)"
+HOME="$(mktemp -d)"
+source "${ROOT_DIR}/scripts/logging.sh"
+source "${ROOT_DIR}/scripts/fs.sh"
+
+ln -s "target" "${HOME}/link"
+symlink_points_to "${HOME}/link" "${HOME}/target"
 ```
 
-## When Bash feels confusing
+For now, avoid adding a test framework unless the helper logic grows. The current
+behavior test gives better safety for the setup flows we care about.
 
-Before rewriting in another language, try this:
+## Validation commands
 
-1. Move complex repeated code into a helper function.
-2. Give the function a plain-English name.
-3. Add one comment explaining why the branch exists.
-4. Add a temp-`HOME` behavior check for the case you changed.
+Run syntax checks after editing scripts:
 
-That usually makes installer scripts easier to maintain while keeping the bootstrap dependency-free.
+```bash
+bash -n bootstrap.sh platforms/darwin/bootstrap.sh platforms/darwin/macos.sh scripts/link.sh scripts/cleanup.sh scripts/git-profile.sh scripts/logging.sh scripts/fs.sh scripts/paths.sh scripts/test-install-behavior.sh
+```
+
+Check whitespace issues:
+
+```bash
+git diff --check
+```
+
+Run behavior tests:
+
+```bash
+scripts/test-install-behavior.sh
+```
+
+## How to safely change these scripts
+
+1. Update the data list first if ownership changes.
+2. Keep `main` readable as a checklist.
+3. Put repeated filesystem logic in `scripts/fs.sh`.
+4. Put repeated path/profile knowledge in `scripts/paths.sh`.
+5. Prefer a clear helper over a clever one-liner.
+6. Add or update a temporary-`HOME` behavior test for any filesystem change.
+7. Do not touch `nvim/` unless the task explicitly asks for Neovim changes.
+
+When Bash feels confusing, rename the function or extract a helper before
+rewriting the setup in another language. For this repo, clear Bash is still the
+lowest-dependency option.

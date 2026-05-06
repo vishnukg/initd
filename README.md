@@ -232,14 +232,6 @@ To remove initd-managed symlinks from a machine without deleting any source file
 
 Cleanup only removes known symlinks that point back into `~/.config/initd`. Non-symlink files and unrelated symlinks are left in place.
 
-To remove only legacy symlinks from older `initd` layouts without touching current managed symlinks:
-
-```bash
-~/.config/initd/scripts/cleanup.sh --legacy-only
-```
-
-Legacy-only cleanup is useful after migrating from older layouts that used `~/.config/git`, `~/.config/zsh`, or `zsh-home/.zshrc`.
-
 For Neovim plugin changes, update the files under `nvim/.config/nvim`, then open Neovim and run your normal plugin workflow such as `:Lazy sync`.
 
 For runtime version changes, edit `~/.config/initd/mise/.config/mise/config.toml`. Because `~/.config/mise` is a symlink to that directory, changes are live immediately. Re-run `bash ~/.config/initd/bootstrap.sh` when you want bootstrap to refresh installed runtimes on the machine.

@@ -38,3 +38,45 @@ LEGACY_ZSH_CONFIG_DIR="${HOME}/.config/zsh"
 LEGACY_ZSH_CONFIG_SOURCE="${ROOT_DIR}/shell/.config/zsh"
 LEGACY_ZSHRC_SOURCE='[[ -f "${HOME}/.config/zsh/initd.zsh" ]] && source "${HOME}/.config/zsh/initd.zsh"'
 LEGACY_ZPROFILE_SOURCE='[[ -f "${HOME}/.config/zsh/initd.zprofile" ]] && source "${HOME}/.config/zsh/initd.zprofile"'
+
+git_profile_source_is_managed() {
+  local source="$1"
+  local expected=""
+
+  for expected in "${GIT_PROFILE_TARGETS[@]}"; do
+    if [[ "${source}" == "${expected}" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+git_profile_link_is_managed() {
+  local path="$1"
+
+  [[ -L "${path}" ]] && git_profile_source_is_managed "$(resolve_symlink_target "${path}")"
+}
+
+verify_git_profile_link() {
+  local path="${1:-${HOME}/.gitconfig}"
+  local label="${2:-}"
+  local resolved=""
+
+  if git_profile_link_is_managed "${path}"; then
+    if [[ -n "${label}" ]]; then
+      log_success "Verified ${label}."
+    fi
+    return
+  fi
+
+  if [[ ! -L "${path}" ]]; then
+    log_error "Managed Git profile was not installed as a symlink: ${path}"
+    exit 1
+  fi
+
+  resolved="$(resolve_symlink_target "${path}")"
+  log_error "Managed Git profile points outside initd profiles: ${path}"
+  log_info "Resolved: ${resolved}"
+  exit 1
+}
