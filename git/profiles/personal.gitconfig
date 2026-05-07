@@ -14,21 +14,21 @@
 	navigate = true
 	syntax-theme = Visual Studio Dark+
 	zero-style = "#e6edf3"
-	file-style = "#8aa889"
-	file-decoration-style = "#3a3a3a"
+	file-style = blue
+	file-decoration-style = blue
 	file-added-label = [added]
 	file-copied-label = [copied]
 	file-modified-label = [modified]
 	file-removed-label = [removed]
 	file-renamed-label = [renamed]
 	hunk-header-style = file line-number syntax
-	hunk-header-file-style = "#8aa889"
-	hunk-header-line-number-style = "#6f8495"
-	hunk-header-decoration-style = "#3a3a3a"
-	minus-style = syntax "#5c1f1f"
-	minus-emph-style = syntax "#8f2f2f"
-	plus-style = syntax "#0f5132"
-	plus-emph-style = syntax "#197a42"
+	hunk-header-file-style = magenta
+	hunk-header-line-number-style = magenta
+	hunk-header-decoration-style = magenta
+	minus-style = red
+	minus-emph-style = red bold
+	plus-style = green
+	plus-emph-style = green bold
 	keep-plus-minus-markers = true
 
 [init]
