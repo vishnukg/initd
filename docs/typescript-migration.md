@@ -195,7 +195,6 @@ Behavior to preserve:
 - install managed links for Git, Kitty, mise, Neovim, and Zsh
 - back up unmanaged conflicts to `~/.config/initd-backups/<timestamp>/`
 - fold existing directories that contain only expected initd-owned links
-- migrate legacy links and loader files
 - set the default Git profile when needed
 - verify every final link points to the expected source
 
@@ -213,7 +212,6 @@ Recommended tests:
 - cleanup of managed links
 - cleanup preserves unmanaged files
 - directory folding
-- legacy link migration
 
 Tests should create temporary home directories and pass those paths into the TypeScript helpers. They should not mutate the real developer home directory.
 

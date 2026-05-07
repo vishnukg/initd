@@ -25,11 +25,7 @@ EOF
 }
 
 gitconfig_is_switchable() {
-  if [[ ! -L "${TARGET}" ]]; then
-    return 1
-  fi
-
-  git_profile_link_is_managed "${TARGET}" || symlink_points_to "${TARGET}" "${LEGACY_GITCONFIG}"
+  [[ -L "${TARGET}" ]] && git_profile_link_is_managed "${TARGET}"
 }
 
 if [[ "${PROFILE}" == "-h" || "${PROFILE}" == "--help" ]]; then

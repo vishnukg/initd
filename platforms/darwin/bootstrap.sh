@@ -5,20 +5,18 @@ set -euo pipefail
 # Using an absolute ROOT_DIR lets bootstrap be run from any directory.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Derived paths: keep source files in the repo, then point tools at them.
 BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
-MISE_CONFIG="${ROOT_DIR}/mise/.config/mise/config.toml"
 DOCKER_CASK="docker-desktop"
 DOCKER_APP="/Applications/Docker.app"
 OH_MY_ZSH_DIR="${HOME}/.oh-my-zsh"
 OH_MY_ZSH_REPO="https://github.com/ohmyzsh/ohmyzsh.git"
 
 # One timestamp per run keeps all preserved user files grouped together.
-BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
+# Exported so scripts/link.sh reuses the same folder.
+export BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
 WORK_BREWFILE=""
 
 source "${ROOT_DIR}/scripts/logging.sh"
-source "${ROOT_DIR}/scripts/fs.sh"
 source "${ROOT_DIR}/scripts/paths.sh"
 
 require_command() {
@@ -29,18 +27,6 @@ require_command() {
     log_error "${command_name} is required ${context}."
     exit 1
   fi
-}
-
-verify_path_missing() {
-  local path="$1"
-  local label="$2"
-
-  if path_exists "${path}"; then
-    log_error "${label} should not exist: ${path}"
-    exit 1
-  fi
-
-  log_success "Verified ${label} is absent."
 }
 
 ensure_xcode_clt() {
@@ -59,12 +45,12 @@ ensure_xcode_clt() {
 }
 
 ensure_homebrew() {
-  if ! command -v brew >/dev/null 2>&1; then
+  if command -v brew >/dev/null 2>&1; then
+    log_success "Homebrew already installed."
+  else
     log "Homebrew not found. Installing Homebrew..."
     NONINTERACTIVE=1 /bin/bash -c \
       "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  else
-    log_success "Homebrew already installed."
   fi
 
   # Homebrew uses different default prefixes on Apple Silicon and Intel Macs.
@@ -78,135 +64,79 @@ ensure_homebrew() {
   require_command brew "but was not found after Homebrew setup"
 }
 
+# True when ${OH_MY_ZSH_DIR} is a git checkout of the upstream Oh My Zsh repo.
 oh_my_zsh_is_installed() {
   local remote=""
 
-  # A directory named ~/.oh-my-zsh is not enough; it must be an upstream Oh My
-  # Zsh checkout so bootstrap can update or replace it predictably.
-  if [[ ! -d "${OH_MY_ZSH_DIR}/.git" ]]; then
-    return 1
-  fi
-
+  [[ -d "${OH_MY_ZSH_DIR}/.git" ]] || return 1
   remote="$(git -C "${OH_MY_ZSH_DIR}" remote get-url origin 2>/dev/null || true)"
-
-  case "${remote}" in
-    "${OH_MY_ZSH_REPO}"|"git@github.com:ohmyzsh/ohmyzsh.git")
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
+  [[ "${remote}" == "${OH_MY_ZSH_REPO}" || "${remote}" == "git@github.com:ohmyzsh/ohmyzsh.git" ]]
 }
 
 ensure_oh_my_zsh() {
   require_command git "to install Oh My Zsh"
 
-  if oh_my_zsh_is_installed; then
-    # Local plugin/theme edits make an in-place update risky. Back up the whole
-    # checkout and clone fresh so the final shell framework is known-good.
-    if [[ -n "$(git -C "${OH_MY_ZSH_DIR}" status --porcelain)" ]]; then
-      log "Existing Oh My Zsh checkout has unmanaged changes."
-      backup_path "${OH_MY_ZSH_DIR}"
-    else
-      log "Updating Oh My Zsh in ${OH_MY_ZSH_DIR}."
-      if ! git -C "${OH_MY_ZSH_DIR}" fetch --quiet origin; then
-        log_error "Could not fetch Oh My Zsh updates. Check your network and re-run bootstrap."
-        exit 1
-      fi
-
-      if git -C "${OH_MY_ZSH_DIR}" merge --ff-only --quiet '@{u}'; then
-        return
-      fi
-
-      log "Existing Oh My Zsh checkout could not be fast-forwarded."
-      backup_path "${OH_MY_ZSH_DIR}"
+  # Fast path: an existing clean Oh My Zsh checkout is fast-forwarded in place.
+  if oh_my_zsh_is_installed && [[ -z "$(git -C "${OH_MY_ZSH_DIR}" status --porcelain)" ]]; then
+    log "Updating Oh My Zsh in ${OH_MY_ZSH_DIR}."
+    if git -C "${OH_MY_ZSH_DIR}" fetch --quiet origin \
+       && git -C "${OH_MY_ZSH_DIR}" merge --ff-only --quiet '@{u}'; then
+      return
     fi
-  else
+    log_warn "Could not fast-forward Oh My Zsh; reinstalling."
+  fi
+
+  # Anything else (missing, unmanaged changes, non-OMZ checkout, ff failure):
+  # back up whatever is at the path and clone a fresh copy.
+  if path_exists "${OH_MY_ZSH_DIR}"; then
     backup_path "${OH_MY_ZSH_DIR}"
   fi
-
-  if [[ ! -d "${OH_MY_ZSH_DIR}" ]]; then
-    log "Installing Oh My Zsh into ${OH_MY_ZSH_DIR}."
-    git clone --quiet --depth=1 "${OH_MY_ZSH_REPO}" "${OH_MY_ZSH_DIR}"
-  fi
+  log "Installing Oh My Zsh into ${OH_MY_ZSH_DIR}."
+  git clone --quiet --depth=1 "${OH_MY_ZSH_REPO}" "${OH_MY_ZSH_DIR}"
 }
 
-ensure_mise_trust() {
-  if ! command -v mise >/dev/null 2>&1; then
-    log_error "mise is required but was not found after Homebrew install."
-    exit 1
-  fi
-
-  log "Trusting ${MISE_CONFIG} in mise."
-  mise trust "${MISE_CONFIG}"
-}
-
-verify_docker_desktop() {
-  # The Brewfile installs Docker Desktop on fresh machines. If Docker.app already
-  # existed before bootstrap, prepare_brewfile may skip the cask to avoid a
-  # Homebrew conflict; either case should leave Docker available on the machine.
-  if brew list --cask "${DOCKER_CASK}" >/dev/null 2>&1 || [[ -d "${DOCKER_APP}" ]]; then
-    log_success "Verified Docker Desktop."
-    return
-  fi
-
-  log_error "Docker Desktop was not installed. Re-run bootstrap or install the ${DOCKER_CASK} cask."
-  exit 1
-}
-
-  verify_managed_links() {
-  local link=""
-
-  # Bootstrap finishes only after checking the important user-visible paths. This
-  # catches partial link runs or legacy paths that would otherwise fail later.
-  log "Verifying managed links..."
-  verify_path_missing "${HOME}/.config/git" "legacy git config directory"
-  for link in "${MANAGED_LINKS[@]}"; do
-    verify_symlink_target "${link%%:*}" "${link#*:}" "${link%%:*}"
-  done
-  if ! oh_my_zsh_is_installed; then
-    log_error "Oh My Zsh was not installed correctly: ${OH_MY_ZSH_DIR}"
-    exit 1
-  fi
-  log_success "Verified Oh My Zsh."
-  verify_git_profile_link "${HOME}/.gitconfig" "git profile config"
-}
-
+# Strip ${DOCKER_CASK} from the working Brewfile when Docker.app already exists
+# outside Homebrew. Keeps bootstrap idempotent without editing the curated file.
 prepare_brewfile() {
   WORK_BREWFILE="$(mktemp)"
   log "Preparing Brewfile from ${BREWFILE}."
   cp "${BREWFILE}" "${WORK_BREWFILE}"
 
-  # Docker is commonly installed manually before this repo is adopted. Removing
-  # just this cask from the temporary Brewfile keeps bootstrap idempotent without
-  # changing the curated source Brewfile.
   if [[ -d "${DOCKER_APP}" ]] && ! brew list --cask "${DOCKER_CASK}" >/dev/null 2>&1; then
     log_warn "Skipping Docker cask because /Applications/Docker.app already exists outside Homebrew."
-    awk -v cask="${DOCKER_CASK}" '$0 != "cask \"" cask "\""' "${WORK_BREWFILE}" > "${WORK_BREWFILE}.tmp"
+    grep -Ev "^[[:space:]]*cask[[:space:]]+[\"']${DOCKER_CASK}[\"'][[:space:]]*$" \
+      "${WORK_BREWFILE}" > "${WORK_BREWFILE}.tmp"
     mv "${WORK_BREWFILE}.tmp" "${WORK_BREWFILE}"
-  else
-    log "Using Brewfile as-is."
   fi
 }
 
-cleanup() {
+verify_docker_desktop() {
+  # Docker.app may come from Homebrew (fresh machine) or have been installed
+  # manually before this repo was adopted. Either way it must be present.
+  if brew list --cask "${DOCKER_CASK}" >/dev/null 2>&1 || [[ -d "${DOCKER_APP}" ]]; then
+    log_success "Verified Docker Desktop."
+    return
+  fi
+  log_error "Docker Desktop was not installed. Re-run bootstrap or install the ${DOCKER_CASK} cask."
+  exit 1
+}
+
+cleanup_workfile() {
   if [[ -n "${WORK_BREWFILE}" && -f "${WORK_BREWFILE}" ]]; then
     rm -f "${WORK_BREWFILE}"
   fi
 }
 
 main() {
-  trap cleanup EXIT
+  trap cleanup_workfile EXIT
 
-  # Keep this flow as a high-level checklist; detailed migration and safety logic
-  # lives in helper functions or scripts.
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Starting initd bootstrap for macOS."
+
   ensure_xcode_clt
   ensure_homebrew
-  prepare_brewfile
 
+  prepare_brewfile
   log "Installing Homebrew packages and casks..."
   brew bundle --file "${WORK_BREWFILE}"
   verify_docker_desktop
@@ -218,19 +148,19 @@ main() {
   log "Linking managed configs into ${HOME}..."
   "${ROOT_DIR}/scripts/link.sh"
 
-  log "Ensuring shared mise config is trusted..."
-  ensure_mise_trust
+  log "Trusting shared mise config."
+  mise trust "${ROOT_DIR}/mise/.config/mise/config.toml"
 
   log "Installing shared runtimes with mise..."
-  (
-    cd "${ROOT_DIR}"
-    mise install --yes
-  )
+  mise install --yes
 
   log "Applying macOS defaults..."
   "${ROOT_DIR}/platforms/darwin/macos.sh"
 
-  verify_managed_links
+  if ! oh_my_zsh_is_installed; then
+    log_error "Oh My Zsh was not installed correctly: ${OH_MY_ZSH_DIR}"
+    exit 1
+  fi
 
   echo
   log_success "initd finished for macOS."

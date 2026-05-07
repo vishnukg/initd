@@ -219,35 +219,6 @@ test_directory_folding() {
   log_success "managed directory folding"
 }
 
-test_legacy_link_migration() {
-  local home=""
-  local output=""
-
-  home="$(new_home)"
-  output="${TEST_ROOT}/legacy-link.out"
-
-  mkdir -p "${home}/.config/mise"
-  ln -s "${home}/.config/git/.gitconfig" "${home}/.gitconfig"
-  ln -s "${ROOT_DIR}/git/.config/git" "${home}/.config/git"
-  ln -s "${ROOT_DIR}/mise.toml" "${home}/.config/mise/config.toml"
-  printf '[[ -f "${HOME}/.config/zsh/initd.zsh" ]] && source "${HOME}/.config/zsh/initd.zsh"\n' > "${home}/.zshrc"
-  printf '[[ -f "${HOME}/.config/zsh/initd.zprofile" ]] && source "${HOME}/.config/zsh/initd.zprofile"\n' > "${home}/.zprofile"
-  ln -s "${ROOT_DIR}/shell/.config/zsh" "${home}/.config/zsh"
-
-  # Migration removes known old initd shims while preserving anything that might
-  # be real user config.
-  run_link "${home}" "${output}"
-
-  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/personal.gitconfig"
-  assert_path_missing "${home}/.config/git"
-  assert_symlink_resolves_to "${home}/.config/mise" "${ROOT_DIR}/mise/.config/mise"
-  assert_symlink_resolves_to "${home}/.zshrc" "${ROOT_DIR}/zsh/.zshrc"
-  assert_symlink_resolves_to "${home}/.zprofile" "${ROOT_DIR}/zsh/.zprofile"
-  assert_path_missing "${home}/.config/zsh"
-
-  log_success "legacy link migration"
-}
-
 main() {
   require_command find
 
@@ -260,7 +231,6 @@ main() {
   test_git_profile_switcher
   test_cleanup_managed_links
   test_directory_folding
-  test_legacy_link_migration
   log_success "All install behavior tests passed."
 }
 
