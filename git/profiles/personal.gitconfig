@@ -8,6 +8,9 @@
 [interactive]
 	diffFilter = delta --color-only
 
+[merge]
+	tool = nvimdiff
+
 [delta]
 	side-by-side = false
 	line-numbers = true

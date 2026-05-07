@@ -177,7 +177,7 @@ Bootstrap verifies that all managed runtime config paths are symlinks into `~/.c
 
 If Xcode Command Line Tools are missing, macOS will prompt for installation first. Re-run `bash ~/.config/initd/bootstrap.sh` after that finishes.
 
-If you are new to maintaining these scripts, see [`docs/bash-primer.md`](docs/bash-primer.md) for a repo-specific Bash reference. For the planned incremental TypeScript rewrite, see [`docs/typescript-migration.md`](docs/typescript-migration.md).
+If you are new to maintaining these scripts, see [`docs/bash-primer.md`](docs/bash-primer.md) for a repo-specific Bash reference and [`docs/git-branching-conflicts.md`](docs/git-branching-conflicts.md) for Git branching, git-delta, and conflict resolution basics. For the planned incremental TypeScript rewrite, see [`docs/typescript-migration.md`](docs/typescript-migration.md).
 
 To safely check install, migration, and cleanup behavior without touching your real home directory:
 
