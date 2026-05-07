@@ -157,11 +157,6 @@ main() {
   log "Applying macOS defaults..."
   "${ROOT_DIR}/platforms/darwin/macos.sh"
 
-  if ! oh_my_zsh_is_installed; then
-    log_error "Oh My Zsh was not installed correctly: ${OH_MY_ZSH_DIR}"
-    exit 1
-  fi
-
   echo
   log_success "initd finished for macOS."
 }
