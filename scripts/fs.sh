@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
 # Shared filesystem helpers for initd setup scripts.
+# Callers must source scripts/logging.sh before using verify_symlink_target or
+# backup_path, since both call log_* functions on failure.
 
 resolve_symlink_target() {
   local path="$1"

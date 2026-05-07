@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # Shared path definitions for initd setup scripts.
-# Callers must set ROOT_DIR before sourcing this file.
+# Callers must source scripts/logging.sh before this file (helpers below call
+# log_error / log_info), and must set ROOT_DIR.
 : "${ROOT_DIR:?ROOT_DIR must be set before sourcing scripts/paths.sh}"
 
 # paths.sh helpers depend on fs.sh helpers, so we source it here. That way the

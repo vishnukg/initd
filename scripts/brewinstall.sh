@@ -28,21 +28,10 @@ EOF
 parse_args() {
   while (($#)); do
     case "$1" in
-      --formula|--brew)
-        kind="brew"
-        ;;
-      --cask)
-        kind="cask"
-        ;;
-      -h|--help)
-        usage
-        exit 0
-        ;;
-      -*)
-        log_error "Unknown option: $1"
-        usage >&2
-        exit 1
-        ;;
+      --formula|--brew) kind="brew" ;;
+      --cask)           kind="cask" ;;
+      -h|--help)        usage; exit 0 ;;
+      -*)               log_error "Unknown option: $1"; usage >&2; exit 1 ;;
       *)
         if [[ -n "${package}" ]]; then
           log_error "Expected one package, got: ${package} and $1"
@@ -79,6 +68,7 @@ validate_inputs() {
   fi
 }
 
+# When --formula/--cask wasn't given, ask Homebrew which one matches.
 detect_package_kind() {
   if [[ -n "${kind}" ]]; then
     log_info "Using requested package type: ${kind}"
@@ -87,32 +77,25 @@ detect_package_kind() {
 
   log "Detecting whether ${package} is a formula or cask..."
 
-  local formula_found=0
-  local cask_found=0
+  local is_formula=0 is_cask=0
+  brew info --formula "${package}" >/dev/null 2>&1 && is_formula=1
+  brew info --cask    "${package}" >/dev/null 2>&1 && is_cask=1
 
-  if brew info --formula "${package}" >/dev/null 2>&1; then
-    formula_found=1
+  if (( is_formula && is_cask )); then
+    log_error "${package} exists as both a formula and cask. Re-run with --formula or --cask."
+    exit 1
   fi
 
-  if brew info --cask "${package}" >/dev/null 2>&1; then
-    cask_found=1
-  fi
-
-  if (( formula_found && ! cask_found )); then
+  if (( is_formula )); then
     kind="brew"
     log_success "Detected formula: ${package}"
     return
   fi
 
-  if (( cask_found && ! formula_found )); then
+  if (( is_cask )); then
     kind="cask"
     log_success "Detected cask: ${package}"
     return
-  fi
-
-  if (( formula_found && cask_found )); then
-    log_error "${package} exists as both a formula and cask. Re-run with --formula or --cask."
-    exit 1
   fi
 
   log_error "Could not find ${package} as a Homebrew formula or cask."
@@ -120,80 +103,21 @@ detect_package_kind() {
   exit 1
 }
 
-append_group() {
-  local group_file="$1"
-  local output_file="$2"
-  local mode="${3:-sort}"
-
-  if [[ ! -s "${group_file}" ]]; then
-    return
-  fi
-
-  if [[ -s "${output_file}" ]]; then
-    printf '\n' >> "${output_file}"
-  fi
-
-  if [[ "${mode}" == "preserve-order" ]]; then
-    awk '!seen[$0]++' "${group_file}" >> "${output_file}"
-  else
-    LC_ALL=C sort -u "${group_file}" >> "${output_file}"
-  fi
-}
-
-tidy_brewfile() {
-  local entry="$1"
-  local tmpdir
-  local tidy_file
-
-  tmpdir="$(mktemp -d)"
-  tidy_file="${tmpdir}/Brewfile"
-
-  # grep returns 1 when no lines match. The `|| true` keeps that normal case from
-  # stopping the script while `set -e` is enabled.
-  grep -E '^tap "' "${BREWFILE}" > "${tmpdir}/taps" || true
-  grep -E '^brew "' "${BREWFILE}" > "${tmpdir}/brews" || true
-  grep -E '^cask "' "${BREWFILE}" > "${tmpdir}/casks" || true
-  grep -E '^mas "' "${BREWFILE}" > "${tmpdir}/mas" || true
-  grep -Ev '^(tap|brew|cask|mas) "|^$' "${BREWFILE}" > "${tmpdir}/other" || true
-
-  case "${kind}" in
-    brew)
-      printf '%s\n' "${entry}" >> "${tmpdir}/brews"
-      ;;
-    cask)
-      printf '%s\n' "${entry}" >> "${tmpdir}/casks"
-      ;;
-    *)
-      log_error "Unsupported package type: ${kind}"
-      rm -rf "${tmpdir}"
-      exit 1
-      ;;
-  esac
-
-  : > "${tidy_file}"
-  append_group "${tmpdir}/other" "${tidy_file}" "preserve-order"
-  append_group "${tmpdir}/taps" "${tidy_file}"
-  append_group "${tmpdir}/brews" "${tidy_file}"
-  append_group "${tmpdir}/casks" "${tidy_file}"
-  append_group "${tmpdir}/mas" "${tidy_file}"
-  printf '\n' >> "${tidy_file}"
-
-  mv "${tidy_file}" "${BREWFILE}"
-  rm -rf "${tmpdir}"
-}
-
+# Append the entry to the Brewfile if it's not already there.
+# We deliberately don't reorder existing lines: the Brewfile is a hand-curated
+# file in git, and silent reordering hurts diffs. If the file gets messy, edit
+# it manually.
 update_brewfile() {
   local entry="${kind} \"${package}\""
 
   if grep -Fxq "${entry}" "${BREWFILE}"; then
-    log_info "${entry} is already in ${BREWFILE}."
-    log "Tidying ${BREWFILE} to keep sections sorted and deduplicated."
-  else
-    log "Adding ${entry} to ${BREWFILE}."
+    log_info "${entry} is already in ${BREWFILE}; nothing to add."
+    return
   fi
 
-  tidy_brewfile "${entry}"
-  log_success "Brewfile updated and tidied."
+  log "Adding ${entry} to ${BREWFILE}."
+  printf '%s\n' "${entry}" >> "${BREWFILE}"
+  log_success "Brewfile updated."
 }
 
 apply_brewfile() {

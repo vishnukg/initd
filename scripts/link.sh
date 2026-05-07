@@ -25,21 +25,18 @@ points_into_source() {
 
 # A "foldable" directory is one that contains only symlinks back into the
 # matching initd source. We can safely delete it and replace it with a single
-# direct symlink to the source.
+# direct symlink to the source. The subshell isolates `shopt` changes.
 directory_is_foldable() {
   local target="$1"
   local source="$2"
-  local entry=""
 
-  shopt -s nullglob dotglob
-  for entry in "${target}"/*; do
-    if ! points_into_source "${entry}" "${source}"; then
-      shopt -u nullglob dotglob
-      return 1
-    fi
-  done
-  shopt -u nullglob dotglob
-  return 0
+  (
+    shopt -s nullglob dotglob
+    local entry=""
+    for entry in "${target}"/*; do
+      points_into_source "${entry}" "${source}" || exit 1
+    done
+  )
 }
 
 # Make ${path} ready to receive a fresh `ln -s ${source} ${path}`. Either:
