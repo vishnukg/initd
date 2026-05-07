@@ -96,8 +96,6 @@ Examples:
 | `~/.zshrc` | `~/.config/initd-backups/<timestamp>/.zshrc` |
 | `~/.zprofile` | `~/.config/initd-backups/<timestamp>/.zprofile` |
 | `~/.oh-my-zsh` | `~/.config/initd-backups/<timestamp>/.oh-my-zsh` |
-| legacy `~/.config/git` | `~/.config/initd-backups/<timestamp>/.config/git` |
-| legacy `~/.config/zsh` | `~/.config/initd-backups/<timestamp>/.config/zsh` |
 
 The backup directory is outside the repo, so it is not linked and does not become config source.
 

@@ -47,15 +47,14 @@ symlink_points_to() {
 verify_symlink_target() {
   local path="$1"
   local expected="$2"
-  local label="${3:-Managed path}"
 
   if [[ ! -L "${path}" ]]; then
-    log_error "${label} was not installed as a symlink: ${path}"
+    log_error "Managed path was not installed as a symlink: ${path}"
     exit 1
   fi
 
   if ! symlink_points_to "${path}" "${expected}"; then
-    log_error "${label} points to the wrong target: ${path}"
+    log_error "Managed path points to the wrong target: ${path}"
     log_info "Expected: ${expected}"
     log_info "Resolved: $(resolve_symlink_target "${path}")"
     exit 1

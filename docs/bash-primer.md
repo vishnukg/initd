@@ -34,8 +34,6 @@ For example, `scripts/link.sh` is structured like this:
 main() {
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Target home directory: ${HOME}"
-  log "Preparing legacy paths and existing config directories..."
-  remove_old_initd_layout
   ensure_git_profile_link
 
   log "Linking managed config paths..."
@@ -51,20 +49,20 @@ open the helper function whose name matches the step you care about.
 ## Design rules used here
 
 1. **Keep policy data in one place.** `scripts/paths.sh` says which runtime paths
-   initd owns and which legacy paths it can migrate.
+   initd owns.
 2. **Keep filesystem mechanics in one place.** `scripts/fs.sh` owns helpers like
    `path_exists`, `symlink_points_to`, `backup_path`, and
    `verify_symlink_target`.
 3. **Prefer readable helper names.** Names like
-   `remove_old_initd_layout` and `install_managed_links` explain intent without
-   requiring the reader to understand every Bash condition.
+   `install_managed_links` explain intent without requiring the reader to
+   understand every Bash condition.
 4. **Do not delete user files.** Existing unmanaged files are moved to
    `~/.config/initd-backups/<timestamp>/` before initd takes ownership.
 5. **Only remove links initd owns.** Cleanup checks where each symlink points
    before removing it.
 6. **Test with temporary homes.** The behavior tests exercise install, backup,
-   cleanup, directory folding, Git profile switching, and legacy migration
-   without touching your real `$HOME`.
+   cleanup, directory folding, and Git profile switching without touching your
+   real `$HOME`.
 
 ## Important data lists
 
@@ -86,9 +84,6 @@ Each item is `runtime path:repo source`. Scripts split those pairs like this:
 path="${link%%:*}"
 source="${link#*:}"
 ```
-
-`LEGACY_LINKS` is similar, but it lists known old initd symlinks that are safe
-to remove during migration or cleanup.
 
 ## Why links are direct
 
@@ -235,7 +230,6 @@ checks user-visible behavior:
 - Git profile switching
 - cleanup removes only initd-owned symlinks
 - old file-level links fold into direct directory links
-- legacy layouts migrate during normal link setup
 
 These are closer to integration tests than tiny unit tests, but they are the
 right default for setup scripts because the risky behavior is filesystem state.
