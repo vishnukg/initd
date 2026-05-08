@@ -19,24 +19,13 @@ Options:
 EOF
 }
 
-# Remove ${path} when it is a symlink that initd installed.
-# is_owned returns 0 when the symlink target is one we recognize as managed.
-# Real files and unrelated symlinks are intentionally left in place.
-remove_if_owned() {
+# Removes ${path} if it is a symlink. Skips regular files and already-absent
+# paths — ownership checks happen in the caller before this is invoked.
+remove_link() {
   local path="$1"
-  local is_owned="$2"   # function name; called as: $is_owned "$path"
 
   if [[ ! -L "${path}" ]]; then
-    if path_exists "${path}"; then
-      log "Leaving non-symlink: ${path}"
-    else
-      log "Already absent: ${path}"
-    fi
-    return
-  fi
-
-  if ! "${is_owned}" "${path}"; then
-    log_warn "Leaving symlink outside initd ownership: ${path} -> $(readlink "${path}")"
+    path_exists "${path}" && log "Leaving non-symlink: ${path}" || log "Already absent: ${path}"
     return
   fi
 
@@ -49,16 +38,8 @@ remove_if_owned() {
   rm "${path}"
 }
 
-# Ownership check for a managed link: the symlink at ${path} must point to the
-# expected source under the initd repo.
-points_to_managed_source() {
-  local path="$1"
-  symlink_points_to "${path}" "${EXPECTED_TARGET}"
-}
-
 main() {
-  local link=""
-  local path=""
+  local link="" path="" source=""
 
   while (($#)); do
     case "$1" in
@@ -69,19 +50,25 @@ main() {
     shift
   done
 
-  log_info "Dry run: ${DRY_RUN}"
+  (( DRY_RUN )) && log_info "Dry run mode — no files will be removed."
   log "Removing initd-managed symlinks from ${HOME}"
 
-  # The git profile symlink can point at any file under git/profiles, so it has
-  # its own ownership predicate.
-  remove_if_owned "${HOME}/.gitconfig" git_profile_link_is_managed
+  # Git profile is handled separately: it can point to any file under
+  # git/profiles, not one fixed path, so it needs its own ownership check.
+  if [[ -L "${HOME}/.gitconfig" ]] && ! git_profile_link_is_managed "${HOME}/.gitconfig"; then
+    log_warn "Leaving symlink outside initd ownership: ${HOME}/.gitconfig -> $(readlink "${HOME}/.gitconfig")"
+  else
+    remove_link "${HOME}/.gitconfig"
+  fi
 
-  # Each managed link has a fixed expected target. We share remove_if_owned by
-  # setting EXPECTED_TARGET (read by points_to_managed_source) for each entry.
   for link in "${MANAGED_LINKS[@]}"; do
     path="${link%%:*}"
-    EXPECTED_TARGET="${link#*:}"
-    remove_if_owned "${path}" points_to_managed_source
+    source="${link#*:}"
+    if [[ -L "${path}" ]] && ! symlink_points_to "${path}" "${source}"; then
+      log_warn "Leaving symlink outside initd ownership: ${path} -> $(readlink "${path}")"
+    else
+      remove_link "${path}"
+    fi
   done
 
   log_success "Cleanup complete."

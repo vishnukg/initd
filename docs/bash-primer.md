@@ -1,45 +1,49 @@
 # Bash primer for initd
 
-This repo intentionally uses Bash because setup is mostly command orchestration:
-Homebrew, Git, mise, macOS defaults, symlinks, temporary files, and `$HOME`
-paths. Keeping this in Bash means a fresh machine does not need Node, Go, or a
-build step before bootstrap can run.
+This repo uses Bash because setup is mostly command orchestration: Homebrew,
+Git, mise, macOS defaults, symlinks, and `$HOME` paths. Keeping it in Bash
+means a fresh machine does not need Node, Go, or a build step before bootstrap
+can run.
 
 The goal is not "clever Bash". The goal is readable, defensive scripts that a
 developer can follow like a checklist.
 
-## Current script map
+## Script map
 
 | File | Purpose |
 |---|---|
 | `bootstrap.sh` | Detect the operating system and hand off to the platform bootstrap. |
-| `platforms/darwin/bootstrap.sh` | macOS setup checklist: Xcode CLT, Homebrew, Brewfile, Oh My Zsh, links, mise, macOS defaults, verification. |
-| `scripts/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files, and migrate known old initd layouts. |
-| `scripts/cleanup.sh` | Remove only symlinks that are known to be owned by initd. |
+| `platforms/darwin/bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → Oh My Zsh → links → mise → macOS defaults. |
+| `scripts/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files, and fold old file-level links into direct directory links. |
+| `scripts/cleanup.sh` | Remove only the symlinks that initd created. |
 | `scripts/git-profile.sh` | Switch `~/.gitconfig` between the curated Git profiles. |
 | `scripts/brewinstall.sh` | Add a formula or cask to the curated Brewfile and apply it locally. |
-| `scripts/fs.sh` | Shared filesystem safety helpers. |
-| `scripts/paths.sh` | Shared list of paths initd owns or knows how to migrate. |
-| `scripts/logging.sh` | Shared log formatting helpers. |
+| `scripts/fs.sh` | Shared filesystem helpers: `path_exists`, `symlink_points_to`, `verify_symlink_target`, `backup_path`. |
+| `scripts/paths.sh` | The list of paths initd owns and the git-profile helpers. Sources `fs.sh`. |
+| `scripts/logging.sh` | Colored log helpers: `log`, `log_info`, `log_success`, `log_warn`, `log_error`. |
 | `scripts/test-install-behavior.sh` | Behavior tests that run against temporary home directories. |
 
 ## How to read a script
 
-Start at `main`, usually near the bottom. The larger scripts are written so
-`main` reads like a plain-English checklist.
-
-For example, `scripts/link.sh` is structured like this:
+Start at `main`, which is always at the bottom. The larger scripts are written
+so `main` reads like a plain-English checklist. For example,
+`platforms/darwin/bootstrap.sh`:
 
 ```bash
 main() {
-  log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
-  log "Target home directory: ${HOME}"
-  ensure_git_profile_link
+  ensure_xcode_clt
+  ensure_homebrew
 
-  log "Linking managed config paths..."
-  install_managed_links
+  # install packages...
+  brew bundle --file "${work_brewfile}"
 
-  verify_all_links
+  ensure_oh_my_zsh
+
+  "${ROOT_DIR}/scripts/link.sh"
+
+  mise install --yes
+
+  "${ROOT_DIR}/platforms/darwin/macos.sh"
 }
 ```
 
@@ -48,25 +52,22 @@ open the helper function whose name matches the step you care about.
 
 ## Design rules used here
 
-1. **Keep policy data in one place.** `scripts/paths.sh` says which runtime paths
-   initd owns.
-2. **Keep filesystem mechanics in one place.** `scripts/fs.sh` owns helpers like
-   `path_exists`, `symlink_points_to`, `backup_path`, and
+1. **Keep policy data in one place.** `scripts/paths.sh` defines which runtime
+   paths initd owns via `MANAGED_LINKS`.
+2. **Keep filesystem mechanics in one place.** `scripts/fs.sh` owns helpers
+   like `path_exists`, `symlink_points_to`, `backup_path`, and
    `verify_symlink_target`.
-3. **Prefer readable helper names.** Names like
-   `install_managed_links` explain intent without requiring the reader to
-   understand every Bash condition.
-4. **Do not delete user files.** Existing unmanaged files are moved to
+3. **Do not delete user files.** Existing unmanaged files are moved to
    `~/.config/initd-backups/<timestamp>/` before initd takes ownership.
-5. **Only remove links initd owns.** Cleanup checks where each symlink points
+4. **Only remove links initd owns.** Cleanup checks where each symlink points
    before removing it.
-6. **Test with temporary homes.** The behavior tests exercise install, backup,
+5. **Test with temporary homes.** The behavior tests exercise install, backup,
    cleanup, directory folding, and Git profile switching without touching your
    real `$HOME`.
 
-## Important data lists
+## The MANAGED_LINKS list
 
-`scripts/paths.sh` contains the main ownership rules:
+`scripts/paths.sh` contains the ownership list:
 
 ```bash
 MANAGED_LINKS=(
@@ -78,42 +79,16 @@ MANAGED_LINKS=(
 )
 ```
 
-Each item is `runtime path:repo source`. Scripts split those pairs like this:
+Each entry is `runtime path in $HOME : source path in this repo`. Scripts split
+the pair like this:
 
 ```bash
-path="${link%%:*}"
-source="${link#*:}"
+path="${link%%:*}"    # everything before the first colon
+source="${link#*:}"   # everything after the first colon
 ```
 
-## Why links are direct
-
-`scripts/link.sh` creates direct symlinks such as:
-
-```text
-~/.config/nvim -> ~/.config/initd/nvim/.config/nvim
-~/.zshrc       -> ~/.config/initd/zsh/.zshrc
-```
-
-Direct links are easier to understand than a generic dotfile package manager for
-this repo because the managed paths are small, explicit, and tested.
-
-## Backups and safety
-
-If initd finds a real file or unrelated symlink where it needs to install a
-managed link, it backs that path up first:
-
-```bash
-backup_path "${path}"
-```
-
-`backup_path` preserves the home-relative path under one timestamped backup root.
-For example:
-
-```text
-~/.zshrc -> ~/.config/initd-backups/<timestamp>/.zshrc
-```
-
-This is why scripts must set `BACKUP_ROOT` before calling `backup_path`.
+**Adding a new managed config** means adding one line to `MANAGED_LINKS` and
+adding the corresponding assertion to `test-install-behavior.sh`.
 
 ## Bash syntax used most often
 
@@ -126,43 +101,60 @@ set -euo pipefail
 
 | Option | Meaning |
 |---|---|
-| `-e` | Stop when a command fails. |
-| `-u` | Fail when reading an unset variable. |
-| `pipefail` | Fail a pipeline if any command in it fails. |
+| `-e` | Exit immediately if any command fails. |
+| `-u` | Treat unset variables as an error. |
+| `pipefail` | A pipeline fails if any command in it fails (not just the last one). |
 
-### Root directory
+### Finding the repo root
 
-Most scripts compute the repo root from their own path:
+Most scripts compute the repo root from their own path so they work no matter
+which directory you run them from:
 
 ```bash
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ```
 
-This lets scripts work no matter which directory the user runs them from.
+`${BASH_SOURCE[0]}` is the path to the current script file. `dirname` gives its
+folder. `cd …/.. && pwd` walks up one level and resolves the absolute path.
 
-### Quoting
+### Quoting variables
 
-Always quote variables unless you intentionally want word splitting:
+Always wrap variables in double quotes to prevent word-splitting on spaces:
 
 ```bash
-ln -s "${source}" "${path}"
+ln -s "${source}" "${path}"   # correct
+ln -s $source $path           # breaks if path contains spaces
 ```
 
-### Path checks
+### Checking whether a path exists
 
-Use helpers when possible:
+`path_exists` from `scripts/fs.sh` handles regular files, directories, and
+broken symlinks:
 
 ```bash
 if path_exists "${path}"; then
   backup_path "${path}"
 fi
-
-if symlink_points_to "${path}" "${expected}"; then
-  rm "${path}"
-fi
 ```
 
-The helpers hide the `[[ -e ... || -L ... ]]` and symlink-resolution details.
+Using `-e` alone would miss broken symlinks (a symlink whose target has been
+deleted), so `path_exists` checks both `-e` and `-L`.
+
+### Checking where a symlink points
+
+`symlink_points_to` and `verify_symlink_target` from `scripts/fs.sh`:
+
+```bash
+# Returns true/false — use in if-conditions
+if symlink_points_to "${path}" "${expected}"; then ...
+
+# Exits 1 with an error message if wrong — use as a hard assertion
+verify_symlink_target "${path}" "${expected}"
+```
+
+Under the hood, both call `readlink` to get the symlink's target and compare it
+as a plain string. This works because all initd symlinks are created with
+absolute paths.
 
 ### Loops over managed links
 
@@ -172,130 +164,121 @@ for link in "${MANAGED_LINKS[@]}"; do
 done
 ```
 
-This is why adding a new managed config usually means adding one line to
-`MANAGED_LINKS`, then updating tests/docs.
+`${array[@]}` expands every element. `%%:*` strips everything from the first
+colon to the end; `#*:` strips everything up to and including the first colon.
 
 ### Argument parsing
 
-Small scripts parse arguments with `case`:
+Scripts parse their arguments with a `while` loop and `case`:
 
 ```bash
-while (($#)); do
+while (($#)); do      # while there are arguments left
   case "$1" in
-    --dry-run)
-      DRY_RUN=1
-      ;;
-    -h|--help)
-      usage
-      return
-      ;;
-    *)
-      log_error "Unknown argument: $1"
-      usage >&2
-      exit 1
-      ;;
+    --dry-run) DRY_RUN=1 ;;
+    -h|--help) usage; return ;;
+    *) log_error "Unknown argument: $1"; exit 1 ;;
   esac
-  shift
+  shift               # drop $1, move remaining args left
 done
+```
+
+### Traps for cleanup
+
+`trap` runs a command when the script exits, even on error. Used to clean up
+temp files:
+
+```bash
+work_brewfile="$(mktemp)"
+trap 'rm -f "${work_brewfile}"' EXIT
+```
+
+### Short-circuit operators
+
+`&&` and `||` are used for one-line conditionals:
+
+```bash
+path_exists "${GITCONFIG}" && backup_path "${GITCONFIG}"   # backup only if it exists
+command -v brew >/dev/null || { log_error "brew not found"; exit 1; }
 ```
 
 ## Logging
 
-Use the shared logging helpers instead of raw `echo`:
+Use the shared helpers instead of raw `echo`:
 
 ```bash
-log "Linking managed config paths..."
-log_success "Managed symlinks verified."
-log_warn "Backing up unmanaged ${path} -> ${backup}"
-log_error "Managed path points to the wrong target: ${path}"
+log "Linking managed config paths..."        # blue ==>  — general progress
+log_info "Dry run mode enabled."             # cyan ::   — extra detail
+log_success "Managed symlinks verified."     # green OK  — step complete
+log_warn "Backing up ${path} -> ${backup}"  # yellow !! — to stderr, non-fatal
+log_error "brew not found."                 # red ERR   — to stderr, fatal
 ```
 
-They keep output consistent and make it clear what is happening.
+`log_warn` and `log_error` write to stderr so they appear even when stdout is
+redirected.
+
+## Backups and safety
+
+If initd finds a real file or unrelated symlink where it needs to install a
+managed link, it moves it to a timestamped backup directory first:
+
+```bash
+backup_path "${path}"
+```
+
+`backup_path` keeps the home-relative path under one shared `BACKUP_ROOT` so
+all backups from a single bootstrap run are grouped in one folder. For example:
+
+```text
+~/.zshrc  ->  ~/.config/initd-backups/20260509120000/.zshrc
+```
+
+This is why `BACKUP_ROOT` must be set before calling `backup_path`.
 
 ## Testing strategy
 
-### Existing behavior tests
-
-Run:
+### Behavior tests
 
 ```bash
 scripts/test-install-behavior.sh
 ```
 
 This is the most important test. It creates temporary `$HOME` directories and
-checks user-visible behavior:
+checks the five core behaviors:
 
-- clean link install
-- backup of unmanaged configs
-- Git profile switching
-- cleanup removes only initd-owned symlinks
-- old file-level links fold into direct directory links
+1. **Clean install** — all managed paths are symlinked on a fresh home
+2. **Backup of unmanaged configs** — existing user files are moved to the backup dir
+3. **Git profile switching** — the profile switcher updates `~/.gitconfig` correctly and re-running link.sh does not reset a manually chosen profile
+4. **Cleanup** — only initd-owned symlinks are removed; unrelated symlinks and real files are left alone
+5. **Directory folding** — an old layout of many file-level symlinks is collapsed into one direct directory symlink
 
-These are closer to integration tests than tiny unit tests, but they are the
-right default for setup scripts because the risky behavior is filesystem state.
+These behave like integration tests, which is the right choice for setup scripts
+because the risky thing is filesystem state, not individual functions.
 
-### Can we write unit tests for Bash?
+### Syntax check
 
-Yes, but use them selectively.
-
-Good candidates for Bash unit tests:
-
-- pure helper behavior in `scripts/fs.sh`
-- path list parsing from `scripts/paths.sh`
-- small functions that return success/failure without modifying real files
-
-Poor candidates:
-
-- full bootstrap flows
-- Homebrew or mise orchestration
-- functions that intentionally move or remove files
-
-If we add unit tests later, the simplest dependency-free approach is another
-Bash test script that sources helper files and uses `mktemp -d`:
+After editing a script, verify there are no syntax errors:
 
 ```bash
-ROOT_DIR="$(pwd)"
-HOME="$(mktemp -d)"
-source "${ROOT_DIR}/scripts/logging.sh"
-source "${ROOT_DIR}/scripts/fs.sh"
-
-ln -s "target" "${HOME}/link"
-symlink_points_to "${HOME}/link" "${HOME}/target"
-```
-
-For now, avoid adding a test framework unless the helper logic grows. The current
-behavior test gives better safety for the setup flows we care about.
-
-## Validation commands
-
-Run syntax checks after editing scripts:
-
-```bash
-bash -n bootstrap.sh platforms/darwin/bootstrap.sh platforms/darwin/macos.sh scripts/link.sh scripts/cleanup.sh scripts/git-profile.sh scripts/logging.sh scripts/fs.sh scripts/paths.sh scripts/test-install-behavior.sh
-```
-
-Check whitespace issues:
-
-```bash
-git diff --check
-```
-
-Run behavior tests:
-
-```bash
-scripts/test-install-behavior.sh
+bash -n bootstrap.sh \
+  platforms/darwin/bootstrap.sh \
+  platforms/darwin/macos.sh \
+  scripts/link.sh \
+  scripts/cleanup.sh \
+  scripts/git-profile.sh \
+  scripts/logging.sh \
+  scripts/fs.sh \
+  scripts/paths.sh \
+  scripts/test-install-behavior.sh
 ```
 
 ## How to safely change these scripts
 
-1. Update the data list first if ownership changes.
-2. Keep `main` readable as a checklist.
-3. Put repeated filesystem logic in `scripts/fs.sh`.
-4. Put repeated path/profile knowledge in `scripts/paths.sh`.
-5. Prefer a clear helper over a clever one-liner.
-6. Add or update a temporary-`HOME` behavior test for any filesystem change.
-7. Do not touch `nvim/` unless the task explicitly asks for Neovim changes.
-
-When Bash feels confusing, rename the function or extract a helper before
-rewriting the setup in another language. For this repo, clear Bash is still the
-lowest-dependency option.
+1. **To add a new managed config:** add one line to `MANAGED_LINKS` in
+   `scripts/paths.sh` and add a corresponding assertion to
+   `test-install-behavior.sh`.
+2. **To add a new Homebrew package:** run `./brewinstall <package>` from the
+   repo root. It updates the Brewfile and installs it locally.
+3. **Keep `main` readable as a checklist.** Put filesystem logic in
+   `scripts/fs.sh` and path/profile knowledge in `scripts/paths.sh`.
+4. **Run the behavior tests** after any filesystem-related change.
+5. **Do not touch `nvim/`** unless the task explicitly asks for Neovim changes.
