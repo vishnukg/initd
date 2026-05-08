@@ -48,7 +48,7 @@ initd/
 `initd` is the source of truth. Runtime config paths in `$HOME` are symlinks back into this repo:
 
 | Runtime path | Source in `initd` | Managed by |
-|---|---|
+|---|---|---|
 | `~/.gitconfig` | `git/profiles/personal.gitconfig` or `git/profiles/work.gitconfig` | `scripts/link.sh` and `scripts/git-profile.sh` |
 | `~/.config/kitty` | `kitty/.config/kitty` | `scripts/link.sh` |
 | `~/.config/mise` | `mise/.config/mise` | `scripts/link.sh` |
@@ -73,7 +73,7 @@ The resulting live symlinks are:
 
 For package roots such as `~/.config/kitty`, `~/.config/mise`, and `~/.config/nvim`, `scripts/link.sh` prefers direct directory symlinks. If an existing directory already contains only symlinks back into the matching `initd` package, the script folds it into one direct symlink.
 
-Rerunning bootstrap is safe: existing managed links are left in place, unmanaged files are backed up before initd takes ownership, and the link step fails if any managed link is missing or points to the wrong source.
+Rerunning bootstrap is safe: existing managed links are left in place, unmanaged files are backed up before initd takes ownership, and the link step exits if any managed link is missing or points to the wrong source.
 
 ## Existing config backups
 
@@ -171,11 +171,9 @@ bash ~/.config/initd/bootstrap.sh
 
 On a fresh machine, `bootstrap.sh` installs Homebrew packages, installs Oh My Zsh, links configs into place, trusts the managed mise config, and installs runtimes from the repo root.
 
-Bootstrap verifies that all managed runtime config paths are symlinks into `~/.config/initd`.
-
 If Xcode Command Line Tools are missing, macOS will prompt for installation first. Re-run `bash ~/.config/initd/bootstrap.sh` after that finishes.
 
-If you are new to maintaining these scripts, see [`docs/bash-primer.md`](docs/bash-primer.md) for a repo-specific Bash reference and [`docs/git-branching-conflicts.md`](docs/git-branching-conflicts.md) for Git branching, git-delta, and conflict resolution basics. For the planned incremental TypeScript rewrite, see [`docs/typescript-migration.md`](docs/typescript-migration.md).
+If you are new to maintaining these scripts, see [`docs/bash-primer.md`](docs/bash-primer.md) for a repo-specific Bash reference and [`docs/git-branching-conflicts.md`](docs/git-branching-conflicts.md) for Git branching, git-delta, and conflict resolution basics.
 
 To safely check install, migration, and cleanup behavior without touching your real home directory:
 
@@ -191,9 +189,16 @@ If you already have files at managed config paths such as `~/.config/nvim`, `~/.
 bash ~/.config/initd/bootstrap.sh
 ```
 
-A rerun only reports success after every managed link is verified.
+### Docker Desktop
 
-If `/Applications/Docker.app` already exists but is not managed by Homebrew, bootstrap skips the `docker-desktop` cask instead of failing. A fresh machine still installs Docker Desktop normally, and bootstrap verifies Docker Desktop is present after `brew bundle`.
+Bootstrap handles Docker Desktop in all situations:
+
+| Situation | What happens |
+|---|---|
+| Not installed | `brew bundle` installs it normally |
+| Installed via Homebrew | `brew bundle` sees it is already there and skips it |
+| Installed manually (no Homebrew receipt) | Stripped from the install list before `brew bundle` runs to avoid a conflict error |
+| Receipt exists but app was deleted | Detected after `brew bundle` and force-reinstalled with `brew reinstall` |
 
 ## Updating configs later
 
@@ -243,7 +248,7 @@ When you decide a package should be part of bootstrap:
 1. Add it with `./brewinstall <package>`, `./brewinstall --cask <package>`, or `./brewinstall --formula <package>`.
 2. Re-run `bash ~/.config/initd/bootstrap.sh` to confirm the curated list still applies cleanly.
 
-`brewinstall` detects whether a package is a formula or cask when possible, updates `platforms/darwin/Brewfile`, keeps Brewfile sections sorted and deduplicated, and applies the Brewfile locally with `brew bundle`.
+`brewinstall` detects whether a package is a formula or cask when possible, updates `platforms/darwin/Brewfile`, and applies the Brewfile locally with `brew bundle`.
 
 If you want Homebrew to dump your machine's current state as a starting point, you can use:
 

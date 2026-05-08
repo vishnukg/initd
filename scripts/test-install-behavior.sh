@@ -21,14 +21,6 @@ fail() {
   exit 1
 }
 
-require_command() {
-  local command_name="$1"
-
-  if ! command -v "${command_name}" >/dev/null 2>&1; then
-    fail "${command_name} is required to run install behavior tests."
-  fi
-}
-
 new_home() {
   # Each test gets its own fake HOME so installer behavior is exercised without
   # touching the real machine.
@@ -72,7 +64,7 @@ assert_symlink_resolves_to() {
   local resolved=""
 
   assert_symlink "${path}"
-  resolved="$(resolve_symlink_target "${path}")"
+  resolved="$(readlink "${path}")"
   [[ "${resolved}" == "${expected}" ]] || fail "Expected ${path} to resolve to ${expected}, got ${resolved}"
 }
 
@@ -220,8 +212,6 @@ test_directory_folding() {
 }
 
 main() {
-  require_command find
-
   TEST_ROOT="$(mktemp -d)"
   trap cleanup EXIT
 

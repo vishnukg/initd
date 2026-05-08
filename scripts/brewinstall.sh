@@ -52,11 +52,6 @@ validate_inputs() {
     exit 1
   fi
 
-  if [[ "${package}" == *\"* ]]; then
-    log_error "Package names with double quotes are not supported: ${package}"
-    exit 1
-  fi
-
   if [[ ! -f "${BREWFILE}" ]]; then
     log_error "Brewfile not found: ${BREWFILE}"
     exit 1

@@ -1,59 +1,20 @@
 #!/usr/bin/env bash
 
-# Shared, dependency-free logging helpers for initd setup scripts.
-# Colors are enabled only for interactive terminals and can be disabled with NO_COLOR=1.
-INITD_RESET=""
-INITD_BLUE=""
-INITD_GREEN=""
-INITD_YELLOW=""
-INITD_RED=""
-INITD_CYAN=""
-INITD_COLORS="0"
+# Shared logging helpers. Uses ANSI escape codes directly — lighter than tput
+# and supported by every modern terminal. Colors are only emitted when stdout
+# is a terminal (-t 1) and NO_COLOR is unset (https://no-color.org).
+# log_warn and log_error write to stderr so they always appear even when
+# stdout is redirected to a file.
 
-if [[ -t 1 && -z "${NO_COLOR:-}" ]] && command -v tput >/dev/null 2>&1; then
-  INITD_COLORS="$(tput colors 2>/dev/null || printf '0')"
-  if [[ "${INITD_COLORS}" =~ ^[0-9]+$ ]]; then
-    if (( INITD_COLORS >= 8 )); then
-      INITD_RESET="$(tput sgr0)"
-      INITD_BLUE="$(tput setaf 4)"
-      INITD_GREEN="$(tput setaf 2)"
-      INITD_YELLOW="$(tput setaf 3)"
-      INITD_RED="$(tput setaf 1)"
-      INITD_CYAN="$(tput setaf 6)"
-    fi
-  fi
+INITD_RESET="" INITD_BLUE="" INITD_GREEN="" INITD_YELLOW="" INITD_RED="" INITD_CYAN=""
+
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+  INITD_RESET=$'\033[0m'   INITD_BLUE=$'\033[34m'  INITD_GREEN=$'\033[32m'
+  INITD_YELLOW=$'\033[33m' INITD_RED=$'\033[31m'   INITD_CYAN=$'\033[36m'
 fi
 
-initd_log() {
-  local color="$1"
-  local marker="$2"
-  local message="$3"
-  local stream="${4:-stdout}"
-
-  if [[ "${stream}" == "stderr" ]]; then
-    printf '%b%s%b %s\n' "${color}" "${marker}" "${INITD_RESET}" "${message}" >&2
-    return
-  fi
-
-  printf '%b%s%b %s\n' "${color}" "${marker}" "${INITD_RESET}" "${message}"
-}
-
-log() {
-  initd_log "${INITD_BLUE}" "==>" "$*"
-}
-
-log_info() {
-  initd_log "${INITD_CYAN}" "::" "$*"
-}
-
-log_success() {
-  initd_log "${INITD_GREEN}" "OK" "$*"
-}
-
-log_warn() {
-  initd_log "${INITD_YELLOW}" "!!" "$*" "stderr"
-}
-
-log_error() {
-  initd_log "${INITD_RED}" "ERR" "$*" "stderr"
-}
+log()         { printf '%b==>%b %s\n' "${INITD_BLUE}"   "${INITD_RESET}" "$*"; }
+log_info()    { printf '%b::%b %s\n'  "${INITD_CYAN}"   "${INITD_RESET}" "$*"; }
+log_success() { printf '%bOK%b %s\n'  "${INITD_GREEN}"  "${INITD_RESET}" "$*"; }
+log_warn()    { printf '%b!!%b %s\n'  "${INITD_YELLOW}" "${INITD_RESET}" "$*" >&2; }
+log_error()   { printf '%bERR%b %s\n' "${INITD_RED}"    "${INITD_RESET}" "$*" >&2; }
