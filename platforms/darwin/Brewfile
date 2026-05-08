@@ -27,7 +27,6 @@ brew "tmux"
 brew "tree-sitter"
 brew "tree-sitter-cli"
 brew "zoxide"
-brew "hashicorp/tap/terraform"
 brew "threedotslabs/tap/tdl"
 
 cask "betterdisplay"
