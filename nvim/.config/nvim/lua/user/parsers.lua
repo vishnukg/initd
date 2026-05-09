@@ -1,3 +1,4 @@
+-- NOT wired up — nvim-treesitter handles parser management; keeping this as an alternative.
 -- Tree-sitter parser manager (Neovim 0.10+, requires: git, curl, tree-sitter CLI)
 -- Commands: :ParserInstall <lang>  :ParserUpdate [lang]  :ParserRemove <lang>
 --           :ParserInstallAll      :ParserList

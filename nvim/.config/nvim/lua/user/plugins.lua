@@ -58,7 +58,6 @@ return require("lazy").setup({
 		build = ":TSUpdate",
 		config = function()
 			require("user.treesitter")
-			require("user.parsers") -- registers :ParserInstall / :ParserUpdate / :ParserRemove / :ParserList
 		end,
 	},
 
