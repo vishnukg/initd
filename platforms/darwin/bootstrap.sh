@@ -18,6 +18,12 @@ export BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
 source "${ROOT_DIR}/scripts/logging.sh"
 source "${ROOT_DIR}/scripts/paths.sh"
 
+# Declared at script scope, not inside main(), so the EXIT trap can still
+# reference it after main() returns — bash local variables go out of scope
+# when their function exits, which would trigger an "unbound variable" error
+# under set -u when the trap fires.
+work_brewfile=""
+
 # Exits with a clear message if ${command_name} is not on PATH.
 require_command() {
   local command_name="$1"
@@ -35,8 +41,10 @@ ensure_xcode_clt() {
   fi
 
   log_warn "Xcode Command Line Tools are required. Launching installer..."
-  # xcode-select --install returns immediately while the GUI installer runs in
-  # the background. The user must complete it and re-run bootstrap.
+  # --install launches a background GUI installer and exits immediately with a
+  # non-zero code if an install is already in progress. || true prevents set -e
+  # from treating that as fatal — the user still needs to finish the GUI and
+  # re-run bootstrap.
   xcode-select --install || true
   log_info "Finish the Xcode Command Line Tools install, then re-run ./bootstrap.sh"
   exit 1
@@ -47,12 +55,16 @@ ensure_homebrew() {
     log_success "Homebrew already installed."
   else
     log "Homebrew not found. Installing Homebrew..."
+    # NONINTERACTIVE suppresses the "Press RETURN to continue" prompt that
+    # would stall an unattended run.
     NONINTERACTIVE=1 /bin/bash -c \
       "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   fi
 
   # Apple Silicon installs to /opt/homebrew; Intel installs to /usr/local.
-  # Eval whichever exists so brew is on PATH for the rest of this script.
+  # `brew shellenv` outputs export statements for PATH, MANPATH, etc. — we
+  # eval them so brew is on PATH for the remainder of this script without
+  # requiring the user to open a new shell first.
   if [[ -x /opt/homebrew/bin/brew ]]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
   elif [[ -x /usr/local/bin/brew ]]; then
@@ -75,6 +87,9 @@ ensure_oh_my_zsh() {
   # Fast path: if it's a clean checkout, just pull the latest changes.
   if oh_my_zsh_is_installed && [[ -z "$(git -C "${OH_MY_ZSH_DIR}" status --porcelain)" ]]; then
     log "Updating Oh My Zsh in ${OH_MY_ZSH_DIR}."
+    # --ff-only ensures we never create a merge commit in the managed checkout.
+    # If upstream has diverged the merge will fail, and we fall through to a
+    # clean reinstall below.
     if git -C "${OH_MY_ZSH_DIR}" fetch --quiet origin \
        && git -C "${OH_MY_ZSH_DIR}" merge --ff-only --quiet '@{u}'; then
       return
@@ -86,13 +101,18 @@ ensure_oh_my_zsh() {
   # is there and clone a fresh copy.
   path_exists "${OH_MY_ZSH_DIR}" && backup_path "${OH_MY_ZSH_DIR}"
   log "Installing Oh My Zsh into ${OH_MY_ZSH_DIR}."
+  # --depth=1 is a shallow clone — we only need the latest snapshot, not the
+  # full commit history, which keeps the download fast.
   git clone --quiet --depth=1 "${OH_MY_ZSH_REPO}" "${OH_MY_ZSH_DIR}"
 }
 
 main() {
-  local work_brewfile
   work_brewfile="$(mktemp)"
-  trap 'rm -f "${work_brewfile}"' EXIT
+  # The EXIT trap runs unconditionally when the script ends — whether it
+  # succeeds, hits a set -e failure, or is interrupted. It deletes both the
+  # main working copy and the intermediate .tmp file that the Docker grep
+  # filter below may create, so neither leaks on the filesystem.
+  trap 'rm -f "${work_brewfile}" "${work_brewfile}.tmp"' EXIT
 
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Starting initd bootstrap for macOS."
@@ -106,6 +126,8 @@ main() {
   cp "${BREWFILE}" "${work_brewfile}"
   if [[ -d "${DOCKER_APP}" ]] && ! brew list --cask "${DOCKER_CASK}" >/dev/null 2>&1; then
     log_warn "Skipping Docker cask: /Applications/Docker.app already exists outside Homebrew."
+    # grep can't write back to the file it's reading, so we filter into a
+    # separate .tmp file and then atomically replace the original with mv.
     grep -Ev "^[[:space:]]*cask[[:space:]]+[\"']${DOCKER_CASK}[\"'][[:space:]]*$" \
       "${work_brewfile}" > "${work_brewfile}.tmp"
     mv "${work_brewfile}.tmp" "${work_brewfile}"
