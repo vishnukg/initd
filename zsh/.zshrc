@@ -34,8 +34,3 @@ fi
 if command -v starship >/dev/null 2>&1; then
   eval "$(starship init zsh)"
 fi
-
-# Auto-attach to tmux when opening a new terminal (skip if already inside tmux)
-if command -v tmux >/dev/null 2>&1 && [[ -z "$TMUX" ]]; then
-  exec tmux new-session -A -s main
-fi
