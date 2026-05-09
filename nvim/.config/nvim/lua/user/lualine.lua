@@ -6,7 +6,7 @@ lualine.setup({
 		theme = "onedark",
 		component_separators = { left = "", right = "" },
 		section_separators   = { left = "", right = "" },
-		globalstatus = false,
+		globalstatus = true,
 		refresh = { statusline = 100, tabline = 100 },
 	},
 	sections = {
