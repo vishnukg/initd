@@ -25,6 +25,13 @@ vim.g.loaded_node_provider    = 0
 -- Both are set to backslash — change here to affect the entire config.
 vim.g.mapleader      = "\\"
 vim.g.maplocalleader = "\\"
+
+-- ── Copilot ───────────────────────────────────────────────────────────────────
+-- Disable inline suggestions globally by default (too distracting while typing).
+-- Enable per-project by running :Copilot enable or toggling specific filetypes.
+-- Must be set before copilot.vim loads (it's lazy, so startup is fine).
+vim.g.copilot_filetypes = { ["*"] = false }
+
 -- nvim-tree replaces Neovim's built-in file explorer (netrw).
 -- These two globals must be set before netrw loads — which happens the moment
 -- any plugin or autocmd tries to open a directory. Setting them here, before

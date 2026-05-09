@@ -1,40 +1,40 @@
+-- Bootstrap lazy.nvim if not already installed
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.uv.fs_stat(lazypath) then
 	vim.fn.system({
-		"git",
-		"clone",
-		"--filter=blob:none",
+		"git", "clone", "--filter=blob:none",
 		"https://github.com/folke/lazy.nvim.git",
-		"--branch=stable",
-		lazypath,
+		"--branch=stable", lazypath,
 	})
 end
 vim.opt.rtp:prepend(lazypath)
 
-local status_ok, lazy = pcall(require, "lazy")
-if not status_ok then
-	return
-end
+return require("lazy").setup({
 
-return lazy.setup({
-
-	-- Core Lua utilities (plenary needed by grug-far/gitsigns)
+	-- ── Core utilities ────────────────────────────────────────────────────────
 	{ "nvim-lua/plenary.nvim", lazy = false },
 
-	-- UI Enhancements
+	-- ── Colorscheme ───────────────────────────────────────────────────────────
+	{
+		"Mofiqul/vscode.nvim",
+		lazy = false,
+		priority = 1000, -- load before everything else so colors are set first
+		config = function() require("user.colorscheme") end,
+	},
+
+	-- ── UI Enhancements ───────────────────────────────────────────────────────
 	{
 		"nvim-tree/nvim-tree.lua",
 		version = "*",
 		lazy = false,
 		dependencies = { "nvim-tree/nvim-web-devicons" },
-		config = function()
-			require("user.nvimtree")
-		end,
+		config = function() require("user.nvimtree") end,
 	},
 	{
 		"nvim-lualine/lualine.nvim",
-		dependencies = { "nvim-tree/nvim-web-devicons", opt = true },
+		dependencies = { "nvim-tree/nvim-web-devicons" },
 		event = "UIEnter",
+		config = function() require("user.lualine") end,
 	},
 	{
 		"lukas-reineke/indent-blankline.nvim",
@@ -43,99 +43,105 @@ return lazy.setup({
 		event = { "BufReadPre", "BufNewFile" },
 	},
 
-	-- Colorscheme
-	{ "Mofiqul/vscode.nvim", lazy = false, priority = 1000 },
-
-	-- Fuzzy Finder
+	-- ── Fuzzy Finder ──────────────────────────────────────────────────────────
 	{
 		"ibhagwan/fzf-lua",
 		dependencies = { "nvim-tree/nvim-web-devicons" },
-		lazy = false,
+		cmd = "FzfLua",
+		config = function() require("user.fzf") end,
 	},
 
-	-- Treesitter
-	{ "nvim-treesitter/nvim-treesitter", lazy = false, build = ":TSUpdate" },
+	-- ── Treesitter ────────────────────────────────────────────────────────────
+	{
+		"nvim-treesitter/nvim-treesitter",
+		lazy = false,
+		build = ":TSUpdate",
+		config = function()
+			require("user.treesitter")
+			require("user.parsers") -- registers :ParserInstall / :ParserUpdate / :ParserRemove / :ParserList
+		end,
+	},
 
-	-- Autopairs
+	-- ── Autopairs ─────────────────────────────────────────────────────────────
 	{
 		"windwp/nvim-autopairs",
 		event = "InsertEnter",
-		config = function()
-			require("user.autopairs")
-		end,
+		config = function() require("user.autopairs") end,
 	},
 
-	-- Terminal Integration
-	{ "akinsho/toggleterm.nvim", cmd = "ToggleTerm" },
+	-- ── Terminal ──────────────────────────────────────────────────────────────
+	-- lazy = false so that the lazygit terminal and keymaps are available immediately.
+	{
+		"akinsho/toggleterm.nvim",
+		lazy = false,
+		config = function() require("user.toggleterm") end,
+	},
 
-	-- Undo Tree: use built-in since 0.12 (:packadd nvim.undotree | :Undotree)
+	-- ── Git ───────────────────────────────────────────────────────────────────
+	{ "tpope/vim-fugitive", cmd = { "Git", "G" } },
+	{
+		"lewis6991/gitsigns.nvim",
+		event = "BufReadPre",
+		config = function() require("user.gitsigns") end,
+	},
 
-	-- Git Integration
-	{ "tpope/vim-fugitive", lazy = false },
-	{ "lewis6991/gitsigns.nvim", lazy = false },
-
-	-- Search and Replace
+	-- ── Search and Replace ────────────────────────────────────────────────────
 	{
 		"MagicDuck/grug-far.nvim",
-		dependencies = { "nvim-lua/plenary.nvim" },
-		lazy = false,
-		config = function()
-			require("grug-far").setup({})
-		end,
+		event = "VeryLazy",
+		config = function() require("grug-far").setup({}) end,
 	},
 
-	-- Commenting handled by built-in gc/gcc (since nvim 0.10)
-
-	-- Completion Plugins
+	-- ── Completion ────────────────────────────────────────────────────────────
+	-- All cmp sources are listed here as dependencies so lazy.nvim loads them
+	-- in the right order. Previously some were also listed as top-level entries
+	-- (with lazy=true) which caused duplicate specs — removed.
 	{
 		"hrsh7th/nvim-cmp",
 		event = "InsertEnter",
 		dependencies = {
+			-- Snippet engine (must load before cmp_luasnip)
+			{
+				"L3MON4D3/LuaSnip",
+				dependencies = { "rafamadriz/friendly-snippets" },
+			},
+			"saadparwaiz1/cmp_luasnip",
+			-- Sources
 			"hrsh7th/cmp-buffer",
 			"hrsh7th/cmp-path",
-			"hrsh7th/cmp-cmdline",
-			"saadparwaiz1/cmp_luasnip",
 			"hrsh7th/cmp-nvim-lsp",
 			"hrsh7th/cmp-nvim-lua",
 		},
+		config = function() require("user.cmp") end,
 	},
-	{ "hrsh7th/cmp-buffer", lazy = true },
-	{ "hrsh7th/cmp-path", lazy = true },
-	{ "hrsh7th/cmp-cmdline", lazy = true },
-	{ "saadparwaiz1/cmp_luasnip", lazy = true },
-	{ "hrsh7th/cmp-nvim-lsp", lazy = true },
-	{ "hrsh7th/cmp-nvim-lua", lazy = true },
 
-	-- Snippets
-	{ "L3MON4D3/LuaSnip", event = "InsertEnter", dependencies = { "rafamadriz/friendly-snippets" } },
-	{ "rafamadriz/friendly-snippets", lazy = true },
-
-	-- LSP and Linting/Formatting
-	{ "neovim/nvim-lspconfig", lazy = false },
-	{ "williamboman/mason.nvim", lazy = false },
-	{ "williamboman/mason-lspconfig.nvim", lazy = false, dependencies = "mason.nvim" },
+	-- ── LSP ecosystem ─────────────────────────────────────────────────────────
+	-- nvim-lspconfig is the entry point; all LSP tooling is its dependency so
+	-- lazy.nvim loads them in the correct order before the config runs.
+	-- cmp-nvim-lsp is included so capabilities are available at startup (it
+	-- normally loads on InsertEnter as part of nvim-cmp).
 	{
-		"nvimtools/none-ls.nvim",
-		dependencies = { "nvimtools/none-ls-extras.nvim" },
-		lazy = false,
-	},
-	{
-		"jay-babu/mason-null-ls.nvim",
+		"neovim/nvim-lspconfig",
 		lazy = false,
 		dependencies = {
 			"williamboman/mason.nvim",
-			"nvimtools/none-ls.nvim",
+			{ "williamboman/mason-lspconfig.nvim", dependencies = "williamboman/mason.nvim" },
+			{ "nvimtools/none-ls.nvim",            dependencies = "nvimtools/none-ls-extras.nvim" },
+			{
+				"jay-babu/mason-null-ls.nvim",
+				dependencies = { "williamboman/mason.nvim", "nvimtools/none-ls.nvim" },
+			},
+			"hrsh7th/cmp-nvim-lsp", -- load early so capabilities are ready for server configs
+			-- LSP progress UI
+			{
+				"j-hui/fidget.nvim",
+				config = function() require("user.fidget") end,
+			},
 		},
-	},
-	{
-		"j-hui/fidget.nvim",
-		lazy = false,
-		config = function()
-			require("user.fidget")
-		end,
+		config = function() require("user.lsp") end,
 	},
 
-	-- Testing
+	-- ── Testing ───────────────────────────────────────────────────────────────
 	{
 		"nvim-neotest/neotest",
 		dependencies = {
@@ -149,13 +155,12 @@ return lazy.setup({
 			"nsidorenco/neotest-vstest",
 			"zidhuss/neotest-minitest",
 		},
-		config = function()
-			require("user.neotest")
-		end,
+		config = function() require("user.neotest") end,
 		ft = { "go", "javascript", "typescript", "typescriptreact", "javascriptreact", "cs", "ruby" },
 	},
 
-	-- AI/Copilot
+	-- ── AI / Copilot ──────────────────────────────────────────────────────────
+	-- vim.g.copilot_filetypes is set in bootstrap.lua (must be before this loads).
 	{
 		"CopilotC-Nvim/CopilotChat.nvim",
 		dependencies = {
@@ -167,30 +172,25 @@ return lazy.setup({
 		cmd = "CopilotChat",
 	},
 
-	-- Markdown rendering
+	-- ── Markdown ──────────────────────────────────────────────────────────────
 	{
 		"MeanderingProgrammer/render-markdown.nvim",
 		dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
 		ft = { "markdown" },
-		opts = {
-			enabled = true,
-		},
+		opts = { enabled = true },
 	},
 
-	-- Language Specific Plugins
+	-- ── Language-specific ─────────────────────────────────────────────────────
 	-- OpenFGA authorization models
 	{
 		"hedengran/fga.nvim",
-		opts = {
-			install_treesitter_grammar = true,
-		},
+		opts = { install_treesitter_grammar = true },
 	},
-
-	-- Bruno API client (.bru syntax highlighting via tree-sitter)
+	-- Bruno API client (.bru syntax via tree-sitter)
 	{ "kristoferssolo/tree-sitter-bruno" },
 
-	-- Test coverage overlay (green = covered, red = uncovered)
-	-- Workflow: run tests with neotest → gcv to overlay coverage
+	-- Test coverage overlay (gcv = load & show, then <leader>cvs for summary)
+	-- Workflow: run tests with neotest → gcv to overlay coverage gutters
 	{
 		"andythigpen/nvim-coverage",
 		dependencies = { "nvim-lua/plenary.nvim" },
@@ -207,51 +207,45 @@ return lazy.setup({
 					uncovered = { hl = "CoverageUncovered", text = "▎" },
 				},
 				lang = {
-					-- Go: run `go test -coverprofile=coverage.out ./...`
-					go = { coverage_file = "coverage.out" },
-					-- TypeScript/JavaScript: run `npm run test:coverage` (needs lcov reporter in vitest/jest config)
+					-- go test -coverprofile=coverage.out ./...
+					go         = { coverage_file = "coverage.out" },
+					-- npm run test:coverage (vitest/jest with lcov reporter)
 					typescript = { coverage_file = "coverage/lcov.info" },
 					javascript = { coverage_file = "coverage/lcov.info" },
-					-- Python: run `coverage run -m pytest && coverage json`
-					python = { coverage_file = ".coverage" },
-					-- Ruby: requires SimpleCov with JSON formatter in spec_helper.rb
-					-- `require 'simplecov'; require 'simplecov-json'; SimpleCov.formatter = SimpleCov::Formatter::JSONFormatter`
-					ruby = { coverage_file = "coverage/coverage.json" },
-					-- C#: run `dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=TestResults/lcov.info`
-					cs = { coverage_file = "TestResults/lcov.info" },
+					-- coverage run -m pytest && coverage json
+					python     = { coverage_file = ".coverage" },
+					-- SimpleCov JSON formatter in spec_helper.rb
+					ruby       = { coverage_file = "coverage/coverage.json" },
+					-- dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+					cs         = { coverage_file = "TestResults/lcov.info" },
 				},
 			})
 		end,
 		ft = { "go", "javascript", "typescript", "python", "ruby", "cs" },
 	},
 
-	-- Go: struct tags, iferr, impl, go mod commands.
-	-- Explicitly NOT an LSP tool — no interference with gopls/none-ls/neotest.
-	-- Run :GoInstallDeps once after install to fetch required binaries.
+	-- Go: struct tags, if-err, impl — NOT an LSP tool, no interference with gopls.
+	-- Run :GoInstallDeps once after install.
 	{
 		"olexsmir/gopher.nvim",
 		ft = "go",
 		config = function(_, opts)
 			require("gopher").setup(opts)
-			-- Auto-install deps when first Go file opens, only if binaries are missing
+			-- Auto-install binaries on first Go file open (only if missing)
 			if vim.fn.executable("gomodifytags") == 0 then
 				vim.api.nvim_create_autocmd("FileType", {
 					pattern = "go",
 					once = true,
-					callback = function()
-						vim.cmd("GoInstallDeps")
-					end,
+					callback = function() vim.cmd("GoInstallDeps") end,
 				})
 			end
 		end,
 		opts = {
-			commands = {
-				gotests = "gotests", -- installed but unused; testing handled by neotest-golang
-			},
+			commands = { gotests = "gotests" },
 			gotag = {
-				transform = "camelcase",
+				transform   = "camelcase",
 				default_tag = "json",
-				option = nil, -- omitempty should be added explicitly per field, not by default
+				option      = nil, -- omitempty should be added per field, not by default
 			},
 		},
 	},
@@ -262,47 +256,35 @@ return lazy.setup({
 		dependencies = { "nvim-lua/plenary.nvim", "ibhagwan/fzf-lua" },
 		cmd = "Dotnet",
 		event = {
-			"BufReadPost *.csproj",
-			"BufReadPost *.fsproj",
-			"BufReadPost *.vbproj",
-			"BufReadPost *.sln",
-			"BufReadPost *.slnx",
-			"BufNewFile *.csproj",
-			"BufNewFile *.fsproj",
-			"BufNewFile *.vbproj",
-			"BufNewFile *.sln",
-			"BufNewFile *.slnx",
+			"BufReadPost *.csproj",  "BufReadPost *.fsproj",  "BufReadPost *.vbproj",
+			"BufReadPost *.sln",     "BufReadPost *.slnx",
+			"BufNewFile *.csproj",   "BufNewFile *.fsproj",   "BufNewFile *.vbproj",
+			"BufNewFile *.sln",      "BufNewFile *.slnx",
 		},
 		config = function()
 			require("easy-dotnet").setup({
 				picker = "fzf",
-				lsp = {
-					-- Roslyn LSP disabled: csharp_ls handles all LSP features consistently
-					-- with the rest of the LSP setup (gopls, pyright, etc). Nvim 0.12's
-					-- built-in LSP client covers code actions, diagnostics, code lens,
-					-- completions, references natively.
-					enabled = false,
-				},
+				-- Roslyn LSP disabled: csharp_ls handles all features consistently
+				-- with the rest of the LSP stack (gopls, pyright, etc).
+				lsp = { enabled = false },
 			})
 		end,
 		ft = { "cs", "fs", "vb" },
 	},
 
-	-- Surround - manipulate surrounding characters
+	-- Surround — manipulate surrounding characters (ys, cs, ds)
 	{
 		"kylechui/nvim-surround",
 		version = "*",
 		event = "VeryLazy",
-		config = function()
-			require("nvim-surround").setup({})
-		end,
+		config = function() require("nvim-surround").setup({}) end,
 	},
 
-	-- Trouble - better diagnostics UI
+	-- Diagnostics list
 	{
 		"folke/trouble.nvim",
 		dependencies = { "nvim-tree/nvim-web-devicons" },
-		cmd = { "Trouble" },
+		cmd = "Trouble",
 		opts = {},
 	},
 })

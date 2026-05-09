@@ -72,24 +72,7 @@ if has_file(vitest_configs) then
 	)
 end
 
-if has_file(jest_configs) then
-	table.insert(
-		adapters,
-		require("neotest-jest")({
-			jestCommand = "npm test --",
-			env = { CI = true },
-			cwd = function()
-				return vim.fn.getcwd()
-			end,
-			filter_dir = function(name)
-				return not (name == "node_modules" or name == "dist")
-			end,
-		})
-	)
-end
---
--- Default to jest if neither vitest nor jest config files are found
-if not has_file(vitest_configs) and not has_file(jest_configs) then
+if has_file(jest_configs) or (not has_file(vitest_configs)) then
 	table.insert(
 		adapters,
 		require("neotest-jest")({

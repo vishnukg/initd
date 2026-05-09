@@ -1,9 +1,6 @@
-local status_ok, toggleterm = pcall(require, "toggleterm")
-if not status_ok then
-	return
-end
+local M = {}
 
-toggleterm.setup({
+require("toggleterm").setup({
 	size = 20,
 	open_mapping = [[<c-\>]],
 	hide_numbers = true,
@@ -26,29 +23,34 @@ toggleterm.setup({
 	},
 })
 
-function _G.set_terminal_keymaps()
-	local opts = { noremap = true, buf = 0 }
-	vim.keymap.set("t", "<esc>", [[<C-\><C-n>]], opts)
-	vim.keymap.set("t", "jk", [[<C-\><C-n>]], opts)
-	vim.keymap.set("t", "<C-h>", [[<C-\><C-n><C-W>h]], opts)
-	vim.keymap.set("t", "<C-j>", [[<C-\><C-n><C-W>j]], opts)
-	vim.keymap.set("t", "<C-k>", [[<C-\><C-n><C-W>k]], opts)
-	vim.keymap.set("t", "<C-l>", [[<C-\><C-n><C-W>l]], opts)
+-- Keymaps for navigating out of a terminal buffer (back to normal windows)
+local function set_terminal_keymaps()
+	local opts = { noremap = true, buffer = 0 }
+	vim.keymap.set("t", "<esc>",  [[<C-\><C-n>]],        opts)
+	vim.keymap.set("t", "jk",     [[<C-\><C-n>]],        opts)
+	vim.keymap.set("t", "<C-h>",  [[<C-\><C-n><C-W>h]],  opts)
+	vim.keymap.set("t", "<C-j>",  [[<C-\><C-n><C-W>j]],  opts)
+	vim.keymap.set("t", "<C-k>",  [[<C-\><C-n><C-W>k]],  opts)
+	vim.keymap.set("t", "<C-l>",  [[<C-\><C-n><C-W>l]],  opts)
 end
 
-local term_augroup = vim.api.nvim_create_augroup("TerminalKeymaps", { clear = true })
 vim.api.nvim_create_autocmd("TermOpen", {
-	group = term_augroup,
+	group = vim.api.nvim_create_augroup("TerminalKeymaps", { clear = true }),
 	pattern = "term://*",
-	callback = function()
-		set_terminal_keymaps()
-	end,
+	callback = set_terminal_keymaps,
 })
 
-local Terminal = require("toggleterm.terminal").Terminal
-local lazygit = Terminal:new({ cmd = "lazygit", hidden = true })
+-- Lazygit terminal — lazily initialised on first toggle
+local lazygit_term
 
-function _LAZYGIT_TOGGLE()
-	lazygit:toggle()
+function M.toggle_lazygit()
+	if not lazygit_term then
+		lazygit_term = require("toggleterm.terminal").Terminal:new({
+			cmd = "lazygit",
+			hidden = true,
+		})
+	end
+	lazygit_term:toggle()
 end
 
+return M

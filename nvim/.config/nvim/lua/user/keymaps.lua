@@ -1,155 +1,118 @@
-local opts = { noremap = true, silent = true }
+-- All keymaps live here. LSP-specific keymaps are in lua/user/lsp/handlers.lua
+-- (they need the buffer number from LspAttach and are registered per-buffer).
 
--- Shorten function name
-local keymap = vim.keymap.set
+local map = vim.keymap.set
+local o = { noremap = true, silent = true }
+local function d(desc) return vim.tbl_extend("force", o, { desc = desc }) end
 
--- Modes
---   normal_mode = "n",
---   insert_mode = "i",
---   visual_mode = "v",
---   visual_block_mode = "x",
---   term_mode = "t",
---   command_mode = "c",
+-- ── Escape shortcuts ──────────────────────────────────────────────────────────
+map("i", "jk", "<ESC>", d("Exit insert mode"))
+map("i", "kj", "<ESC>", d("Exit insert mode"))
 
--- Insert --
--- Press jk fast to enter
-keymap("i", "jk", "<ESC>", opts)
-keymap("i", "kj", "<ESC>", opts)
+-- ── Save ──────────────────────────────────────────────────────────────────────
+map("",  "<leader><leader>", ":wa<cr>",  d("Save all buffers"))
 
--- Turn off vim macro recording
-keymap("n", "q", "<Nop>", opts)
+-- ── Search ────────────────────────────────────────────────────────────────────
+map("n", "<C-l>", ":noh<cr><C-l>", d("Clear search highlight"))
 
--- Shortcut for saving all changed files in normal mode
-keymap("n", "<leader><leader>", ":wa<cr>", opts)
-keymap("", "<leader><leader>", ":wa<cr>", opts)
+-- ── Disable macros (q) ────────────────────────────────────────────────────────
+map("n", "q", "<Nop>", o)
 
--- This unsets the last search pattern register by hitting return
-keymap("n", "<C-l>", ":noh<cr><C-l>", opts)
+-- ── Arrow key training wheels ─────────────────────────────────────────────────
+map("n", "<Left>",  ':echoe "Use h"<cr>', o)
+map("n", "<Right>", ':echoe "Use l"<cr>', o)
+map("n", "<Up>",    ':echoe "Use k"<cr>', o)
+map("n", "<Down>",  ':echoe "Use j"<cr>', o)
 
--- Disable the use of arrow keys in normal mode
-keymap("n", "<Left>", ':echoe "Use h"<cr>', opts)
-keymap("n", "<Right>", ':echoe "Use l"<cr>', opts)
-keymap("n", "<Up>", ':echoe "Use k"<cr>', opts)
-keymap("n", "<Down>", ':echoe "Use j"<cr>', opts)
+-- ── Window resize ─────────────────────────────────────────────────────────────
+map("n", "<A-Up>",    ":resize +2<CR>",          d("Resize: taller"))
+map("n", "<A-Down>",  ":resize -2<CR>",          d("Resize: shorter"))
+map("n", "<A-Left>",  ":vertical resize -2<CR>", d("Resize: narrower"))
+map("n", "<A-Right>", ":vertical resize +2<CR>", d("Resize: wider"))
+map("n", "<C-w><lt>", ":vertical resize -2<CR>", d("Resize: narrower"))
+map("n", "<C-w>>",    ":vertical resize +2<CR>", d("Resize: wider"))
 
--- Resize with Alt+arrows and Ctrl-w angle keys
-keymap("n", "<A-Up>", ":resize +2<CR>", opts)
-keymap("n", "<A-Down>", ":resize -2<CR>", opts)
-keymap("n", "<A-Left>", ":vertical resize -2<CR>", opts)
-keymap("n", "<A-Right>", ":vertical resize +2<CR>", opts)
-keymap("n", "<C-w><lt>", ":vertical resize -2<CR>", opts)
-keymap("n", "<C-w>>", ":vertical resize +2<CR>", opts)
+-- ── Buffer navigation ─────────────────────────────────────────────────────────
+map("n", "<S-l>", ":bnext<CR>",     d("Next buffer"))
+map("n", "<S-h>", ":bprevious<CR>", d("Prev buffer"))
 
--- Navigate buffers
-keymap("n", "<S-l>", ":bnext<CR>", opts)
-keymap("n", "<S-h>", ":bprevious<CR>", opts)
+-- ── Visual mode ───────────────────────────────────────────────────────────────
+map("v", "<",     "<gv",       d("Indent left (stay in visual)"))
+map("v", ">",     ">gv",       d("Indent right (stay in visual)"))
+map("v", "<A-j>", ":m .+1<CR>==", d("Move line down"))
+map("v", "<A-k>", ":m .-2<CR>==", d("Move line up"))
+map("v", "p",     '"_dP',      d("Paste without yanking replaced text"))
 
--- Visual --
--- Stay in indent mode
-keymap("v", "<", "<gv", opts)
-keymap("v", ">", ">gv", opts)
+-- ── FzfLua ────────────────────────────────────────────────────────────────────
+map("n", "<leader>ff", ":FzfLua files<CR>",      d("FZF: find files"))
+map("n", "<leader>fg", ":FzfLua live_grep<CR>",  d("FZF: live grep"))
+map("n", "<leader>fb", ":FzfLua buffers<CR>",    d("FZF: buffers"))
 
--- Move text up and down
-keymap("v", "<A-j>", ":m .+1<CR>==", opts)
-keymap("v", "<A-k>", ":m .-2<CR>==", opts)
-keymap("v", "p", '"_dP', opts)
+-- ── File tree ─────────────────────────────────────────────────────────────────
+map("n", "<C-g>", ":NvimTreeToggle<cr>", d("Toggle file tree"))
 
--- FzfLua mappings
-keymap("n", "<leader>ff", ":FzfLua files<CR>", opts)
-keymap("n", "<leader>fg", ":FzfLua live_grep<CR>", opts)
+-- ── Search and replace (grug-far) ────────────────────────────────────────────
+map("n", "<leader>sp", function() require("grug-far").open() end,                              d("Search & replace"))
+map("n", "<leader>sw", function() require("grug-far").open({ prefills = { search = vim.fn.expand("<cword>") } }) end, d("Search & replace word"))
 
-keymap("n", "<leader>fb", ":FzfLua buffers<CR>", opts)
+-- ── Terminal (toggleterm) ─────────────────────────────────────────────────────
+map("n", "<leader>tv", "<cmd>ToggleTerm size=90 direction=vertical<CR>",   d("Toggle vertical terminal"))
+map("n", "<leader>th", "<cmd>ToggleTerm size=20 direction=horizontal<CR>", d("Toggle horizontal terminal"))
+map("n", "<leader>gt", function() require("user.toggleterm").toggle_lazygit() end, d("Toggle lazygit"))
 
---NvimTree
-keymap("n", "<C-g>", ":NvimTreeToggle<cr>", opts)
+-- ── Diff ──────────────────────────────────────────────────────────────────────
+map("n", "<leader>df", ":windo diffthis<CR>", d("Diff split buffers"))
 
--- Grug-far
-keymap("n", "<leader>sp", function()
-	require("grug-far").open()
-end, opts)
+-- ── Neotest ───────────────────────────────────────────────────────────────────
+local function neotest() return require("neotest") end
+map("n", "<leader>tr", function() neotest().run.run() end,                    d("Test: run nearest"))
+map("n", "<leader>tf", function() neotest().run.run(vim.fn.expand("%")) end,  d("Test: run file"))
+map("n", "<leader>ts", function() neotest().summary.toggle() end,             d("Test: toggle summary"))
+map("n", "<leader>to", function() neotest().output.open({ enter = true }) end,d("Test: show output"))
 
--- Grug-far search current word
-keymap("n", "<leader>sw", function()
-	require("grug-far").open({
-		prefills = {
-			search = vim.fn.expand("<cword>"),
-		},
-	})
-end, opts)
-keymap("n", "<leader>s", function()
-	require("grug-far").open()
-end, opts)
+-- ── Copilot Chat ──────────────────────────────────────────────────────────────
+map("n", "<leader>cp",  "<cmd>CopilotChat<CR>",        d("Copilot Chat: open"))
+map("n", "<leader>cpe", "<cmd>CopilotChatExplain<CR>", d("Copilot Chat: explain"))
+map("n", "<leader>cpt", "<cmd>CopilotChatTests<CR>",   d("Copilot Chat: write tests"))
+map("n", "<leader>cpr", "<cmd>CopilotChatReset<CR>",   d("Copilot Chat: reset"))
 
--- Toggle Term
-keymap("n", "<leader>tv", "<cmd>ToggleTerm size=90 direction=vertical<CR>", opts)
-keymap("n", "<leader>th", "<cmd>ToggleTerm size=20 direction=horizontal<CR>", opts)
-keymap("n", "<leader>gt", "<cmd>lua _LAZYGIT_TOGGLE()<CR>", opts)
+-- ── Trouble ───────────────────────────────────────────────────────────────────
+map("n", "<leader>xx", "<cmd>Trouble diagnostics toggle<CR>",             d("Trouble: workspace diagnostics"))
+map("n", "<leader>xd", "<cmd>Trouble diagnostics toggle filter.buf=0<CR>",d("Trouble: buffer diagnostics"))
 
--- Diff two files in the split buffers
-keymap("n", "<leader>df", ":windo diffthis<CR>", opts)
+-- ── Tabs ──────────────────────────────────────────────────────────────────────
+map("n", "<leader>nt", "<cmd>tabnew<CR>", d("New tab"))
 
--- Neotest runner (lazy load neotest)
-local function get_neotest()
-	return require("neotest")
-end
+-- ── Markdown ──────────────────────────────────────────────────────────────────
+map("n", "<leader>vm", "<cmd>RenderMarkdown toggle<CR>", d("Toggle markdown rendering"))
 
-keymap("n", "<leader>tr", function()
-	get_neotest().run.run()
-end, opts)
-keymap("n", "<leader>tf", function()
-	get_neotest().run.run(vim.fn.expand("%"))
-end, opts)
-keymap("n", "<leader>ts", function()
-	get_neotest().summary.toggle()
-end, opts)
-keymap("n", "<leader>to", function()
-	get_neotest().output.open({ enter = true })
-end, opts)
+-- ── Coverage ──────────────────────────────────────────────────────────────────
+map("n", "gcv",         "<cmd>Coverage<CR>",        d("Coverage: load & show"))
+map("n", "<leader>cvs", "<cmd>CoverageSummary<CR>", d("Coverage: summary"))
+map("n", "<leader>hcv", "<cmd>CoverageHide<CR>",    d("Coverage: hide"))
+map("n", "<leader>ccv", "<cmd>CoverageClear<CR>",   d("Coverage: clear"))
 
---Copilot chat and copilot
-keymap("n", "<leader>cp", "<cmd>CopilotChat<CR>", opts)
-keymap("n", "<leader>cpe", "<cmd>CopilotChatExplain<CR>", opts)
-keymap("n", "<leader>cpt", "<cmd>CopilotChatTests<CR>", opts)
-keymap("n", "<leader>cpr", "<cmd>CopilotChatReset<CR>", opts)
+-- ── Go (gopher.nvim) ──────────────────────────────────────────────────────────
+-- Add struct tags
+map("n", "<leader>gaj", "<cmd>GoTagAdd json<CR>", d("Go: add json tag"))
+map("n", "<leader>gay", "<cmd>GoTagAdd yaml<CR>", d("Go: add yaml tag"))
+map("n", "<leader>gax", "<cmd>GoTagAdd xml<CR>",  d("Go: add xml tag"))
+map("n", "<leader>gae", "<cmd>GoTagAdd env<CR>",  d("Go: add env tag"))
+map("n", "<leader>gad", "<cmd>GoTagAdd db<CR>",   d("Go: add db tag"))
+-- Remove struct tags
+map("n", "<leader>grj", "<cmd>GoTagRm json<CR>",  d("Go: remove json tag"))
+map("n", "<leader>gry", "<cmd>GoTagRm yaml<CR>",  d("Go: remove yaml tag"))
+map("n", "<leader>grx", "<cmd>GoTagRm xml<CR>",   d("Go: remove xml tag"))
+map("n", "<leader>gre", "<cmd>GoTagRm env<CR>",   d("Go: remove env tag"))
+map("n", "<leader>grd", "<cmd>GoTagRm db<CR>",    d("Go: remove db tag"))
+-- Code generation
+map("n", "<leader>gie", "<cmd>GoIfErr<CR>",  d("Go: add if-err block"))
+map("n", "<leader>gim", "<cmd>GoImpl<CR>",   d("Go: implement interface"))
 
--- Trouble diagnostics
-keymap("n", "<leader>xx", "<cmd>Trouble diagnostics toggle<CR>", opts)
-
-keymap("n", "<leader>xd", "<cmd>Trouble diagnostics toggle filter.buf=0<CR>", opts)
-
--- Tabs
-keymap("n", "<leader>nt", "<cmd>tabnew<CR>", opts) -- New Tab (empty buffer)
-
--- Markdown (render-markdown.nvim)
-keymap("n", "<leader>vm", "<cmd>RenderMarkdown toggle<CR>", opts) -- Toggle Markdown rendering
-
--- Coverage overlay (andythigpen/nvim-coverage)
-keymap("n", "gcv", "<cmd>Coverage<CR>", { noremap = true, silent = true, desc = "Coverage: load & show" })
-keymap("n", "<leader>cvs", "<cmd>CoverageSummary<CR>", { noremap = true, silent = true, desc = "Coverage: summary" })
-keymap("n", "<leader>hcv", "<cmd>CoverageHide<CR>", { noremap = true, silent = true, desc = "Coverage: hide" })
-keymap("n", "<leader>ccv", "<cmd>CoverageClear<CR>", { noremap = true, silent = true, desc = "Coverage: clear" })
-
--- Go: struct tags & code gen via gopher.nvim (run :GoInstallDeps once after install)
--- Add tags
-keymap("n", "<leader>gaj", "<cmd>GoTagAdd<CR>", { noremap = true, silent = true, desc = "Go: add json tag" })
-keymap("n", "<leader>gay", "<cmd>GoTagAdd yaml<CR>", { noremap = true, silent = true, desc = "Go: add yaml tag" })
-keymap("n", "<leader>gax", "<cmd>GoTagAdd xml<CR>", { noremap = true, silent = true, desc = "Go: add xml tag" })
-keymap("n", "<leader>gae", "<cmd>GoTagAdd env<CR>", { noremap = true, silent = true, desc = "Go: add env tag" })
-keymap("n", "<leader>gad", "<cmd>GoTagAdd db<CR>", { noremap = true, silent = true, desc = "Go: add db tag" })
--- Remove tags
-keymap("n", "<leader>grj", "<cmd>GoTagRm json<CR>", { noremap = true, silent = true, desc = "Go: remove json tag" })
-keymap("n", "<leader>gry", "<cmd>GoTagRm yaml<CR>", { noremap = true, silent = true, desc = "Go: remove yaml tag" })
-keymap("n", "<leader>grx", "<cmd>GoTagRm xml<CR>", { noremap = true, silent = true, desc = "Go: remove xml tag" })
-keymap("n", "<leader>gre", "<cmd>GoTagRm env<CR>", { noremap = true, silent = true, desc = "Go: remove env tag" })
-keymap("n", "<leader>grd", "<cmd>GoTagRm db<CR>", { noremap = true, silent = true, desc = "Go: remove db tag" })
--- Other
-keymap("n", "<leader>gie", "<cmd>GoIfErr<CR>", { noremap = true, silent = true, desc = "Go: add if err" })
-keymap("n", "<leader>gim", "<cmd>GoImpl<CR>", { noremap = true, silent = true, desc = "Go: implement interface" })
-
--- Folding keymaps (mnemonic: <leader>f + action)
-keymap("n", "<leader>ft", "za", opts) -- Fold Toggle at cursor
-keymap("n", "<leader>fC", "zc", opts) -- Fold Close at cursor
-keymap("n", "<leader>foc", "zo", opts) -- Fold Open at cursor
-keymap("n", "<leader>fO", "zR", opts) -- Fold All open
-keymap("n", "<leader>fc", "zM", opts) -- Fold Close all
-keymap("n", "<leader>fT", "zA", opts) -- Fold Toggle all recursively at cursor
+-- ── Folding ───────────────────────────────────────────────────────────────────
+map("n", "<leader>ft",  "za", d("Fold: toggle at cursor"))
+map("n", "<leader>fC",  "zc", d("Fold: close at cursor"))
+map("n", "<leader>foc", "zo", d("Fold: open at cursor"))
+map("n", "<leader>fO",  "zR", d("Fold: open all"))
+map("n", "<leader>fc",  "zM", d("Fold: close all"))
+map("n", "<leader>fT",  "zA", d("Fold: toggle recursively at cursor"))
