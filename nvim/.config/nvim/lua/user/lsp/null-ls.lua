@@ -22,7 +22,7 @@ end
 null_ls.setup({
 	debug = false,
 	sources = {
-		formatting.prettier.with({ disabled_filetypes = { "yaml" } }),
+		formatting.prettierd.with({ disabled_filetypes = { "yaml" } }),
 		formatting.black.with({ extra_args = { "--fast" } }),
 		formatting.stylua,
 		formatting.goimports,

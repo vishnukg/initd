@@ -3,13 +3,18 @@
 -- =========================
 local lint_and_format = {
 	-- Linters
-	"pylint",
+	-- pylint is installed via Homebrew (see Brewfile), not Mason.
+	-- Mason wraps Python tools in a venv; when none-ls spawns the subprocess it
+	-- uses the system PATH where the venv wrapper is absent, causing "not executable".
 	"revive",
 	"stylelint",
-	"yamllint",
+	-- yamllint is installed via Homebrew (see Brewfile), not Mason.
+	-- Mason wraps Python tools in a venv; when none-ls spawns the subprocess it
+	-- uses the system PATH where the venv wrapper is absent, causing "not executable".
 	"eslint_d",
 	-- Formatters
-	"black",
+	-- black is installed via Homebrew (see Brewfile), not Mason — same Python venv issue as pylint/yamllint.
+
 	"csharpier",
 	"prettierd",
 	"stylua",
@@ -59,7 +64,10 @@ require("mason").setup({
 -- =========================
 require("mason-null-ls").setup({
 	ensure_installed = lint_and_format,
-	automatic_installation = true,
+	-- yamllint is intentionally absent from ensure_installed — managed by Homebrew (see Brewfile).
+	-- Mason wraps Python tools in a venv; none-ls spawns them via system PATH where the wrapper
+	-- is absent, causing "not executable" errors.
+	automatic_installation = false,
 })
 
 -- =========================
