@@ -61,11 +61,10 @@ assert_output_contains() {
 assert_symlink_resolves_to() {
   local path="$1"
   local expected="$2"
-  local resolved=""
 
   assert_symlink "${path}"
-  resolved="$(readlink "${path}")"
-  [[ "${resolved}" == "${expected}" ]] || fail "Expected ${path} to resolve to ${expected}, got ${resolved}"
+  symlink_points_to "${path}" "${expected}" \
+    || fail "Expected ${path} to resolve to ${expected}, got $(readlink "${path}")"
 }
 
 run_link() {

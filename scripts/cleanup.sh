@@ -19,8 +19,6 @@ Options:
 EOF
 }
 
-# Removes ${path} if it is a symlink. Skips regular files and already-absent
-# paths — ownership checks happen in the caller before this is invoked.
 remove_link() {
   local path="$1"
 
@@ -53,8 +51,7 @@ main() {
   (( DRY_RUN )) && log_info "Dry run mode — no files will be removed."
   log "Removing initd-managed symlinks from ${HOME}"
 
-  # Git profile is handled separately: it can point to any file under
-  # git/profiles, not one fixed path, so it needs its own ownership check.
+  # .gitconfig is handled separately — it can point to any file under git/profiles.
   if [[ -L "${HOME}/.gitconfig" ]] && ! git_profile_link_is_managed "${HOME}/.gitconfig"; then
     log_warn "Leaving symlink outside initd ownership: ${HOME}/.gitconfig -> $(readlink "${HOME}/.gitconfig")"
   else
