@@ -57,10 +57,7 @@ validate_inputs() {
     exit 1
   fi
 
-  if ! command -v brew >/dev/null 2>&1; then
-    log_error "brew is required to update and apply ${BREWFILE}."
-    exit 1
-  fi
+  require_command brew "to update and apply ${BREWFILE}"
 }
 
 # When --formula/--cask wasn't given, ask Homebrew which one matches.

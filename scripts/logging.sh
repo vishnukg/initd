@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 
-# Shared logging helpers. Uses ANSI escape codes directly — lighter than tput
-# and supported by every modern terminal. Colors are only emitted when stdout
-# is a terminal (-t 1) and NO_COLOR is unset (https://no-color.org).
-# log_warn and log_error write to stderr so they always appear even when
-# stdout is redirected to a file.
+# Shared logging helpers. Colors via ANSI escapes; honors NO_COLOR (https://no-color.org).
+# log_warn/log_error write to stderr so they surface even when stdout is redirected.
 
 INITD_RESET="" INITD_BLUE="" INITD_GREEN="" INITD_YELLOW="" INITD_RED="" INITD_CYAN=""
 
@@ -18,3 +15,12 @@ log_info()    { printf '%b::%b %s\n'  "${INITD_CYAN}"   "${INITD_RESET}" "$*"; }
 log_success() { printf '%bOK%b %s\n'  "${INITD_GREEN}"  "${INITD_RESET}" "$*"; }
 log_warn()    { printf '%b!!%b %s\n'  "${INITD_YELLOW}" "${INITD_RESET}" "$*" >&2; }
 log_error()   { printf '%bERR%b %s\n' "${INITD_RED}"    "${INITD_RESET}" "$*" >&2; }
+
+require_command() {
+  local command_name="$1"
+  local context="$2"
+  command -v "${command_name}" >/dev/null || {
+    log_error "${command_name} is required ${context}."
+    exit 1
+  }
+}
