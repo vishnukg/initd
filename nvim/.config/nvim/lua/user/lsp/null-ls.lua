@@ -1,13 +1,10 @@
-local null_ls_status_ok, null_ls = pcall(require, "null-ls")
-if not null_ls_status_ok then
-	return
-end
+local null_ls = require("null-ls")
 
 local formatting = null_ls.builtins.formatting
 local diagnostics = null_ls.builtins.diagnostics
 
 -- LspFormatting
-local augroup = vim.api.nvim_create_augroup("LspFormatting", {})
+local augroup = vim.api.nvim_create_augroup("LspFormatting", { clear = true })
 
 local function lsp_format_on_save(client, bufnr)
 	if client:supports_method("textDocument/formatting") then
@@ -16,7 +13,7 @@ local function lsp_format_on_save(client, bufnr)
 			group = augroup,
 			buffer = bufnr,
 			callback = function()
-				vim.lsp.buf.format({ async = false })
+				vim.lsp.buf.format({ async = false, filter = function(c) return c.name == "null-ls" end })
 			end,
 		})
 	end

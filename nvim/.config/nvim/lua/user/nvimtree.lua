@@ -1,10 +1,4 @@
--- following options are the default
--- each of these are documented in `:help nvim-tree.OPTION_NAME`
-
-local status_ok, nvim_tree = pcall(require, "nvim-tree")
-if not status_ok then
-	return
-end
+local nvim_tree = require("nvim-tree")
 
 local function on_attach(bufnr)
 	local api = require("nvim-tree.api")
@@ -80,9 +74,8 @@ nvim_tree.setup({
 	on_attach = on_attach,
 	disable_netrw = true,
 	hijack_netrw = true,
-	open_on_tab = false,
 	hijack_cursor = false,
-	update_cwd = true,
+	sync_root_with_cwd = true,
 	view = {
 		width = 30,
 		adaptive_size = true,
@@ -160,18 +153,3 @@ vim.api.nvim_create_autocmd("BufEnter", {
 	end,
 })
 
--- This function has been generated from your
---   view.mappings.list
---   view.mappings.custom_only
---   remove_keymaps
---
--- You should add this function to your configuration and set on_attach = on_attach in the nvim-tree setup call.
---
--- Although care was taken to ensure correctness and completeness, your review is required.
---
--- Please check for the following issues in auto generated content:
---   "Mappings removed" is as you expect
---   "Mappings migrated" are correct
---
--- Please see https://github.com/nvim-tree/nvim-tree.lua/wiki/Migrating-To-on_attach for assistance in migrating.
---

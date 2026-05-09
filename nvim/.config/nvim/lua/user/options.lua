@@ -34,23 +34,23 @@ local options = {
 	scrolloff = 8, -- is one of my fav
 	sidescrolloff = 8,
 	guifont = "monospace:h17", -- the font used in graphical neovim applications
-	guicursor = "", -- Set block cursor in insert mode
-	hidden = true, -- set hidden buffers
-	autoread = true, -- Reload files changed outside vim
-	showmatch = true, -- Highlights matching brackets in programming languages
-	background = "dark", -- default value for nvim
+	guicursor = "", -- block cursor in insert mode (instead of the default thin bar)
+	background = "dark", -- set early; colorscheme.lua repeats this once the theme loads
+	autoread = true, -- reload files changed outside nvim (works with the checktime autocmd below)
+	showmatch = true, -- briefly jump to matching bracket when inserting one
 	linebreak = true,
 }
 vim.opt.shortmess:append("c")
 
 -- Auto-reload buffers when files change on disk (e.g. changed by Copilot)
 vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI" }, {
-  pattern = "*",
-  callback = function()
-    if vim.fn.mode() ~= "c" then
-      vim.cmd("checktime")
-    end
-  end,
+	group = vim.api.nvim_create_augroup("AutoReload", { clear = true }),
+	pattern = "*",
+	callback = function()
+		if vim.fn.mode() ~= "c" then
+			vim.cmd("checktime")
+		end
+	end,
 })
 
 for k, v in pairs(options) do

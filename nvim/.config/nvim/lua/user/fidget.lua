@@ -1,9 +1,4 @@
-local status_ok, fidget = pcall(require, "fidget")
-if not status_ok then
-	return
-end
-
-fidget.setup({
+require("fidget").setup({
 	notification = {
 		override_vim_notify = true, -- Route vim.notify to Fidget
 		window = {

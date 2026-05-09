@@ -74,14 +74,15 @@ require("mason-lspconfig").setup({
 -- =========================
 -- LSP Servers Setup
 -- =========================
+-- on_attach is intentionally omitted here — the LspAttach autocmd in
+-- handlers.lua handles keymaps, inlay hints, and formatting-disable logic
+-- for all clients. capabilities are still set per-server.
+local handlers = require("user.lsp.handlers")
+
 for _, server in ipairs(lsp_servers) do
 	server = vim.split(server, "@")[1]
 
-	-- Base options
-	local opts = {
-		on_attach = require("user.lsp.handlers").on_attach,
-		capabilities = require("user.lsp.handlers").capabilities,
-	}
+	local opts = { capabilities = handlers.capabilities }
 
 	-- Merge server-specific settings if available
 	local ok, server_opts = pcall(require, "user.lsp.settings." .. server)
@@ -89,7 +90,6 @@ for _, server in ipairs(lsp_servers) do
 		opts = vim.tbl_deep_extend("force", opts, server_opts)
 	end
 
-	-- Configure and enable server using new nvim 0.11+ API
 	vim.lsp.config(server, opts)
 	vim.lsp.enable(server)
 end

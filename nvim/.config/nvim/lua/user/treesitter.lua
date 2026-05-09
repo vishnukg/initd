@@ -1,9 +1,5 @@
 -- Configure nvim-treesitter (main branch rewrite, Neovim 0.11+)
-
-local status_ok, treesitter = pcall(require, "nvim-treesitter")
-if not status_ok then
-	return
-end
+local treesitter = require("nvim-treesitter")
 
 treesitter.setup({
 	install_dir = vim.fn.stdpath("data") .. "/site",
@@ -46,6 +42,7 @@ end
 local available_parsers = treesitter.get_available()
 
 vim.api.nvim_create_autocmd("FileType", {
+	group = vim.api.nvim_create_augroup("TreesitterAttach", { clear = true }),
 	callback = function(args)
 		local buf, filetype = args.buf, args.match
 
