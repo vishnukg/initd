@@ -14,6 +14,7 @@ MANAGED_LINKS=(
   "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
   "${HOME}/.config/mise:${ROOT_DIR}/mise/.config/mise"
   "${HOME}/.config/nvim:${ROOT_DIR}/nvim/.config/nvim"
+  "${HOME}/.config/tmux:${ROOT_DIR}/tmux/.config/tmux"
   "${HOME}/.zshrc:${ROOT_DIR}/zsh/.zshrc"
   "${HOME}/.zprofile:${ROOT_DIR}/zsh/.zprofile"
 )
