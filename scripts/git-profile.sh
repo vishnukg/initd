@@ -16,10 +16,6 @@ Switch ~/.gitconfig to the requested initd Git profile.
 EOF
 }
 
-# Returns true when TARGET is already a managed initd profile link — meaning
-# it's safe to overwrite with ln -snf without losing user data.
-gitconfig_is_switchable() { git_profile_link_is_managed "${TARGET}"; }
-
 main() {
   local profile="${1:-personal}"
   local source="${GIT_PROFILES_DIR}/${profile}.gitconfig"
@@ -38,13 +34,16 @@ main() {
 
   # Refuse to overwrite a file that initd did not create. The user would need
   # to run scripts/link.sh first to migrate it into a managed symlink.
-  if path_exists "${TARGET}" && ! gitconfig_is_switchable; then
+  if path_exists "${TARGET}" && ! git_profile_link_is_managed "${TARGET}"; then
     log_error "${TARGET} already exists and is not an initd-managed Git profile link."
     log_info "Run scripts/link.sh to migrate managed links, or back up the file before switching profiles."
     exit 1
   fi
 
   log "Linking ${TARGET} -> ${source}."
+  # -n: treat an existing symlink-to-directory as a plain file, so the new
+  #     link replaces it rather than being created inside it.
+  # -f: remove any existing file or symlink at the target before linking.
   ln -snf "${source}" "${TARGET}"
   log_success "Active git profile: ${profile}"
 }

@@ -11,6 +11,8 @@ source "${ROOT_DIR}/scripts/logging.sh"
 source "${ROOT_DIR}/scripts/fs.sh"
 
 cleanup() {
+  # Guard: TEST_ROOT is empty ("") until mktemp succeeds in main(). If the
+  # script aborts before that point the variable is unset, so we skip the rm.
   if [[ -n "${TEST_ROOT}" && -d "${TEST_ROOT}" ]]; then
     rm -rf "${TEST_ROOT}"
   fi
@@ -29,14 +31,12 @@ new_home() {
 
 assert_path_exists() {
   local path="$1"
-
-  [[ -e "${path}" || -L "${path}" ]] || fail "Expected path to exist: ${path}"
+  path_exists "${path}" || fail "Expected path to exist: ${path}"
 }
 
 assert_path_missing() {
   local path="$1"
-
-  [[ ! -e "${path}" && ! -L "${path}" ]] || fail "Expected path to be absent: ${path}"
+  ! path_exists "${path}" || fail "Expected path to be absent: ${path}"
 }
 
 assert_symlink() {
