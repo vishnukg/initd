@@ -7,7 +7,7 @@ lualine.setup({
 		component_separators = { left = "", right = "" },
 		section_separators   = { left = "", right = "" },
 		globalstatus = true,
-		refresh = { statusline = 100, tabline = 100 },
+		refresh = { statusline = 250, tabline = 250 },
 	},
 	sections = {
 		lualine_a = { "mode" },

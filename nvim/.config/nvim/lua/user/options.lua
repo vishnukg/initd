@@ -43,7 +43,7 @@ local options = {
 vim.opt.shortmess:append("c")
 
 -- Auto-reload buffers when files change on disk (e.g. changed by Copilot)
-vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI" }, {
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter" }, {
 	group = vim.api.nvim_create_augroup("AutoReload", { clear = true }),
 	pattern = "*",
 	callback = function()
