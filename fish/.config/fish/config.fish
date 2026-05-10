@@ -13,6 +13,9 @@ end
 fish_add_path ~/.local/bin
 fish_add_path ~/.dotnet/tools
 
+# ── Greeting ──────────────────────────────────────────────────────────────────
+set -g fish_greeting ""
+
 # ── Theme ─────────────────────────────────────────────────────────────────────
 fish_config theme choose nord
 

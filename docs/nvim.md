@@ -37,6 +37,8 @@ A reference for reading and editing this config. Covers Vim fundamentals, Lua, a
    - [Plugin config callback (lazy.nvim)](#plugin-config-callback-lazynvim)
    - [LspAttach autocmd](#lspattach-autocmd)
    - [vim.lsp.config + vim.lsp.enable](#vimlspconfig--vimlspenable)
+   - [How LSP loads when you open a file](#how-lsp-loads-when-you-open-a-file)
+   - [How treesitter loads when you open a file](#how-treesitter-loads-when-you-open-a-file)
 
 ---
 
@@ -438,6 +440,8 @@ Common events:
 
 | Event | Fires when |
 |-------|-----------|
+| `BufReadPre` | Before reading a file into a buffer — fires on every `:e file` or buffer open, before content is loaded |
+| `BufNewFile` | When opening a path that doesn't exist yet (companion to `BufReadPre`) |
 | `BufWritePre` | Before a buffer is written to disk |
 | `BufWritePost` | After a buffer is written |
 | `BufEnter` | Entering a buffer |
@@ -587,7 +591,7 @@ Common lazy-load triggers:
 |-------|---------|
 | `event = "InsertEnter"` | Load when entering insert mode (common for completion) |
 | `event = "VeryLazy"` | Load after UI, ~100ms after startup |
-| `event = "BufReadPre"` | Load before reading a buffer |
+| `event = { "BufReadPre", "BufNewFile" }` | Load before reading any file — earliest safe trigger; used for LSP and treesitter so they're ready as soon as the buffer populates |
 | `ft = "go"` | Load only for Go files |
 | `cmd = "NvimTreeToggle"` | Load when this command is first run |
 | `lazy = false` | Load immediately at startup |
@@ -660,3 +664,27 @@ null_ls.setup({
 ```
 
 `vim.api.nvim_clear_autocmds` before creating ensures only one `BufWritePre` fires per buffer even if the client re-attaches.
+
+### How LSP loads when you open a file
+
+The entire LSP stack (nvim-lspconfig, mason, mason-lspconfig, none-ls, mason-null-ls) is set to `event = { "BufReadPre", "BufNewFile" }`. Here's what happens the moment you open e.g. a Go file:
+
+1. **`BufReadPre` fires** — lazy.nvim sees the event and loads the LSP plugin group.
+2. **`config =` callbacks run** — `mason.lua` is called, which runs `vim.lsp.config(server, opts)` and `vim.lsp.enable(server)` for every server in its list (including `gopls`).
+3. **Server starts asynchronously** — `vim.lsp.enable` launches the server binary in the background. Neovim is never blocked; you can type immediately.
+4. **`LspAttach` fires** (once the server is ready) — `handlers.lua`'s autocmd registers buffer-local keymaps and enables inlay hints for that buffer.
+5. **none-ls attaches** — its `on_attach` registers the `BufWritePre` format-on-save autocmd for that buffer.
+
+The perceived delay (typically 300–800ms for gopls on a fresh module) is purely the server binary starting and indexing — not the config. Using `BufReadPre` instead of `VeryLazy` or `BufEnter` shaves the only part that's controllable: plugin load time happens in parallel with the very first file read rather than after it.
+
+### How treesitter loads when you open a file
+
+Treesitter also uses `event = "BufReadPre"` so the plugin loads at the same moment, but what happens after is different from LSP — there's no language server process to start.
+
+1. **`BufReadPre` fires** — lazy.nvim loads nvim-treesitter, `config =` runs: `treesitter.setup()`, baseline parser install, and a `FileType` autocmd is registered.
+2. **`FileType` fires** (after filetype detection, still during the same file open) — the autocmd calls `try_attach(buf, language)`.
+3. Two cases from there:
+   - **Parser already installed**: `vim.treesitter.start()` runs synchronously — highlighting, folding, and indentation are active almost instantly, with no perceptible delay.
+   - **Parser not installed**: treesitter installs it asynchronously, then attaches once done. This only happens the first time you open a file of that language.
+
+Treesitter is faster than LSP in practice — no server process startup, just loading a `.so` parser file. The only delay you'll ever see is the one-time async install on first open.
