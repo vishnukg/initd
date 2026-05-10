@@ -41,6 +41,16 @@ end
 
 local available_parsers = treesitter.get_available()
 
+-- Suspend fold recomputation during insert mode to avoid per-keystroke treesitter parse lag
+vim.api.nvim_create_autocmd("InsertEnter", {
+	group = vim.api.nvim_create_augroup("FoldInsert", { clear = true }),
+	callback = function() vim.opt_local.foldmethod = "manual" end,
+})
+vim.api.nvim_create_autocmd("InsertLeave", {
+	group = vim.api.nvim_create_augroup("FoldNormal", { clear = true }),
+	callback = function() vim.opt_local.foldmethod = "expr" end,
+})
+
 vim.api.nvim_create_autocmd("FileType", {
 	group = vim.api.nvim_create_augroup("TreesitterAttach", { clear = true }),
 	callback = function(args)
