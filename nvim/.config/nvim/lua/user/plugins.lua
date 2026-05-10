@@ -55,6 +55,7 @@ return require("lazy").setup({
 	{
 		"nvim-treesitter/nvim-treesitter",
 		event = "BufReadPre",
+		cmd = { "TSUpdate", "TSInstall", "TSUninstall", "TSModuleInfo" },
 		build = ":TSUpdate",
 		config = function()
 			require("user.treesitter")
@@ -122,6 +123,26 @@ return require("lazy").setup({
 	-- lazy.nvim loads them in the correct order before the config runs.
 	-- cmp-nvim-lsp is listed here so capabilities are ready before server configs
 	-- run (it would otherwise only load on InsertEnter as part of nvim-cmp).
+	-- Mason is also declared top-level so :Mason/:MasonInstall are available
+	-- immediately without needing to open a file first.
+	{
+		"williamboman/mason.nvim",
+		cmd = { "Mason", "MasonInstall", "MasonUninstall", "MasonUpdate" },
+		config = function()
+			require("mason").setup({
+				ui = {
+					border = "none",
+					icons = {
+						package_installed = "✓",
+						package_pending = "⏳",
+						package_uninstalled = "✗",
+					},
+				},
+				log_level = vim.log.levels.INFO,
+				max_concurrent_installers = 4,
+			})
+		end,
+	},
 	{
 		"neovim/nvim-lspconfig",
 		event = "BufReadPre",
