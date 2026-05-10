@@ -11,12 +11,11 @@ DEFAULT_GIT_PROFILE="${GIT_PROFILES_DIR}/personal.gitconfig"
 # Format: "runtime path in $HOME : source path in this repo".
 # To add a managed config, add one entry here and update the tests.
 MANAGED_LINKS=(
+  "${HOME}/.config/fish:${ROOT_DIR}/fish/.config/fish"
   "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
   "${HOME}/.config/mise:${ROOT_DIR}/mise/.config/mise"
   "${HOME}/.config/nvim:${ROOT_DIR}/nvim/.config/nvim"
   "${HOME}/.config/tmux:${ROOT_DIR}/tmux/.config/tmux"
-  "${HOME}/.zshrc:${ROOT_DIR}/zsh/.zshrc"
-  "${HOME}/.zprofile:${ROOT_DIR}/zsh/.zprofile"
 )
 
 # Returns true when ${path} is a symlink pointing at one of the curated git profiles.

@@ -6,8 +6,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
 DOCKER_CASK="docker-desktop"
 DOCKER_APP="/Applications/Docker.app"
-OH_MY_ZSH_DIR="${HOME}/.oh-my-zsh"
-OH_MY_ZSH_REPO="https://github.com/ohmyzsh/ohmyzsh.git"
 
 # Exported so scripts/link.sh reuses the same timestamped folder.
 export BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
@@ -51,27 +49,36 @@ ensure_homebrew() {
   require_command brew "but was not found after Homebrew setup"
 }
 
-oh_my_zsh_is_installed() {
-  local remote=""
-  [[ -d "${OH_MY_ZSH_DIR}/.git" ]] || return 1
-  remote="$(git -C "${OH_MY_ZSH_DIR}" remote get-url origin 2>/dev/null || true)"
-  [[ "${remote}" == "${OH_MY_ZSH_REPO}" || "${remote}" == "git@github.com:ohmyzsh/ohmyzsh.git" ]]
-}
+ensure_fish() {
+  local fish_path
+  fish_path="$(command -v fish)"
+  require_command fish "after brew bundle"
 
-ensure_oh_my_zsh() {
-  if oh_my_zsh_is_installed && [[ -z "$(git -C "${OH_MY_ZSH_DIR}" status --porcelain)" ]]; then
-    log "Updating Oh My Zsh in ${OH_MY_ZSH_DIR}."
-    # --ff-only avoids creating a merge commit in the managed checkout.
-    if git -C "${OH_MY_ZSH_DIR}" fetch --quiet origin \
-       && git -C "${OH_MY_ZSH_DIR}" merge --ff-only --quiet '@{u}'; then
-      return
-    fi
-    log_warn "Could not fast-forward Oh My Zsh; reinstalling."
+  # Register fish as an allowed shell so chsh accepts it
+  if ! grep -qxF "${fish_path}" /etc/shells; then
+    log "Adding ${fish_path} to /etc/shells."
+    echo "${fish_path}" | sudo tee -a /etc/shells > /dev/null
+  else
+    log_success "fish already in /etc/shells."
   fi
 
-  path_exists "${OH_MY_ZSH_DIR}" && backup_path "${OH_MY_ZSH_DIR}"
-  log "Installing Oh My Zsh into ${OH_MY_ZSH_DIR}."
-  git clone --quiet --depth=1 "${OH_MY_ZSH_REPO}" "${OH_MY_ZSH_DIR}"
+  # dscl avoids the interactive password prompt that chsh requires
+  if [[ "${SHELL}" != "${fish_path}" ]]; then
+    log "Setting fish as default shell for ${USER}."
+    sudo dscl . -create "/Users/${USER}" UserShell "${fish_path}"
+  else
+    log_success "fish is already the default shell."
+  fi
+
+  # Install fisher if missing, then sync all plugins listed in fish_plugins
+  log "Syncing fisher plugins..."
+  fish -c "
+    if not functions -q fisher
+      curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source
+      fisher install jorgebucaran/fisher
+    end
+    fisher update
+  "
 }
 
 main() {
@@ -106,11 +113,11 @@ main() {
 
   require_command mise "after brew bundle"
 
-  log "Ensuring Oh My Zsh is installed..."
-  ensure_oh_my_zsh
-
   log "Linking managed configs into ${HOME}..."
   "${ROOT_DIR}/scripts/link.sh"
+
+  log "Ensuring fish shell is configured..."
+  ensure_fish
 
   log "Trusting shared mise config."
   mise trust "${ROOT_DIR}/mise/.config/mise/config.toml"

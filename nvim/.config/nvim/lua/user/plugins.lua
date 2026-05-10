@@ -12,7 +12,7 @@ vim.opt.rtp:prepend(lazypath)
 return require("lazy").setup({
 
 	-- ── Core utilities ────────────────────────────────────────────────────────
-	{ "nvim-lua/plenary.nvim", lazy = false },
+	{ "nvim-lua/plenary.nvim" },
 
 	-- ── Colorscheme ───────────────────────────────────────────────────────────
 	{
@@ -26,7 +26,7 @@ return require("lazy").setup({
 	{
 		"nvim-tree/nvim-tree.lua",
 		version = "*",
-		lazy = false,
+		cmd = { "NvimTreeToggle", "NvimTreeFocus", "NvimTreeOpen" },
 		dependencies = { "nvim-tree/nvim-web-devicons" },
 		config = function() require("user.nvimtree") end,
 	},
@@ -54,7 +54,7 @@ return require("lazy").setup({
 	-- ── Treesitter ────────────────────────────────────────────────────────────
 	{
 		"nvim-treesitter/nvim-treesitter",
-		lazy = false,
+		event = "BufReadPre",
 		build = ":TSUpdate",
 		config = function()
 			require("user.treesitter")
@@ -69,10 +69,13 @@ return require("lazy").setup({
 	},
 
 	-- ── Terminal ──────────────────────────────────────────────────────────────
-	-- lazy = false so that the lazygit terminal and keymaps are available immediately.
 	{
 		"akinsho/toggleterm.nvim",
-		lazy = false,
+		keys = {
+			{ "<leader>tv", desc = "Toggle vertical terminal" },
+			{ "<leader>th", desc = "Toggle horizontal terminal" },
+			{ "<leader>gt", desc = "Toggle lazygit" },
+		},
 		config = function() require("user.toggleterm") end,
 	},
 
@@ -117,11 +120,11 @@ return require("lazy").setup({
 	-- ── LSP ecosystem ─────────────────────────────────────────────────────────
 	-- nvim-lspconfig is the entry point; all LSP tooling is its dependency so
 	-- lazy.nvim loads them in the correct order before the config runs.
-	-- cmp-nvim-lsp is included so capabilities are available at startup (it
-	-- normally loads on InsertEnter as part of nvim-cmp).
+	-- cmp-nvim-lsp is listed here so capabilities are ready before server configs
+	-- run (it would otherwise only load on InsertEnter as part of nvim-cmp).
 	{
 		"neovim/nvim-lspconfig",
-		lazy = false,
+		event = "BufReadPre",
 		dependencies = {
 			"williamboman/mason.nvim",
 			{ "williamboman/mason-lspconfig.nvim", dependencies = "williamboman/mason.nvim" },
@@ -183,10 +186,11 @@ return require("lazy").setup({
 	-- OpenFGA authorization models
 	{
 		"hedengran/fga.nvim",
+		ft = { "fga" },
 		opts = { install_treesitter_grammar = true },
 	},
 	-- Bruno API client (.bru syntax via tree-sitter)
-	{ "kristoferssolo/tree-sitter-bruno" },
+	{ "kristoferssolo/tree-sitter-bruno", ft = { "bru" } },
 
 	-- Test coverage overlay (gcv = load & show, then <leader>cvs for summary)
 	-- Workflow: run tests with neotest → gcv to overlay coverage gutters
@@ -285,5 +289,11 @@ return require("lazy").setup({
 		dependencies = { "nvim-tree/nvim-web-devicons" },
 		cmd = "Trouble",
 		opts = {},
+	},
+}, {
+	performance = {
+		rtp = {
+			disabled_plugins = { "gzip", "tarPlugin", "tohtml", "tutor", "zipPlugin" },
+		},
 	},
 })
