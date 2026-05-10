@@ -13,6 +13,9 @@ end
 fish_add_path ~/.local/bin
 fish_add_path ~/.dotnet/tools
 
+# ── Theme ─────────────────────────────────────────────────────────────────────
+fish_config theme choose nord
+
 # ── Vi mode ───────────────────────────────────────────────────────────────────
 fish_vi_key_bindings
 # Restore Ctrl+A/E for line start/end in insert mode (ergonomic with vi mode)
@@ -35,6 +38,7 @@ abbr -a gbd  'git branch --delete'
 abbr -a gbD  'git branch -D'
 abbr -a gcb  'git checkout -b'
 abbr -a gcm  'git checkout main'
+abbr -a gca  'git commit -a'
 abbr -a gco  'git checkout'
 abbr -a gcp  'git cherry-pick'
 abbr -a gd   'git diff'
@@ -42,6 +46,7 @@ abbr -a gds  'git diff --staged'
 abbr -a gf   'git fetch'
 abbr -a gfa  'git fetch --all --prune'
 abbr -a gl   'git pull'
+abbr -a gpr  'git pull --rebase'
 abbr -a glg  'git log --stat'
 abbr -a glog 'git log --oneline --decorate --graph'
 abbr -a gm   'git merge'
