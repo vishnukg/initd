@@ -13,6 +13,16 @@ end
 fish_add_path ~/.local/bin
 fish_add_path ~/.dotnet/tools
 
+# ── Mise (runs in all contexts so scripts get correct tool versions) ───────────
+if command -q mise
+    mise activate fish | source
+end
+
+# ── Interactive-only config ────────────────────────────────────────────────────
+if not status is-interactive
+    exit
+end
+
 # ── Greeting ──────────────────────────────────────────────────────────────────
 set -g fish_greeting ""
 
@@ -71,11 +81,6 @@ abbr -a gswc 'git switch --create'
 # ── Zoxide ────────────────────────────────────────────────────────────────────
 if command -q zoxide
     zoxide init fish | source
-end
-
-# ── Mise ──────────────────────────────────────────────────────────────────────
-if command -q mise
-    mise activate fish | source
 end
 
 # ── Starship ──────────────────────────────────────────────────────────────────
