@@ -171,7 +171,6 @@ return require("lazy").setup({
 			"nvim-lua/plenary.nvim",
 			"nvim-neotest/nvim-nio",
 			"nvim-treesitter/nvim-treesitter",
-			"antoinemadec/FixCursorHold.nvim",
 			"nvim-neotest/neotest-jest",
 			"marilari88/neotest-vitest",
 			"fredrikaverpil/neotest-golang",
