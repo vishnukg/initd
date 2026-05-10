@@ -13,7 +13,7 @@ developer can follow like a checklist.
 | File | Purpose |
 |---|---|
 | `bootstrap.sh` | Detect the operating system and hand off to the platform bootstrap. |
-| `platforms/darwin/bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → Oh My Zsh → links → mise → macOS defaults. |
+| `platforms/darwin/bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → links → fish → mise → macOS defaults. |
 | `scripts/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files, and fold old file-level links into direct directory links. |
 | `scripts/cleanup.sh` | Remove only the symlinks that initd created. |
 | `scripts/git-profile.sh` | Switch `~/.gitconfig` between the curated Git profiles. |
@@ -37,9 +37,9 @@ main() {
   # install packages...
   brew bundle --file "${work_brewfile}"
 
-  ensure_oh_my_zsh
-
   "${ROOT_DIR}/scripts/link.sh"
+
+  ensure_fish
 
   mise install --yes
 
@@ -71,11 +71,11 @@ open the helper function whose name matches the step you care about.
 
 ```bash
 MANAGED_LINKS=(
+  "${HOME}/.config/fish:${ROOT_DIR}/fish/.config/fish"
   "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
   "${HOME}/.config/mise:${ROOT_DIR}/mise/.config/mise"
   "${HOME}/.config/nvim:${ROOT_DIR}/nvim/.config/nvim"
-  "${HOME}/.zshrc:${ROOT_DIR}/zsh/.zshrc"
-  "${HOME}/.zprofile:${ROOT_DIR}/zsh/.zprofile"
+  "${HOME}/.config/tmux:${ROOT_DIR}/tmux/.config/tmux"
 )
 ```
 
@@ -229,7 +229,7 @@ backup_path "${path}"
 all backups from a single bootstrap run are grouped in one folder. For example:
 
 ```text
-~/.zshrc  ->  ~/.config/initd-backups/20260509120000/.zshrc
+~/.config/fish  ->  ~/.config/initd-backups/20260509120000/.config/fish
 ```
 
 This is why `BACKUP_ROOT` must be set before calling `backup_path`.
