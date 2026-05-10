@@ -26,7 +26,7 @@ bind -M insert \ce end-of-line
 alias vi nvim
 alias vim nvim
 
-# ── Git abbreviations (mirrors Oh My Zsh git plugin) ─────────────────────────
+# ── Git abbreviations ────────────────────────────────────────────────────────
 abbr -a g    git
 abbr -a ga   'git add'
 abbr -a gaa  'git add --all'
