@@ -55,11 +55,6 @@ map("n", "<C-g>", ":NvimTreeToggle<cr>", d("Toggle file tree"))
 map("n", "<leader>sp", function() require("grug-far").open() end,                              d("Search & replace"))
 map("n", "<leader>sw", function() require("grug-far").open({ prefills = { search = vim.fn.expand("<cword>") } }) end, d("Search & replace word"))
 
--- ── Terminal (toggleterm) ─────────────────────────────────────────────────────
-map("n", "<leader>tv", "<cmd>ToggleTerm size=90 direction=vertical<CR>",   d("Toggle vertical terminal"))
-map("n", "<leader>th", "<cmd>ToggleTerm size=20 direction=horizontal<CR>", d("Toggle horizontal terminal"))
-map("n", "<leader>gt", function() require("user.toggleterm").toggle_lazygit() end, d("Toggle lazygit"))
-
 -- ── Diff ──────────────────────────────────────────────────────────────────────
 map("n", "<leader>df", ":windo diffthis<CR>", d("Diff split buffers"))
 

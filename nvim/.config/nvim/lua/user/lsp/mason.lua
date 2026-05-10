@@ -44,22 +44,6 @@ local lsp_servers = {
 }
 
 -- =========================
--- Mason Setup
--- =========================
-require("mason").setup({
-	ui = {
-		border = "none",
-		icons = {
-			package_installed = "✓",
-			package_pending = "⏳",
-			package_uninstalled = "✗",
-		},
-	},
-	log_level = vim.log.levels.INFO,
-	max_concurrent_installers = 4,
-})
-
--- =========================
 -- Mason-null-ls Setup
 -- =========================
 require("mason-null-ls").setup({
