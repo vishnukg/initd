@@ -35,7 +35,7 @@ verify_symlink_target() {
 backup_path() {
   local path="$1"
   # Strip $HOME prefix so the backup mirrors the original directory shape.
-  # e.g. ~/.zshrc → ${BACKUP_ROOT}/.zshrc
+  # e.g. ~/.config/fish → ${BACKUP_ROOT}/.config/fish
   local relative="${path#"${HOME}/"}"
   : "${BACKUP_ROOT:?BACKUP_ROOT must be set before calling backup_path}"
   local backup="${BACKUP_ROOT}/${relative}"
