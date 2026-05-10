@@ -1,93 +1,46 @@
-local function has_file(patterns)
-	for _, pattern in ipairs(patterns) do
-		if vim.fn.filereadable(vim.fn.getcwd() .. "/" .. pattern) == 1 then
-			return true
+local function find_config(path, configs)
+	local dir = vim.fn.fnamemodify(path, ":h")
+	for _, config in ipairs(configs) do
+		local found = vim.fn.findfile(config, dir .. ";")
+		if found ~= "" then
+			return vim.fn.fnamemodify(found, ":p")
 		end
 	end
-	return false
 end
 
-local vitest_configs = {
-	"vitest.config.ts",
-	"vitest.config.js",
-	"vitest.config.mjs",
-	"vitest.config.cjs",
-	"vite.config.js",
-	"vite.config.ts",
-}
-
-local jest_configs = {
-	"jest.config.js",
-	"jest.config.ts",
-	"jest.config.mjs",
-	"jest.config.cjs",
-	"jest.config.json",
-}
-
-local function is_minitest_project()
-	local gemfile = vim.fn.getcwd() .. "/Gemfile"
-	if vim.fn.filereadable(gemfile) == 0 then
-		return false
-	end
-	for line in io.lines(gemfile) do
-		if line:match("minitest") then
-			return true
-		end
-	end
-	return false
-end
-
-local adapters = {
-	require("neotest-golang")({}),
-	require("neotest-vstest")({}),
-}
-
-if is_minitest_project() then
-	table.insert(
-		adapters,
-		require("neotest-minitest")({
-			test_cmd = function()
-				return {
-					"bundle",
-					"exec",
-					"ruby",
-					"-Itest",
-				}
-			end,
-		})
-	)
-end
-
-if has_file(vitest_configs) then
-	table.insert(
-		adapters,
-		require("neotest-vitest")({
-			cwd = function()
-				return vim.fn.getcwd()
-			end,
-			filter_dir = function(name)
-				return not (name == "node_modules" or name == "dist")
-			end,
-		})
-	)
-end
-
-if has_file(jest_configs) or (not has_file(vitest_configs)) then
-	table.insert(
-		adapters,
-		require("neotest-jest")({
-			jestCommand = "npm test --",
-			env = { CI = true },
-			cwd = function()
-				return vim.fn.getcwd()
-			end,
-			filter_dir = function(name)
-				return not (name == "node_modules" or name == "dist")
-			end,
-		})
-	)
+local function filter_dir(name)
+	return not (name == "node_modules" or name == "dist")
 end
 
 require("neotest").setup({
-	adapters = adapters,
+	adapters = {
+		require("neotest-golang")({}),
+		require("neotest-vstest")({}),
+		require("neotest-minitest")({}),
+		require("neotest-vitest")({
+			filter_dir = filter_dir,
+			vitestConfigFile = function(path)
+				return find_config(path, {
+					"vitest.config.ts", "vitest.config.js",
+					"vitest.config.mts", "vitest.config.mjs",
+					"vitest.config.cts", "vitest.config.cjs",
+					"vite.config.ts",   "vite.config.js",
+					"vite.config.mts",  "vite.config.mjs",
+					"vite.config.cts",  "vite.config.cjs",
+				})
+			end,
+		}),
+		require("neotest-jest")({
+			jestCommand = "npm test --",
+			env = { CI = true },
+			filter_dir = filter_dir,
+			jestConfigFile = function(path)
+				return find_config(path, {
+					"jest.config.ts",  "jest.config.js",
+					"jest.config.mjs", "jest.config.cjs",
+					"jest.config.json",
+				})
+			end,
+		}),
+	},
 })

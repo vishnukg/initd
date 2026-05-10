@@ -5,7 +5,7 @@
 It owns both:
 
 - **machine setup**: Homebrew, apps, runtimes, macOS defaults
-- **user config**: Neovim, Kitty, Git, and other dotfiles via managed symlinks
+- **user config**: Neovim, Kitty, Fish, tmux, Git, and other dotfiles via managed symlinks
 
 The repo is structured for **multi-platform support later**, while only **macOS** is implemented today.
 
@@ -15,12 +15,13 @@ The repo is structured for **multi-platform support later**, while only **macOS*
 initd/
 ├── brewinstall               # Add formulae/casks to the curated Brewfile and install them
 ├── bootstrap.sh              # OS dispatcher
-├── docs/                     # Maintenance notes and Bash reference
+├── docs/                     # Maintenance notes and reference guides
+├── fish/                     # Source linked to ~/.config/fish
 ├── git/                      # Git profiles -> ~/.gitconfig
 ├── kitty/                    # Source linked to ~/.config/kitty
 ├── mise/                     # Source linked to ~/.config/mise
 ├── nvim/                     # Source linked to ~/.config/nvim
-├── zsh/                      # Source linked to ~/.zshrc and ~/.zprofile
+├── tmux/                     # Source linked to ~/.config/tmux
 ├── scripts/                  # Shared helper scripts
 │   ├── brewinstall.sh
 │   ├── cleanup.sh
@@ -39,7 +40,7 @@ initd/
 
 ## How it is set up
 
-- **managed packages** (`git/`, `kitty/`, `mise/`, `nvim/`, `zsh/`): the source of truth for files that end up in `$HOME`
+- **managed packages** (`fish/`, `git/`, `kitty/`, `mise/`, `nvim/`, `tmux/`): the source of truth for files that end up in `$HOME`
 - **`platforms/<os>/`**: package managers, OS defaults, and platform-specific setup
 - **`scripts/`**: shared helper scripts used by all platforms
 
@@ -50,11 +51,11 @@ initd/
 | Runtime path | Source in `initd` | Managed by |
 |---|---|---|
 | `~/.gitconfig` | `git/profiles/personal.gitconfig` or `git/profiles/work.gitconfig` | `scripts/link.sh` and `scripts/git-profile.sh` |
+| `~/.config/fish` | `fish/.config/fish` | `scripts/link.sh` |
 | `~/.config/kitty` | `kitty/.config/kitty` | `scripts/link.sh` |
 | `~/.config/mise` | `mise/.config/mise` | `scripts/link.sh` |
 | `~/.config/nvim` | `nvim/.config/nvim` | `scripts/link.sh` |
-| `~/.zshrc` | `zsh/.zshrc` | `scripts/link.sh` |
-| `~/.zprofile` | `zsh/.zprofile` | `scripts/link.sh` |
+| `~/.config/tmux` | `tmux/.config/tmux` | `scripts/link.sh` |
 
 That means you edit files **inside `initd`**, not the live paths in `$HOME`.
 
@@ -64,14 +65,14 @@ That means you edit files **inside `initd`**, not the live paths in `$HOME`.
 
 The resulting live symlinks are:
 
-- `~/.config/nvim` -> `~/.config/initd/nvim/.config/nvim`
+- `~/.config/fish` -> `~/.config/initd/fish/.config/fish`
 - `~/.config/kitty` -> `~/.config/initd/kitty/.config/kitty`
 - `~/.config/mise` -> `~/.config/initd/mise/.config/mise`
+- `~/.config/nvim` -> `~/.config/initd/nvim/.config/nvim`
+- `~/.config/tmux` -> `~/.config/initd/tmux/.config/tmux`
 - `~/.gitconfig` -> `~/.config/initd/git/profiles/personal.gitconfig` or `~/.config/initd/git/profiles/work.gitconfig`
-- `~/.zshrc` -> `~/.config/initd/zsh/.zshrc`
-- `~/.zprofile` -> `~/.config/initd/zsh/.zprofile`
 
-For package roots such as `~/.config/kitty`, `~/.config/mise`, and `~/.config/nvim`, `scripts/link.sh` prefers direct directory symlinks. If an existing directory already contains only symlinks back into the matching `initd` package, the script folds it into one direct symlink.
+For package roots such as `~/.config/fish`, `~/.config/kitty`, `~/.config/mise`, and `~/.config/nvim`, `scripts/link.sh` prefers direct directory symlinks. If an existing directory already contains only symlinks back into the matching `initd` package, the script folds it into one direct symlink.
 
 Rerunning bootstrap is safe: existing managed links are left in place, unmanaged files are backed up before initd takes ownership, and the link step exits if any managed link is missing or points to the wrong source.
 
@@ -90,12 +91,11 @@ Examples:
 | Existing unmanaged path | Backup path |
 |---|---|
 | `~/.gitconfig` | `~/.config/initd-backups/<timestamp>/.gitconfig` |
+| `~/.config/fish` | `~/.config/initd-backups/<timestamp>/.config/fish` |
 | `~/.config/kitty` | `~/.config/initd-backups/<timestamp>/.config/kitty` |
 | `~/.config/mise` | `~/.config/initd-backups/<timestamp>/.config/mise` |
 | `~/.config/nvim` | `~/.config/initd-backups/<timestamp>/.config/nvim` |
-| `~/.zshrc` | `~/.config/initd-backups/<timestamp>/.zshrc` |
-| `~/.zprofile` | `~/.config/initd-backups/<timestamp>/.zprofile` |
-| `~/.oh-my-zsh` | `~/.config/initd-backups/<timestamp>/.oh-my-zsh` |
+| `~/.config/tmux` | `~/.config/initd-backups/<timestamp>/.config/tmux` |
 
 The backup directory is outside the repo, so it is not linked and does not become config source.
 
@@ -122,43 +122,66 @@ To switch later:
 
 The profile switcher updates `~/.gitconfig` directly. No common include file or `~/.config/git` runtime directory is needed.
 
-## Zsh and Oh My Zsh
+## Fish shell
 
-Zsh startup files are managed by `initd`:
+Fish is the default shell. Bootstrap installs it via Homebrew, registers it in `/etc/shells`, sets it as the login shell via `dscl`, and syncs plugins with [Fisher](https://github.com/jorgebucaran/fisher).
 
-```text
-~/.zshrc     -> ~/.config/initd/zsh/.zshrc
-~/.zprofile  -> ~/.config/initd/zsh/.zprofile
-```
-
-Bootstrap installs Oh My Zsh into:
+The managed config:
 
 ```text
-~/.oh-my-zsh
+~/.config/fish  ->  ~/.config/initd/fish/.config/fish
 ```
 
-If `~/.oh-my-zsh` already exists as a clean Oh My Zsh checkout, bootstrap fetches and fast-forwards it. If it is missing, is not an Oh My Zsh checkout, has unmanaged changes, or cannot be fast-forwarded, bootstrap backs it up to `~/.config/initd-backups/<timestamp>/.oh-my-zsh` before cloning a fresh copy.
+Plugins are declared in `fish/.config/fish/fish_plugins` and installed by bootstrap:
 
-The managed `.zshrc`:
+- [`patrickf1/fzf.fish`](https://github.com/patrickf1/fzf.fish) — fzf key bindings (`Ctrl+R` history, `Ctrl+Alt+F` files, `Ctrl+Alt+L` git log)
+- [`meaningful-ooo/sponge`](https://github.com/meaningful-ooo/sponge) — removes failed commands from history automatically
 
-1. Loads Homebrew shell environment when available
-2. Sets `ZSH="${HOME}/.oh-my-zsh"`
-3. Sources `oh-my-zsh.sh`
-4. Enables the `git` Oh My Zsh plugin
-5. Initializes `zoxide`, `mise`, and `starship` when those commands are installed
+The managed `config.fish`:
+
+1. Loads Homebrew shell environment for Apple Silicon
+2. Sets the Nord color theme
+3. Enables vi key bindings (with `Ctrl+A`/`Ctrl+E` restored in insert mode)
+4. Defines `vi`/`vim` aliases to `nvim` and a full set of git abbreviations
+5. Initializes `zoxide`, `mise`, and `starship` when those commands are available
+
+To add or update plugins, edit `fish_plugins` and run `fisher update` inside fish, then commit the updated plugin files.
+
+See [`docs/fish.md`](docs/fish.md) for a fish/bash/zsh syntax reference.
+
+## tmux
+
+tmux config is managed by `initd`:
+
+```text
+~/.config/tmux  ->  ~/.config/initd/tmux/.config/tmux
+```
+
+Key bindings in the managed `tmux.conf`:
+
+| Key | Action |
+|---|---|
+| `Ctrl+Space` | Prefix (replaces default `Ctrl+B`) |
+| `prefix n` | New window (in current path) |
+| `prefix Tab` / `prefix BTab` | Next / previous window |
+| `prefix s` | Horizontal split (in current path) |
+| `prefix v` | Vertical split (in current path) |
+| `Alt+h/j/k/l` | Move between panes (no prefix needed) |
+
+Windows and panes start at index 1 and renumber automatically when closed.
 
 ## Current macOS setup
 
 The macOS flow installs:
 
-- CLI tools and terminal utilities such as `git`, `gh`, `git-delta`, `ripgrep`, `fd`, `fzf`, `tmux`, `tig`, and `zoxide`
+- CLI tools and terminal utilities: `git`, `gh`, `git-delta`, `ripgrep`, `fd`, `fzf`, `tmux`, `tig`, `zoxide`, `lazygit`, `glow`, `gnu-sed`, `gnupg`
+- shell: `fish`, `starship`
 - editor tooling: `neovim`, `tree-sitter`, `tree-sitter-cli`
 - runtimes manager: `mise`
 - runtimes via mise: `dotnet`, `go`, `node`, `python`, `ruby`, `terraform`
-- shell framework: Oh My Zsh installed into `~/.oh-my-zsh`
-- apps: `BetterDisplay`, `Copilot CLI`, `Docker Desktop`, `Ghostty`, `iTerm2`, `Kitty`, and `Visual Studio Code`
-- fonts including `FiraCode Nerd Font`, `Hack Nerd Font`, `JetBrains Mono Nerd Font`, `Meslo LG Nerd Font`, and `Victor Mono Nerd Font`
-- managed configs into runtime paths such as `~/.config/nvim`, `~/.config/kitty`, and `~/.gitconfig`
+- apps: `BetterDisplay`, `Claude Code`, `Copilot CLI`, `Docker Desktop`, `Ghostty`, `iTerm2`, `Kitty`, and `Visual Studio Code`
+- fonts: `FiraCode Nerd Font`, `Hack Nerd Font`, `JetBrains Mono Nerd Font`, `Meslo LG Nerd Font`, and `Victor Mono Nerd Font`
+- managed configs into runtime paths such as `~/.config/nvim`, `~/.config/fish`, `~/.config/kitty`, and `~/.gitconfig`
 
 See `platforms/darwin/Brewfile` for the authoritative package list.
 
@@ -169,11 +192,11 @@ git clone <repo-url> ~/.config/initd
 bash ~/.config/initd/bootstrap.sh
 ```
 
-On a fresh machine, `bootstrap.sh` installs Homebrew packages, installs Oh My Zsh, links configs into place, trusts the managed mise config, and installs runtimes from the repo root.
+On a fresh machine, `bootstrap.sh` installs Homebrew packages, sets fish as the default shell, syncs fisher plugins, links configs into place, trusts the managed mise config, and installs runtimes from the repo root.
 
 If Xcode Command Line Tools are missing, macOS will prompt for installation first. Re-run `bash ~/.config/initd/bootstrap.sh` after that finishes.
 
-If you are new to maintaining these scripts, see [`docs/bash-primer.md`](docs/bash-primer.md) for a repo-specific Bash reference and [`docs/git-branching-conflicts.md`](docs/git-branching-conflicts.md) for Git branching, git-delta, and conflict resolution basics.
+If you are new to maintaining these scripts, see [`docs/bash-primer.md`](docs/bash-primer.md) for a repo-specific Bash reference, [`docs/fish.md`](docs/fish.md) for fish shell syntax, and [`docs/git-branching-conflicts.md`](docs/git-branching-conflicts.md) for Git branching, git-delta, and conflict resolution basics.
 
 To safely check install, migration, and cleanup behavior without touching your real home directory:
 
@@ -183,7 +206,7 @@ To safely check install, migration, and cleanup behavior without touching your r
 
 ## Existing machine migration
 
-If you already have files at managed config paths such as `~/.config/nvim`, `~/.config/kitty`, `~/.gitconfig`, `~/.zshrc`, `~/.zprofile`, or `~/.oh-my-zsh`, bootstrap moves unmanaged files into `~/.config/initd-backups/<timestamp>/`, refreshes clean Oh My Zsh checkouts, and makes `initd` the default setup.
+If you already have files at managed config paths such as `~/.config/fish`, `~/.config/nvim`, `~/.config/kitty`, or `~/.gitconfig`, bootstrap moves unmanaged files into `~/.config/initd-backups/<timestamp>/` and makes `initd` the default setup.
 
 ```bash
 bash ~/.config/initd/bootstrap.sh
@@ -206,11 +229,12 @@ Edit the source files in this repo, not the live symlinked paths.
 
 Examples:
 
+- Fish config: `~/.config/initd/fish/.config/fish`
 - Neovim config: `~/.config/initd/nvim/.config/nvim`
+- tmux config: `~/.config/initd/tmux/.config/tmux`
 - Kitty config: `~/.config/initd/kitty/.config/kitty`
 - Git profiles: `~/.config/initd/git/profiles`
 - Runtime versions: `~/.config/initd/mise/.config/mise/config.toml`
-- Zsh startup: `~/.config/initd/zsh`
 
 After editing, re-apply links with either:
 
@@ -235,7 +259,7 @@ To remove initd-managed symlinks from a machine without deleting any source file
 
 Cleanup only removes known symlinks that point back into `~/.config/initd`. Non-symlink files and unrelated symlinks are left in place.
 
-For Neovim plugin changes, update the files under `nvim/.config/nvim`, then open Neovim and run your normal plugin workflow such as `:Lazy sync`.
+For Neovim plugin changes, update the files under `nvim/.config/nvim`, then open Neovim and run `:Lazy sync`. See [`docs/nvim.md`](docs/nvim.md) for details on the plugin setup.
 
 For runtime version changes, edit `~/.config/initd/mise/.config/mise/config.toml`. Because `~/.config/mise` is a symlink to that directory, changes are live immediately. Re-run `bash ~/.config/initd/bootstrap.sh` when you want bootstrap to refresh installed runtimes on the machine.
 
