@@ -85,12 +85,42 @@ Current plugins: `patrickf1/fzf.fish`, `meaningful-ooo/sponge`.
 
 ```
 fish/.config/fish/
-  config.fish          # main config — runs for every interactive shell
+  config.fish          # main config — runs for every fish invocation (see below)
   fish_plugins         # fisher plugin list — committed to git
+  fish_variables       # universal variable defaults — committed to git
   conf.d/              # auto-sourced snippets (load order: alphabetical)
   functions/           # autoloaded functions
   themes/              # .theme files (if any custom themes are added)
 ```
+
+## Interactive vs non-interactive
+
+`config.fish` runs for **every** fish invocation — not just terminal sessions. That
+includes scripts (`fish myscript.fish`), inline commands (`fish -c "..."`), and
+subshells spawned by editors or tools. Fish calls these **non-interactive** contexts.
+
+Config split in `config.fish`:
+
+```
+┌─ always runs ───────────────────────────────────────────┐
+│  Homebrew PATH + env vars   (scripts need these)        │
+│  fish_add_path              (PATH additions, idempotent) │
+│  mise activate              (tool versions for scripts)  │
+└─────────────────────────────────────────────────────────┘
+  if not status is-interactive; exit; end
+┌─ interactive only ──────────────────────────────────────┐
+│  Theme, vi mode, key bindings                           │
+│  Aliases and abbreviations                              │
+│  zoxide, starship                                       │
+└─────────────────────────────────────────────────────────┘
+```
+
+Without this guard, every `fish -c "git status"` from Neovim would wastefully
+load all 37 git abbreviations, run `starship init`, `zoxide init`, and set vi key
+bindings — none of which have any effect outside a terminal.
+
+The same rule applies to `conf.d/` files that define interactive-only behaviour.
+`conf.d/fzf.fish` already does this with its own guard at the top.
 
 ## Machine-local config
 
