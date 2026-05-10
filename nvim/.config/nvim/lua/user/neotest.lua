@@ -1,7 +1,9 @@
+---@param path string
+---@param configs string[]
 local function find_config(path, configs)
 	local dir = vim.fn.fnamemodify(path, ":h")
 	for _, config in ipairs(configs) do
-		local found = vim.fn.findfile(config, dir .. ";")
+		local found = vim.fn.findfile(config, dir .. ";") --[[@as string]]
 		if found ~= "" then
 			return vim.fn.fnamemodify(found, ":p")
 		end
