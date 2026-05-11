@@ -17,7 +17,7 @@ initd/
 ├── bootstrap.sh              # OS dispatcher
 ├── docs/                     # Maintenance notes and reference guides
 ├── fish/                     # Source linked to ~/.config/fish
-├── git/                      # Git profiles -> ~/.gitconfig
+├── git/                      # Git profiles -> ~/.gitconfig (local.gitconfig is gitignored)
 ├── kitty/                    # Source linked to ~/.config/kitty
 ├── mise/                     # Source linked to ~/.config/mise
 ├── nvim/                     # Source linked to ~/.config/nvim
@@ -30,7 +30,6 @@ initd/
 │   ├── link.sh
 │   ├── logging.sh
 │   ├── paths.sh
-│   ├── ssh-config.sh
 │   └── test-install-behavior.sh
 ├── platforms/
 │   └── darwin/
@@ -109,101 +108,34 @@ Each Git profile is a complete Git config. The files intentionally duplicate sha
 ~/.config/initd/git/profiles/work.gitconfig
 ```
 
-Bootstrap sets the default profile to **personal** on first run:
+### Email
 
-- personal -> `vishnukg@gmail.com`
-- work -> `v.ganesan@xero.com`
+Email is **not stored in the committed profile files** — it lives in `git/local.gitconfig`, which is gitignored and never pushed. Each machine has its own copy with the appropriate email.
 
-To switch later:
+Bootstrap prompts for machine type and email on first run:
+
+```
+:: Machine type [personal/work] (default: personal): work
+:: Git email for this machine: you@example.com
+```
+
+If `local.gitconfig` already has an email (e.g. re-running bootstrap), the prompt is skipped.
+
+To change the email later, delete the local file and re-run the profile switcher:
+
+```bash
+rm ~/.config/initd/git/local.gitconfig
+~/.config/initd/scripts/git-profile.sh work
+```
+
+### Switching profiles
 
 ```bash
 ~/.config/initd/scripts/git-profile.sh personal
 ~/.config/initd/scripts/git-profile.sh work
 ```
 
-The profile switcher updates `~/.gitconfig` directly. No common include file or `~/.config/git` runtime directory is needed.
-
-## SSH setup
-
-`git-profile.sh` also manages a block in `~/.ssh/config` (between `# BEGIN initd-github` / `# END initd-github` markers) and adds keys to the macOS Keychain so they load automatically on every login. No manual `ssh-add` needed after first-time setup.
-
-**Key naming convention** — SSH keys must live at these paths regardless of machine:
-
-| Key | Path |
-|---|---|
-| Personal GitHub | `~/.ssh/id_github_personal` |
-| Work GitHub | `~/.ssh/id_github_work` |
-
-Copying or generating key files is a one-time manual step. Everything else is automated by `git-profile.sh`.
-
----
-
-### Personal machine
-
-1. **Generate (or copy) your personal key:**
-   ```bash
-   # Generate a new key (skip if you already have one)
-   ssh-keygen -t ed25519 -C "vishnukg@gmail.com" -f ~/.ssh/id_github_personal
-
-   # Add the public key to GitHub → Settings → SSH keys
-   cat ~/.ssh/id_github_personal.pub
-   ```
-
-2. **Switch to the personal profile** (writes SSH config + adds key to Keychain):
-   ```bash
-   ~/.config/initd/scripts/git-profile.sh personal
-   ```
-
-3. **Verify:**
-   ```bash
-   ssh -T git@github.com   # Hi vishnukg!
-   ```
-
----
-
-### Work machine
-
-You need both keys on the work machine — the work key for Xero repos, and your personal key for this initd repo.
-
-1. **Set up the work key** (follow your work onboarding — the key is usually already provisioned):
-   ```bash
-   # Rename/copy your work key to the expected path
-   cp ~/.ssh/<your-work-key> ~/.ssh/id_github_work
-   cp ~/.ssh/<your-work-key>.pub ~/.ssh/id_github_work.pub
-   ```
-
-2. **Copy your personal key to the work machine** (over SSH, AirDrop, or a password manager):
-   ```bash
-   # On your personal machine — copy to work machine
-   scp ~/.ssh/id_github_personal user@workmachine:~/.ssh/id_github_personal
-   scp ~/.ssh/id_github_personal.pub user@workmachine:~/.ssh/id_github_personal.pub
-   chmod 600 ~/.ssh/id_github_personal   # on the work machine
-   ```
-   Or generate a new key and add it as a second key under your personal GitHub account.
-
-3. **Switch to the work profile** (writes SSH config for both accounts + adds both keys to Keychain):
-   ```bash
-   ~/.config/initd/scripts/git-profile.sh work
-   ```
-
-4. **Verify both accounts:**
-   ```bash
-   ssh -T git@github.com          # Hi <work-user>!
-   ssh -T git@github-personal     # Hi vishnukg!
-   ```
-
-5. **Clone initd using the personal alias:**
-   ```bash
-   git clone git@github-personal:vishnukg/initd.git ~/.config/initd
-   ```
-   If you've already cloned it with the default URL, update the remote:
-   ```bash
-   git remote set-url origin git@github-personal:vishnukg/initd.git
-   ```
-
----
-
-**How it works:** the `work` SSH config writes two Host entries — `github.com` uses the work key (picked up automatically by all `git@github.com:xero-internal/...` remotes), and `github-personal` is an alias that points at `github.com` but uses your personal key. Only remotes whose URL explicitly says `github-personal` use the personal key.
+The profile switcher symlinks `~/.gitconfig` to the chosen profile and prompts for email if `local.gitconfig` is missing.
 
 ## Fish shell
 
@@ -275,7 +207,12 @@ git clone <repo-url> ~/.config/initd
 bash ~/.config/initd/bootstrap.sh
 ```
 
-On a fresh machine, `bootstrap.sh` installs Homebrew packages, sets fish as the default shell, syncs fisher plugins, links configs into place, trusts the managed mise config, and installs runtimes from the repo root.
+On a fresh machine, `bootstrap.sh` installs Homebrew packages, sets fish as the default shell, syncs fisher plugins, links configs into place, trusts the managed mise config, installs runtimes, and at the end prompts for machine type and Git email:
+
+```
+:: Machine type [personal/work] (default: personal): work
+:: Git email for this machine: you@example.com
+```
 
 If Xcode Command Line Tools are missing, macOS will prompt for installation first. Re-run `bash ~/.config/initd/bootstrap.sh` after that finishes.
 

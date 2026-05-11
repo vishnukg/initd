@@ -12,26 +12,26 @@ source "${ROOT_DIR}/scripts/paths.sh"
 # A foldable directory contains only symlinks into the matching initd source —
 # replace it with a single direct symlink. Subshell isolates shopt changes.
 directory_is_foldable() {
-  local target="$1" source="$2"
+  local target="$1" src="$2"
   (
     shopt -s nullglob dotglob
     local entry="" resolved=""
     for entry in "${target}"/*; do
       [[ -L "${entry}" ]] || exit 1
       resolved="$(readlink "${entry}")"
-      [[ "${resolved}" == "${source}" || "${resolved}" == "${source}/"* ]] || exit 1
+      [[ "${resolved}" == "${src}" || "${resolved}" == "${src}/"* ]] || exit 1
     done
   )
 }
 
 prepare_target() {
   local path="$1"
-  local source="$2"
+  local src="$2"
 
   path_exists "${path}" || return 0
 
-  if [[ -d "${path}" && ! -L "${path}" && -d "${source}" ]] \
-     && directory_is_foldable "${path}" "${source}"; then
+  if [[ -d "${path}" && ! -L "${path}" && -d "${src}" ]] \
+     && directory_is_foldable "${path}" "${src}"; then
     log "Folding ${path} into a direct symlink."
     rm -rf "${path}"
     return
@@ -42,21 +42,21 @@ prepare_target() {
 
 install_managed_link() {
   local path="$1"
-  local source="$2"
+  local src="$2"
 
-  if symlink_points_to "${path}" "${source}"; then
+  if symlink_points_to "${path}" "${src}"; then
     log "Already linked: ${path}"
     return
   fi
 
-  prepare_target "${path}" "${source}"
+  prepare_target "${path}" "${src}"
   mkdir -p "$(dirname "${path}")"
-  log "Linking ${path} -> ${source}."
-  ln -s "${source}" "${path}"
+  log "Linking ${path} -> ${src}."
+  ln -s "${src}" "${path}"
 }
 
 main() {
-  local link=""
+  local link="" path="" src=""
 
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Target home directory: ${HOME}"
@@ -69,12 +69,16 @@ main() {
   fi
 
   for link in "${MANAGED_LINKS[@]}"; do
-    install_managed_link "${link%%:*}" "${link#*:}"
+    path="${link%%:*}" # everything before the colon — destination in $HOME
+    src="${link#*:}"   # everything after the colon  — source in this repo
+    install_managed_link "${path}" "${src}"
   done
 
   verify_git_profile_link "${GITCONFIG}"
   for link in "${MANAGED_LINKS[@]}"; do
-    verify_symlink_target "${link%%:*}" "${link#*:}"
+    path="${link%%:*}" # everything before the colon — destination in $HOME
+    src="${link#*:}"   # everything after the colon  — source in this repo
+    verify_symlink_target "${path}" "${src}"
   done
   log_success "Managed symlinks verified."
 }

@@ -23,7 +23,11 @@ remove_link() {
   local path="$1"
 
   if [[ ! -L "${path}" ]]; then
-    path_exists "${path}" && log "Leaving non-symlink: ${path}" || log "Already absent: ${path}"
+    if path_exists "${path}"; then
+      log "Leaving non-symlink: ${path}"
+    else
+      log "Already absent: ${path}"
+    fi
     return
   fi
 
@@ -37,7 +41,7 @@ remove_link() {
 }
 
 main() {
-  local link="" path="" source=""
+  local link="" path="" src=""
 
   while (($#)); do
     case "$1" in
@@ -59,9 +63,9 @@ main() {
   fi
 
   for link in "${MANAGED_LINKS[@]}"; do
-    path="${link%%:*}"
-    source="${link#*:}"
-    if [[ -L "${path}" ]] && ! symlink_points_to "${path}" "${source}"; then
+    path="${link%%:*}" # everything before the colon — destination in $HOME
+    src="${link#*:}"   # everything after the colon  — source in this repo
+    if [[ -L "${path}" ]] && ! symlink_points_to "${path}" "${src}"; then
       log_warn "Leaving symlink outside initd ownership: ${path} -> $(readlink "${path}")"
     else
       remove_link "${path}"

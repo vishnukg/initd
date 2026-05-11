@@ -8,6 +8,8 @@ TARGET="${HOME}/.gitconfig"
 source "${ROOT_DIR}/scripts/logging.sh"
 source "${ROOT_DIR}/scripts/paths.sh"
 
+LOCAL_GITCONFIG="${ROOT_DIR}/git/local.gitconfig"
+
 usage() {
   cat <<EOF
 Usage: ${0##*/} [personal|work]
@@ -16,16 +18,47 @@ Switch ~/.gitconfig to the requested initd Git profile.
 EOF
 }
 
+ensure_email() {
+  local existing_email=""
+  if [[ -f "${LOCAL_GITCONFIG}" ]]; then
+    existing_email="$(git config --file "${LOCAL_GITCONFIG}" user.email 2>/dev/null || true)"
+  fi
+
+  if [[ -n "${existing_email}" ]]; then
+    log_success "Git email: ${existing_email}"
+    return
+  fi
+
+  if [[ ! -t 0 ]]; then
+    log_warn "No git email set — run scripts/git-profile.sh interactively to configure it."
+    return
+  fi
+
+  local email
+  printf '%b::%b Git email for this machine: ' "${INITD_CYAN}" "${INITD_RESET}"
+  read -r email
+
+  if [[ -z "${email}" ]]; then
+    log_warn "No email entered — git commits will lack an email until you re-run this script."
+    return
+  fi
+
+  mkdir -p "$(dirname "${LOCAL_GITCONFIG}")"
+  printf '[user]\n\temail = %s\n' "${email}" > "${LOCAL_GITCONFIG}"
+  log_success "Git email set to: ${email}"
+}
+
 main() {
   local profile="${1:-personal}"
-  local source="${GIT_PROFILES_DIR}/${profile}.gitconfig"
 
   if [[ "${profile}" == "-h" || "${profile}" == "--help" ]]; then
     usage
     exit 0
   fi
 
-  if [[ ! -f "${source}" ]]; then
+  local profile_file="${GIT_PROFILES_DIR}/${profile}.gitconfig"
+
+  if [[ ! -f "${profile_file}" ]]; then
     log_error "Unknown git profile: ${profile}"
     log_info "Available profiles: personal, work"
     usage >&2
@@ -40,14 +73,14 @@ main() {
     exit 1
   fi
 
-  log "Linking ${TARGET} -> ${source}."
+  log "Linking ${TARGET} -> ${profile_file}."
   # -n: treat an existing symlink-to-directory as a plain file, so the new
   #     link replaces it rather than being created inside it.
   # -f: remove any existing file or symlink at the target before linking.
-  ln -snf "${source}" "${TARGET}"
+  ln -snf "${profile_file}" "${TARGET}"
   log_success "Active git profile: ${profile}"
 
-  "${ROOT_DIR}/scripts/ssh-config.sh" "${profile}"
+  ensure_email
 }
 
 main "$@"

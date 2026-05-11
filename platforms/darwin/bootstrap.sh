@@ -14,7 +14,7 @@ source "${ROOT_DIR}/scripts/logging.sh"
 source "${ROOT_DIR}/scripts/paths.sh"
 
 # Script-scoped so the EXIT trap in main() can still reference it after main() returns.
-work_brewfile=""
+brewfile_tmp=""
 
 ensure_xcode_clt() {
   if xcode-select -p >/dev/null 2>&1; then
@@ -50,14 +50,14 @@ ensure_homebrew() {
 }
 
 ensure_fish() {
+  require_command fish "after brew bundle"
   local fish_path
   fish_path="$(command -v fish)"
-  require_command fish "after brew bundle"
 
   # Register fish as an allowed shell so chsh accepts it
   if ! grep -qxF "${fish_path}" /etc/shells; then
     log "Adding ${fish_path} to /etc/shells."
-    echo "${fish_path}" | sudo tee -a /etc/shells > /dev/null
+    printf '%s\n' "${fish_path}" | sudo tee -a /etc/shells > /dev/null
   else
     log_success "fish already in /etc/shells."
   fi
@@ -81,10 +81,19 @@ ensure_fish() {
   "
 }
 
+setup_git_profile() {
+  log "Setting up Git profile..."
+  local git_profile
+  printf '%b::%b Machine type [personal/work] (default: personal): ' "${INITD_CYAN}" "${INITD_RESET}"
+  read -r git_profile
+  git_profile="${git_profile:-personal}"
+  "${ROOT_DIR}/scripts/git-profile.sh" "${git_profile}"
+}
+
 main() {
-  work_brewfile="$(mktemp)"
+  brewfile_tmp="$(mktemp)"
   # Also cleans up the .tmp file the Docker filter below may create.
-  trap 'rm -f "${work_brewfile}" "${work_brewfile}.tmp"' EXIT
+  trap 'rm -f "${brewfile_tmp}" "${brewfile_tmp}.tmp"' EXIT
 
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Starting initd bootstrap for macOS."
@@ -94,16 +103,16 @@ main() {
 
   # If Docker.app exists outside Homebrew, strip the cask so brew bundle doesn't
   # fail trying to install into an already-occupied path.
-  cp "${BREWFILE}" "${work_brewfile}"
+  cp "${BREWFILE}" "${brewfile_tmp}"
   if [[ -d "${DOCKER_APP}" ]] && ! brew list --cask "${DOCKER_CASK}" >/dev/null 2>&1; then
     log_warn "Skipping Docker cask: /Applications/Docker.app already exists outside Homebrew."
     grep -Ev "^[[:space:]]*cask[[:space:]]+[\"']${DOCKER_CASK}[\"'][[:space:]]*$" \
-      "${work_brewfile}" > "${work_brewfile}.tmp"
-    mv "${work_brewfile}.tmp" "${work_brewfile}"
+      "${brewfile_tmp}" > "${brewfile_tmp}.tmp"
+    mv "${brewfile_tmp}.tmp" "${brewfile_tmp}"
   fi
 
   log "Installing Homebrew packages and casks..."
-  brew bundle --file "${work_brewfile}"
+  brew bundle --file "${brewfile_tmp}"
 
   # brew bundle skips casks whose receipt exists even when the app was manually deleted.
   if brew list --cask "${DOCKER_CASK}" >/dev/null 2>&1 && [[ ! -d "${DOCKER_APP}" ]]; then
@@ -127,6 +136,8 @@ main() {
 
   log "Applying macOS defaults..."
   "${ROOT_DIR}/platforms/darwin/macos.sh"
+
+  setup_git_profile
 
   echo
   log_success "initd finished for macOS."

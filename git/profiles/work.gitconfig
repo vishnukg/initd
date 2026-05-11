@@ -3,7 +3,10 @@
 
 [user]
 	name = Vishnu Ganesan
-	email = v.ganesan@xero.com
+
+; email is loaded from a machine-local file — never committed
+[include]
+	path = ~/.config/initd/git/local.gitconfig
 
 [interactive]
 	diffFilter = delta --color-only
