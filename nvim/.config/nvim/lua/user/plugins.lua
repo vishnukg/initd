@@ -259,7 +259,7 @@ return require("lazy").setup({
 				vim.api.nvim_create_autocmd("FileType", {
 					pattern = "go",
 					once = true,
-					callback = function() vim.cmd("GoInstallDeps") end,
+					callback = function() pcall(vim.cmd, "GoInstallDeps") end,
 				})
 			end
 		end,

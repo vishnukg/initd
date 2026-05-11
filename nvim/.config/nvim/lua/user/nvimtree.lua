@@ -33,7 +33,7 @@ nvim_tree.setup({
 		timeout = 500,
 	},
 	renderer = {
-		root_folder_modifier = ":t",
+		root_folder_label = ":t",
 		icons = {
 			glyphs = {
 				default = "",
@@ -81,14 +81,18 @@ vim.api.nvim_create_autocmd("BufEnter", {
 	group = nvimtree_augroup,
 	nested = true,
 	callback = function()
-		if #vim.api.nvim_list_wins() == 1 and require("nvim-tree.utils").is_nvim_tree_buf() then
+		if #vim.api.nvim_list_wins() == 1 and require("nvim-tree.api").tree.is_tree_buf() then
 			local listed = vim.tbl_filter(function(b)
 				return vim.bo[b].buflisted and vim.api.nvim_buf_is_valid(b)
 			end, vim.api.nvim_list_bufs())
 			if #listed > 0 then
-				vim.api.nvim_command("vsplit | buffer " .. listed[1])
+				vim.schedule(function()
+					vim.api.nvim_command("vsplit | buffer " .. listed[1])
+				end)
 			else
-				vim.cmd("quit")
+				vim.schedule(function()
+					vim.cmd("quit")
+				end)
 			end
 		end
 	end,

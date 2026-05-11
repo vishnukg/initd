@@ -33,7 +33,6 @@ local options = {
 	sidescrolloff = 8,
 	guifont = "monospace:h17",
 	guicursor = "",
-	background = "dark",
 	autoread = true,
 	showmatch = false,
 }

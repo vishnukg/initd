@@ -27,6 +27,8 @@ npairs.setup({
 -- (confirmed completions just won't auto-close, a minor degradation at worst).
 local cmp_ok, cmp = pcall(require, "cmp")
 if cmp_ok then
-	local cmp_autopairs = require("nvim-autopairs.completion.cmp")
-	cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done({ map_char = { tex = "" } }))
+	local ap_ok, cmp_autopairs = pcall(require, "nvim-autopairs.completion.cmp")
+	if ap_ok then
+		cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done({ map_char = { tex = "" } }))
+	end
 end
