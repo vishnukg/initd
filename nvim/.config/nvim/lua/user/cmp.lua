@@ -32,12 +32,12 @@ cmp.setup({
 	mapping = {
 		["<C-p>"]     = cmp.mapping.select_prev_item(),
 		["<C-n>"]     = cmp.mapping.select_next_item(),
-		["<C-b>"]     = cmp.mapping(cmp.mapping.scroll_docs(-1), { "i", "c" }),
-		["<C-f>"]     = cmp.mapping(cmp.mapping.scroll_docs(1),  { "i", "c" }),
-		["<C-Space>"] = cmp.mapping(cmp.mapping.complete(),      { "i", "c" }),
+		["<C-b>"]     = cmp.mapping.scroll_docs(-1),
+		["<C-f>"]     = cmp.mapping.scroll_docs(1),
+		["<C-Space>"] = cmp.mapping.complete(),
 		["<C-y>"]     = cmp.config.disable,
 		["<C-e>"]     = cmp.mapping({ i = cmp.mapping.abort(), c = cmp.mapping.close() }),
-		["<CR>"]      = cmp.mapping.confirm({ select = true }),
+		["<CR>"]      = cmp.mapping.confirm({ select = true, behavior = cmp.ConfirmBehavior.Replace }),
 		["<Tab>"] = cmp.mapping(function(fallback)
 			if cmp.visible() then
 				cmp.select_next_item()
@@ -86,10 +86,6 @@ cmp.setup({
 		{ name = "luasnip" },
 		{ name = "buffer" },
 		{ name = "path" },
-	},
-	confirm_opts = {
-		behavior = cmp.ConfirmBehavior.Replace,
-		select = false,
 	},
 	window = {
 		documentation = {
