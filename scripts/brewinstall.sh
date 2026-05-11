@@ -9,6 +9,7 @@ BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
 
 source "${ROOT_DIR}/scripts/logging.sh"
 
+# Script-level state set by parse_args and shared across all functions below.
 kind=""
 package=""
 

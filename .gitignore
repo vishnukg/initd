@@ -3,3 +3,6 @@ bin/
 
 # Claude Code local settings (machine-specific).
 .claude/
+
+# Machine-local git identity (email) — never commit this.
+git/local.gitconfig

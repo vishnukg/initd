@@ -85,10 +85,11 @@ test_clean_link_install() {
   # Fresh machines should end with every managed runtime path linked into initd.
   run_link "${home}" "${output}"
 
+  assert_symlink_resolves_to "${home}/.config/fish" "${ROOT_DIR}/fish/.config/fish"
   assert_symlink_resolves_to "${home}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty"
   assert_symlink_resolves_to "${home}/.config/mise" "${ROOT_DIR}/mise/.config/mise"
   assert_symlink_resolves_to "${home}/.config/nvim" "${ROOT_DIR}/nvim/.config/nvim"
-  assert_symlink_resolves_to "${home}/.config/fish" "${ROOT_DIR}/fish/.config/fish"
+  assert_symlink_resolves_to "${home}/.config/tmux" "${ROOT_DIR}/tmux/.config/tmux"
   assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/personal.gitconfig"
 
   log_success "clean link install"
@@ -135,7 +136,7 @@ test_git_profile_switcher() {
 
   run_link "${home}" "${output}"
 
-  HOME="${home}" "${ROOT_DIR}/scripts/git-profile.sh" work >>"${output}" 2>&1
+  HOME="${home}" "${ROOT_DIR}/scripts/git-profile.sh" work </dev/null >>"${output}" 2>&1
   assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/work.gitconfig"
   assert_output_contains "${output}" "Active git profile: work"
 
@@ -143,7 +144,7 @@ test_git_profile_switcher() {
   run_link "${home}" "${output}"
   assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/work.gitconfig"
 
-  HOME="${home}" "${ROOT_DIR}/scripts/git-profile.sh" personal >>"${output}" 2>&1
+  HOME="${home}" "${ROOT_DIR}/scripts/git-profile.sh" personal </dev/null >>"${output}" 2>&1
   assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/personal.gitconfig"
   assert_output_contains "${output}" "Active git profile: personal"
 
