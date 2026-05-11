@@ -1,2 +1,5 @@
 # Local Go build output.
 bin/
+
+# Claude Code local settings (machine-specific).
+.claude/

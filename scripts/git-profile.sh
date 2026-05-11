@@ -46,6 +46,8 @@ main() {
   # -f: remove any existing file or symlink at the target before linking.
   ln -snf "${source}" "${TARGET}"
   log_success "Active git profile: ${profile}"
+
+  "${ROOT_DIR}/scripts/ssh-config.sh" "${profile}"
 }
 
 main "$@"
