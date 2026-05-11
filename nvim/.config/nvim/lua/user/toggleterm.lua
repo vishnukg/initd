@@ -59,6 +59,6 @@ local function d(desc) return vim.tbl_extend("force", o, { desc = desc }) end
 
 map("n", "<leader>tv", "<cmd>ToggleTerm size=90 direction=vertical<CR>",   d("Toggle vertical terminal"))
 map("n", "<leader>th", "<cmd>ToggleTerm size=20 direction=horizontal<CR>", d("Toggle horizontal terminal"))
-map("n", "<leader>gt", function() M.toggle_lazygit() end,                  d("Toggle lazygit"))
+map("n", "<leader>gt", M.toggle_lazygit,                                   d("Toggle lazygit"))
 
 return M

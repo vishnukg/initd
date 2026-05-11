@@ -1,13 +1,7 @@
 local M = {}
 
--- Advertise snippet + cmp capabilities to every LSP server.
--- cmp_nvim_lsp loads lazily (InsertEnter) so we guard with pcall; if it hasn't
--- loaded yet we fall back to built-in capabilities and cmp will upgrade them
--- when it eventually attaches via LspReattach or file reopen.
-local ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
-M.capabilities = ok
-	and cmp_nvim_lsp.default_capabilities()
-	or vim.lsp.protocol.make_client_capabilities()
+-- cmp-nvim-lsp is a dependency of nvim-lspconfig so it's always loaded first.
+M.capabilities = require("cmp_nvim_lsp").default_capabilities()
 
 -- Servers where none-ls handles formatting — disable the native LSP formatter
 -- so we don't get two competing format-on-save triggers.

@@ -72,8 +72,6 @@ require("mason-lspconfig").setup({
 local handlers = require("user.lsp.handlers")
 
 for _, server in ipairs(lsp_servers) do
-	server = vim.split(server, "@")[1]
-
 	local opts = { capabilities = handlers.capabilities }
 
 	-- Merge server-specific settings if available
