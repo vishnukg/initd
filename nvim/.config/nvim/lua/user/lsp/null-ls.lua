@@ -1,10 +1,3 @@
--- Ensure Homebrew binaries are visible to all null-ls subprocesses on macOS.
--- null-ls checks vim.fn.executable() at setup time using the live PATH, so
--- this must run before null_ls.setup(), not in options.lua.
-if vim.fn.has("mac") == 1 then
-	vim.env.PATH = "/opt/homebrew/bin:/opt/homebrew/sbin:" .. vim.env.PATH
-end
-
 local null_ls = require("null-ls")
 
 local formatting = null_ls.builtins.formatting
