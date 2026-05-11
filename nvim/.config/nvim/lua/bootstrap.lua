@@ -8,6 +8,15 @@
 -- Rule of thumb: if removing a line here causes a checkhealth warning or a
 -- plugin to misbehave on first load, it belongs in this file.
 
+-- ── Environment ──────────────────────────────────────────────────────────────
+-- On macOS, /opt/homebrew/bin may be absent from the PATH Neovim inherits,
+-- depending on how the terminal was launched. Prepend it here — before any
+-- plugin runs its executable checks — so all tools (formatters, linters) are
+-- found regardless of launch context.
+if vim.fn.has("mac") == 1 then
+	vim.env.PATH = "/opt/homebrew/bin:/opt/homebrew/sbin:" .. vim.env.PATH
+end
+
 -- ── Providers ────────────────────────────────────────────────────────────────
 -- Neovim ships with optional "providers" for Python, Ruby, Perl and Node that
 -- allow legacy Vim plugins to call out to those runtimes. We don't use any of
