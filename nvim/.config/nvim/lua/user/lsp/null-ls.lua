@@ -1,3 +1,10 @@
+-- /opt/homebrew/bin must be in PATH before null-ls checks vim.fn.executable()
+-- for each source. Setting it here — immediately before require — is the only
+-- placement that reliably runs at the right moment on macOS.
+if vim.fn.has("mac") == 1 then
+	vim.env.PATH = "/opt/homebrew/bin:/opt/homebrew/sbin:" .. vim.env.PATH
+end
+
 local null_ls = require("null-ls")
 
 local formatting = null_ls.builtins.formatting
