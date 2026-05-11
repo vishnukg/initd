@@ -5,9 +5,9 @@ treesitter.setup({
 	install_dir = vim.fn.stdpath("data") .. "/site",
 })
 
--- Install a small baseline of essential parsers upfront
-local baseline = { "bash", "c", "diff", "html", "lua", "luadoc", "markdown", "markdown_inline", "query", "vim", "vimdoc" }
-treesitter.install(baseline)
+-- Injection parsers have no filetype of their own so the FileType autocmd below
+-- will never trigger for them — pre-install so they are ready from the first startup.
+treesitter.install({ "markdown_inline", "luadoc", "jsdoc", "regex" })
 
 -- Filetypes where treesitter indentation is known to be broken
 local indent_disabled = { yaml = true, html = true }
