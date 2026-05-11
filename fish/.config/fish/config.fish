@@ -40,6 +40,7 @@ bind -M insert \ce end-of-line
 # ── Aliases ───────────────────────────────────────────────────────────────────
 alias vi nvim
 alias vim nvim
+alias l 'ls -la'
 
 # ── Git abbreviations ────────────────────────────────────────────────────────
 abbr -a g    git
