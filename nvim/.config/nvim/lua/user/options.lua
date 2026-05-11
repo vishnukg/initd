@@ -1,9 +1,3 @@
--- Prepend Homebrew to PATH so tools like yamllint are always found by plugins
--- that spawn subprocesses (e.g. null-ls), regardless of how Neovim was launched.
-if vim.fn.has("mac") == 1 then
-	vim.env.PATH = "/opt/homebrew/bin:/opt/homebrew/sbin:" .. vim.env.PATH
-end
-
 local options = {
 	backup = false,
 	clipboard = "unnamedplus",
