@@ -30,6 +30,7 @@ null_ls.setup({
 		-- terraform_fmt is bundled with the terraform binary (Homebrew: brew install terraform), not Mason.
 		formatting.terraform_fmt,
 		formatting.csharpier,
+		-- yamlfmt is installed via Homebrew (brew install yamlfmt), not Mason.
 		formatting.yamlfmt,
 		-- golangci_lint is installed via Homebrew (brew install golangci-lint), not Mason.
 		diagnostics.golangci_lint,

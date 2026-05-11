@@ -33,6 +33,7 @@ brew "tree-sitter"
 brew "tree-sitter-cli"
 brew "zoxide"
 brew "threedotslabs/tap/tdl"
+brew "yamlfmt"
 
 cask "betterdisplay"
 cask "copilot-cli"
