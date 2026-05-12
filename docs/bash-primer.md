@@ -14,7 +14,7 @@ developer can follow like a checklist.
 |---|---|
 | `bootstrap.sh` | Detect the operating system and hand off to the platform bootstrap. |
 | `platforms/darwin/bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → links → fish → mise → macOS defaults. |
-| `scripts/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files, and fold old file-level links into direct directory links. |
+| `scripts/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files. |
 | `scripts/cleanup.sh` | Remove only the symlinks that initd created. |
 | `scripts/git-profile.sh` | Switch `~/.gitconfig` between the curated Git profiles. |
 | `scripts/brewinstall.sh` | Add a formula or cask to the curated Brewfile and apply it locally. |
@@ -62,8 +62,7 @@ open the helper function whose name matches the step you care about.
 4. **Only remove links initd owns.** Cleanup checks where each symlink points
    before removing it.
 5. **Test with temporary homes.** The behavior tests exercise install, backup,
-   cleanup, directory folding, and Git profile switching without touching your
-   real `$HOME`.
+   cleanup, and Git profile switching without touching your real `$HOME`.
 
 ## The MANAGED_LINKS list
 
@@ -243,13 +242,12 @@ scripts/test-install-behavior.sh
 ```
 
 This is the most important test. It creates temporary `$HOME` directories and
-checks the five core behaviors:
+checks the four core behaviors:
 
 1. **Clean install** — all managed paths are symlinked on a fresh home
 2. **Backup of unmanaged configs** — existing user files are moved to the backup dir
 3. **Git profile switching** — the profile switcher updates `~/.gitconfig` correctly and re-running link.sh does not reset a manually chosen profile
 4. **Cleanup** — only initd-owned symlinks are removed; unrelated symlinks and real files are left alone
-5. **Directory folding** — an old layout of many file-level symlinks is collapsed into one direct directory symlink
 
 These behave like integration tests, which is the right choice for setup scripts
 because the risky thing is filesystem state, not individual functions.

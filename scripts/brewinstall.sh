@@ -63,10 +63,7 @@ validate_inputs() {
 
 # When --formula/--cask wasn't given, ask Homebrew which one matches.
 detect_package_kind() {
-  if [[ -n "${kind}" ]]; then
-    log_info "Using requested package type: ${kind}"
-    return
-  fi
+  [[ -n "${kind}" ]] && return
 
   log "Detecting whether ${package} is a formula or cask..."
 
@@ -77,23 +74,17 @@ detect_package_kind() {
   if (( is_formula && is_cask )); then
     log_error "${package} exists as both a formula and cask. Re-run with --formula or --cask."
     exit 1
-  fi
-
-  if (( is_formula )); then
+  elif (( is_formula )); then
     kind="brew"
     log_success "Detected formula: ${package}"
-    return
-  fi
-
-  if (( is_cask )); then
+  elif (( is_cask )); then
     kind="cask"
     log_success "Detected cask: ${package}"
-    return
+  else
+    log_error "Could not find ${package} as a Homebrew formula or cask."
+    log_info "If this is from a tapped repository, use its full name or tap it first."
+    exit 1
   fi
-
-  log_error "Could not find ${package} as a Homebrew formula or cask."
-  log_info "If this is from a tapped repository, use its full name or tap it first."
-  exit 1
 }
 
 # Append the entry to the Brewfile if it's not already there.
@@ -108,8 +99,17 @@ update_brewfile() {
     return
   fi
 
+  # Write to a temp file then atomically replace, so a failed write cannot
+  # corrupt the curated Brewfile.
+  local tmp_brewfile
+  tmp_brewfile="$(mktemp "${BREWFILE}.XXXXXX")" \
+    || { log_error "Failed to create temporary Brewfile."; exit 1; }
+  trap 'rm -f "${tmp_brewfile}"' EXIT
+
   log "Adding ${entry} to ${BREWFILE}."
-  printf '%s\n' "${entry}" >> "${BREWFILE}"
+  cp "${BREWFILE}" "${tmp_brewfile}"
+  printf '%s\n' "${entry}" >> "${tmp_brewfile}"
+  mv "${tmp_brewfile}" "${BREWFILE}"
   log_success "Brewfile updated."
 }
 

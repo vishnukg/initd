@@ -182,30 +182,6 @@ test_cleanup_managed_links() {
   log_success "cleanup removes only managed links"
 }
 
-test_directory_folding() {
-  local home=""
-  local output=""
-
-  home="$(new_home)"
-  output="${TEST_ROOT}/directory-folding.out"
-
-  mkdir -p "${home}/.config/kitty" "${home}/.config/mise" "${home}/.config/nvim"
-  ln -s "${ROOT_DIR}/kitty/.config/kitty/kitty.conf" "${home}/.config/kitty/kitty.conf"
-  ln -s "${ROOT_DIR}/mise/.config/mise/config.toml" "${home}/.config/mise/config.toml"
-  ln -s "${ROOT_DIR}/nvim/.config/nvim/init.lua" "${home}/.config/nvim/init.lua"
-
-  # Older link output may be many file-level symlinks. The desired shape is one
-  # direct directory symlink per package root.
-  run_link "${home}" "${output}"
-
-  assert_symlink_resolves_to "${home}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty"
-  assert_symlink_resolves_to "${home}/.config/mise" "${ROOT_DIR}/mise/.config/mise"
-  assert_symlink_resolves_to "${home}/.config/nvim" "${ROOT_DIR}/nvim/.config/nvim"
-  assert_output_contains "${output}" "Folding"
-
-  log_success "managed directory folding"
-}
-
 main() {
   TEST_ROOT="$(mktemp -d)"
   trap cleanup EXIT
@@ -215,7 +191,6 @@ main() {
   test_backup_unmanaged_configs
   test_git_profile_switcher
   test_cleanup_managed_links
-  test_directory_folding
   log_success "All install behavior tests passed."
 }
 

@@ -8,7 +8,8 @@ DOCKER_CASK="docker-desktop"
 DOCKER_APP="/Applications/Docker.app"
 
 # Exported so scripts/link.sh reuses the same timestamped folder.
-export BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S)"
+# $$ (PID) suffix prevents collision when bootstrap is re-run within the same second.
+export BACKUP_ROOT="${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S).$$"
 
 source "${ROOT_DIR}/scripts/logging.sh"
 source "${ROOT_DIR}/scripts/paths.sh"
@@ -33,10 +34,11 @@ ensure_homebrew() {
   if command -v brew >/dev/null 2>&1; then
     log_success "Homebrew already installed."
   else
+    require_command curl "to install Homebrew"
     log "Homebrew not found. Installing..."
     # NONINTERACTIVE suppresses the "Press RETURN to continue" prompt.
     NONINTERACTIVE=1 /bin/bash -c \
-      "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      "$(curl -fsSL --max-time 60 https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   fi
 
   # Apple Silicon installs to /opt/homebrew; Intel to /usr/local.
@@ -57,7 +59,8 @@ ensure_fish() {
   # Register fish as an allowed shell so chsh accepts it
   if ! grep -qxF "${fish_path}" /etc/shells; then
     log "Adding ${fish_path} to /etc/shells."
-    printf '%s\n' "${fish_path}" | sudo tee -a /etc/shells > /dev/null
+    printf '%s\n' "${fish_path}" | sudo tee -a /etc/shells > /dev/null \
+      || { log_error "Failed to add fish to /etc/shells — check sudo access."; exit 1; }
   else
     log_success "fish already in /etc/shells."
   fi
@@ -65,7 +68,8 @@ ensure_fish() {
   # dscl avoids the interactive password prompt that chsh requires
   if [[ "${SHELL}" != "${fish_path}" ]]; then
     log "Setting fish as default shell for ${USER}."
-    sudo dscl . -create "/Users/${USER}" UserShell "${fish_path}"
+    sudo dscl . -create "/Users/${USER}" UserShell "${fish_path}" \
+      || { log_error "Failed to set fish as default shell via dscl — check sudo access."; exit 1; }
   else
     log_success "fish is already the default shell."
   fi
@@ -74,15 +78,22 @@ ensure_fish() {
   log "Syncing fisher plugins..."
   fish -c "
     if not functions -q fisher
-      curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source
+      curl -fsSL --max-time 30 https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source
       fisher install jorgebucaran/fisher
     end
     fisher update
   "
-
 }
 
 setup_git_profile() {
+  local existing_email
+  existing_email="$(git config --file "${ROOT_DIR}/git/local.gitconfig" user.email 2>/dev/null || true)"
+
+  if git_profile_link_is_managed "${HOME}/.gitconfig" && [[ -n "${existing_email}" ]]; then
+    log_success "Git profile already configured (${existing_email})."
+    return
+  fi
+
   log "Setting up Git profile..."
   local git_profile
   printf '%b::%b Machine type [personal/work] (default: personal): ' "${INITD_CYAN}" "${INITD_RESET}"
@@ -92,7 +103,7 @@ setup_git_profile() {
 }
 
 main() {
-  brewfile_tmp="$(mktemp)"
+  brewfile_tmp="$(mktemp)" || { log_error "Failed to create temporary Brewfile."; exit 1; }
   # Also cleans up the .tmp file the Docker filter below may create.
   trap 'rm -f "${brewfile_tmp}" "${brewfile_tmp}.tmp"' EXIT
 
