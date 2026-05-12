@@ -182,15 +182,13 @@ For settings that should only exist on one machine (work credentials, private
 env vars, machine-specific aliases), create:
 
 ```
-~/.config/fish/conf.d/local.fish
+~/.config/fish/local.fish
 ```
 
-This file is listed in `.gitignore` so it is never committed. Fish sources
-everything in `conf.d/` automatically, so no changes to `config.fish` are
-needed. Example work machine setup:
+This file is gitignored and sourced by `config.fish` at startup if it exists. Example work machine setup:
 
 ```fish
-# ~/.config/fish/conf.d/local.fish  (not in git)
+# ~/.config/fish/local.fish  (not in git)
 set -gx GOPRIVATE "github.com/mycompany/*"
 set -gx WORK_API_KEY "..."
 abbr -a deploy './scripts/deploy.sh staging'

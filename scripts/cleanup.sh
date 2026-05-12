@@ -41,7 +41,7 @@ remove_link() {
 }
 
 main() {
-  local link="" path="" src=""
+  local link path src
 
   while (($#)); do
     case "$1" in

@@ -93,7 +93,7 @@ Two files are gitignored and never committed:
 | File | Purpose |
 |---|---|
 | `git/local.gitconfig` | Git email for this machine |
-| `fish/.config/fish/local.fish` | Machine-specific env vars (e.g. `GITHUB_TOKEN`) |
+| `fish/.config/fish/local.fish` | Machine-specific env vars and overrides |
 
 Both follow the same pattern: sourced/included at startup if present, silently skipped if absent.
 
