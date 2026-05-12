@@ -1,4 +1,11 @@
 return {
+	-- mise installs npm packages in isolated directories, so typescript-language-server
+	-- can't find tsserver via node_modules resolution. Point it at the mise shim directly.
+	init_options = {
+		tsserver = {
+			path = vim.fn.expand("~/.local/share/mise/installs/npm-typescript/latest/bin/tsserver"),
+		},
+	},
 	settings = {
 		typescript = {
 			referencesCodeLens = {
