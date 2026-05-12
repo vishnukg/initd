@@ -1,5 +1,9 @@
+[settings]
+experimental = true  # required for dotnet: backend (csharp-ls, csharpier)
+
 [tools]
 # ── runtimes ───────────────────────────────────────────────────────────
+uv        = "latest"          # required for uv: backend (yamllint, pylint)
 dotnet    = ["latest", "8"]
 go        = "1.26"
 node      = "lts"
@@ -35,6 +39,6 @@ yarn      = ["latest", "1.22.22"]
 "npm:stylelint"                            = "latest"
 "npm:eslint_d"                             = "latest"
 "npm:@fsouza/prettierd"                    = "latest"
-"pipx:yamllint"                            = "latest"
-"pipx:pylint"                              = "latest"
+"uv:yamllint"                              = "latest"
+"uv:pylint"                               = "latest"
 "dotnet:csharpier"                         = "latest"
