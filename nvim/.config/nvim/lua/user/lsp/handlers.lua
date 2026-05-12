@@ -32,7 +32,6 @@ local function lsp_keymaps(bufnr)
 	vim.keymap.set("n", "<leader>fm", function() vim.lsp.buf.format({ async = true }) end,
 		vim.tbl_extend("force", opts, { desc = "LSP: format buffer" }))
 	vim.keymap.set("n", "<leader>li", "<cmd>LspInfo<CR>",  vim.tbl_extend("force", opts, { desc = "LSP: info" }))
-	vim.keymap.set("n", "<leader>lI", "<cmd>Mason<CR>",    vim.tbl_extend("force", opts, { desc = "LSP: Mason" }))
 	vim.keymap.set("n", "<leader>lj", function() vim.diagnostic.jump({ count =  1, float = true }) end,
 		vim.tbl_extend("force", opts, { desc = "LSP: next diagnostic" }))
 	vim.keymap.set("n", "<leader>lk", function() vim.diagnostic.jump({ count = -1, float = true }) end,

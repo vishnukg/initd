@@ -194,11 +194,12 @@ The macOS flow installs:
 - editor tooling: `neovim`, `tree-sitter`, `tree-sitter-cli`
 - runtimes manager: `mise`
 - runtimes via mise: `dotnet`, `go`, `node`, `python`, `ruby`, `terraform`
+- LSP servers + linters/formatters via mise (consumed by the Neovim config — see `mise/.config/mise/config.toml`)
 - apps: `BetterDisplay`, `Claude Code`, `Copilot CLI`, `Docker Desktop`, `Ghostty`, `iTerm2`, `Kitty`, and `Visual Studio Code`
 - fonts: `FiraCode Nerd Font`, `Hack Nerd Font`, `JetBrains Mono Nerd Font`, `Meslo LG Nerd Font`, and `Victor Mono Nerd Font`
 - managed configs into runtime paths such as `~/.config/nvim`, `~/.config/fish`, `~/.config/kitty`, and `~/.gitconfig`
 
-See `platforms/darwin/Brewfile` for the authoritative package list.
+See `platforms/darwin/Brewfile` for the Homebrew package list and `mise/.config/mise/config.toml` for runtime + dev-tool versions.
 
 ## Usage
 
@@ -207,7 +208,7 @@ git clone <repo-url> ~/.config/initd
 bash ~/.config/initd/bootstrap.sh
 ```
 
-On a fresh machine, `bootstrap.sh` installs Homebrew packages, sets fish as the default shell, syncs fisher plugins, links configs into place, trusts the managed mise config, installs runtimes, and at the end prompts for machine type and Git email:
+On a fresh machine, `bootstrap.sh` installs Homebrew packages, sets fish as the default shell, syncs fisher plugins, links configs into place, trusts the managed mise config, installs runtimes and LSP tooling via mise, removes any legacy Mason state from a previous initd version, and at the end prompts for machine type and Git email:
 
 ```
 :: Machine type [personal/work] (default: personal): work

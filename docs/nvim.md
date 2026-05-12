@@ -38,7 +38,7 @@ A reference for reading and editing this config. Covers Vim fundamentals, Lua, a
    - [LspAttach autocmd](#lspattach-autocmd)
    - [vim.lsp.config + vim.lsp.enable](#vimlspconfig--vimlspenable)
    - [How LSP loads when you open a file](#how-lsp-loads-when-you-open-a-file)
-   - [Homebrew PATH workaround in null-ls.lua](#homebrew-path-workaround-in-null-lslua)
+   - [PATH workaround in null-ls.lua](#path-workaround-in-null-lslua)
    - [How treesitter loads when you open a file](#how-treesitter-loads-when-you-open-a-file)
 
 ---
@@ -545,9 +545,9 @@ nvim/.config/nvim/
         ├── plugins.lua     ← lazy.nvim plugin spec; each plugin has config= callback
         ├── colorscheme.lua ← vscode.nvim setup + highlight overrides
         ├── lsp/
-        │   ├── init.lua    ← requires handlers, null-ls, mason (in this order)
+        │   ├── init.lua    ← requires handlers, null-ls, servers (in this order)
         │   ├── handlers.lua← capabilities, diagnostic config, LspAttach autocmd
-        │   ├── mason.lua   ← mason + mason-lspconfig + mason-null-ls setup
+        │   ├── servers.lua ← vim.lsp.config + vim.lsp.enable for each server
         │   ├── null-ls.lua ← none-ls formatters and linters
         │   └── settings/   ← per-server settings returned as tables
         ├── cmp.lua         ← nvim-cmp completion setup
@@ -640,7 +640,7 @@ vim.lsp.config("gopls", {
 vim.lsp.enable("gopls")
 ```
 
-This **nvim 0.11+ API** replaces `require("lspconfig").gopls.setup({ … })`. The separation of config from activation allows mason to install the binary after Neovim starts — `vim.lsp.enable` will just pick it up on the next file open.
+This **nvim 0.11+ API** replaces `require("lspconfig").gopls.setup({ … })`. The separation of config from activation means Neovim doesn't have to know whether the server binary exists at startup — `vim.lsp.enable` runs it the next time a matching file is opened, so mise can finish installing in the background without breaking the first session.
 
 ### Format on save (none-ls)
 
@@ -668,63 +668,63 @@ null_ls.setup({
 
 ### How LSP loads when you open a file
 
-The entire LSP stack (nvim-lspconfig, mason, mason-lspconfig, none-ls, mason-null-ls) is set to `event = { "BufReadPre", "BufNewFile" }`. Here's what happens the moment you open e.g. a Go file:
+The entire LSP stack (nvim-lspconfig + none-ls) is set to `event = { "BufReadPre", "BufNewFile" }`. Here's what happens the moment you open e.g. a Go file:
 
 1. **`BufReadPre` fires** — lazy.nvim sees the event and loads the LSP plugin group.
-2. **`config =` callbacks run** — `mason.lua` is called, which runs `vim.lsp.config(server, opts)` and `vim.lsp.enable(server)` for every server in its list (including `gopls`).
-3. **Server starts asynchronously** — `vim.lsp.enable` launches the server binary in the background. Neovim is never blocked; you can type immediately.
+2. **`config =` callbacks run** — `servers.lua` is called, which runs `vim.lsp.config(server, opts)` and `vim.lsp.enable(server)` for every server in its list (including `gopls`).
+3. **Server starts asynchronously** — `vim.lsp.enable` launches the server binary (resolved from `PATH` via the mise shim dir) in the background. Neovim is never blocked; you can type immediately.
 4. **`LspAttach` fires** (once the server is ready) — `handlers.lua`'s autocmd registers buffer-local keymaps and enables inlay hints for that buffer.
 5. **none-ls attaches** — its `on_attach` registers the `BufWritePre` format-on-save autocmd for that buffer.
 
 The perceived delay (typically 300–800ms for gopls on a fresh module) is purely the server binary starting and indexing — not the config. Using `BufReadPre` instead of `VeryLazy` or `BufEnter` shaves the only part that's controllable: plugin load time happens in parallel with the very first file read rather than after it.
 
-### Homebrew PATH workaround in null-ls.lua
+### PATH workaround in null-ls.lua
 
 At the top of `lua/user/lsp/null-ls.lua` you'll find:
 
 ```lua
 if vim.fn.has("mac") == 1 then
-    vim.env.PATH = "/opt/homebrew/bin:/opt/homebrew/sbin:" .. vim.env.PATH
+    vim.env.PATH = vim.fn.expand("~/.local/share/mise/shims")
+        .. ":/opt/homebrew/bin:/opt/homebrew/sbin:"
+        .. vim.env.PATH
 end
 ```
 
 This exists because of a specific interaction between fish shell, macOS Apple
-Silicon, and `null_ls.setup()`. Without it, none-ls fails to find Homebrew-
-installed tools (`yamllint`, `golangci-lint`, `yamlfmt`) with a "not executable"
-error, even though they are correctly installed and visible in the shell.
+Silicon, and `null_ls.setup()`. Without it, none-ls fails to find tools that
+are correctly installed (via mise or Homebrew) with a "not executable" error.
 
 **Root cause:**
 
-1. On Apple Silicon, `/etc/paths` does not include `/opt/homebrew/bin`. The
-   system's `path_helper` rebuilds `PATH` from `/etc/paths` on shell startup.
-2. Fish invokes `path_helper` and the Homebrew path can get reordered or lost
-   in the rebuild. Neovim inherits the resulting `PATH`.
+1. On Apple Silicon, `/etc/paths` does not include `/opt/homebrew/bin` or the
+   mise shim directory. The system's `path_helper` rebuilds `PATH` from
+   `/etc/paths` on shell startup.
+2. Fish invokes `path_helper` and the user-added directories (Homebrew, mise
+   shims) can get reordered or lost in the rebuild. Neovim inherits the
+   resulting `PATH`.
 3. `null_ls.setup()` snapshots `vim.env.PATH` at call time and uses it for
    `vim.fn.executable()` checks against each source.
-4. mason.nvim's `set_env` prepends its own bin dir to whatever `PATH` it sees —
-   it preserves the existing PATH, it doesn't regenerate. So if Homebrew was
-   already missing, mason's addition doesn't bring it back.
 
-By the time `null_ls.setup()` runs, `/opt/homebrew/bin` is gone from
-`vim.env.PATH` and binaries become invisible.
+By the time `null_ls.setup()` runs, the directories that hold the binaries
+have been dropped from `vim.env.PATH` and they become invisible to none-ls.
 
 **Why it's specifically in null-ls.lua and not options.lua / bootstrap.lua:**
 
-The PATH gets reset somewhere during lazy.nvim's plugin load sequence (likely
-when mason or its dependencies initialise). Setting `vim.env.PATH` earlier in
-`options.lua` or `bootstrap.lua` doesn't help — by the time `null_ls.setup()`
-runs, the fix has been overwritten. The only placement that reliably works is
-immediately before `require("null-ls")` so the prepend happens last.
+The PATH gets reset somewhere during lazy.nvim's plugin load sequence. Setting
+`vim.env.PATH` earlier in `options.lua` or `bootstrap.lua` doesn't help — by
+the time `null_ls.setup()` runs, the fix has been overwritten. The only
+placement that reliably works is immediately before `require("null-ls")` so
+the prepend happens last.
 
 **Why zsh users never see this:**
 
 zsh on macOS sources `/etc/zprofile` exactly once per login session, runs
-`path_helper` once, then the user's profile adds Homebrew after it. The order
-sticks for every child process. Fish runs its full config on every invocation,
-so `path_helper` can intervene differently.
+`path_helper` once, then the user's profile adds Homebrew/mise after it. The
+order sticks for every child process. Fish runs its full config on every
+invocation, so `path_helper` can intervene differently.
 
-**The "proper" alternative** would be adding `/opt/homebrew/bin` to
-`/etc/paths.d/homebrew` system-wide. That requires `sudo` and modifies a system
+**The "proper" alternative** would be adding the mise shim dir and Homebrew
+to `/etc/paths.d/` system-wide. That requires `sudo` and modifies a system
 file, which Homebrew itself deliberately avoids. The Neovim-level workaround
 is narrower and contained to this repo.
 

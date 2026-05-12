@@ -10,7 +10,7 @@ A personal Neovim configuration built on [lazy.nvim](https://github.com/folke/la
 - [Config Structure](#config-structure)
 - [How Everything Works Together](#how-everything-works-together)
   - [Treesitter](#treesitter--syntax-highlighting)
-  - [Mason](#mason--package-manager)
+  - [Tool installation (mise)](#tool-installation-mise)
   - [LSP](#lsp--language-intelligence)
   - [None-ls](#none-ls--formatting--linting)
   - [Completion](#completion)
@@ -46,8 +46,8 @@ A personal Neovim configuration built on [lazy.nvim](https://github.com/folke/la
         ├── copilot.lua       # GitHub Copilot config
         ├── refactor.lua      # Refactor.nvim config
         └── lsp/
-            ├── init.lua      # Wires up Mason, handlers, null-ls
-            ├── mason.lua     # LSP servers + formatter/linter tool lists
+            ├── init.lua      # Wires up handlers, null-ls, servers
+            ├── servers.lua   # vim.lsp.config + vim.lsp.enable for each server
             ├── handlers.lua  # on_attach, keymaps, diagnostics, inlay hints
             ├── null-ls.lua   # none-ls sources (formatters & linters)
             └── settings/     # Per-server config overrides
@@ -99,14 +99,15 @@ nvim
 
 On first launch, [lazy.nvim](https://github.com/folke/lazy.nvim) automatically:
 - Installs all plugins
-- Mason installs all LSP servers, formatters, and linters
 - Treesitter downloads and compiles all language parsers
+
+LSP servers, formatters, and linters are **not** installed by Neovim — `initd` bootstrap installs them via `mise` (see [Tool installation (mise)](#tool-installation-mise) below).
 
 Wait for everything to finish, then restart Neovim. Run `:checkhealth` to verify.
 
 ### 4. Language-specific external setup
 
-Some languages require tools **outside of Mason** — see the [Language Support](#language-support) table for details.
+A small number of languages need extra setup beyond what mise + Homebrew install — see the [Language Support](#language-support) table for details.
 
 ---
 
@@ -130,15 +131,18 @@ Four separate systems collaborate to give you IDE features. Each one has a disti
 │ Code folding  │ │ Go-to-def    │ │ (runs external   │
 │ Text objects  │ │ Hover docs   │ │  CLI tools)      │
 │ Indentation   │ │ Rename       │ │                  │
-└───────────────┘ └──────┬───────┘ └──────────────────┘
-                         │
-                  ┌──────▼───────┐
-                  │    Mason     │
-                  │              │
-                  │ Installs &   │
-                  │ manages all  │
-                  │ the binaries │
-                  └──────────────┘
+└───────────────┘ └──────┬───────┘ └────────┬─────────┘
+                         │                  │
+                         └────────┬─────────┘
+                                  ▼
+                       ┌────────────────────┐
+                       │       mise         │
+                       │                    │
+                       │ Installs LSP       │
+                       │ servers + lint /   │
+                       │ format binaries    │
+                       │ outside Neovim     │
+                       └────────────────────┘
 ```
 
 ---
@@ -159,23 +163,25 @@ Treesitter parsers are compiled native libraries. The `tree-sitter-cli` binary i
 
 ---
 
-### Mason — Package Manager
+### Tool installation (mise)
 
-Mason is the **package manager for developer tools**. It downloads and manages LSP server binaries, formatters, and linters into `~/.local/share/nvim/mason/`.
+LSP servers, formatters, and linters are **not** managed by Neovim. They are installed by [mise](https://mise.jdx.dev/) using the shared `mise.toml` at `~/.config/initd/mise/.config/mise/config.toml`. mise puts shims for every tool in `~/.local/share/mise/shims`, which sits on `PATH` ahead of Homebrew, so Neovim's `vim.fn.executable()` checks just find them.
 
 ```
-Mason installs tools here:
-~/.local/share/nvim/mason/bin/
-  ├── lua-language-server     ← LSP server
-  ├── pyright                 ← LSP server
-  ├── gopls                   ← LSP server
-  ├── black                   ← formatter
-  ├── stylua                  ← formatter
-  ├── pylint                  ← linter
-  └── ...
+mise tool sources (one committed file, every machine identical):
+
+~/.config/initd/mise/.config/mise/config.toml
+  ├── runtimes                 ← go, node, python, ruby, dotnet, terraform
+  ├── LSP servers              ← lua_ls, gopls, pyright, ts_ls, taplo, …
+  └── linters / formatters     ← stylua, black, golangci-lint, prettierd, …
 ```
 
-Mason **only installs binaries**. It does not configure them or connect them to Neovim. That's the job of `mason-lspconfig` (for LSP) and `mason-null-ls` (for formatters/linters).
+**Why mise instead of [mason.nvim](https://github.com/williamboman/mason.nvim):**
+- One file describes every tool version and is committed to git, so two machines stay identical.
+- `mise upgrade` (everything) or `mise upgrade gopls` (one tool) — no Mason UI to click through.
+- mise's `pipx:`, `npm:`, `go:`, `gem:`, `dotnet:` backends share the runtime mise already manages, instead of Mason's isolated venv/sandbox per tool — that sandboxing was the source of several long-standing bugs (pip-wrapped venvs not on PATH, golangci-lint v1/v2 flag mismatches).
+
+**One exception:** `postgres_lsp` has no clean mise backend, so it is installed via Homebrew (`platforms/darwin/Brewfile`).
 
 ---
 
@@ -187,32 +193,32 @@ The Language Server Protocol (LSP) is a standard that allows editors to talk to 
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Neovim                                  │
 │                                                                 │
-│  ┌─────────────┐    ┌──────────────────┐    ┌───────────────┐  │
-│  │  vim.lsp    │◄──►│  nvim-lspconfig  │◄──►│ mason-lspcon  │  │
-│  │             │    │                  │    │ -fig          │  │
-│  │ Built-in    │    │ Knows HOW to     │    │               │  │
-│  │ LSP client  │    │ start each       │    │ Tells lspcon  │  │
-│  │ (the engine)│    │ server           │    │ WHERE mason   │  │
-│  └─────────────┘    └──────────────────┘    │ installed it  │  │
-│                                             └───────────────┘  │
+│  ┌─────────────┐    ┌──────────────────┐                       │
+│  │  vim.lsp    │◄──►│  nvim-lspconfig  │                       │
+│  │             │    │                  │                       │
+│  │ Built-in    │    │ Knows HOW to     │                       │
+│  │ LSP client  │    │ start each       │                       │
+│  │ (the engine)│    │ server           │                       │
+│  └─────────────┘    └──────────────────┘                       │
 └─────────────────────────────────────────────────────────────────┘
-        ▲                                           │
-        │ JSON-RPC                                  │ binary path
-        ▼                                           ▼
-┌───────────────┐                        ┌──────────────────────┐
-│ Language      │                        │       Mason          │
-│ Server        │                        │  (~/.local/share/    │
-│ (e.g. gopls)  │                        │   nvim/mason/)       │
-└───────────────┘                        └──────────────────────┘
+        ▲                       │
+        │ JSON-RPC              │ executes server binary by name
+        ▼                       ▼
+┌───────────────┐    ┌────────────────────────────────────────┐
+│ Language      │    │ mise shims on PATH                     │
+│ Server        │◄───│ (~/.local/share/mise/shims/gopls, …)   │
+│ (e.g. gopls)  │    │ + Homebrew for postgres_lsp            │
+└───────────────┘    └────────────────────────────────────────┘
 ```
 
-**The three LSP components and their roles:**
+**The two LSP components and their roles:**
 
 | Component | Role |
 |-----------|------|
 | `vim.lsp` | Built-in Neovim LSP engine — speaks the protocol |
 | `nvim-lspconfig` | Knows the startup command & options for each server |
-| `mason-lspconfig` | Bridges Mason's install paths into lspconfig |
+
+`lua/user/lsp/servers.lua` iterates the server list, applies any per-server overrides from `lua/user/lsp/settings/<server>.lua`, and calls `vim.lsp.config` + `vim.lsp.enable`. Server binaries are resolved from `PATH`, which mise's activation in fish populates with the shim directory.
 
 **What LSP provides:** completions, diagnostics, go-to-definition, hover docs, find references, rename, code actions, inlay hints.
 
@@ -268,13 +274,15 @@ nvim-cmp sources (in priority order):
 | **Formatter** | Tool that auto-formats on save |
 | **Linter** | Tool that provides additional diagnostic warnings |
 | **Test Runner** | Neotest adapter for running tests inside Neovim |
-| **External Setup** | Things you must install/configure *outside* Mason |
+| **External Setup** | Anything you must install or configure beyond `bootstrap.sh` |
+
+All listed LSPs, formatters, and linters are installed by `mise install` during bootstrap (see `mise/.config/mise/config.toml`), with the single exception of `postgres_lsp`, which is installed by Homebrew.
 
 ---
 
 ### Languages
 
-#### 🟢 Mason-only — works out of the box after first launch
+#### 🟢 Works out of the box after `bootstrap.sh`
 
 | Language | LSP | Formatter | Linter | Test Runner |
 |----------|-----|-----------|--------|-------------|
@@ -290,7 +298,7 @@ nvim-cmp sources (in priority order):
 | **TOML** | taplo | — | — | — |
 | **Terraform / HCL** | terraformls | terraform_fmt | terraformls | — |
 | **C#** | csharp_ls | csharpier | — | neotest-vstest |
-| **SQL / PostgreSQL** | postgres_lsp | — | — | — |
+| **SQL / PostgreSQL** | postgres_lsp (brew) | — | — | — |
 | **Dockerfile** | dockerls | — | hadolint | — |
 
 > ¹ ESLint diagnostics only activate when `.eslintrc` or `eslint.config.js` is present in the project.
@@ -302,11 +310,11 @@ nvim-cmp sources (in priority order):
 
 | Language | LSP | Formatter | Linter | External Requirement |
 |----------|-----|-----------|--------|----------------------|
-| **Ruby** | ruby_lsp (Mason) | standard (via ruby_lsp) | standard (via ruby_lsp) | Install `standard` gem — see below |
+| **Ruby** | ruby_lsp | standard (via ruby_lsp) | standard (via ruby_lsp) | Install `standard` gem — see below |
 
 **Ruby setup:**
 
-ruby_lsp uses the `standard` gem as an internal addon for both formatting and linting. Mason installs the `ruby_lsp` binary, but the `standard` gem must be available in your Ruby environment separately (Mason's isolated environment is invisible to ruby_lsp).
+ruby_lsp uses the `standard` gem as an internal addon for both formatting and linting. mise installs the `ruby_lsp` binary (via the `gem:` backend, so it shares the active ruby), but the `standard` gem must be available in the project's bundle or as a globally installed gem.
 
 Option A — global (works for all projects):
 ```bash
@@ -334,9 +342,9 @@ These languages have syntax highlighting via Treesitter but no LSP server or for
 
 | Language | Highlights | Notes |
 |----------|-----------|-------|
-| Rust | ✓ | Add `rust_analyzer` via Mason to enable LSP |
+| Rust | ✓ | Add `rust_analyzer` to `mise.toml` + `lsp_servers` to enable LSP |
 | GraphQL | ✓ | — |
-| C | ✓ | Add `clangd` via Mason to enable LSP |
+| C | ✓ | Add `clangd` to `mise.toml` + `lsp_servers` to enable LSP |
 | XML | ✓ | — |
 | Helm | ✓ | — |
 | Make | ✓ | — |
@@ -355,12 +363,20 @@ These languages have syntax highlighting via Treesitter but no LSP server or for
 | Command | Description |
 |---------|-------------|
 | `:Lazy` | Open plugin manager — update/install plugins |
-| `:Mason` | Open Mason dashboard — manage LSP servers & tools |
 | `:TSUpdate` | Update all Treesitter parsers |
 | `:LspInfo` | Show LSP clients attached to the current buffer |
 | `:NullLsInfo` | Show none-ls sources active in the current buffer |
 | `:Neotest summary` | Open test suite explorer |
 | `:checkhealth` | Diagnose configuration issues |
+
+LSP servers, formatters, and linters are installed/updated outside Neovim:
+
+| Shell command | Description |
+|---------------|-------------|
+| `mise install` | Install everything listed in `mise.toml` (idempotent) |
+| `mise upgrade` | Upgrade every tool to the latest version compatible with its pin |
+| `mise upgrade <tool>` | Upgrade a single tool, e.g. `mise upgrade gopls` |
+| `mise ls` | List installed tools and their resolved versions |
 
 ---
 
@@ -411,10 +427,25 @@ These languages have syntax highlighting via Treesitter but no LSP server or for
 
 ## Adding a New Language
 
-1. **LSP** — add the server name to `lsp_servers` in `lua/user/lsp/mason.lua`. Find the correct name at [mason-lspconfig server list](https://github.com/williamboman/mason-lspconfig.nvim#available-lsp-servers). Add a settings file to `lua/user/lsp/settings/<server_name>.lua` if needed.
+Adding a language is now a two-place change: the tool binary goes into `mise.toml`, and Neovim is told to consume it.
 
-2. **Formatter / Linter** — add the tool name to `lint_and_format` in `lua/user/lsp/mason.lua`, then add the corresponding none-ls source in `lua/user/lsp/null-ls.lua`.
+1. **Tool binary (mise)** — add the LSP server or lint/format CLI to `mise/.config/mise/config.toml`. Tools live in mise's core registry where possible (`gopls`, `pyright`, `stylua`, …) and otherwise use a backend prefix:
 
-3. **Treesitter** — add the parser name to `parsers_to_install` in `lua/user/treesitter.lua`.
+   | Backend | Use for | Example |
+   |---------|---------|---------|
+   | (none)  | Core registry (Go, Rust, prebuilt binaries) | `"gopls" = "latest"` |
+   | `npm:`  | Node-based tools                            | `"npm:bash-language-server" = "latest"` |
+   | `pipx:` | Python tools                                | `"pipx:yamllint" = "latest"` |
+   | `go:`   | Tools built from a Go module path           | `"go:github.com/mgechev/revive" = "latest"` |
+   | `gem:`  | Ruby gems                                   | `"gem:ruby-lsp" = "latest"` |
+   | `dotnet:` | .NET global tools                          | `"dotnet:csharpier" = "latest"` |
 
-4. **External tools** — if the language requires gems, pip packages, or other system tools outside Mason (like Ruby's `standard` gem), document it in the [External Setup](#-requires-external-setup) section above.
+   Run `mise install` after editing.
+
+2. **LSP server (Neovim)** — add the server name to `lsp_servers` in `lua/user/lsp/servers.lua`. Find the correct name in the [nvim-lspconfig server list](https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md). Add a settings file at `lua/user/lsp/settings/<server_name>.lua` if needed.
+
+3. **Formatter / Linter (Neovim)** — add the corresponding none-ls source in `lua/user/lsp/null-ls.lua`. (There is no separate Neovim-side install list anymore — mise is the single source of truth for the binary.)
+
+4. **Treesitter** — add the parser name to `parsers_to_install` in `lua/user/treesitter.lua`.
+
+5. **External tools** — if the language requires gems, pip packages, or system tools that genuinely cannot be installed by mise (like Ruby's `standard` gem, which has to live in the project bundle), document it in the [External Setup](#-requires-external-setup) section above.
