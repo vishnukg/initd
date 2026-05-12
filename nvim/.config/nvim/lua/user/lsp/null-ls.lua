@@ -1,13 +1,3 @@
--- null_ls.setup() checks vim.fn.executable() for each source. lazy.nvim's
--- load sequence can reset vim.env.PATH so the mise shim dir + Homebrew bin
--- are missing even when fish has them set correctly. Prepending here,
--- immediately before setup runs, is the reliable fix.
-if vim.fn.has("mac") == 1 then
-	vim.env.PATH = vim.fn.expand("~/.local/share/mise/shims")
-		.. ":/opt/homebrew/bin:/opt/homebrew/sbin:"
-		.. vim.env.PATH
-end
-
 local null_ls = require("null-ls")
 
 local formatting = null_ls.builtins.formatting
