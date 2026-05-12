@@ -2,6 +2,8 @@
 if test -x /opt/homebrew/bin/brew
     set -gx HOMEBREW_PREFIX /opt/homebrew
     fish_add_path /opt/homebrew/bin /opt/homebrew/sbin
+    # Trailing '' exports as a trailing colon, telling man to also search default paths.
+    set -gx MANPATH /opt/homebrew/share/man $MANPATH ''
 end
 
 # ── PATH ──────────────────────────────────────────────────────────────────────
@@ -21,7 +23,7 @@ if not status is-interactive
 end
 
 # ── Greeting ──────────────────────────────────────────────────────────────────
-set -g fish_greeting ""
+set -U fish_greeting ""
 
 # ── Theme ─────────────────────────────────────────────────────────────────────
 fish_config theme choose nord
