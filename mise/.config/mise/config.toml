@@ -3,6 +3,7 @@ experimental = true  # required for dotnet: backend (csharp-ls, csharpier)
 
 [tools]
 # ── runtimes ───────────────────────────────────────────────────────────
+pipx      = "latest"          # required for pipx: backend (yamllint, pylint)
 dotnet    = ["latest", "8"]
 go        = "1.26"
 node      = "lts"
