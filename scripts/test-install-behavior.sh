@@ -41,13 +41,11 @@ assert_path_missing() {
 
 assert_symlink() {
   local path="$1"
-
   [[ -L "${path}" ]] || fail "Expected symlink: ${path}"
 }
 
 assert_file() {
   local path="$1"
-
   [[ -f "${path}" ]] || fail "Expected file: ${path}"
 }
 
@@ -98,7 +96,7 @@ test_clean_link_install() {
 test_backup_unmanaged_configs() {
   local home=""
   local output=""
-  local backup_count=""
+  local backup_count
 
   home="$(new_home)"
   output="${TEST_ROOT}/backup-unmanaged.out"

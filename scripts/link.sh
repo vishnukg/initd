@@ -26,7 +26,7 @@ install_managed_link() {
 }
 
 main() {
-  local link="" path="" src=""
+  local link path src
 
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Target home directory: ${HOME}"
