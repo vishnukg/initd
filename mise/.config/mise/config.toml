@@ -1,10 +1,10 @@
 [settings]
-experimental = true                            # required for dotnet: backend (csharp-ls, csharpier)
-github.credential_command = "gh auth token"    # use gh CLI for GitHub auth instead of a stored token
+experimental              = true            # required for dotnet: backend (csharp-ls, csharpier)
+github.credential_command = "gh auth token" # use gh CLI for GitHub auth instead of a stored token
 
 [tools]
 # ── runtimes ───────────────────────────────────────────────────────────
-pipx      = "latest"          # required for pipx: backend (yamllint, pylint)
+pipx      = "latest"              # required for pipx: backend (yamllint, pylint)
 dotnet    = ["latest", "8"]
 go        = "1.26"
 node      = "lts"
@@ -15,32 +15,31 @@ terraform = "latest"
 yarn      = ["latest", "1.22.22"]
 
 # ── LSP servers (consumed by nvim/.../user/lsp/servers.lua) ────────────
-"lua-language-server"                   = "latest"  # lua_ls
-"npm:typescript-language-server"        = "latest"  # ts_ls
-"npm:typescript"                        = "latest"  # required by typescript-language-server
+"lua-language-server"                   = "latest" # lua_ls
+"npm:typescript-language-server"        = "latest" # ts_ls
+"npm:typescript"                        = "latest" # required by typescript-language-server
 "npm:pyright"                           = "latest"
-"go:golang.org/x/tools/gopls"          = "latest"
-"taplo"                                 = "latest"
-"terraform-ls"                          = "latest"  # terraformls
-"npm:vscode-langservers-extracted"      = "latest"  # html, jsonls, cssls
-"npm:bash-language-server"              = "latest"  # bashls
-"npm:yaml-language-server"              = "latest"  # yamlls
-"npm:emmet-ls"                          = "latest"  # emmet_ls
-"npm:dockerfile-language-server-nodejs" = "latest"  # dockerls
-"gem:ruby-lsp"                          = "latest"  # ruby_lsp
-"dotnet:csharp-ls"                      = "latest"  # csharp_ls
+"go:golang.org/x/tools/gopls"           = "latest"
+"terraform-ls"                          = "latest" # terraformls
+"npm:vscode-langservers-extracted"      = "latest" # html, jsonls, cssls
+"npm:bash-language-server"              = "latest" # bashls
+"npm:yaml-language-server"              = "latest" # yamlls
+"npm:emmet-ls"                          = "latest" # emmet_ls
+"npm:dockerfile-language-server-nodejs" = "latest" # dockerls
+"gem:ruby-lsp"                          = "latest" # ruby_lsp
+"dotnet:csharp-ls"                      = "latest" # csharp_ls
 
 # ── CLI tools ──────────────────────────────────────────────────────────
-"delta"                                    = "latest"  # git-delta
-"fd"                                       = "latest"
-"fzf"                                      = "latest"
-"glow"                                     = "latest"
-"lazygit"                                  = "latest"
-"ripgrep"                                  = "latest"
-"starship"                                 = "latest"
-"zoxide"                                   = "latest"
-"github:openfga/openfga"                   = "latest"
-"npm:tree-sitter-cli"                      = "latest"  # required by nvim treesitter parser compilation
+"delta"                  = "latest" # git-delta
+"fd"                     = "latest"
+"fzf"                    = "latest"
+"glow"                   = "latest"
+"lazygit"                = "latest"
+"ripgrep"                = "latest"
+"starship"               = "latest"
+"zoxide"                 = "latest"
+"github:openfga/openfga" = "latest"
+"npm:tree-sitter-cli"    = "latest" # required by nvim treesitter parser compilation
 
 # ── linters / formatters (consumed by nvim/.../user/lsp/null-ls.lua) ───
 "stylua"                                   = "latest"
@@ -56,3 +55,4 @@ yarn      = ["latest", "1.22.22"]
 "pipx:yamllint"                            = "latest"
 "pipx:pylint"                              = "latest"
 "dotnet:csharpier"                         = "latest"
+"taplo"                                    = "latest" # toml formatter
