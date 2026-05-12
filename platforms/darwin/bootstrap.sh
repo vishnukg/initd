@@ -79,6 +79,7 @@ ensure_fish() {
     end
     fisher update
   "
+
 }
 
 setup_git_profile() {
