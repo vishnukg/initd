@@ -72,8 +72,6 @@ The resulting live symlinks are:
 - `~/.config/tmux` -> `~/.config/initd/tmux/.config/tmux`
 - `~/.gitconfig` -> `~/.config/initd/git/profiles/personal.gitconfig` or `~/.config/initd/git/profiles/work.gitconfig`
 
-For package roots such as `~/.config/fish`, `~/.config/kitty`, `~/.config/mise`, and `~/.config/nvim`, `scripts/link.sh` prefers direct directory symlinks. If an existing directory already contains only symlinks back into the matching `initd` package, the script folds it into one direct symlink.
-
 Rerunning bootstrap is safe: existing managed links are left in place, unmanaged files are backed up before initd takes ownership, and the link step exits if any managed link is missing or points to the wrong source.
 
 ## Existing config backups

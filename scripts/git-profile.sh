@@ -19,10 +19,8 @@ EOF
 }
 
 ensure_email() {
-  local existing_email=""
-  if [[ -f "${LOCAL_GITCONFIG}" ]]; then
-    existing_email="$(git config --file "${LOCAL_GITCONFIG}" user.email 2>/dev/null || true)"
-  fi
+  local existing_email
+  existing_email="$(git config --file "${LOCAL_GITCONFIG}" user.email 2>/dev/null || true)"
 
   if [[ -n "${existing_email}" ]]; then
     log_success "Git email: ${existing_email}"
@@ -44,7 +42,11 @@ ensure_email() {
   fi
 
   mkdir -p "$(dirname "${LOCAL_GITCONFIG}")"
-  printf '[user]\n\temail = %s\n' "${email}" > "${LOCAL_GITCONFIG}"
+  local tmp_config
+  tmp_config="$(mktemp "$(dirname "${LOCAL_GITCONFIG}")/local.gitconfig.XXXXXX")" \
+    || { log_error "Failed to create temp file for git config."; exit 1; }
+  printf '[user]\n\temail = %s\n' "${email}" > "${tmp_config}"
+  mv "${tmp_config}" "${LOCAL_GITCONFIG}"
   log_success "Git email set to: ${email}"
 }
 
