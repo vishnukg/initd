@@ -23,14 +23,33 @@ bash scripts directly into fish.
 ## Variables
 
 ```fish
-set name "value"           # local
-set -g name "value"        # global (current session)
+set name "value"           # local (current function only)
+set -g name "value"        # global (current session, gone when fish exits)
 set -gx name "value"       # global + exported to child processes
-set -U name "value"        # universal (persists across all sessions)
+set -U name "value"        # universal (persists across all sessions forever)
 ```
 
-`fish_add_path` is a shorthand for adding to `PATH` as a universal variable — it
-is idempotent (will not add duplicates).
+### Global vs universal — why it matters for PATH
+
+This is the most important distinction to get right, especially for PATH entries.
+
+**Global (`-g`)** variables exist only for the current fish session. Every time fish
+starts, `config.fish` runs and sets them again from scratch. They are exported to
+child processes of that session (like Neovim), so they appear to work — until they
+don't. If fish is launched in a way that skips or partially runs `config.fish`, the
+variable is simply absent for any child processes spawned in that session.
+
+**Universal (`-U`)** variables are stored permanently in `~/.config/fish/fish_variables`
+and are available immediately when any fish session starts, before `config.fish` even
+runs. They are reliably exported to all child processes.
+
+For PATH entries like `/opt/homebrew/bin`, global scope caused an intermittent bug:
+tools like `yamllint` were visible to fish but not always to Neovim's subprocesses
+(null-ls, LSP servers), depending on how the session was started. Switching to
+universal scope fixed it permanently.
+
+`fish_add_path -U` is the right choice for any path that should always be available.
+It is idempotent — running it multiple times will not add duplicates.
 
 ## Abbreviations vs aliases
 
@@ -87,7 +106,7 @@ Current plugins: `patrickf1/fzf.fish`, `meaningful-ooo/sponge`.
 fish/.config/fish/
   config.fish          # main config — runs for every fish invocation (see below)
   fish_plugins         # fisher plugin list — committed to git
-  fish_variables       # universal variable defaults — committed to git
+  fish_variables       # universal variables — NOT committed (machine-local state)
   conf.d/              # auto-sourced snippets (load order: alphabetical)
   functions/           # autoloaded functions
   themes/              # .theme files (if any custom themes are added)
