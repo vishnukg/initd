@@ -12,10 +12,8 @@ if test -d ~/.dotnet/tools
     fish_add_path ~/.dotnet/tools
 end
 
-# ── Mise (runs in all contexts so scripts get correct tool versions) ───────────
-if command -q mise
-    mise activate fish | source
-end
+# ── Mise ──────────────────────────────────────────────────────────────────────
+fish_add_path ~/.local/share/mise/shims
 
 # ── Interactive-only config ────────────────────────────────────────────────────
 if not status is-interactive
