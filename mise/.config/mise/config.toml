@@ -38,7 +38,6 @@ yarn      = ["latest", "1.22.22"]
 "lazygit"                                  = "latest"
 "ripgrep"                                  = "latest"
 "starship"                                 = "latest"
-"tree-sitter"                              = "latest"  # replaces tree-sitter + tree-sitter-cli
 "zoxide"                                   = "latest"
 "github:openfga/openfga"                   = "latest"
 
