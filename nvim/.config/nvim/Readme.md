@@ -181,8 +181,6 @@ mise tool sources (one committed file, every machine identical):
 - `mise upgrade` (everything) or `mise upgrade gopls` (one tool) — no Mason UI to click through.
 - mise's `pipx:`, `npm:`, `go:`, `gem:`, `dotnet:` backends share the runtime mise already manages, instead of Mason's isolated venv/sandbox per tool — that sandboxing was the source of several long-standing bugs (pip-wrapped venvs not on PATH, golangci-lint v1/v2 flag mismatches).
 
-**One exception:** `postgres_lsp` has no clean mise backend, so it is installed via Homebrew (`platforms/darwin/Brewfile`).
-
 ---
 
 ### LSP — Language Intelligence
@@ -207,7 +205,7 @@ The Language Server Protocol (LSP) is a standard that allows editors to talk to 
 ┌───────────────┐    ┌────────────────────────────────────────┐
 │ Language      │    │ mise shims on PATH                     │
 │ Server        │◄───│ (~/.local/share/mise/shims/gopls, …)   │
-│ (e.g. gopls)  │    │ + Homebrew for postgres_lsp            │
+│ (e.g. gopls)  │    │                                        │
 └───────────────┘    └────────────────────────────────────────┘
 ```
 
@@ -276,7 +274,7 @@ nvim-cmp sources (in priority order):
 | **Test Runner** | Neotest adapter for running tests inside Neovim |
 | **External Setup** | Anything you must install or configure beyond `bootstrap.sh` |
 
-All listed LSPs, formatters, and linters are installed by `mise install` during bootstrap (see `mise/.config/mise/config.toml`), with the single exception of `postgres_lsp`, which is installed by Homebrew.
+All listed LSPs, formatters, and linters are installed by `mise install` during bootstrap (see `mise/.config/mise/config.toml`).
 
 ---
 
@@ -298,7 +296,6 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 | **TOML** | taplo | — | — | — |
 | **Terraform / HCL** | terraformls | terraform_fmt | terraformls | — |
 | **C#** | csharp_ls | csharpier | — | neotest-vstest |
-| **SQL / PostgreSQL** | postgres_lsp (brew) | — | — | — |
 | **Dockerfile** | dockerls | — | hadolint | — |
 
 > ¹ ESLint diagnostics only activate when `.eslintrc` or `eslint.config.js` is present in the project.
@@ -353,7 +350,7 @@ These languages have syntax highlighting via Treesitter but no LSP server or for
 | Diff | ✓ | — |
 | Dockerfile | ✓ | dockerls provides LSP; hadolint provides linting |
 | Protocol Buffers | ✓ | — |
-| SQL | ✓ | postgres_lsp provides LSP for PostgreSQL specifically |
+| SQL | ✓ | Highlighting only — no LSP configured |
 | Regex | ✓ | Embedded in other languages |
 
 ---

@@ -10,7 +10,6 @@ terraform = "latest"
 yarn      = ["latest", "1.22.22"]
 
 # ── LSP servers (consumed by nvim/.../user/lsp/servers.lua) ────────────
-# postgres_lsp is installed via Homebrew — no clean mise backend exists.
 "lua-language-server"                   = "latest"  # lua_ls
 "typescript-language-server"            = "latest"  # ts_ls
 "pyright"                               = "latest"

@@ -1,6 +1,5 @@
--- LSP servers — binaries are provided by mise (see mise/config.toml) and
--- Homebrew (postgres_lsp only, see platforms/darwin/Brewfile). nvim just
--- enables the servers; install/upgrade is `mise install` / `mise upgrade`.
+-- LSP servers — binaries are provided by mise (see mise/config.toml).
+-- nvim just enables them; install/upgrade is `mise install` / `mise upgrade`.
 local lsp_servers = {
 	"lua_ls",
 	"html",
@@ -14,7 +13,6 @@ local lsp_servers = {
 	"taplo",
 	"terraformls",
 	"csharp_ls",
-	"postgres_lsp",
 	"ruby_lsp",
 	"dockerls",
 }
