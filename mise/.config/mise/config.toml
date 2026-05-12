@@ -1,8 +1,5 @@
 [settings]
 experimental = true  # required for dotnet: backend (csharp-ls, csharpier)
-# uv is installed via Homebrew (see platforms/darwin/Brewfile), not managed
-# by mise, because the mise registry's uv plugin (vfox/asdf-uv) has a
-# broken metadata.lua. The uv: backend below just needs uv on PATH.
 
 [tools]
 # ── runtimes ───────────────────────────────────────────────────────────
