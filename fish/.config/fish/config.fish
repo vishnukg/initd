@@ -1,13 +1,13 @@
 # ── Homebrew (Apple Silicon) ──────────────────────────────────────────────────
 if test -x /opt/homebrew/bin/brew
     set -gx HOMEBREW_PREFIX /opt/homebrew
-    set -gx PATH /opt/homebrew/bin /opt/homebrew/sbin $PATH
+    fish_add_path /opt/homebrew/bin /opt/homebrew/sbin
 end
 
 # ── PATH ──────────────────────────────────────────────────────────────────────
-set -gx PATH ~/.local/bin $PATH
+fish_add_path ~/.local/bin
 if test -d ~/.dotnet/tools
-    set -gx PATH ~/.dotnet/tools $PATH
+    fish_add_path ~/.dotnet/tools
 end
 
 # ── Mise (runs in all contexts so scripts get correct tool versions) ───────────
