@@ -189,17 +189,13 @@ Windows and panes start at index 1 and renumber automatically when closed.
 
 The macOS flow installs:
 
-- CLI tools and terminal utilities: `git`, `gh`, `git-delta`, `ripgrep`, `fd`, `fzf`, `tmux`, `tig`, `zoxide`, `lazygit`, `glow`, `gnu-sed`, `gnupg`
-- shell: `fish`, `starship`
-- editor tooling: `neovim`, `tree-sitter`, `tree-sitter-cli`
-- runtimes manager: `mise`
-- runtimes via mise: `dotnet`, `go`, `node`, `python`, `ruby`, `terraform`
-- LSP servers + linters/formatters via mise (consumed by the Neovim config — see `mise/.config/mise/config.toml`)
+- system utilities via Homebrew: `git`, `fish`, `tmux`, `tig`, `gnu-sed`, `gnupg`, `neovim`, and build deps (`autoconf`, `gmp`, `libyaml`, `openssl@3`, `readline`, `ruby-build`)
+- runtimes + dev tools via mise: `go`, `node`, `python`, `ruby`, `dotnet`, `terraform`, `gh`, `git-delta`, `ripgrep`, `fd`, `fzf`, `lazygit`, `glow`, `starship`, `zoxide`, `tree-sitter`, `openfga`, and all LSP servers, linters, and formatters
 - apps: `BetterDisplay`, `Claude Code`, `Copilot CLI`, `Docker Desktop`, `Ghostty`, `iTerm2`, `Kitty`, and `Visual Studio Code`
 - fonts: `FiraCode Nerd Font`, `Hack Nerd Font`, `JetBrains Mono Nerd Font`, `Meslo LG Nerd Font`, and `Victor Mono Nerd Font`
 - managed configs into runtime paths such as `~/.config/nvim`, `~/.config/fish`, `~/.config/kitty`, and `~/.gitconfig`
 
-See `platforms/darwin/Brewfile` for the Homebrew package list and `mise/.config/mise/config.toml` for runtime + dev-tool versions.
+See `platforms/darwin/Brewfile` for the Homebrew package list and `mise/.config/mise/config.toml` for all mise-managed tool versions.
 
 ## Usage
 
