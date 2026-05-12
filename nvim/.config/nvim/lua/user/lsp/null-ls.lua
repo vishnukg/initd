@@ -1,3 +1,11 @@
+-- null_ls.setup() checks vim.fn.executable() for each source. On macOS,
+-- /opt/homebrew/bin is not always in vim.env.PATH at this point even when
+-- fish has it set correctly — something in the lazy.nvim load sequence resets
+-- it. Prepending here, immediately before setup runs, is the reliable fix.
+if vim.fn.has("mac") == 1 then
+	vim.env.PATH = "/opt/homebrew/bin:/opt/homebrew/sbin:" .. vim.env.PATH
+end
+
 local null_ls = require("null-ls")
 
 local formatting = null_ls.builtins.formatting
