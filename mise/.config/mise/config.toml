@@ -18,6 +18,7 @@ yarn      = ["latest", "1.22.22"]
 # ── LSP servers (consumed by nvim/.../user/lsp/servers.lua) ────────────
 "lua-language-server"                   = "latest"  # lua_ls
 "npm:typescript-language-server"        = "latest"  # ts_ls
+"npm:typescript"                        = "latest"  # required by typescript-language-server
 "npm:pyright"                           = "latest"
 "go:golang.org/x/tools/gopls"          = "latest"
 "taplo"                                 = "latest"
