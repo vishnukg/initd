@@ -73,6 +73,17 @@ cleanup_legacy_mason_state() {
     log_success "Mason install dir removed."
   fi
 
+  # The asdf-uv plugin was briefly installed by an early version of this
+  # config when uv was mistakenly listed as a mise-managed tool. The plugin
+  # has a broken metadata.lua that causes mise to fail when resolving the
+  # built-in uv: backend. Remove it so mise falls back to the built-in.
+  local mise_uv_plugin="${HOME}/.local/share/mise/plugins/uv"
+  if [[ -d "${mise_uv_plugin}" ]]; then
+    log "Removing stale mise asdf-uv plugin (interferes with uv: backend)..."
+    rm -rf "${mise_uv_plugin}"
+    log_success "Stale uv plugin removed."
+  fi
+
   local stale_brews=(black pylint yamllint golangci-lint yamlfmt)
   local pkg
   for pkg in "${stale_brews[@]}"; do
