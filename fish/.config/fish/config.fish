@@ -4,15 +4,15 @@ if test -x /opt/homebrew/bin/brew
     set -gx HOMEBREW_PREFIX /opt/homebrew
     set -gx HOMEBREW_CELLAR /opt/homebrew/Cellar
     set -gx HOMEBREW_REPOSITORY /opt/homebrew
-    fish_add_path -g /opt/homebrew/bin /opt/homebrew/sbin
+    fish_add_path -U /opt/homebrew/bin /opt/homebrew/sbin
     set -gx MANPATH /opt/homebrew/share/man $MANPATH
     set -gx INFOPATH /opt/homebrew/share/info $INFOPATH
 end
 
 # ── PATH ──────────────────────────────────────────────────────────────────────
-fish_add_path -g ~/.local/bin
+fish_add_path -U ~/.local/bin
 if test -d ~/.dotnet/tools
-    fish_add_path -g ~/.dotnet/tools
+    fish_add_path -U ~/.dotnet/tools
 end
 
 # ── Mise (runs in all contexts so scripts get correct tool versions) ───────────

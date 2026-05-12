@@ -6,3 +6,6 @@ bin/
 
 # Machine-local git identity (email) — never commit this.
 git/local.gitconfig
+
+# Fish universal variables — machine-local state managed by fish itself.
+fish/.config/fish/fish_variables
