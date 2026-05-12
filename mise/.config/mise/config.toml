@@ -41,6 +41,7 @@ yarn      = ["latest", "1.22.22"]
 "npm:stylelint"                            = "latest"
 "npm:eslint_d"                             = "latest"
 "npm:@fsouza/prettierd"                    = "latest"
-"uv:yamllint"                              = "latest"
-"uv:pylint"                               = "latest"
+# yamllint and pylint are installed via Homebrew (see platforms/darwin/Brewfile).
+# mise's uv: prefix resolves to a broken asdf-uv plugin in this version rather
+# than a built-in backend, so Python CLI tools stay in brew.
 "dotnet:csharpier"                         = "latest"
