@@ -2,4 +2,4 @@
 -- fires before our keymaps/inlay-hint/formatting-disable logic is wired up.
 require("user.lsp.handlers").setup()
 require("user.lsp.null-ls")
-require("user.lsp.mason")
+require("user.lsp.servers")

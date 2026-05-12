@@ -1,9 +1,11 @@
--- null_ls.setup() checks vim.fn.executable() for each source. On macOS,
--- /opt/homebrew/bin is not always in vim.env.PATH at this point even when
--- fish has it set correctly — something in the lazy.nvim load sequence resets
--- it. Prepending here, immediately before setup runs, is the reliable fix.
+-- null_ls.setup() checks vim.fn.executable() for each source. lazy.nvim's
+-- load sequence can reset vim.env.PATH so the mise shim dir + Homebrew bin
+-- are missing even when fish has them set correctly. Prepending here,
+-- immediately before setup runs, is the reliable fix.
 if vim.fn.has("mac") == 1 then
-	vim.env.PATH = "/opt/homebrew/bin:/opt/homebrew/sbin:" .. vim.env.PATH
+	vim.env.PATH = vim.fn.expand("~/.local/share/mise/shims")
+		.. ":/opt/homebrew/bin:/opt/homebrew/sbin:"
+		.. vim.env.PATH
 end
 
 local null_ls = require("null-ls")
@@ -30,7 +32,6 @@ end
 null_ls.setup({
 	debug = false,
 	sources = {
-		-- See user/lsp/mason.lua for which tools are managed by Mason vs Homebrew.
 		formatting.prettierd.with({ disabled_filetypes = { "yaml" } }),
 		formatting.black.with({ extra_args = { "--fast" } }),
 		formatting.stylua,

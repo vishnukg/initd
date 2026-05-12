@@ -1,9 +1,41 @@
 [tools]
-dotnet = ["latest", "8"]
-go = "1.26"
-node = "lts"
-npm = "latest"
-python = "3.14"
-ruby = "4.0"
+# ── runtimes ───────────────────────────────────────────────────────────
+dotnet    = ["latest", "8"]
+go        = "1.26"
+node      = "lts"
+npm       = "latest"
+python    = "3.14"
+ruby      = "4.0"
 terraform = "latest"
-yarn = ["latest", "1.22.22"]
+yarn      = ["latest", "1.22.22"]
+
+# ── LSP servers (consumed by nvim/.../user/lsp/servers.lua) ────────────
+# postgres_lsp is installed via Homebrew — no clean mise backend exists.
+"lua-language-server"                   = "latest"  # lua_ls
+"typescript-language-server"            = "latest"  # ts_ls
+"pyright"                               = "latest"
+"gopls"                                 = "latest"
+"taplo"                                 = "latest"
+"terraform-ls"                          = "latest"  # terraformls
+"npm:vscode-langservers-extracted"      = "latest"  # html, jsonls, cssls
+"npm:bash-language-server"              = "latest"  # bashls
+"npm:yaml-language-server"              = "latest"  # yamlls
+"npm:emmet-ls"                          = "latest"  # emmet_ls
+"npm:dockerfile-language-server-nodejs" = "latest"  # dockerls
+"gem:ruby-lsp"                          = "latest"  # ruby_lsp
+"dotnet:csharp-ls"                      = "latest"  # csharp_ls
+
+# ── linters / formatters (consumed by nvim/.../user/lsp/null-ls.lua) ───
+"stylua"                                   = "latest"
+"hadolint"                                 = "latest"
+"golangci-lint"                            = "latest"
+"black"                                    = "latest"
+"go:github.com/mgechev/revive"             = "latest"
+"go:github.com/google/yamlfmt/cmd/yamlfmt" = "latest"
+"go:golang.org/x/tools/cmd/goimports"      = "latest"
+"npm:stylelint"                            = "latest"
+"npm:eslint_d"                             = "latest"
+"npm:@fsouza/prettierd"                    = "latest"
+"pipx:yamllint"                            = "latest"
+"pipx:pylint"                              = "latest"
+"dotnet:csharpier"                         = "latest"

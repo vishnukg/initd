@@ -119,42 +119,16 @@ return require("lazy").setup({
 	},
 
 	-- ── LSP ecosystem ─────────────────────────────────────────────────────────
-	-- nvim-lspconfig is the entry point; all LSP tooling is its dependency so
-	-- lazy.nvim loads them in the correct order before the config runs.
-	-- cmp-nvim-lsp is listed here so capabilities are ready before server configs
-	-- run (it would otherwise only load on InsertEnter as part of nvim-cmp).
-	-- Mason is also declared top-level so :Mason/:MasonInstall are available
-	-- immediately without needing to open a file first.
-	{
-		"williamboman/mason.nvim",
-		cmd = { "Mason", "MasonInstall", "MasonUninstall", "MasonUpdate" },
-		config = function()
-			require("mason").setup({
-				ui = {
-					border = "none",
-					icons = {
-						package_installed = "✓",
-						package_pending = "⏳",
-						package_uninstalled = "✗",
-					},
-				},
-				log_level = vim.log.levels.INFO,
-				max_concurrent_installers = 4,
-			})
-		end,
-	},
+	-- LSP servers + lint/format tools are managed by mise (mise/config.toml)
+	-- and Homebrew (postgres_lsp only). nvim-lspconfig just enables them.
+	-- cmp-nvim-lsp is listed here so capabilities are ready before server
+	-- configs run (it would otherwise only load on InsertEnter via nvim-cmp).
 	{
 		"neovim/nvim-lspconfig",
 		event = "BufReadPre",
 		dependencies = {
-			"williamboman/mason.nvim",
-			{ "williamboman/mason-lspconfig.nvim", dependencies = "williamboman/mason.nvim" },
-			{ "nvimtools/none-ls.nvim",            dependencies = "nvimtools/none-ls-extras.nvim" },
-			{
-				"jay-babu/mason-null-ls.nvim",
-				dependencies = { "williamboman/mason.nvim", "nvimtools/none-ls.nvim" },
-			},
-			"hrsh7th/cmp-nvim-lsp", -- load early so capabilities are ready for server configs
+			{ "nvimtools/none-ls.nvim", dependencies = "nvimtools/none-ls-extras.nvim" },
+			"hrsh7th/cmp-nvim-lsp",
 			-- LSP progress UI
 			{
 				"j-hui/fidget.nvim",

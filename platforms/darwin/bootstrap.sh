@@ -49,6 +49,45 @@ ensure_homebrew() {
   require_command brew "but was not found after Homebrew setup"
 }
 
+cleanup_legacy_mason_state() {
+  # initd previously managed LSP servers + linters/formatters via mason.nvim.
+  # Those tools are now installed by mise (see mise/config.toml).
+  #
+  # On machines that ran an older initd, this leaves two kinds of stale state:
+  #
+  #   1. ~/.local/share/nvim/mason/ — Mason's install dir. Orphaned once the
+  #      mason.nvim plugin is gone. Always safe to remove (lazy.nvim will not
+  #      recreate it).
+  #
+  #   2. Homebrew packages that have moved into mise. We only uninstall
+  #      packages that are (a) currently installed via brew, AND (b) not
+  #      listed in the curated Brewfile. That conjunction is the safety net:
+  #      a user who re-added one of these to the Brewfile keeps it.
+  #
+  # Both checks are no-ops on a fresh machine, so this function is safe to
+  # run unconditionally on every bootstrap.
+  local mason_dir="${HOME}/.local/share/nvim/mason"
+  if [[ -d "${mason_dir}" ]]; then
+    log "Removing legacy Mason install dir ${mason_dir}..."
+    rm -rf "${mason_dir}"
+    log_success "Mason install dir removed."
+  fi
+
+  local stale_brews=(black pylint yamllint golangci-lint yamlfmt)
+  local pkg
+  for pkg in "${stale_brews[@]}"; do
+    if brew list --formula "${pkg}" >/dev/null 2>&1 \
+        && ! grep -qE "^brew \"${pkg}\"" "${BREWFILE}"; then
+      log "Uninstalling stale Homebrew formula ${pkg} (now managed by mise)..."
+      if brew uninstall --formula "${pkg}" >/dev/null 2>&1; then
+        log_success "${pkg} removed."
+      else
+        log_warn "Could not uninstall ${pkg} (likely a dependency of another formula); leaving in place. The mise-managed version will still take precedence on PATH."
+      fi
+    fi
+  done
+}
+
 ensure_fish() {
   require_command fish "after brew bundle"
   local fish_path
@@ -132,8 +171,10 @@ main() {
   log "Trusting shared mise config."
   mise trust "${ROOT_DIR}/mise/.config/mise/config.toml"
 
-  log "Installing shared runtimes with mise..."
+  log "Installing shared runtimes and LSP tooling with mise..."
   mise install --yes
+
+  cleanup_legacy_mason_state
 
   log "Applying macOS defaults..."
   "${ROOT_DIR}/platforms/darwin/macos.sh"
