@@ -29,27 +29,21 @@ set -gx name "value"       # global + exported to child processes
 set -U name "value"        # universal (persists across all sessions forever)
 ```
 
-### Global vs universal — why it matters for PATH
+### Global vs universal — when each makes sense
 
-This is the most important distinction to get right, especially for PATH entries.
+**Global (`-g`)** variables exist for the current fish session only and are
+exported to all child processes. `config.fish` runs on every fish startup, so
+anything set with `-g` there is always available to child processes like Neovim.
+This is the right choice for PATH entries — simple, direct, no hidden state.
 
-**Global (`-g`)** variables exist only for the current fish session. Every time fish
-starts, `config.fish` runs and sets them again from scratch. They are exported to
-child processes of that session (like Neovim), so they appear to work — until they
-don't. If fish is launched in a way that skips or partially runs `config.fish`, the
-variable is simply absent for any child processes spawned in that session.
+```fish
+set -gx PATH /opt/homebrew/bin $PATH   # equivalent to bash's: export PATH=...
+```
 
-**Universal (`-U`)** variables are stored permanently in `~/.config/fish/fish_variables`
-and are available immediately when any fish session starts, before `config.fish` even
-runs. They are reliably exported to all child processes.
-
-For PATH entries like `/opt/homebrew/bin`, global scope caused an intermittent bug:
-tools like `yamllint` were visible to fish but not always to Neovim's subprocesses
-(null-ls, LSP servers), depending on how the session was started. Switching to
-universal scope fixed it permanently.
-
-`fish_add_path -U` is the right choice for any path that should always be available.
-It is idempotent — running it multiple times will not add duplicates.
+**Universal (`-U`)** variables are stored permanently in `fish_variables` and
+survive across sessions without `config.fish` needing to run. Useful for
+preferences you want to set once (e.g. `set -U fish_greeting ""`), but
+unnecessary for PATH — since `config.fish` always runs at session start anyway.
 
 ## Abbreviations vs aliases
 

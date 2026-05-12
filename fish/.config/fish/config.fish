@@ -1,18 +1,13 @@
 # ── Homebrew (Apple Silicon) ──────────────────────────────────────────────────
-# brew shellenv outputs bash syntax — set vars directly instead of eval'ing
 if test -x /opt/homebrew/bin/brew
     set -gx HOMEBREW_PREFIX /opt/homebrew
-    set -gx HOMEBREW_CELLAR /opt/homebrew/Cellar
-    set -gx HOMEBREW_REPOSITORY /opt/homebrew
-    fish_add_path -U /opt/homebrew/bin /opt/homebrew/sbin
-    set -gx MANPATH /opt/homebrew/share/man $MANPATH
-    set -gx INFOPATH /opt/homebrew/share/info $INFOPATH
+    set -gx PATH /opt/homebrew/bin /opt/homebrew/sbin $PATH
 end
 
 # ── PATH ──────────────────────────────────────────────────────────────────────
-fish_add_path -U ~/.local/bin
+set -gx PATH ~/.local/bin $PATH
 if test -d ~/.dotnet/tools
-    fish_add_path -U ~/.dotnet/tools
+    set -gx PATH ~/.dotnet/tools $PATH
 end
 
 # ── Mise (runs in all contexts so scripts get correct tool versions) ───────────
