@@ -17,3 +17,6 @@ fish/.config/fish/conf.d/
 
 # Neovim — generated plugin directory.
 nvim/.config/nvim/plugin/
+
+# ruby-lsp drops this in whatever directory nvim is opened from.
+.ruby-lsp/
