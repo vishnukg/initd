@@ -33,6 +33,7 @@ brew "tree-sitter"
 brew "tree-sitter-cli"
 brew "zoxide"
 brew "threedotslabs/tap/tdl"
+brew "golangci-lint"
 brew "yamlfmt"
 
 cask "betterdisplay"
