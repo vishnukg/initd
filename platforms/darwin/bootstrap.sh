@@ -84,7 +84,7 @@ cleanup_legacy_mason_state() {
     log_success "Stale uv plugin removed."
   fi
 
-  local stale_brews=(black pylint yamllint golangci-lint yamlfmt)
+  local stale_brews=(black golangci-lint yamlfmt)
   local pkg
   for pkg in "${stale_brews[@]}"; do
     if brew list --formula "${pkg}" >/dev/null 2>&1 \
