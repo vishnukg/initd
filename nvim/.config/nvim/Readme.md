@@ -165,7 +165,7 @@ Treesitter parsers are compiled native libraries. The `tree-sitter-cli` binary i
 
 ### Tool installation (mise)
 
-Almost all LSP servers, formatters, and linters are installed by [mise](https://mise.jdx.dev/) via `~/.config/initd/mise/.config/mise/config.toml`. Two exceptions stay in Homebrew: `yamllint` and `pylint` — mise's `uv:` backend (the natural fit for Python CLI tools) resolves to a broken asdf plugin in the current mise version. mise puts shims in `~/.local/share/mise/shims` on `PATH` ahead of Homebrew, so Neovim's `vim.fn.executable()` checks find everything.
+LSP servers, formatters, and linters are **not** managed by Neovim. They are installed by [mise](https://mise.jdx.dev/) via `~/.config/initd/mise/.config/mise/config.toml`. mise puts shims in `~/.local/share/mise/shims` on `PATH` ahead of Homebrew, so Neovim's `vim.fn.executable()` checks find everything.
 
 ```
 mise tool sources (one committed file, every machine identical):
@@ -174,9 +174,6 @@ mise tool sources (one committed file, every machine identical):
   ├── runtimes                 ← go, node, python, ruby, dotnet, terraform
   ├── LSP servers              ← lua_ls, gopls, pyright, ts_ls, taplo, …
   └── linters / formatters     ← stylua, black, golangci-lint, prettierd, …
-
-Homebrew exceptions (platforms/darwin/Brewfile):
-  └── yamllint, pylint         ← mise uv: backend broken in current version
 ```
 
 **Why mise instead of [mason.nvim](https://github.com/williamboman/mason.nvim):**
@@ -288,13 +285,13 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 | Language | LSP | Formatter | Linter | Test Runner |
 |----------|-----|-----------|--------|-------------|
 | **Lua** | lua_ls | stylua | — | — |
-| **Python** | pyright | black | pylint (brew) | — |
+| **Python** | pyright | black | pylint | — |
 | **Go** | gopls | goimports | golangci_lint | neotest-golang |
 | **TypeScript / JavaScript** | ts_ls | prettierd | eslint_d¹ | neotest-jest / neotest-vitest² |
 | **JSON** | jsonls | prettierd | — | — |
 | **HTML** | html + emmet_ls | prettierd | — | — |
 | **CSS / SCSS** | — | prettierd | stylelint | — |
-| **YAML** | yamlls | yamlfmt | yamllint (brew) | — |
+| **YAML** | yamlls | yamlfmt | yamllint | — |
 | **Bash** | bashls | — | — | — |
 | **TOML** | taplo | — | — | — |
 | **Terraform / HCL** | terraformls | terraform_fmt | terraformls | — |
@@ -435,7 +432,7 @@ Adding a language is now a two-place change: the tool binary goes into `mise.tom
    |---------|---------|---------|
    | (none)  | Core registry (Go, Rust, prebuilt binaries) | `"gopls" = "latest"` |
    | `npm:`  | Node-based tools                            | `"npm:bash-language-server" = "latest"` |
-   | `pipx:` | Python tools — ⚠ requires pipx on PATH; `uv:` has the same issue (broken asdf-uv plugin in mise 2026.5.6). **Add Python CLI tools to the Brewfile instead.** | |
+   | `pipx:` | Python tools (pipx installed via Homebrew)  | `"pipx:yamllint" = "latest"` |
    | `go:`   | Tools built from a Go module path           | `"go:github.com/mgechev/revive" = "latest"` |
    | `gem:`  | Ruby gems                                   | `"gem:ruby-lsp" = "latest"` |
    | `dotnet:` | .NET global tools                          | `"dotnet:csharpier" = "latest"` |
