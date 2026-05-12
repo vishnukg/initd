@@ -29,6 +29,19 @@ yarn      = ["latest", "1.22.22"]
 "gem:ruby-lsp"                          = "latest"  # ruby_lsp
 "dotnet:csharp-ls"                      = "latest"  # csharp_ls
 
+# ── CLI tools ──────────────────────────────────────────────────────────
+"delta"                                    = "latest"  # git-delta
+"fd"                                       = "latest"
+"fzf"                                      = "latest"
+"gh"                                       = "latest"
+"glow"                                     = "latest"
+"lazygit"                                  = "latest"
+"ripgrep"                                  = "latest"
+"starship"                                 = "latest"
+"tree-sitter"                              = "latest"  # replaces tree-sitter + tree-sitter-cli
+"zoxide"                                   = "latest"
+"github:openfga/openfga"                   = "latest"
+
 # ── linters / formatters (consumed by nvim/.../user/lsp/null-ls.lua) ───
 "stylua"                                   = "latest"
 "hadolint"                                 = "latest"
