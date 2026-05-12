@@ -30,17 +30,14 @@ end
 null_ls.setup({
 	debug = false,
 	sources = {
+		-- See user/lsp/mason.lua for which tools are managed by Mason vs Homebrew.
 		formatting.prettierd.with({ disabled_filetypes = { "yaml" } }),
 		formatting.black.with({ extra_args = { "--fast" } }),
 		formatting.stylua,
-		-- goimports is installed via Go toolchain (go install golang.org/x/tools/cmd/goimports@latest), not Mason.
 		formatting.goimports,
-		-- terraform_fmt is bundled with the terraform binary (Homebrew: brew install terraform), not Mason.
 		formatting.terraform_fmt,
 		formatting.csharpier,
-		-- yamlfmt is installed via Homebrew (brew install yamlfmt), not Mason.
 		formatting.yamlfmt,
-		-- golangci_lint is installed via Homebrew (brew install golangci-lint), not Mason.
 		diagnostics.golangci_lint,
 		diagnostics.yamllint,
 		diagnostics.hadolint,

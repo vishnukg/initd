@@ -38,6 +38,7 @@ A reference for reading and editing this config. Covers Vim fundamentals, Lua, a
    - [LspAttach autocmd](#lspattach-autocmd)
    - [vim.lsp.config + vim.lsp.enable](#vimlspconfig--vimlspenable)
    - [How LSP loads when you open a file](#how-lsp-loads-when-you-open-a-file)
+   - [Homebrew PATH workaround in null-ls.lua](#homebrew-path-workaround-in-null-lslua)
    - [How treesitter loads when you open a file](#how-treesitter-loads-when-you-open-a-file)
 
 ---
@@ -676,6 +677,56 @@ The entire LSP stack (nvim-lspconfig, mason, mason-lspconfig, none-ls, mason-nul
 5. **none-ls attaches** — its `on_attach` registers the `BufWritePre` format-on-save autocmd for that buffer.
 
 The perceived delay (typically 300–800ms for gopls on a fresh module) is purely the server binary starting and indexing — not the config. Using `BufReadPre` instead of `VeryLazy` or `BufEnter` shaves the only part that's controllable: plugin load time happens in parallel with the very first file read rather than after it.
+
+### Homebrew PATH workaround in null-ls.lua
+
+At the top of `lua/user/lsp/null-ls.lua` you'll find:
+
+```lua
+if vim.fn.has("mac") == 1 then
+    vim.env.PATH = "/opt/homebrew/bin:/opt/homebrew/sbin:" .. vim.env.PATH
+end
+```
+
+This exists because of a specific interaction between fish shell, macOS Apple
+Silicon, and `null_ls.setup()`. Without it, none-ls fails to find Homebrew-
+installed tools (`yamllint`, `golangci-lint`, `yamlfmt`) with a "not executable"
+error, even though they are correctly installed and visible in the shell.
+
+**Root cause:**
+
+1. On Apple Silicon, `/etc/paths` does not include `/opt/homebrew/bin`. The
+   system's `path_helper` rebuilds `PATH` from `/etc/paths` on shell startup.
+2. Fish invokes `path_helper` and the Homebrew path can get reordered or lost
+   in the rebuild. Neovim inherits the resulting `PATH`.
+3. `null_ls.setup()` snapshots `vim.env.PATH` at call time and uses it for
+   `vim.fn.executable()` checks against each source.
+4. mason.nvim's `set_env` prepends its own bin dir to whatever `PATH` it sees —
+   it preserves the existing PATH, it doesn't regenerate. So if Homebrew was
+   already missing, mason's addition doesn't bring it back.
+
+By the time `null_ls.setup()` runs, `/opt/homebrew/bin` is gone from
+`vim.env.PATH` and binaries become invisible.
+
+**Why it's specifically in null-ls.lua and not options.lua / bootstrap.lua:**
+
+The PATH gets reset somewhere during lazy.nvim's plugin load sequence (likely
+when mason or its dependencies initialise). Setting `vim.env.PATH` earlier in
+`options.lua` or `bootstrap.lua` doesn't help — by the time `null_ls.setup()`
+runs, the fix has been overwritten. The only placement that reliably works is
+immediately before `require("null-ls")` so the prepend happens last.
+
+**Why zsh users never see this:**
+
+zsh on macOS sources `/etc/zprofile` exactly once per login session, runs
+`path_helper` once, then the user's profile adds Homebrew after it. The order
+sticks for every child process. Fish runs its full config on every invocation,
+so `path_helper` can intervene differently.
+
+**The "proper" alternative** would be adding `/opt/homebrew/bin` to
+`/etc/paths.d/homebrew` system-wide. That requires `sudo` and modifies a system
+file, which Homebrew itself deliberately avoids. The Neovim-level workaround
+is narrower and contained to this repo.
 
 ### How treesitter loads when you open a file
 

@@ -1,24 +1,24 @@
 -- =========================
--- Linting/Formatting Tools
+-- Linting/Formatting Tools (Mason-managed)
 -- =========================
+--
+-- The following tools are intentionally NOT in this list — they are managed by
+-- Homebrew (see platforms/darwin/Brewfile) instead. The reasons:
+--   • black, pylint, yamllint, yamlfmt — Mason installs these via pip and wraps
+--     them in a venv. None-ls spawns subprocesses via the system PATH where the
+--     wrapper is absent, causing "not executable" errors.
+--   • golangci-lint — Mason has known v1/v2 flag-name compatibility issues.
+--   • goimports — installed via the Go toolchain (go install).
+--   • terraform_fmt — bundled with the terraform binary.
 local lint_and_format = {
 	-- Linters
-	-- pylint is installed via Homebrew (see Brewfile), not Mason.
-	-- Mason wraps Python tools in a venv; when none-ls spawns the subprocess it
-	-- uses the system PATH where the venv wrapper is absent, causing "not executable".
 	"revive",
 	"stylelint",
-	-- yamllint is installed via Homebrew (see Brewfile), not Mason.
-	-- Mason wraps Python tools in a venv; when none-ls spawns the subprocess it
-	-- uses the system PATH where the venv wrapper is absent, causing "not executable".
 	"eslint_d",
 	-- Formatters
-	-- black is installed via Homebrew (see Brewfile), not Mason — same Python venv issue as pylint/yamllint.
-
 	"csharpier",
 	"prettierd",
 	"stylua",
-	"yamlfmt",
 	"hadolint",
 }
 
@@ -48,9 +48,6 @@ local lsp_servers = {
 -- =========================
 require("mason-null-ls").setup({
 	ensure_installed = lint_and_format,
-	-- yamllint is intentionally absent from ensure_installed — managed by Homebrew (see Brewfile).
-	-- Mason wraps Python tools in a venv; none-ls spawns them via system PATH where the wrapper
-	-- is absent, causing "not executable" errors.
 	automatic_installation = false,
 })
 
