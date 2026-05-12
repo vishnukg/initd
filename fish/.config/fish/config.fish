@@ -87,3 +87,8 @@ end
 if command -q starship
     starship init fish | source
 end
+
+# ── Local overrides (machine-specific, not committed) ─────────────────────────
+if test -f ~/.config/fish/local.fish
+    source ~/.config/fish/local.fish
+end
