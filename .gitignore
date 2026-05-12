@@ -9,6 +9,7 @@ git/local.gitconfig
 
 # Fish — files managed by fisher or fish itself, not by this repo.
 fish/.config/fish/fish_variables
+fish/.config/fish/local.fish
 fish/.config/fish/conf.d/local.fish
 fish/.config/fish/functions/
 fish/.config/fish/completions/
