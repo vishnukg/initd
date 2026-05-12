@@ -7,9 +7,12 @@ bin/
 # Machine-local git identity (email) — never commit this.
 git/local.gitconfig
 
-# Fish — machine-local files managed by fish itself.
+# Fish — files managed by fisher or fish itself, not by this repo.
 fish/.config/fish/fish_variables
 fish/.config/fish/conf.d/local.fish
+fish/.config/fish/functions/
+fish/.config/fish/completions/
+fish/.config/fish/conf.d/
 
 # Neovim — generated plugin directory.
 nvim/.config/nvim/plugin/
