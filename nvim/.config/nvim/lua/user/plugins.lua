@@ -119,8 +119,8 @@ return require("lazy").setup({
 	},
 
 	-- ── LSP ecosystem ─────────────────────────────────────────────────────────
-	-- LSP servers + lint/format tools are managed by mise (mise/config.toml)
-	-- and Homebrew (postgres_lsp only). nvim-lspconfig just enables them.
+	-- LSP servers + lint/format tools are managed by mise (mise/config.toml).
+	-- nvim-lspconfig just enables them.
 	-- cmp-nvim-lsp is listed here so capabilities are ready before server
 	-- configs run (it would otherwise only load on InsertEnter via nvim-cmp).
 	{
