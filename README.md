@@ -168,10 +168,10 @@ Create it on each machine as needed:
 
 ```fish
 # ~/.config/fish/local.fish  (not committed)
-set -gx GITHUB_TOKEN ghp_yourtoken
+set -gx MY_SECRET value
 ```
 
-**Getting a GitHub token**: go to `github.com/settings/tokens` → "Generate new token (classic)" → no scopes required → copy the `ghp_...` value. Name it something like `mise-bootstrap`. mise uses it to avoid GitHub API rate limits (60 req/hour unauthenticated) when fetching tool release metadata.
+GitHub authentication for mise and fisher is handled via `gh auth login` — no token needs to be stored here. mise is configured to call `gh auth token` directly, and bootstrap passes the same token to fisher scoped to that subprocess only.
 
 See [`docs/fish.md`](docs/fish.md) for a fish/bash/zsh syntax reference.
 

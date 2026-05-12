@@ -74,15 +74,26 @@ ensure_fish() {
     log_success "fish is already the default shell."
   fi
 
-  # Install fisher if missing, then sync all plugins listed in fish_plugins
+  # Authenticate fisher with the gh CLI token so it doesn't hit GitHub rate
+  # limits. Scoped to this subprocess only — GITHUB_TOKEN is never set globally.
   log "Syncing fisher plugins..."
-  fish -c "
+  GITHUB_TOKEN="$(gh auth token 2>/dev/null || true)" fish -c "
     if not functions -q fisher
       curl -fsSL --max-time 30 https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source
       fisher install jorgebucaran/fisher
     end
     fisher update
   "
+}
+
+ensure_gh_auth() {
+  if gh auth token >/dev/null 2>&1; then
+    log_success "gh CLI already authenticated."
+    return
+  fi
+
+  log "Authenticating gh CLI (used by mise and fisher to avoid GitHub API rate limits)..."
+  gh auth login
 }
 
 setup_git_profile() {
@@ -136,6 +147,9 @@ main() {
 
   log "Linking managed configs into ${HOME}..."
   "${ROOT_DIR}/scripts/link.sh"
+
+  log "Authenticating gh CLI..."
+  ensure_gh_auth
 
   log "Ensuring fish shell is configured..."
   ensure_fish
