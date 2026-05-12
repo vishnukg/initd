@@ -88,7 +88,7 @@ ensure_fish() {
 
 ensure_gh_auth() {
   if gh auth token >/dev/null 2>&1; then
-    log_success "gh CLI already authenticated."
+    log_success "gh auth check done."
     return
   fi
 

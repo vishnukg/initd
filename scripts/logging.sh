@@ -12,7 +12,7 @@ fi
 
 log()         { printf '%b==>%b %s\n' "${INITD_BLUE}"   "${INITD_RESET}" "$*"; }
 log_info()    { printf '%b::%b %s\n'  "${INITD_CYAN}"   "${INITD_RESET}" "$*"; }
-log_success() { printf '%bOK%b %s\n'  "${INITD_GREEN}"  "${INITD_RESET}" "$*"; }
+log_success() { printf '%bOK %s%b\n'  "${INITD_GREEN}" "$*" "${INITD_RESET}"; }
 log_warn()    { printf '%b!!%b %s\n'  "${INITD_YELLOW}" "${INITD_RESET}" "$*" >&2; }
 log_error()   { printf '%bERR%b %s\n' "${INITD_RED}"    "${INITD_RESET}" "$*" >&2; }
 
