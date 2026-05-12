@@ -1,7 +1,21 @@
 local null_ls = require("null-ls")
+local h = require("null-ls.helpers")
 
 local formatting = null_ls.builtins.formatting
 local diagnostics = null_ls.builtins.diagnostics
+
+local taplo = h.make_builtin({
+	name = "taplo",
+	meta = { url = "https://taplo.tamasfe.dev/", description = "TOML formatter" },
+	method = require("null-ls.methods").internal.FORMATTING,
+	filetypes = { "toml" },
+	generator_opts = {
+		command = "taplo",
+		args = { "fmt", "--option", "align_entries=true", "--option", "align_comments=true", "-" },
+		to_stdin = true,
+	},
+	factory = h.formatter_factory,
+})
 
 -- LspFormatting
 local augroup = vim.api.nvim_create_augroup("LspFormatting", { clear = true })
@@ -28,6 +42,7 @@ null_ls.setup({
 		formatting.goimports,
 		formatting.terraform_fmt,
 		formatting.csharpier,
+		taplo,
 		formatting.yamlfmt,
 		diagnostics.golangci_lint,
 		diagnostics.yamllint,
