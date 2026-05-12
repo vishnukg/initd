@@ -2,6 +2,7 @@ tap "hashicorp/tap"
 tap "threedotslabs/tap"
 
 brew "autoconf"
+brew "gh"
 brew "difi"
 brew "fish"
 brew "git"

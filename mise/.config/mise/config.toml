@@ -1,5 +1,6 @@
 [settings]
-experimental = true  # required for dotnet: backend (csharp-ls, csharpier)
+experimental = true                            # required for dotnet: backend (csharp-ls, csharpier)
+github.credential_command = "gh auth token"    # use gh CLI for GitHub auth instead of a stored token
 
 [tools]
 # ── runtimes ───────────────────────────────────────────────────────────
@@ -33,7 +34,6 @@ yarn      = ["latest", "1.22.22"]
 "delta"                                    = "latest"  # git-delta
 "fd"                                       = "latest"
 "fzf"                                      = "latest"
-"gh"                                       = "latest"
 "glow"                                     = "latest"
 "lazygit"                                  = "latest"
 "ripgrep"                                  = "latest"
