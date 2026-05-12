@@ -162,6 +162,19 @@ The managed `config.fish`:
 
 To add or update plugins, edit `fish_plugins` and run `fisher update` inside fish, then commit the updated plugin files.
 
+### Machine-local fish overrides
+
+`config.fish` sources `~/.config/fish/local.fish` at startup if the file exists. Use it for machine-specific env vars that should not be committed — same pattern as `git/local.gitconfig`. The path is gitignored.
+
+Create it on each machine as needed:
+
+```fish
+# ~/.config/fish/local.fish  (not committed)
+set -gx GITHUB_TOKEN ghp_yourtoken
+```
+
+**Getting a GitHub token**: go to `github.com/settings/tokens` → "Generate new token (classic)" → no scopes required → copy the `ghp_...` value. Name it something like `mise-bootstrap`. mise uses it to avoid GitHub API rate limits (60 req/hour unauthenticated) when fetching tool release metadata.
+
 See [`docs/fish.md`](docs/fish.md) for a fish/bash/zsh syntax reference.
 
 ## tmux
