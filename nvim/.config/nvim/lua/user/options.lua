@@ -38,6 +38,10 @@ local options = {
 }
 vim.opt.shortmess:append("c")
 
+-- Neovim has no built-in detection for .bru; without this the filetype stays empty
+-- and the tree-sitter-bruno plugin (lazy-loaded via ft = "bru") never fires.
+vim.filetype.add({ extension = { bru = "bru" } })
+
 -- Auto-reload buffers when files change on disk (e.g. changed by Copilot)
 vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter" }, {
 	group = vim.api.nvim_create_augroup("AutoReload", { clear = true }),
