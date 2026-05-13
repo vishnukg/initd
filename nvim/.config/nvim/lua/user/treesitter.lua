@@ -1,5 +1,6 @@
 -- Configure nvim-treesitter (main branch rewrite, Neovim 0.11+)
 local treesitter = require("nvim-treesitter")
+local treesitter_attached = {}
 
 treesitter.setup({
 	install_dir = vim.fn.stdpath("data") .. "/site",
@@ -29,6 +30,7 @@ local function try_attach(buf, language, retried)
 	end
 
 	vim.treesitter.start(buf, language)
+	treesitter_attached[buf] = true
 
 	vim.wo[0][0].foldexpr  = "v:lua.vim.treesitter.foldexpr()"
 	vim.wo[0][0].foldmethod = "expr"
@@ -45,11 +47,25 @@ local available_parsers = treesitter.get_available()
 local fold_insert_group = vim.api.nvim_create_augroup("FoldInsertMode", { clear = true })
 vim.api.nvim_create_autocmd("InsertEnter", {
 	group = fold_insert_group,
-	callback = function() vim.opt_local.foldmethod = "manual" end,
+	callback = function(args)
+		if treesitter_attached[args.buf] then
+			vim.opt_local.foldmethod = "manual"
+		end
+	end,
 })
 vim.api.nvim_create_autocmd("InsertLeave", {
 	group = fold_insert_group,
-	callback = function() vim.opt_local.foldmethod = "expr" end,
+	callback = function(args)
+		if treesitter_attached[args.buf] then
+			vim.opt_local.foldmethod = "expr"
+		end
+	end,
+})
+vim.api.nvim_create_autocmd("BufWipeout", {
+	group = fold_insert_group,
+	callback = function(args)
+		treesitter_attached[args.buf] = nil
+	end,
 })
 
 vim.api.nvim_create_autocmd("FileType", {

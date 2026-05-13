@@ -43,8 +43,8 @@ A personal Neovim configuration built on [lazy.nvim](https://github.com/folke/la
         ├── gitsigns.lua      # Git decorations
         ├── fidget.lua        # LSP progress notifications
         ├── toggleterm.lua    # Integrated terminal
-        ├── copilot.lua       # GitHub Copilot config
-        ├── refactor.lua      # Refactor.nvim config
+        ├── autopairs.lua     # Automatic bracket/quote pairs
+        ├── neotest.lua       # Test runner adapters
         └── lsp/
             ├── init.lua      # Wires up handlers, null-ls, servers
             ├── servers.lua   # vim.lsp.config + vim.lsp.enable for each server
@@ -257,7 +257,6 @@ nvim-cmp sources (in priority order):
   2. LuaSnip     ← code snippet expansions
   3. Buffer      ← words from open buffers
   4. Path        ← filesystem paths
-  5. Cmdline     ← Neovim command completions (in : mode)
 ```
 
 ---
@@ -339,9 +338,9 @@ These languages have syntax highlighting via Treesitter but no LSP server or for
 
 | Language | Highlights | Notes |
 |----------|-----------|-------|
-| Rust | ✓ | Add `rust_analyzer` to `mise.toml` + `lsp_servers` to enable LSP |
+| Rust | ✓ | Add `rust_analyzer` to `mise/.config/mise/config.toml` + `lsp_servers` to enable LSP |
 | GraphQL | ✓ | — |
-| C | ✓ | Add `clangd` to `mise.toml` + `lsp_servers` to enable LSP |
+| C | ✓ | Add `clangd` to `mise/.config/mise/config.toml` + `lsp_servers` to enable LSP |
 | XML | ✓ | — |
 | Helm | ✓ | — |
 | Make | ✓ | — |
@@ -360,7 +359,7 @@ These languages have syntax highlighting via Treesitter but no LSP server or for
 | Command | Description |
 |---------|-------------|
 | `:Lazy` | Open plugin manager — update/install plugins |
-| `:TSUpdate` | Update all Treesitter parsers |
+| `:TSUpdate` | Update Treesitter parsers managed by nvim-treesitter |
 | `:LspInfo` | Show LSP clients attached to the current buffer |
 | `:NullLsInfo` | Show none-ls sources active in the current buffer |
 | `:Neotest summary` | Open test suite explorer |
@@ -370,7 +369,7 @@ LSP servers, formatters, and linters are installed/updated outside Neovim:
 
 | Shell command | Description |
 |---------------|-------------|
-| `mise install` | Install everything listed in `mise.toml` (idempotent) |
+| `mise install` | Install everything listed in `mise/.config/mise/config.toml` (idempotent) |
 | `mise upgrade` | Upgrade every tool to the latest version compatible with its pin |
 | `mise upgrade <tool>` | Upgrade a single tool, e.g. `mise upgrade gopls` |
 | `mise ls` | List installed tools and their resolved versions |
@@ -385,12 +384,12 @@ LSP servers, formatters, and linters are installed/updated outside Neovim:
 |-----|--------|
 | `gd` | Go to definition |
 | `gD` | Go to declaration |
-| `gI` | Go to implementation |
-| `gr` | Find references |
+| `gri` | Go to implementation |
+| `grr` | Find references |
 | `K` | Hover documentation |
-| `<leader>f` | Format buffer |
-| `<leader>rn` | Rename symbol |
-| `<leader>ca` | Code actions |
+| `<leader>fm` | Format buffer |
+| `grn` | Rename symbol |
+| `gra` | Code actions |
 | `gl` | Open diagnostics float |
 | `<leader>lj` | Next diagnostic |
 | `<leader>lk` | Previous diagnostic |
@@ -401,7 +400,7 @@ LSP servers, formatters, and linters are installed/updated outside Neovim:
 
 | Key | Action |
 |-----|--------|
-| `<leader>e` | Toggle file tree |
+| `<C-g>` | Toggle file tree |
 | `<leader>ff` | Find files (fzf-lua) |
 | `<leader>fg` | Live grep (fzf-lua) |
 | `<leader>fb` | Browse open buffers (fzf-lua) |
@@ -410,13 +409,13 @@ LSP servers, formatters, and linters are installed/updated outside Neovim:
 
 | Key | Action |
 |-----|--------|
-| `<leader>gg` | Open Fugitive (git status) |
+| `:Git` / `:G` | Open Fugitive (git status) |
 
 ### Testing
 
 | Key | Action |
 |-----|--------|
-| `<leader>tt` | Run nearest test |
+| `<leader>tr` | Run nearest test |
 | `<leader>tf` | Run all tests in file |
 | `<leader>ts` | Toggle test summary |
 
@@ -424,7 +423,7 @@ LSP servers, formatters, and linters are installed/updated outside Neovim:
 
 ## Adding a New Language
 
-Adding a language is now a two-place change: the tool binary goes into `mise.toml`, and Neovim is told to consume it.
+Adding a language is now a two-place change: the tool binary goes into `mise/.config/mise/config.toml`, and Neovim is told to consume it.
 
 1. **Tool binary (mise)** — add the LSP server or lint/format CLI to `mise/.config/mise/config.toml`. Tools live in mise's core registry where possible (`gopls`, `pyright`, `stylua`, …) and otherwise use a backend prefix:
 
@@ -443,6 +442,6 @@ Adding a language is now a two-place change: the tool binary goes into `mise.tom
 
 3. **Formatter / Linter (Neovim)** — add the corresponding none-ls source in `lua/user/lsp/null-ls.lua`. (There is no separate Neovim-side install list anymore — mise is the single source of truth for the binary.)
 
-4. **Treesitter** — add the parser name to `parsers_to_install` in `lua/user/treesitter.lua`.
+4. **Treesitter** — no committed parser list is required. `lua/user/treesitter.lua` auto-installs a parser the first time a supported filetype is opened.
 
 5. **External tools** — if the language requires gems, pip packages, or system tools that genuinely cannot be installed by mise (like Ruby's `standard` gem, which has to live in the project bundle), document it in the [External Setup](#-requires-external-setup) section above.
