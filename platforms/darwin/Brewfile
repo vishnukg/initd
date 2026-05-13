@@ -18,6 +18,7 @@ brew "readline"
 brew "ruby-build"
 brew "tig"
 brew "tmux"
+brew "bruno-cli"
 brew "gemini-cli"
 brew "threedotslabs/tap/tdl"
 
