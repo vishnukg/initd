@@ -189,8 +189,7 @@ return require("lazy").setup({
 	{
 		"kristoferssolo/tree-sitter-bruno",
 		ft = { "bru" },
-		build = function()
-			local plugin_dir = vim.fn.stdpath("data") .. "/lazy/tree-sitter-bruno"
+		build = function(plugin)
 			local parser_dir = vim.fn.stdpath("data") .. "/site/parser"
 			local query_dir  = vim.fn.stdpath("data") .. "/site/queries/bruno"
 			vim.fn.mkdir(parser_dir, "p")
@@ -198,17 +197,17 @@ return require("lazy").setup({
 			local r = vim.system({
 				"cc", "-O2", "-shared", "-fPIC",
 				"-o", parser_dir .. "/bruno.so",
-				plugin_dir .. "/src/parser.c",
-				plugin_dir .. "/src/scanner.c",
-				"-I", plugin_dir .. "/src",
+				plugin.dir .. "/src/parser.c",
+				plugin.dir .. "/src/scanner.c",
+				"-I", plugin.dir .. "/src",
 			}):wait()
 			if r.code ~= 0 then
 				error("tree-sitter-bruno compile failed:\n" .. (r.stderr or ""))
 			end
 			for _, f in ipairs({ "highlights.scm", "folds.scm", "indents.scm", "injections.scm" }) do
-				local src = plugin_dir .. "/queries/" .. f
+				local src = plugin.dir .. "/queries/" .. f
 				if vim.fn.filereadable(src) == 1 then
-					vim.fn.system({ "cp", src, query_dir .. "/" .. f })
+					vim.system({ "cp", src, query_dir .. "/" .. f }):wait()
 				end
 			end
 		end,
