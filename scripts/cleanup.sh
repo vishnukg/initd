@@ -41,7 +41,7 @@ remove_link() {
 }
 
 main() {
-  local link path src
+  local managed_link destination source
 
   while (($#)); do
     case "$1" in
@@ -62,13 +62,13 @@ main() {
     remove_link "${HOME}/.gitconfig"
   fi
 
-  for link in "${MANAGED_LINKS[@]}"; do
-    path="${link%%:*}" # everything before the colon — destination in $HOME
-    src="${link#*:}"   # everything after the colon  — source in this repo
-    if [[ -L "${path}" ]] && ! symlink_points_to "${path}" "${src}"; then
-      log_warn "Leaving symlink outside initd ownership: ${path} -> $(readlink "${path}")"
+  for managed_link in "${MANAGED_LINKS[@]}"; do
+    destination="${managed_link%%:*}"
+    source="${managed_link#*:}"
+    if [[ -L "${destination}" ]] && ! symlink_points_to "${destination}" "${source}"; then
+      log_warn "Leaving symlink outside initd ownership: ${destination} -> $(readlink "${destination}")"
     else
-      remove_link "${path}"
+      remove_link "${destination}"
     fi
   done
 

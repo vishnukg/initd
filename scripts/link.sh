@@ -26,7 +26,7 @@ install_managed_link() {
 }
 
 main() {
-  local link path src
+  local managed_link destination source
 
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Target home directory: ${HOME}"
@@ -38,11 +38,11 @@ main() {
     ln -s "${DEFAULT_GIT_PROFILE}" "${GITCONFIG}"
   fi
 
-  for link in "${MANAGED_LINKS[@]}"; do
-    path="${link%%:*}" # everything before the colon — destination in $HOME
-    src="${link#*:}"   # everything after the colon  — source in this repo
-    install_managed_link "${path}" "${src}"
-    verify_symlink_target "${path}" "${src}"
+  for managed_link in "${MANAGED_LINKS[@]}"; do
+    destination="${managed_link%%:*}"
+    source="${managed_link#*:}"
+    install_managed_link "${destination}" "${source}"
+    verify_symlink_target "${destination}" "${source}"
   done
 
   verify_git_profile_link "${GITCONFIG}"
