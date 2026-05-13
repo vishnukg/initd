@@ -14,6 +14,12 @@ end
 
 # ── Mise ──────────────────────────────────────────────────────────────────────
 fish_add_path ~/.local/share/mise/shims
+if test -d ~/.local/share/mise/installs/starship/latest
+    fish_add_path ~/.local/share/mise/installs/starship/latest
+end
+if test -d ~/.local/share/mise/installs/zoxide/latest
+    fish_add_path ~/.local/share/mise/installs/zoxide/latest
+end
 
 # ── Interactive-only config ────────────────────────────────────────────────────
 if not status is-interactive
@@ -21,10 +27,40 @@ if not status is-interactive
 end
 
 # ── Greeting ──────────────────────────────────────────────────────────────────
-set -U fish_greeting ""
+set -g fish_greeting ""
 
-# ── Theme ─────────────────────────────────────────────────────────────────────
-fish_config theme choose nord
+# ── Theme: Nord ───────────────────────────────────────────────────────────────
+# Keep colors in config instead of running `fish_config theme choose nord` on
+# every shell startup. `fish_config` is a setup command and does extra work.
+set -g fish_color_normal --reset
+set -g fish_color_autosuggestion 4c566a
+set -g fish_color_cancel --reverse
+set -g fish_color_command 88c0d0
+set -g fish_color_comment 4c566a --italics
+set -g fish_color_cwd 5e81ac
+set -g fish_color_cwd_root bf616a
+set -g fish_color_end 81a1c1
+set -g fish_color_error bf616a
+set -g fish_color_escape ebcb8b
+set -g fish_color_history_current e5e9f0 --bold
+set -g fish_color_host a3be8c
+set -g fish_color_host_remote ebcb8b
+set -g fish_color_keyword 81a1c1
+set -g fish_color_operator 81a1c1
+set -g fish_color_option 8fbcbb
+set -g fish_color_param d8dee9
+set -g fish_color_quote a3be8c
+set -g fish_color_redirection b48ead --bold
+set -g fish_color_search_match --background=434c5e --bold
+set -g fish_color_selection d8dee9 --background=434c5e --bold
+set -g fish_color_status bf616a
+set -g fish_color_user a3be8c
+set -g fish_color_valid_path --underline
+set -g fish_pager_color_completion e5e9f0
+set -g fish_pager_color_description ebcb8b --italics
+set -g fish_pager_color_prefix --bold --underline
+set -g fish_pager_color_progress 3b4252 --background=d08770 --bold
+set -g fish_pager_color_selected_background --background=434c5e
 
 # ── Vi mode ───────────────────────────────────────────────────────────────────
 fish_vi_key_bindings
@@ -78,12 +114,12 @@ abbr -a gswc 'git switch --create'
 
 # ── Zoxide ────────────────────────────────────────────────────────────────────
 if command -q zoxide
-    zoxide init fish | source
+    command zoxide init fish | source
 end
 
 # ── Starship ──────────────────────────────────────────────────────────────────
 if command -q starship
-    starship init fish | source
+    command starship init fish | source
 end
 
 # ── Local overrides (machine-specific, not committed) ─────────────────────────
