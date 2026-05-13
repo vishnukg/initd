@@ -104,13 +104,18 @@ update_brewfile() {
   local tmp_brewfile
   tmp_brewfile="$(mktemp "${BREWFILE}.XXXXXX")" \
     || { log_error "Failed to create temporary Brewfile."; exit 1; }
-  trap '[[ -n "${tmp_brewfile:-}" ]] && rm -f "${tmp_brewfile}"' EXIT
 
   log "Adding ${entry} to ${BREWFILE}."
-  cp "${BREWFILE}" "${tmp_brewfile}"
-  printf '%s\n' "${entry}" >> "${tmp_brewfile}"
-  mv "${tmp_brewfile}" "${BREWFILE}"
-  log_success "Brewfile updated."
+  if cp "${BREWFILE}" "${tmp_brewfile}" && \
+     printf '%s\n' "${entry}" >> "${tmp_brewfile}" && \
+     mv "${tmp_brewfile}" "${BREWFILE}"; then
+    log_success "Brewfile updated."
+    return
+  fi
+
+  rm -f "${tmp_brewfile}"
+  log_error "Failed to update ${BREWFILE}."
+  exit 1
 }
 
 apply_brewfile() {
