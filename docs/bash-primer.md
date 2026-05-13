@@ -77,12 +77,12 @@ MANAGED_LINKS=(
 )
 ```
 
-Each entry is `runtime path in $HOME : source path in this repo`. Scripts split
+Each entry is `home path:repo path`. Scripts split
 the pair like this:
 
 ```bash
-path="${link%%:*}"    # everything before the first colon
-source="${link#*:}"   # everything after the first colon
+home_path="${managed_link%%:*}"  # everything before the first colon
+repo_path="${managed_link#*:}"   # everything after the first colon
 ```
 
 **Adding a new managed config** means adding one line to `MANAGED_LINKS` and
@@ -157,8 +157,10 @@ absolute paths.
 ### Loops over managed links
 
 ```bash
-for link in "${MANAGED_LINKS[@]}"; do
-  install_managed_link "${link%%:*}" "${link#*:}"
+for managed_link in "${MANAGED_LINKS[@]}"; do
+  home_path="${managed_link%%:*}"
+  repo_path="${managed_link#*:}"
+  install_managed_link "${home_path}" "${repo_path}"
 done
 ```
 

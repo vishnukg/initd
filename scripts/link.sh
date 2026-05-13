@@ -10,23 +10,29 @@ source "${ROOT_DIR}/scripts/logging.sh"
 source "${ROOT_DIR}/scripts/managed-configs.sh"
 
 install_managed_link() {
-  local path="$1"
-  local src="$2"
+  local home_path="$1"
+  local repo_path="$2"
 
-  if symlink_points_to "${path}" "${src}"; then
-    log "Already linked: ${path}"
+  if ! path_exists "${repo_path}"; then
+    log_error "Managed source path does not exist: ${repo_path}"
+    log_info "Check scripts/managed-configs.sh or restore the missing config directory."
+    exit 1
+  fi
+
+  if symlink_points_to "${home_path}" "${repo_path}"; then
+    log "Already linked: ${home_path}"
     return
   fi
 
-  path_exists "${path}" && backup_path "${path}"
-  mkdir -p "$(dirname "${path}")" \
-    || { log_error "Failed to create parent directory: $(dirname "${path}")"; exit 1; }
-  log "Linking ${path} -> ${src}."
-  ln -s "${src}" "${path}"
+  path_exists "${home_path}" && backup_path "${home_path}"
+  mkdir -p "$(dirname "${home_path}")" \
+    || { log_error "Failed to create parent directory: $(dirname "${home_path}")"; exit 1; }
+  log "Linking ${home_path} -> ${repo_path}."
+  ln -s "${repo_path}" "${home_path}"
 }
 
 main() {
-  local managed_link destination source
+  local managed_link home_path repo_path
 
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Target home directory: ${HOME}"
@@ -39,10 +45,10 @@ main() {
   fi
 
   for managed_link in "${MANAGED_LINKS[@]}"; do
-    destination="${managed_link%%:*}"
-    source="${managed_link#*:}"
-    install_managed_link "${destination}" "${source}"
-    verify_symlink_target "${destination}" "${source}"
+    home_path="${managed_link%%:*}"
+    repo_path="${managed_link#*:}"
+    install_managed_link "${home_path}" "${repo_path}"
+    verify_symlink_target "${home_path}" "${repo_path}"
   done
 
   verify_git_profile_link "${GITCONFIG}"
