@@ -27,21 +27,32 @@ EOF
 }
 
 parse_args() {
-  while (($#)); do
-    case "$1" in
-      --formula|--brew) kind="brew" ;;
-      --cask)           kind="cask" ;;
-      -h|--help)        usage; exit 0 ;;
-      -*)               log_error "Unknown option: $1"; usage >&2; exit 1 ;;
-      *)
-        if [[ -n "${package}" ]]; then
-          log_error "Expected one package, got: ${package} and $1"
-          usage >&2
-          exit 1
-        fi
-        package="$1"
-        ;;
-    esac
+  local arg
+
+  # $# is the number of remaining CLI args. shift consumes one each loop.
+  while [[ "$#" -gt 0 ]]; do
+    arg="$1"
+
+    if [[ "${arg}" == "--formula" || "${arg}" == "--brew" ]]; then
+      kind="brew"
+    elif [[ "${arg}" == "--cask" ]]; then
+      kind="cask"
+    elif [[ "${arg}" == "-h" || "${arg}" == "--help" ]]; then
+      usage
+      exit 0
+    elif [[ "${arg}" == -* ]]; then
+      log_error "Unknown option: ${arg}"
+      usage >&2
+      exit 1
+    else
+      if [[ -n "${package}" ]]; then
+        log_error "Expected one package, got: ${package} and ${arg}"
+        usage >&2
+        exit 1
+      fi
+      package="${arg}"
+    fi
+
     shift
   done
 }
@@ -63,21 +74,28 @@ validate_inputs() {
 
 # When --formula/--cask wasn't given, ask Homebrew which one matches.
 detect_package_kind() {
-  [[ -n "${kind}" ]] && return
+  if [[ -n "${kind}" ]]; then
+    return
+  fi
 
   log "Detecting whether ${package} is a formula or cask..."
 
   local is_formula=0 is_cask=0
-  brew info --formula "${package}" >/dev/null 2>&1 && is_formula=1
-  brew info --cask    "${package}" >/dev/null 2>&1 && is_cask=1
+  if brew info --formula "${package}" >/dev/null 2>&1; then
+    is_formula=1
+  fi
 
-  if (( is_formula && is_cask )); then
+  if brew info --cask "${package}" >/dev/null 2>&1; then
+    is_cask=1
+  fi
+
+  if [[ "${is_formula}" == "1" && "${is_cask}" == "1" ]]; then
     log_error "${package} exists as both a formula and cask. Re-run with --formula or --cask."
     exit 1
-  elif (( is_formula )); then
+  elif [[ "${is_formula}" == "1" ]]; then
     kind="brew"
     log_success "Detected formula: ${package}"
-  elif (( is_cask )); then
+  elif [[ "${is_cask}" == "1" ]]; then
     kind="cask"
     log_success "Detected cask: ${package}"
   else

@@ -24,9 +24,18 @@ install_managed_link() {
     return
   fi
 
-  path_exists "${home_path}" && backup_path "${home_path}"
-  mkdir -p "$(dirname "${home_path}")" \
-    || { log_error "Failed to create parent directory: $(dirname "${home_path}")"; exit 1; }
+  if path_exists "${home_path}"; then
+    backup_path "${home_path}"
+  fi
+
+  local parent_dir
+  parent_dir="$(dirname "${home_path}")"
+
+  if ! mkdir -p "${parent_dir}"; then
+    log_error "Failed to create parent directory: ${parent_dir}"
+    exit 1
+  fi
+
   log "Linking ${home_path} -> ${repo_path}."
   ln -s "${repo_path}" "${home_path}"
 }
@@ -39,7 +48,10 @@ main() {
 
   # .gitconfig is handled separately — it can point to any file under git/profiles.
   if ! git_profile_link_is_managed "${GITCONFIG}"; then
-    path_exists "${GITCONFIG}" && backup_path "${GITCONFIG}"
+    if path_exists "${GITCONFIG}"; then
+      backup_path "${GITCONFIG}"
+    fi
+
     log "Linking ${GITCONFIG} -> ${DEFAULT_GIT_PROFILE}."
     ln -s "${DEFAULT_GIT_PROFILE}" "${GITCONFIG}"
   fi
