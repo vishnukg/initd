@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DRY_RUN=0
 
 source "${ROOT_DIR}/scripts/logging.sh"
-source "${ROOT_DIR}/scripts/paths.sh"
+source "${ROOT_DIR}/scripts/managed-configs.sh"
 
 usage() {
   cat <<EOF

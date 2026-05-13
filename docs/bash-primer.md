@@ -12,14 +12,13 @@ developer can follow like a checklist.
 
 | File | Purpose |
 |---|---|
-| `bootstrap.sh` | Detect the operating system and hand off to the platform bootstrap. |
-| `platforms/darwin/bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → links → fish → mise → macOS defaults. |
+| `bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → links → fish → mise → macOS defaults. |
 | `scripts/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files. |
 | `scripts/cleanup.sh` | Remove only the symlinks that initd created. |
 | `scripts/git-profile.sh` | Switch `~/.gitconfig` between the curated Git profiles. |
 | `scripts/brewinstall.sh` | Add a formula or cask to the curated Brewfile and apply it locally. |
 | `scripts/fs.sh` | Shared filesystem helpers: `path_exists`, `symlink_points_to`, `verify_symlink_target`, `backup_path`. |
-| `scripts/paths.sh` | The list of paths initd owns and the git-profile helpers. Sources `fs.sh`. |
+| `scripts/managed-configs.sh` | The list of paths initd owns and the git-profile helpers. Sources `fs.sh`. |
 | `scripts/logging.sh` | Colored log helpers: `log`, `log_info`, `log_success`, `log_warn`, `log_error`. |
 | `scripts/test-install-behavior.sh` | Behavior tests that run against temporary home directories. |
 
@@ -27,7 +26,7 @@ developer can follow like a checklist.
 
 Start at `main`, which is always at the bottom. The larger scripts are written
 so `main` reads like a plain-English checklist. For example,
-`platforms/darwin/bootstrap.sh`:
+`bootstrap.sh`:
 
 ```bash
 main() {
@@ -43,7 +42,7 @@ main() {
 
   mise install --yes
 
-  "${ROOT_DIR}/platforms/darwin/macos.sh"
+  "${ROOT_DIR}/scripts/macos.sh"
 }
 ```
 
@@ -52,7 +51,7 @@ open the helper function whose name matches the step you care about.
 
 ## Design rules used here
 
-1. **Keep policy data in one place.** `scripts/paths.sh` defines which runtime
+1. **Keep policy data in one place.** `scripts/managed-configs.sh` defines which runtime
    paths initd owns via `MANAGED_LINKS`.
 2. **Keep filesystem mechanics in one place.** `scripts/fs.sh` owns helpers
    like `path_exists`, `symlink_points_to`, `backup_path`, and
@@ -66,7 +65,7 @@ open the helper function whose name matches the step you care about.
 
 ## The MANAGED_LINKS list
 
-`scripts/paths.sh` contains the ownership list:
+`scripts/managed-configs.sh` contains the ownership list:
 
 ```bash
 MANAGED_LINKS=(
@@ -258,25 +257,24 @@ After editing a script, verify there are no syntax errors:
 
 ```bash
 bash -n bootstrap.sh \
-  platforms/darwin/bootstrap.sh \
-  platforms/darwin/macos.sh \
+  scripts/macos.sh \
   scripts/link.sh \
   scripts/cleanup.sh \
   scripts/git-profile.sh \
   scripts/logging.sh \
   scripts/fs.sh \
-  scripts/paths.sh \
+  scripts/managed-configs.sh \
   scripts/test-install-behavior.sh
 ```
 
 ## How to safely change these scripts
 
 1. **To add a new managed config:** add one line to `MANAGED_LINKS` in
-   `scripts/paths.sh` and add a corresponding assertion to
+   `scripts/managed-configs.sh` and add a corresponding assertion to
    `test-install-behavior.sh`.
 2. **To add a new Homebrew package:** run `./brewinstall <package>` from the
    repo root. It updates the Brewfile and installs it locally.
 3. **Keep `main` readable as a checklist.** Put filesystem logic in
-   `scripts/fs.sh` and path/profile knowledge in `scripts/paths.sh`.
+   `scripts/fs.sh` and path/profile knowledge in `scripts/managed-configs.sh`.
 4. **Run the behavior tests** after any filesystem-related change.
 5. **Do not touch `nvim/`** unless the task explicitly asks for Neovim changes.

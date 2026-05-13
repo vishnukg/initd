@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # The curated Brewfile is the source of truth that bootstrap uses on every Mac.
-BREWFILE="${ROOT_DIR}/platforms/darwin/Brewfile"
+BREWFILE="${ROOT_DIR}/Brewfile"
 
 source "${ROOT_DIR}/scripts/logging.sh"
 
@@ -17,7 +17,7 @@ usage() {
   cat <<'EOF'
 Usage: brewinstall [--formula|--cask] <package>
 
-Add a Homebrew formula or cask to platforms/darwin/Brewfile, then install it locally with brew bundle.
+Add a Homebrew formula or cask to Brewfile, then install it locally with brew bundle.
 
 Options:
   --formula, --brew  Add as a brew formula

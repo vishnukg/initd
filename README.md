@@ -7,14 +7,15 @@ It owns both:
 - **machine setup**: Homebrew, apps, runtimes, macOS defaults
 - **user config**: Neovim, Kitty, Fish, tmux, Git, and other dotfiles via managed symlinks
 
-The repo is structured for **multi-platform support later**, while only **macOS** is implemented today.
+The repo is intentionally macOS-focused today so the bootstrap path stays easy to follow.
 
 ## Layout
 
 ```text
 initd/
 ├── brewinstall               # Add formulae/casks to the curated Brewfile and install them
-├── bootstrap.sh              # OS dispatcher
+├── Brewfile                  # Homebrew packages, apps, and fonts
+├── bootstrap.sh              # macOS bootstrap
 ├── docs/                     # Maintenance notes and reference guides
 ├── fish/                     # Source linked to ~/.config/fish
 ├── git/                      # Git profiles -> ~/.gitconfig (local.gitconfig is gitignored)
@@ -29,20 +30,16 @@ initd/
 │   ├── git-profile.sh
 │   ├── link.sh
 │   ├── logging.sh
-│   ├── paths.sh
+│   ├── macos.sh
+│   ├── managed-configs.sh
 │   └── test-install-behavior.sh
-├── platforms/
-│   └── darwin/
-│       ├── Brewfile
-│       ├── bootstrap.sh
-│       └── macos.sh
 ```
 
 ## How it is set up
 
 - **managed packages** (`fish/`, `git/`, `kitty/`, `mise/`, `nvim/`, `tmux/`): the source of truth for files that end up in `$HOME`
-- **`platforms/<os>/`**: package managers, OS defaults, and platform-specific setup
-- **`scripts/`**: shared helper scripts used by all platforms
+- **`Brewfile` and `bootstrap.sh`**: macOS package and machine setup
+- **`scripts/`**: helper scripts for links, cleanup, Git profiles, and macOS defaults
 
 ### Managed config mapping
 
@@ -206,7 +203,7 @@ The macOS flow installs:
 - fonts: `FiraCode Nerd Font`, `Hack Nerd Font`, `JetBrains Mono Nerd Font`, `Meslo LG Nerd Font`, and `Victor Mono Nerd Font`
 - managed configs into runtime paths such as `~/.config/nvim`, `~/.config/fish`, `~/.config/kitty`, and `~/.gitconfig`
 
-See `platforms/darwin/Brewfile` for the Homebrew package list and `mise/.config/mise/config.toml` for all mise-managed tool versions.
+See `Brewfile` for the Homebrew package list and `mise/.config/mise/config.toml` for all mise-managed tool versions.
 
 ## Usage
 
@@ -215,7 +212,7 @@ git clone <repo-url> ~/.config/initd
 bash ~/.config/initd/bootstrap.sh
 ```
 
-On a fresh machine, `bootstrap.sh` installs Homebrew packages, sets fish as the default shell, syncs fisher plugins, links configs into place, trusts the managed mise config, installs runtimes and LSP tooling via mise, removes any legacy Mason state from a previous initd version, and at the end prompts for machine type and Git email:
+On a fresh machine, `bootstrap.sh` installs Homebrew packages, sets fish as the default shell, syncs fisher plugins, links configs into place, trusts the managed mise config, installs runtimes and LSP tooling via mise, and at the end prompts for machine type and Git email:
 
 ```
 :: Machine type [personal/work] (default: personal): work
@@ -293,19 +290,19 @@ For runtime version changes, edit `~/.config/initd/mise/.config/mise/config.toml
 
 ## Updating the curated Brewfile
 
-`platforms/darwin/Brewfile` is intended to stay curated. Installing a package with `brew install` or `brew install --cask` does **not** update it automatically.
+`Brewfile` is intended to stay curated. Installing a package with `brew install` or `brew install --cask` does **not** update it automatically.
 
 When you decide a package should be part of bootstrap:
 
 1. Add it with `./brewinstall <package>`, `./brewinstall --cask <package>`, or `./brewinstall --formula <package>`.
 2. Re-run `bash ~/.config/initd/bootstrap.sh` to confirm the curated list still applies cleanly.
 
-`brewinstall` detects whether a package is a formula or cask when possible, updates `platforms/darwin/Brewfile`, and applies the Brewfile locally with `brew bundle`.
+`brewinstall` detects whether a package is a formula or cask when possible, updates `Brewfile`, and applies it locally with `brew bundle`.
 
 If you want Homebrew to dump your machine's current state as a starting point, you can use:
 
 ```bash
-brew bundle dump --force --file ~/.config/initd/platforms/darwin/Brewfile
+brew bundle dump --force --file ~/.config/initd/Brewfile
 ```
 
 Review the result carefully before committing it. `brew bundle dump` exports everything installed on the current machine, which can add packages you do not want in the shared bootstrap.

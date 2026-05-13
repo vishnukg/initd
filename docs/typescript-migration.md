@@ -74,7 +74,6 @@ initd/
 | Current Bash entrypoint | Future TypeScript command |
 |---|---|
 | `bootstrap.sh` | `initd bootstrap` |
-| `platforms/darwin/bootstrap.sh` | `initd bootstrap --platform darwin` |
 | `scripts/link.sh` | `initd link` |
 | `scripts/cleanup.sh` | `initd cleanup` |
 | `scripts/cleanup.sh --dry-run` | `initd cleanup --dry-run` |
@@ -125,7 +124,7 @@ Port helpers before porting full commands.
 |---|---|
 | `scripts/logging.sh` | `src/lib/logging.ts` |
 | `scripts/fs.sh` | `src/lib/fs.ts` |
-| `scripts/paths.sh` | `src/lib/paths.ts` |
+| `scripts/managed-configs.sh` | `src/lib/paths.ts` |
 | command execution in scripts | `src/lib/shell.ts` |
 
 These helpers should centralize:
@@ -232,7 +231,7 @@ Behavior to preserve:
 
 - validate inputs
 - detect formulae and casks when needed
-- update `platforms/darwin/Brewfile`
+- update `Brewfile`
 - keep the Brewfile tidy
 - run `brew bundle`
 - show clear logs
@@ -241,13 +240,12 @@ TypeScript can own Brewfile editing and validation while still calling `brew` fo
 
 ## Phase 8: Port macOS bootstrap last
 
-Port `platforms/darwin/bootstrap.sh` only after the smaller commands are stable.
+Port `bootstrap.sh` only after the smaller commands are stable.
 
 The new command should support:
 
 ```bash
 initd bootstrap
-initd bootstrap --platform darwin
 ```
 
 Behavior to preserve:
@@ -256,7 +254,7 @@ Behavior to preserve:
 - install or verify Homebrew
 - run `brew bundle`
 - handle Docker Desktop carefully
-- install or refresh Oh My Zsh
+- install or refresh fish plugins
 - trust and install mise-managed runtimes
 - run `initd link`
 - verify final managed paths
@@ -334,4 +332,3 @@ Before replacing a Bash script with TypeScript:
 6. The command has clear logs and explicit failure messages.
 
 Only remove old Bash implementation code after the TypeScript path has become the stable default.
-

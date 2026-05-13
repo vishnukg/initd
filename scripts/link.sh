@@ -7,7 +7,7 @@ GITCONFIG="${HOME}/.gitconfig"
 BACKUP_ROOT="${BACKUP_ROOT:-${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S).$$}"
 
 source "${ROOT_DIR}/scripts/logging.sh"
-source "${ROOT_DIR}/scripts/paths.sh"
+source "${ROOT_DIR}/scripts/managed-configs.sh"
 
 install_managed_link() {
   local path="$1"
