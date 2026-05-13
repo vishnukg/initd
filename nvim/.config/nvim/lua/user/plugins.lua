@@ -183,38 +183,6 @@ return require("lazy").setup({
 		ft = { "fga" },
 		opts = { install_treesitter_grammar = true },
 	},
-	-- Bruno API client (.bru syntax via tree-sitter)
-	-- This is a raw grammar repo (no Lua, no nvim-treesitter integration), so we
-	-- compile the parser and install the queries ourselves in the build step.
-	{
-		"kristoferssolo/tree-sitter-bruno",
-		ft = { "bru" },
-		build = function(plugin)
-			local parser_dir = vim.fn.stdpath("data") .. "/site/parser"
-			local query_dir  = vim.fn.stdpath("data") .. "/site/queries/bruno"
-			vim.fn.mkdir(parser_dir, "p")
-			vim.fn.mkdir(query_dir, "p")
-			local r = vim.system({
-				"cc", "-O2", "-shared", "-fPIC",
-				"-o", parser_dir .. "/bruno.so",
-				plugin.dir .. "/src/parser.c",
-				plugin.dir .. "/src/scanner.c",
-				"-I", plugin.dir .. "/src",
-			}):wait()
-			if r.code ~= 0 then
-				error("tree-sitter-bruno compile failed:\n" .. (r.stderr or ""))
-			end
-			for _, f in ipairs({ "highlights.scm", "folds.scm", "indents.scm", "injections.scm" }) do
-				local src = plugin.dir .. "/queries/" .. f
-				if vim.fn.filereadable(src) == 1 then
-					vim.system({ "cp", src, query_dir .. "/" .. f }):wait()
-				end
-			end
-		end,
-		config = function()
-			vim.treesitter.language.register("bruno", "bru")
-		end,
-	},
 
 	-- Test coverage overlay (gcv = load & show, then <leader>cvs for summary)
 	-- Workflow: run tests with neotest → gcv to overlay coverage gutters
