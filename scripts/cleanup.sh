@@ -31,7 +31,7 @@ remove_link() {
     return
   fi
 
-  if (( DRY_RUN )); then
+  if [[ "${DRY_RUN}" == "1" ]]; then
     log "Would remove: ${path} -> $(readlink "${path}")"
     return
   fi
@@ -41,18 +41,30 @@ remove_link() {
 }
 
 main() {
-  local managed_link home_path repo_path
+  local arg managed_link home_path repo_path
 
-  while (($#)); do
-    case "$1" in
-      --dry-run) DRY_RUN=1 ;;
-      -h|--help) usage; return ;;
-      *) log_error "Unknown argument: $1"; usage >&2; exit 1 ;;
-    esac
+  # $# is the number of remaining CLI args. shift consumes one each loop.
+  while [[ "$#" -gt 0 ]]; do
+    arg="$1"
+
+    if [[ "${arg}" == "--dry-run" ]]; then
+      DRY_RUN=1
+    elif [[ "${arg}" == "-h" || "${arg}" == "--help" ]]; then
+      usage
+      return
+    else
+      log_error "Unknown argument: ${arg}"
+      usage >&2
+      exit 1
+    fi
+
     shift
   done
 
-  (( DRY_RUN )) && log_info "Dry run mode — no files will be removed."
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    log_info "Dry run mode — no files will be removed."
+  fi
+
   log "Removing initd-managed symlinks from ${HOME}"
 
   # .gitconfig is handled separately — it can point to any file under git/profiles.

@@ -42,9 +42,13 @@ ensure_email() {
   fi
 
   mkdir -p "$(dirname "${LOCAL_GITCONFIG}")"
+
   local tmp_config
-  tmp_config="$(mktemp "$(dirname "${LOCAL_GITCONFIG}")/local.gitconfig.XXXXXX")" \
-    || { log_error "Failed to create temp file for git config."; exit 1; }
+  if ! tmp_config="$(mktemp "$(dirname "${LOCAL_GITCONFIG}")/local.gitconfig.XXXXXX")"; then
+    log_error "Failed to create temp file for git config."
+    exit 1
+  fi
+
   printf '[user]\n\temail = %s\n' "${email}" > "${tmp_config}"
   mv "${tmp_config}" "${LOCAL_GITCONFIG}"
   log_success "Git email set to: ${email}"
