@@ -6,6 +6,7 @@ M.capabilities = require("cmp_nvim_lsp").default_capabilities()
 -- Servers where none-ls handles formatting — disable the native LSP formatter
 -- so we don't get two competing format-on-save triggers.
 local formatting_disabled = { ts_ls = true, lua_ls = true, gopls = true }
+local ruby_format_group = vim.api.nvim_create_augroup("RubyLspFormat", { clear = true })
 
 -- Keymaps applied to every buffer where an LSP client attaches.
 -- 0.12 built-in defaults (no explicit mapping needed):
@@ -85,7 +86,9 @@ M.setup = function()
 
 			-- ruby_lsp formats on save via its own standard addon
 			if client.name == "ruby_lsp" and client:supports_method("textDocument/formatting") then
+				vim.api.nvim_clear_autocmds({ group = ruby_format_group, buffer = bufnr })
 				vim.api.nvim_create_autocmd("BufWritePre", {
+					group = ruby_format_group,
 					buffer = bufnr,
 					callback = function()
 						vim.lsp.buf.format({ bufnr = bufnr, id = client.id })
