@@ -32,7 +32,8 @@ initd/
 │   ├── logging.sh
 │   ├── macos.sh
 │   ├── managed-configs.sh
-│   └── test-install-behavior.sh
+│   ├── test-install-behavior.sh
+│   └── update.sh
 ```
 
 ## How it is set up
@@ -51,6 +52,7 @@ initd/
 | Managed dotfile paths | `scripts/managed-configs.sh`, then `scripts/test-install-behavior.sh` |
 | Link, backup, or cleanup safety | `scripts/link.sh`, `scripts/cleanup.sh`, and `scripts/fs.sh` |
 | Git profile switching | `scripts/git-profile.sh` |
+| Package and runtime upgrades | `scripts/update.sh` |
 
 ### Managed config mapping
 
@@ -298,6 +300,16 @@ Cleanup only removes known symlinks that point back into `~/.config/initd`. Non-
 For Neovim plugin changes, update the files under `nvim/.config/nvim`, then open Neovim and run `:Lazy sync`. See [`docs/nvim.md`](docs/nvim.md) for details on the plugin setup.
 
 For runtime version changes, edit `~/.config/initd/mise/.config/mise/config.toml`. Because `~/.config/mise` is a symlink to that directory, changes are live immediately. Re-run `bash ~/.config/initd/bootstrap.sh` when you want bootstrap to refresh installed runtimes on the machine.
+
+## Updating installed tools
+
+Bootstrap does not run a full Homebrew upgrade. To intentionally update installed tools, run:
+
+```bash
+~/.config/initd/scripts/update.sh
+```
+
+This runs `brew update`, `brew upgrade`, `brew cleanup`, and `mise upgrade --yes`.
 
 ## Updating the curated Brewfile
 

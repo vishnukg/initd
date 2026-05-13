@@ -35,6 +35,9 @@ scripts/git-profile.sh work
 scripts/cleanup.sh --dry-run
 scripts/cleanup.sh
 
+# Update Homebrew and mise-managed tools
+scripts/update.sh
+
 # Full bootstrap from scratch
 bash bootstrap.sh
 ```
