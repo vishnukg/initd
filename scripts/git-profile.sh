@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET="${HOME}/.gitconfig"
 
 source "${ROOT_DIR}/scripts/logging.sh"
-source "${ROOT_DIR}/scripts/paths.sh"
+source "${ROOT_DIR}/scripts/managed-configs.sh"
 
 LOCAL_GITCONFIG="${ROOT_DIR}/git/local.gitconfig"
 

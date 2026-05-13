@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-: "${ROOT_DIR:?ROOT_DIR must be set before sourcing scripts/paths.sh}"
+: "${ROOT_DIR:?ROOT_DIR must be set before sourcing scripts/managed-configs.sh}"
 
 # shellcheck disable=SC1091
 source "${ROOT_DIR}/scripts/fs.sh"
