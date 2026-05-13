@@ -156,15 +156,15 @@ The managed config:
 Plugins are declared in `fish/.config/fish/fish_plugins` and installed by bootstrap:
 
 - [`patrickf1/fzf.fish`](https://github.com/patrickf1/fzf.fish) — fzf key bindings (`Ctrl+R` history, `Ctrl+Alt+F` files, `Ctrl+Alt+L` git log)
-- [`meaningful-ooo/sponge`](https://github.com/meaningful-ooo/sponge) — removes failed commands from history automatically
 
 The managed `config.fish`:
 
 1. Loads Homebrew shell environment for Apple Silicon
-2. Sets the Nord color theme
-3. Enables vi key bindings (with `Ctrl+A`/`Ctrl+E` restored in insert mode)
-4. Defines `vi`/`vim` aliases to `nvim` and a full set of git abbreviations
-5. Initializes `zoxide`, `mise`, and `starship` when those commands are available
+2. Adds mise shims to `PATH` and disables Homebrew's automatic mise fish hook
+3. Sets the Nord color theme directly, without running `fish_config` at startup
+4. Enables vi key bindings (with `Ctrl+A`/`Ctrl+E` restored in insert mode)
+5. Defines `vi`/`vim` aliases to `nvim` and a full set of git abbreviations
+6. Initializes `zoxide` and `starship` when those commands are available
 
 To add or update plugins, edit `fish_plugins` and run `fisher update` inside fish, then commit the updated plugin files.
 

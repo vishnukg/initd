@@ -120,7 +120,7 @@ fisher update               # sync all plugins from fish_plugins
 fisher remove owner/repo    # uninstall
 ```
 
-Current plugins: `patrickf1/fzf.fish`, `meaningful-ooo/sponge`.
+Current plugin: `patrickf1/fzf.fish`.
 
 ## Useful built-in shortcuts
 
@@ -130,8 +130,9 @@ Current plugins: `patrickf1/fzf.fish`, `meaningful-ooo/sponge`.
 | `Alt+.` | Insert last argument from previous command |
 | `Alt+↑` | Search history for commands starting with current input |
 | `Ctrl+R` | Fuzzy history search (via fzf.fish) |
-| `Ctrl+T` | Fuzzy file search (via fzf.fish) |
-| `Alt+C` | Fuzzy directory jump (via fzf.fish) |
+| `Ctrl+Alt+F` | Fuzzy file/directory search (via fzf.fish) |
+| `Ctrl+Alt+L` | Fuzzy git log search (via fzf.fish) |
+| `Ctrl+Alt+S` | Fuzzy git status search (via fzf.fish) |
 | `Esc` | Switch to normal (vi) mode |
 | `Ctrl+A` / `Ctrl+E` | Beginning / end of line (restored in insert mode) |
 
@@ -143,9 +144,26 @@ fish/.config/fish/
   fish_plugins         # fisher plugin list — committed to git
   fish_variables       # universal variables — NOT committed (machine-local state)
   conf.d/              # auto-sourced snippets (load order: alphabetical)
+    00-initd-env.fish  # early env vars that must exist before vendor snippets
   functions/           # autoloaded functions
   themes/              # .theme files (if any custom themes are added)
 ```
+
+### Why `00-initd-env.fish` exists
+
+Fish loads files from `conf.d/` before it loads `config.fish`. Homebrew packages
+can also install their own fish snippets in vendor `conf.d/` directories.
+
+The mise Homebrew formula installs a vendor snippet that runs the full
+`mise activate fish` hook unless `MISE_FISH_AUTO_ACTIVATE` is disabled first.
+This repo uses mise shims instead, so full shell activation is unnecessary
+startup work. `00-initd-env.fish` exists only to set that variable early enough:
+
+```fish
+set -gx MISE_FISH_AUTO_ACTIVATE 0
+```
+
+The name starts with `00-` so it is easy to spot as an early startup file.
 
 ## Interactive vs non-interactive
 
@@ -159,7 +177,7 @@ Config split in `config.fish`:
 ┌─ always runs ───────────────────────────────────────────┐
 │  Homebrew PATH + env vars   (scripts need these)        │
 │  fish_add_path              (PATH additions, idempotent) │
-│  mise activate              (tool versions for scripts)  │
+│  mise shims                 (tool versions for scripts)  │
 └─────────────────────────────────────────────────────────┘
   if not status is-interactive; exit; end
 ┌─ interactive only ──────────────────────────────────────┐
@@ -175,6 +193,20 @@ bindings — none of which have any effect outside a terminal.
 
 The same rule applies to `conf.d/` files that define interactive-only behaviour.
 `conf.d/fzf.fish` already does this with its own guard at the top.
+
+## Startup speed choices
+
+The config keeps startup fast by avoiding setup commands during shell startup:
+
+- mise uses `~/.local/share/mise/shims` on `PATH` instead of `mise activate`.
+- `starship` and `zoxide` are loaded from their mise install directories when
+  available, so fish does not need to resolve them through shims first.
+- Nord colors are set directly with `fish_color_*` variables instead of running
+  `fish_config theme choose nord` on every shell start.
+- `fish_greeting` is a normal global variable, not a universal variable written
+  back to `fish_variables`.
+- Fisher plugins are kept minimal. Fish already has history autosuggestions
+  built in, so only `fzf.fish` is installed.
 
 ## Machine-local config
 

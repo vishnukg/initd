@@ -56,15 +56,32 @@ milliseconds but the shim directory never changes, so any process that has it
 on `$PATH` — the shell, nvim, CI, a launchd daemon — always gets the right
 version without needing mise to be "activated" at all.
 
-This repo uses shims. `~/.config/fish/config.fish` adds the shim directory once
-at shell startup:
+This repo uses shims. `~/.config/fish/config.fish` adds the shim directory at
+shell startup:
 
 ```fish
 fish_add_path ~/.local/share/mise/shims
 ```
 
-That's the only mise-related line in the fish config. No `mise activate`, no
-`eval`, no prompt hooks.
+Fish also sets `MISE_FISH_AUTO_ACTIVATE=0` in
+`~/.config/fish/conf.d/00-initd-env.fish`. That disables the automatic
+Homebrew-installed mise fish hook before vendor snippets run. No
+`mise activate`, no `eval`, no prompt hooks.
+
+For startup speed, `config.fish` also adds the direct install directories for a
+couple of prompt-time tools when they exist:
+
+```fish
+if test -d ~/.local/share/mise/installs/starship/latest
+    fish_add_path ~/.local/share/mise/installs/starship/latest
+end
+if test -d ~/.local/share/mise/installs/zoxide/latest
+    fish_add_path ~/.local/share/mise/installs/zoxide/latest
+end
+```
+
+That keeps normal mise-managed tools on shims, while avoiding an extra shim
+lookup for commands that run every time an interactive shell starts.
 
 ## Why shims work better for this setup
 
@@ -74,8 +91,8 @@ That's the only mise-related line in the fish config. No `mise activate`, no
   `vim.fn.executable()` just work.
 - **No shell startup overhead.** `mise activate` re-evaluates on every prompt
   draw. Shims move the version lookup to the moment you actually run the tool.
-- **Simpler config.fish.** One `fish_add_path` line vs. `mise activate fish |
-  source` plus hook functions.
+- **Simpler shell behavior.** A fixed PATH plus one early opt-out variable is
+  easier to reason about than `mise activate fish | source` plus hook functions.
 
 ## Configuration
 
