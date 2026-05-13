@@ -41,6 +41,17 @@ initd/
 - **`Brewfile` and `bootstrap.sh`**: macOS package and machine setup
 - **`scripts/`**: helper scripts for links, cleanup, Git profiles, and macOS defaults
 
+### Maintenance map
+
+| To change | Edit |
+|---|---|
+| Bootstrap order or machine setup | `bootstrap.sh` |
+| Homebrew packages, apps, or fonts | `Brewfile` or `./brewinstall <package>` |
+| macOS defaults | `scripts/macos.sh` |
+| Managed dotfile paths | `scripts/managed-configs.sh`, then `scripts/test-install-behavior.sh` |
+| Link, backup, or cleanup safety | `scripts/link.sh`, `scripts/cleanup.sh`, and `scripts/fs.sh` |
+| Git profile switching | `scripts/git-profile.sh` |
+
 ### Managed config mapping
 
 `initd` is the source of truth. Runtime config paths in `$HOME` are symlinks back into this repo:

@@ -8,7 +8,7 @@ source "${ROOT_DIR}/scripts/fs.sh"
 GIT_PROFILES_DIR="${ROOT_DIR}/git/profiles"
 DEFAULT_GIT_PROFILE="${GIT_PROFILES_DIR}/personal.gitconfig"
 
-# Format: "runtime path in $HOME : source path in this repo".
+# Format: "home path:repo path".
 # To add a managed config, add one entry here and update the tests.
 MANAGED_LINKS=(
   "${HOME}/.config/fish:${ROOT_DIR}/fish/.config/fish"

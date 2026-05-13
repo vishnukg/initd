@@ -78,7 +78,7 @@ MANAGED_LINKS=(
 )
 ```
 
-Format: `runtime path in $HOME : source path in repo`. Scripts split entries with `path="${link%%:*}"` / `src="${link#*:}"`.
+Format: `home path:repo path`. Scripts split entries with `home_path="${managed_link%%:*}"` / `repo_path="${managed_link#*:}"`.
 
 `~/.gitconfig` is deliberately **not** in `MANAGED_LINKS` — it is handled separately in `link.sh` and `cleanup.sh` because it can point to any file under `git/profiles/`.
 

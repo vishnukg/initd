@@ -41,7 +41,7 @@ remove_link() {
 }
 
 main() {
-  local managed_link destination source
+  local managed_link home_path repo_path
 
   while (($#)); do
     case "$1" in
@@ -63,12 +63,12 @@ main() {
   fi
 
   for managed_link in "${MANAGED_LINKS[@]}"; do
-    destination="${managed_link%%:*}"
-    source="${managed_link#*:}"
-    if [[ -L "${destination}" ]] && ! symlink_points_to "${destination}" "${source}"; then
-      log_warn "Leaving symlink outside initd ownership: ${destination} -> $(readlink "${destination}")"
+    home_path="${managed_link%%:*}"
+    repo_path="${managed_link#*:}"
+    if [[ -L "${home_path}" ]] && ! symlink_points_to "${home_path}" "${repo_path}"; then
+      log_warn "Leaving symlink outside initd ownership: ${home_path} -> $(readlink "${home_path}")"
     else
-      remove_link "${destination}"
+      remove_link "${home_path}"
     fi
   done
 

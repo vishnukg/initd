@@ -64,6 +64,8 @@ ensure_homebrew() {
 
 ensure_fish() {
   require_command fish "after brew bundle"
+  require_command gh "after brew bundle"
+
   local fish_path
   fish_path="$(command -v fish)"
 
@@ -76,8 +78,14 @@ ensure_fish() {
     log_success "fish already in /etc/shells."
   fi
 
-  # dscl avoids the interactive password prompt that chsh requires
-  if [[ "${SHELL}" != "${fish_path}" ]]; then
+  # Read the saved login shell instead of $SHELL. $SHELL can stay stale until
+  # the user opens a new terminal, which would make repeated bootstrap runs ask
+  # for sudo again.
+  local login_shell
+  login_shell="$(dscl . -read "/Users/${USER}" UserShell 2>/dev/null | awk '{print $2}' || true)"
+
+  # dscl avoids the interactive password prompt that chsh requires.
+  if [[ "${login_shell}" != "${fish_path}" ]]; then
     log "Setting fish as default shell for ${USER}."
     sudo dscl . -create "/Users/${USER}" UserShell "${fish_path}" \
       || { log_error "Failed to set fish as default shell via dscl — check sudo access."; exit 1; }
@@ -118,6 +126,12 @@ setup_git_profile() {
     return
   fi
 
+  if [[ ! -t 0 ]]; then
+    log_warn "Git profile needs setup, but bootstrap is not running interactively."
+    log_info "Run scripts/git-profile.sh personal or scripts/git-profile.sh work later."
+    return
+  fi
+
   log "Setting up Git profile..."
   local git_profile
   printf '%b::%b Machine type [personal/work] (default: personal): ' "${INITD_CYAN}" "${INITD_RESET}"
@@ -128,6 +142,11 @@ setup_git_profile() {
 
 main() {
   ensure_macos
+
+  if [[ ! -f "${BREWFILE}" ]]; then
+    log_error "Brewfile not found: ${BREWFILE}"
+    exit 1
+  fi
 
   brewfile_tmp="$(mktemp)" || { log_error "Failed to create temporary Brewfile."; exit 1; }
   # Also cleans up the .tmp file the Docker filter below may create.
