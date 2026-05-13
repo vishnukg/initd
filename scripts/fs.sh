@@ -34,10 +34,11 @@ verify_symlink_target() {
 
 backup_path() {
   local path="$1"
-  # Strip $HOME prefix so the backup mirrors the original directory shape.
-  # e.g. ~/.config/fish → ${BACKUP_ROOT}/.config/fish
-  local relative="${path#"${HOME}/"}" # strips the $HOME/ prefix, e.g. /Users/you/.config/fish → .config/fish
-  # The ':' is a no-op command. '${VAR:?msg}' exits with msg if VAR is unset — a bash guard idiom.
+
+  # Keep the same shape under the backup directory:
+  # /Users/you/.config/fish becomes ${BACKUP_ROOT}/.config/fish.
+  local relative="${path#"${HOME}/"}"
+
   : "${BACKUP_ROOT:?BACKUP_ROOT must be set before calling backup_path}"
   local backup="${BACKUP_ROOT}/${relative}"
 
