@@ -1,0 +1,116 @@
+# --- Core Settings ---
+scrollback-limit = 500
+window-padding-x = 0
+window-padding-y = 0
+window-decoration = true
+confirm-close-surface = false
+shell-integration = detect
+
+bell-features = no-system,no-audio,no-attention,no-title,no-border
+cursor-style = block
+cursor-style-blink = false
+cursor-color = #ffffff
+cursor-text = #141414
+
+macos-titlebar-style = transparent
+window-titlebar-background = #000000
+window-colorspace = display-p3
+
+# --- Background & Opacity ---
+background = #000000
+background-opacity = 0.58
+background-blur = false
+
+# --- Fonts ---
+font-family = "Fira Code"
+font-family-bold = "Fira Code"
+font-family-italic = "Fira Code"
+font-family-bold-italic = "Fira Code"
+font-size = 15
+font-feature = -calt
+font-feature = -liga
+
+# --- Theme: VSCode Dark ---
+foreground = #cccccc
+selection-foreground = #cccccc
+selection-background = #264f78
+
+palette = 0=#000000
+palette = 1=#f14c4c
+palette = 2=#23d18b
+palette = 3=#f5f543
+palette = 4=#3b8eea
+palette = 5=#d670d6
+palette = 6=#29b8db
+palette = 7=#e5e5e5
+palette = 8=#666666
+palette = 9=#cd3131
+palette = 10=#0dbc79
+palette = 11=#e5e510
+palette = 12=#2472c8
+palette = 13=#bc3fbc
+palette = 14=#11a8cd
+palette = 15=#e5e5e5
+
+# --- Tabs & Splits ---
+window-show-tab-bar = auto
+window-new-tab-position = current
+window-inherit-working-directory = true
+tab-inherit-working-directory = true
+split-inherit-working-directory = true
+unfocused-split-opacity = 0.7
+split-divider-color = #414140
+
+# --- Keyboard Shortcuts ---
+
+# Opacity preset
+keybind = super+shift+o=toggle_background_opacity
+keybind = super+shift+p=toggle_background_opacity
+
+# Splitting terminals
+keybind = super+shift+v=new_split:right
+keybind = super+shift+h=new_split:down
+keybind = super+shift+d=close_surface
+keybind = super+enter=new_window
+
+# Moving focus between splits
+keybind = super+h=goto_split:left
+keybind = super+l=goto_split:right
+keybind = super+k=goto_split:up
+keybind = super+j=goto_split:down
+
+# Resizing splits
+keybind = ctrl+super+arrow_left=resize_split:left,2
+keybind = ctrl+super+arrow_right=resize_split:right,2
+keybind = ctrl+super+arrow_up=resize_split:up,2
+keybind = ctrl+super+arrow_down=resize_split:down,2
+keybind = ctrl+super+r=equalize_splits
+
+# Tab management
+keybind = super+t=new_tab
+keybind = alt+n=next_tab
+keybind = alt+p=previous_tab
+keybind = super+w=ignore
+keybind = super+alt+arrow_left=move_tab:-1
+keybind = super+alt+arrow_right=move_tab:1
+
+# Jump to specific tabs
+keybind = super+1=goto_tab:1
+keybind = super+2=goto_tab:2
+keybind = super+3=goto_tab:3
+keybind = super+4=goto_tab:4
+keybind = super+5=goto_tab:5
+keybind = super+6=goto_tab:6
+keybind = super+7=goto_tab:7
+keybind = super+8=goto_tab:8
+keybind = super+9=goto_tab:9
+
+# Window controls
+keybind = super+n=goto_window:next
+keybind = super+p=goto_window:previous
+
+# Text navigation (macOS style)
+keybind = alt+arrow_left=esc:b
+keybind = alt+arrow_right=esc:f
+keybind = super+arrow_left=text:\x01
+keybind = super+arrow_right=text:\x05

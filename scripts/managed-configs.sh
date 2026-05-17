@@ -12,6 +12,7 @@ DEFAULT_GIT_PROFILE="${GIT_PROFILES_DIR}/personal.gitconfig"
 # To add a managed config, add one entry here and update the tests.
 MANAGED_LINKS=(
   "${HOME}/.config/fish:${ROOT_DIR}/fish/.config/fish"
+  "${HOME}/.config/ghostty:${ROOT_DIR}/ghostty/.config/ghostty"
   "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
   "${HOME}/.config/mise:${ROOT_DIR}/mise/.config/mise"
   "${HOME}/.config/nvim:${ROOT_DIR}/nvim/.config/nvim"

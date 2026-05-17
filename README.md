@@ -5,7 +5,7 @@
 It owns both:
 
 - **machine setup**: Homebrew, apps, runtimes, macOS defaults
-- **user config**: Neovim, Kitty, Fish, tmux, Git, and other dotfiles via managed symlinks
+- **user config**: Neovim, Ghostty, Kitty, Fish, tmux, Git, and other dotfiles via managed symlinks
 
 The repo is intentionally macOS-focused today so the bootstrap path stays easy to follow.
 
@@ -19,6 +19,7 @@ initd/
 ├── docs/                     # Maintenance notes and reference guides
 ├── fish/                     # Source linked to ~/.config/fish
 ├── git/                      # Git profiles -> ~/.gitconfig (local.gitconfig is gitignored)
+├── ghostty/                  # Source linked to ~/.config/ghostty
 ├── kitty/                    # Source linked to ~/.config/kitty
 ├── mise/                     # Source linked to ~/.config/mise
 ├── nvim/                     # Source linked to ~/.config/nvim
@@ -62,6 +63,7 @@ initd/
 |---|---|---|
 | `~/.gitconfig` | `git/profiles/personal.gitconfig` or `git/profiles/work.gitconfig` | `scripts/link.sh` and `scripts/git-profile.sh` |
 | `~/.config/fish` | `fish/.config/fish` | `scripts/link.sh` |
+| `~/.config/ghostty` | `ghostty/.config/ghostty` | `scripts/link.sh` |
 | `~/.config/kitty` | `kitty/.config/kitty` | `scripts/link.sh` |
 | `~/.config/mise` | `mise/.config/mise` | `scripts/link.sh` |
 | `~/.config/nvim` | `nvim/.config/nvim` | `scripts/link.sh` |
@@ -76,6 +78,7 @@ That means you edit files **inside `initd`**, not the live paths in `$HOME`.
 The resulting live symlinks are:
 
 - `~/.config/fish` -> `~/.config/initd/fish/.config/fish`
+- `~/.config/ghostty` -> `~/.config/initd/ghostty/.config/ghostty`
 - `~/.config/kitty` -> `~/.config/initd/kitty/.config/kitty`
 - `~/.config/mise` -> `~/.config/initd/mise/.config/mise`
 - `~/.config/nvim` -> `~/.config/initd/nvim/.config/nvim`
@@ -100,6 +103,7 @@ Examples:
 |---|---|
 | `~/.gitconfig` | `~/.config/initd-backups/<timestamp>/.gitconfig` |
 | `~/.config/fish` | `~/.config/initd-backups/<timestamp>/.config/fish` |
+| `~/.config/ghostty` | `~/.config/initd-backups/<timestamp>/.config/ghostty` |
 | `~/.config/kitty` | `~/.config/initd-backups/<timestamp>/.config/kitty` |
 | `~/.config/mise` | `~/.config/initd-backups/<timestamp>/.config/mise` |
 | `~/.config/nvim` | `~/.config/initd-backups/<timestamp>/.config/nvim` |

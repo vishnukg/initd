@@ -84,6 +84,7 @@ test_clean_link_install() {
   run_link "${home}" "${output}"
 
   assert_symlink_resolves_to "${home}/.config/fish" "${ROOT_DIR}/fish/.config/fish"
+  assert_symlink_resolves_to "${home}/.config/ghostty" "${ROOT_DIR}/ghostty/.config/ghostty"
   assert_symlink_resolves_to "${home}/.config/kitty" "${ROOT_DIR}/kitty/.config/kitty"
   assert_symlink_resolves_to "${home}/.config/mise" "${ROOT_DIR}/mise/.config/mise"
   assert_symlink_resolves_to "${home}/.config/nvim" "${ROOT_DIR}/nvim/.config/nvim"
@@ -101,11 +102,12 @@ test_backup_unmanaged_configs() {
   home="$(new_home)"
   output="${TEST_ROOT}/backup-unmanaged.out"
 
-  mkdir -p "${home}/.config/kitty" "${home}/.config/mise" "${home}/.config/nvim" "${home}/.config/fish"
+  mkdir -p "${home}/.config/kitty" "${home}/.config/mise" "${home}/.config/nvim" "${home}/.config/fish" "${home}/.config/ghostty"
   printf 'user kitty config\n' > "${home}/.config/kitty/kitty.conf"
   printf 'user mise config\n' > "${home}/.config/mise/config.toml"
   printf 'user nvim config\n' > "${home}/.config/nvim/init.lua"
   printf 'user fish config\n' > "${home}/.config/fish/config.fish"
+  printf 'user ghostty config\n' > "${home}/.config/ghostty/config"
   printf 'user git config\n' > "${home}/.gitconfig"
 
   # Existing user-authored files must be preserved before initd takes ownership.
@@ -115,11 +117,12 @@ test_backup_unmanaged_configs() {
   assert_symlink "${home}/.config/mise"
   assert_symlink "${home}/.config/nvim"
   assert_symlink "${home}/.config/fish"
+  assert_symlink "${home}/.config/ghostty"
   assert_symlink "${home}/.gitconfig"
   assert_path_exists "${home}/.config/initd-backups"
 
   backup_count="$(find "${home}/.config/initd-backups" -type f | wc -l | tr -d ' ')"
-  [[ "${backup_count}" -ge 5 ]] || fail "Expected at least 5 backed-up files, found ${backup_count}"
+  [[ "${backup_count}" -ge 6 ]] || fail "Expected at least 6 backed-up files, found ${backup_count}"
   assert_output_contains "${output}" "Backing up unmanaged"
 
   log_success "unmanaged config backup"
@@ -159,6 +162,7 @@ test_cleanup_managed_links() {
   mkdir -p "${home}/.config" "${home}/outside"
   ln -s "${ROOT_DIR}/git/profiles/work.gitconfig" "${home}/.gitconfig"
   ln -s "${ROOT_DIR}/kitty/.config/kitty" "${home}/.config/kitty"
+  ln -s "${ROOT_DIR}/ghostty/.config/ghostty" "${home}/.config/ghostty"
   ln -s "${ROOT_DIR}/mise/.config/mise" "${home}/.config/mise"
   ln -s "${ROOT_DIR}/nvim/.config/nvim" "${home}/.config/nvim"
   ln -s "${ROOT_DIR}/fish/.config/fish" "${home}/.config/fish"
@@ -170,6 +174,7 @@ test_cleanup_managed_links() {
 
   assert_path_missing "${home}/.gitconfig"
   assert_path_missing "${home}/.config/kitty"
+  assert_path_missing "${home}/.config/ghostty"
   assert_path_missing "${home}/.config/mise"
   assert_path_missing "${home}/.config/nvim"
   assert_path_missing "${home}/.config/fish"
