@@ -25,7 +25,8 @@ git_profile_link_is_managed() {
   local resolved=""
   [[ -L "${path}" ]] || return 1
   resolved="$(readlink "${path}")"
-  [[ "${resolved}" == "${GIT_PROFILES_DIR}/"*.gitconfig ]] # glob match — true for any .gitconfig under profiles/
+  # Glob match allows any curated profile name, then -f rejects stale/broken links.
+  [[ "${resolved}" == "${GIT_PROFILES_DIR}/"*.gitconfig ]] && [[ -f "${resolved}" ]]
 }
 
 verify_git_profile_link() {

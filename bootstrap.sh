@@ -28,6 +28,13 @@ ensure_macos() {
   exit 1
 }
 
+ensure_user_context() {
+  if [[ "${EUID}" == "0" ]]; then
+    log_error "Do not run bootstrap with sudo. It manages files and login shell settings for your normal user."
+    exit 1
+  fi
+}
+
 ensure_xcode_clt() {
   if xcode-select -p >/dev/null 2>&1; then
     log_success "Xcode Command Line Tools already installed."
@@ -68,6 +75,7 @@ ensure_fish() {
 
   local fish_path
   fish_path="$(command -v fish)"
+  local account_name="${USER:-$(id -un)}"
 
   # Register fish as an allowed shell so chsh accepts it
   if ! grep -qxF "${fish_path}" /etc/shells; then
@@ -82,12 +90,12 @@ ensure_fish() {
   # the user opens a new terminal, which would make repeated bootstrap runs ask
   # for sudo again.
   local login_shell
-  login_shell="$(dscl . -read "/Users/${USER}" UserShell 2>/dev/null | awk '{print $2}' || true)"
+  login_shell="$(dscl . -read "/Users/${account_name}" UserShell 2>/dev/null | awk '{print $2}' || true)"
 
   # dscl avoids the interactive password prompt that chsh requires.
   if [[ "${login_shell}" != "${fish_path}" ]]; then
-    log "Setting fish as default shell for ${USER}."
-    sudo dscl . -create "/Users/${USER}" UserShell "${fish_path}" \
+    log "Setting fish as default shell for ${account_name}."
+    sudo dscl . -create "/Users/${account_name}" UserShell "${fish_path}" \
       || { log_error "Failed to set fish as default shell via dscl — check sudo access."; exit 1; }
   else
     log_success "fish is already the default shell."
@@ -110,6 +118,12 @@ ensure_gh_auth() {
 
   if gh auth token >/dev/null 2>&1; then
     log_success "gh auth check done."
+    return
+  fi
+
+  if [[ ! -t 0 ]]; then
+    log_warn "gh CLI is not authenticated, and bootstrap is not running interactively."
+    log_info "Run gh auth login later, then re-run ./bootstrap.sh so mise and fisher can use GitHub auth."
     return
   fi
 
@@ -142,6 +156,7 @@ setup_git_profile() {
 
 main() {
   ensure_macos
+  ensure_user_context
 
   if [[ ! -f "${BREWFILE}" ]]; then
     log_error "Brewfile not found: ${BREWFILE}"
