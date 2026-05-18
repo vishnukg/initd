@@ -71,7 +71,6 @@ ensure_homebrew() {
 
 ensure_fish() {
   require_command fish "after brew bundle"
-  require_command gh "after brew bundle"
 
   local fish_path
   fish_path="$(command -v fish)"
@@ -197,7 +196,7 @@ main() {
   log "Linking managed configs into ${HOME}..."
   "${ROOT_DIR}/scripts/link.sh"
 
-  log "Authenticating gh CLI..."
+  log "Checking gh CLI authentication..."
   ensure_gh_auth
 
   log "Ensuring fish shell is configured..."

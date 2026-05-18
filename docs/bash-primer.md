@@ -19,6 +19,8 @@ developer can follow like a checklist.
 | `scripts/brewinstall.sh` | Add a formula or cask to the curated Brewfile and apply it locally. |
 | `scripts/fs.sh` | Shared filesystem helpers: `path_exists`, `symlink_points_to`, `verify_symlink_target`, `backup_path`. |
 | `scripts/managed-configs.sh` | The list of paths initd owns and the git-profile helpers. Sources `fs.sh`. |
+| `scripts/macos.sh` | Apply macOS system defaults (key repeat, hushlogin). |
+| `scripts/update.sh` | Upgrade Homebrew packages and mise-managed tools. |
 | `scripts/logging.sh` | Colored log helpers: `log`, `log_info`, `log_success`, `log_warn`, `log_error`. |
 | `scripts/test-install-behavior.sh` | Behavior tests that run against temporary home directories. |
 
@@ -70,6 +72,7 @@ open the helper function whose name matches the step you care about.
 ```bash
 MANAGED_LINKS=(
   "${HOME}/.config/fish:${ROOT_DIR}/fish/.config/fish"
+  "${HOME}/.config/ghostty:${ROOT_DIR}/ghostty/.config/ghostty"
   "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
   "${HOME}/.config/mise:${ROOT_DIR}/mise/.config/mise"
   "${HOME}/.config/nvim:${ROOT_DIR}/nvim/.config/nvim"
