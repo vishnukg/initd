@@ -14,7 +14,7 @@ cursor-text = #141414
 
 macos-titlebar-style = transparent
 window-titlebar-background = #000000
-window-colorspace = display-p3
+window-colorspace = srgb
 
 # --- Background & Opacity ---
 background = #000000
