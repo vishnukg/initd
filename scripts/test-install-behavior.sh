@@ -152,6 +152,24 @@ test_git_profile_switcher() {
   log_success "git profile switcher"
 }
 
+test_broken_git_profile_link_is_repaired() {
+  local home=""
+  local output=""
+  local backup_count
+
+  home="$(new_home)"
+  output="${TEST_ROOT}/broken-git-profile.out"
+
+  ln -s "${ROOT_DIR}/git/profiles/missing.gitconfig" "${home}/.gitconfig"
+
+  run_link "${home}" "${output}"
+  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/git/profiles/personal.gitconfig"
+  backup_count="$(find "${home}/.config/initd-backups" -name .gitconfig -type l | wc -l | tr -d ' ')"
+  [[ "${backup_count}" -eq 1 ]] || fail "Expected one backed-up broken .gitconfig symlink, found ${backup_count}"
+
+  log_success "broken git profile link repair"
+}
+
 test_cleanup_managed_links() {
   local home=""
   local output=""
@@ -193,6 +211,7 @@ main() {
   test_clean_link_install
   test_backup_unmanaged_configs
   test_git_profile_switcher
+  test_broken_git_profile_link_is_repaired
   test_cleanup_managed_links
   log_success "All install behavior tests passed."
 }
