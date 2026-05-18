@@ -552,6 +552,7 @@ nvim/.config/nvim/
         │   └── settings/   ← per-server settings returned as tables
         ├── cmp.lua         ← nvim-cmp completion setup
         ├── treesitter.lua  ← treesitter setup + auto-install + FileType attach
+        ├── parsers.lua     ← standalone tree-sitter parser manager (not wired up; alternative to nvim-treesitter)
         ├── nvimtree.lua    ← file explorer
         ├── lualine.lua     ← status line
         ├── gitsigns.lua    ← git gutter signs

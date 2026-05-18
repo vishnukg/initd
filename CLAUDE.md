@@ -52,6 +52,7 @@ bootstrap.sh                    ← macOS bootstrap; reads uname -s
   ├─ ensure_homebrew
   ├─ brew bundle                ← installs all Homebrew packages/casks
   ├─ scripts/link.sh            ← installs managed symlinks
+  ├─ ensure_gh_auth             ← authenticate gh CLI (used by fisher to avoid rate limits)
   ├─ ensure_fish                ← registers shell, installs fisher, syncs plugins
   ├─ mise trust + install       ← installs all runtimes and LSP tooling
   ├─ scripts/macos.sh
