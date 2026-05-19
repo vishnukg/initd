@@ -165,12 +165,12 @@ Treesitter parsers are compiled native libraries. The `tree-sitter-cli` binary i
 
 ### Tool installation (mise)
 
-LSP servers, formatters, and linters are **not** managed by Neovim. They are installed by [mise](https://mise.jdx.dev/) via `~/.config/initd/mise/.config/mise/config.toml`. mise puts shims in `~/.local/share/mise/shims` on `PATH` ahead of Homebrew, so Neovim's `vim.fn.executable()` checks find everything.
+LSP servers, formatters, and linters are **not** managed by Neovim. They are installed by [mise](https://mise.jdx.dev/) via `~/.config/initd/shared/configs/mise/.config/mise/config.toml`. mise puts shims in `~/.local/share/mise/shims` on `PATH` ahead of Homebrew, so Neovim's `vim.fn.executable()` checks find everything.
 
 ```
 mise tool sources (one committed file, every machine identical):
 
-~/.config/initd/mise/.config/mise/config.toml
+~/.config/initd/shared/configs/mise/.config/mise/config.toml
   ├── runtimes                 ← go, node, python, ruby, dotnet, terraform
   ├── LSP servers              ← lua_ls, gopls, pyright, ts_ls, taplo, …
   └── linters / formatters     ← stylua, black, golangci-lint, prettierd, …

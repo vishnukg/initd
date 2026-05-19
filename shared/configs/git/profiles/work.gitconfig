@@ -6,7 +6,7 @@
 
 ; email is loaded from a machine-local file — never committed
 [include]
-	path = ~/.config/initd/git/local.gitconfig
+	path = ~/.config/initd/shared/configs/git/local.gitconfig
 
 [interactive]
 	diffFilter = delta --color-only

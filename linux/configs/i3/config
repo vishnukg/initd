@@ -44,7 +44,7 @@ exec --no-startup-id xsettingsd
 exec --no-startup-id ~/.config/lockscreen-update.sh
 
 # Picom
-exec_always --no-startup-id pkill -x picom; while pgrep -x picom > /dev/null; do sleep 0.1; done; picom --config ~/.config/picom.conf
+exec_always --no-startup-id pkill -x picom; while pgrep -x picom > /dev/null; do sleep 0.1; done; picom --config ~/.config/picom/picom.conf
 
 # Use pactl to adjust volume in PulseAudio/PipeWire.
 set $refresh_i3status killall -SIGUSR1 i3status
@@ -61,7 +61,7 @@ floating_modifier $mod
 tiling_drag modifier titlebar
 
 # start a terminal
-bindsym $mod+Return exec --no-startup-id xfce4-terminal
+bindsym $mod+Return exec --no-startup-id kitty
 
 
 # start firefox
