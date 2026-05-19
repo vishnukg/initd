@@ -22,7 +22,6 @@ style = "bold yellow"
 [git_status]
 format = '([\[$all_status$ahead_behind\]]($style) )'
 style = "red bold"
-use_git_executable = true
 
 [cmd_duration]
 min_time = 2000
