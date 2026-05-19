@@ -19,6 +19,7 @@ MANAGED_LINKS=(
   "${HOME}/.config/kitty:${ROOT_DIR}/shared/configs/kitty/.config/kitty"
   "${HOME}/.config/mise:${ROOT_DIR}/shared/configs/mise/.config/mise"
   "${HOME}/.config/nvim:${ROOT_DIR}/shared/configs/nvim/.config/nvim"
+  "${HOME}/.config/starship.toml:${ROOT_DIR}/shared/configs/starship/.config/starship.toml"
   "${HOME}/.config/tmux:${ROOT_DIR}/shared/configs/tmux/.config/tmux"
 )
 

@@ -1,0 +1,33 @@
+# Keep the prompt fast in large repos. The default Starship format probes many
+# language runtimes and computes full git status; those can add hundreds of ms.
+format = "$directory$git_branch$git_state$cmd_duration$line_break$character"
+command_timeout = 150
+scan_timeout = 10
+add_newline = true
+
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+style = "cyan bold"
+
+[git_branch]
+format = "on [$symbol$branch(:$remote_branch)]($style) "
+symbol = " "
+style = "bold purple"
+
+[git_state]
+format = '\([$state( $progress_current/$progress_total)]($style)\) '
+style = "bold yellow"
+
+[cmd_duration]
+min_time = 2000
+format = "took [$duration]($style) "
+style = "yellow bold"
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[❮](bold green)"
+vimcmd_visual_symbol = "[❮](bold yellow)"
+vimcmd_replace_symbol = "[❮](bold purple)"
+vimcmd_replace_one_symbol = "[❮](bold purple)"
