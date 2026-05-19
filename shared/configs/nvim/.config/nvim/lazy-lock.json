@@ -19,7 +19,7 @@
   "lazy.nvim": { "branch": "main", "commit": "306a05526ada86a7b30af95c5cc81ffba93fef97" },
   "lualine.nvim": { "branch": "master", "commit": "131a558e13f9f28b15cd235557150ccb23f89286" },
   "neotest": { "branch": "master", "commit": "ad991822b7076b1d940b33a9d6d0d30416d5df81" },
-  "neotest-golang": { "branch": "main", "commit": "84c1f3be59f85a2f5bbb9290040077bc8a68a00c" },
+  "neotest-golang": { "branch": "main", "commit": "5b15cab0e2475b036c2e2067b2a973b9e4ea3180" },
   "neotest-jest": { "branch": "main", "commit": "0e7979d51301dfae5ef839d771bd28cf593fde3f" },
   "neotest-minitest": { "branch": "main", "commit": "4d1c19f80be0efff7656dea76a589c02bf418b68" },
   "neotest-vitest": { "branch": "main", "commit": "f01addc6f07b79ef1be5f4297eafbee9e0959018" },
