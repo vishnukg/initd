@@ -332,7 +332,8 @@ PYEOF
 restart_dunst() {
   if pgrep -x dunst >/dev/null 2>&1; then
     pkill -x dunst; sleep 0.1
-    dunst &
+    dunst >/dev/null 2>&1 &
+    disown
     log "dunst restarted."
   fi
 }
@@ -340,7 +341,8 @@ restart_dunst() {
 restart_xsettingsd() {
   if pgrep -x xsettingsd >/dev/null 2>&1; then
     pkill -x xsettingsd; sleep 0.1
-    xsettingsd &
+    xsettingsd >/dev/null 2>&1 &
+    disown
     log "xsettingsd restarted."
   fi
 }

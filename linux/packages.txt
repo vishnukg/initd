@@ -43,7 +43,6 @@ tmux
 tig
 git
 gnupg
-neovim
 kitty
 
 # ── Build dependencies for mise-managed Ruby / Python / Node ─────────────────

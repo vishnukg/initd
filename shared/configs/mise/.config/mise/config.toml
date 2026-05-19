@@ -30,6 +30,7 @@ yarn      = ["latest", "1.22.22"]
 "dotnet:csharp-ls"                      = "latest" # csharp_ls
 
 # ── CLI tools ──────────────────────────────────────────────────────────
+"neovim"                 = "stable"
 "delta"                  = "latest" # git-delta
 "fd"                     = "latest"
 "fzf"                    = "latest"
@@ -39,7 +40,8 @@ yarn      = ["latest", "1.22.22"]
 "starship"               = "latest"
 "zoxide"                 = "latest"
 "github:openfga/openfga" = "latest"
-"npm:tree-sitter-cli"    = "latest" # required by nvim treesitter parser compilation
+"npm:tree-sitter-cli"        = "latest" # required by nvim treesitter parser compilation
+"npm:@anthropic-ai/claude-code" = "latest"
 
 # ── linters / formatters (consumed by nvim/.../user/lsp/null-ls.lua) ───
 "stylua"                                   = "latest"
