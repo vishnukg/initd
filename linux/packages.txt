@@ -17,7 +17,6 @@ arandr
 nitrogen
 polybar
 rofi
-xfce4-terminal
 dunst
 libnotify-bin
 xsettingsd

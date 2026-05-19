@@ -233,6 +233,24 @@ link_icons_default() {
   fi
 }
 
+link_lockscreen_scripts() {
+  # i3 invokes these by absolute ~/.config/ path, so they need their own symlinks
+  # (they live in linux/scripts/ rather than under any MANAGED_LINKS-style dir).
+  local name target src
+  for name in lockscreen.sh lockscreen-update.sh; do
+    target="${HOME}/.config/${name}"
+    src="${SCRIPTS_DIR}/${name}"
+    chmod +x "${src}" 2>/dev/null || true
+    if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
+      log_success "${name} already linked."
+    else
+      [[ -e "${target}" || -L "${target}" ]] && rm -f "${target}"
+      ln -s "${src}" "${target}"
+      log_success "Linked ~/.config/${name}"
+    fi
+  done
+}
+
 patch_polybar_hardware() {
   # Auto-detect hardware names so polybar shows real values. Patches the source
   # file under linux/configs/, which is symlinked from ~/.config/polybar.
@@ -342,6 +360,7 @@ main() {
   link_xresources
   link_gtkrc_2
   link_icons_default
+  link_lockscreen_scripts
   patch_polybar_hardware
   link_firefox_profile
 
