@@ -126,3 +126,4 @@ end
 if test -f ~/.config/fish/local.fish
     source ~/.config/fish/local.fish
 end
+export PATH="$HOME/.local/bin:$PATH"
