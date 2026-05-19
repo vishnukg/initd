@@ -1,0 +1,22 @@
+# Force LF for files that must be Unix line-ended regardless of where they were
+# edited. Anything bash parses (or that lives on /etc/) breaks if it lands with
+# CRLF. Both macOS and Linux are LF-native, so this matters only when a
+# committer edits from Windows or via a tool that defaults to CRLF.
+
+*.sh        text eol=lf
+*.fish      text eol=lf
+*.conf      text eol=lf
+*.ini       text eol=lf
+*.rasi      text eol=lf
+*.gitconfig text eol=lf
+*.toml      text eol=lf
+*.lua       text eol=lf
+*.md        text eol=lf
+Brewfile    text eol=lf
+packages.txt text eol=lf
+
+# Fonts and binaries — leave alone.
+*.ttf       binary
+*.otf       binary
+*.png       binary
+*.jpg       binary

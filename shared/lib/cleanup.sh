@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Removes managed symlinks. Run as:
+#   shared/lib/cleanup.sh <platform> [--dry-run]
+
+PLATFORM="${1:?platform required: macos or linux}"
+shift
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DRY_RUN=0
 
-source "${ROOT_DIR}/scripts/logging.sh"
-source "${ROOT_DIR}/scripts/managed-configs.sh"
+# shellcheck disable=SC1091
+source "${ROOT_DIR}/shared/lib/logging.sh"
+# shellcheck disable=SC1091
+source "${ROOT_DIR}/shared/managed-links.sh"
+# shellcheck disable=SC1091
+source "${ROOT_DIR}/${PLATFORM}/managed-links.sh"
 
 usage() {
   cat <<EOF
-Usage: ${0##*/} [--dry-run]
+Usage: ${0##*/} <platform> [--dry-run]
 
-Remove initd-managed symlinks from \$HOME.
+Remove initd-managed symlinks from \$HOME for the given platform.
 
 Options:
   --dry-run      Print what would be removed without changing files.
@@ -43,7 +53,6 @@ remove_link() {
 main() {
   local arg managed_link home_path repo_path
 
-  # $# is the number of remaining CLI args. shift consumes one each loop.
   while [[ "$#" -gt 0 ]]; do
     arg="$1"
 
@@ -65,9 +74,8 @@ main() {
     log_info "Dry run mode — no files will be removed."
   fi
 
-  log "Removing initd-managed symlinks from ${HOME}"
+  log "Removing initd-managed symlinks from ${HOME} (${PLATFORM})"
 
-  # .gitconfig is handled separately — it can point to any file under git/profiles.
   if [[ -L "${HOME}/.gitconfig" ]] && ! git_profile_link_is_managed "${HOME}/.gitconfig"; then
     log_warn "Leaving symlink outside initd ownership: ${HOME}/.gitconfig -> $(readlink "${HOME}/.gitconfig")"
   else

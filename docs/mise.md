@@ -5,8 +5,8 @@ replaces `nvm`, `rbenv`, `pyenv`, `tfenv`, and similar single-language tools
 with one binary that handles all of them. It also manages CLI tools and LSP
 servers — anything that needs a pinned version.
 
-This repo's tool inventory lives in `mise/.config/mise/config.toml`, symlinked
-to `~/.config/mise/config.toml` by `scripts/link.sh`.
+This repo's tool inventory lives in `shared/configs/mise/.config/mise/config.toml`, symlinked
+to `~/.config/mise/config.toml` by `shared/lib/link.sh`.
 
 ## How mise manages versions
 

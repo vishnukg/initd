@@ -1,0 +1,21 @@
+/* Structural tweaks only — colors come from Firefox's built-in dark theme */
+
+/* Compact tab bar height */
+#TabsToolbar { height: 32px !important; }
+.tab-stack    { height: 30px !important; }
+
+/* Slightly rounded URL bar */
+#urlbar-background {
+  border-radius: 8px !important;
+}
+
+/* Thin scrollbars */
+scrollbar {
+  -moz-appearance: none !important;
+  width: 6px !important;
+  height: 6px !important;
+}
+scrollbar thumb {
+  border-radius: 3px !important;
+  -moz-appearance: none !important;
+}

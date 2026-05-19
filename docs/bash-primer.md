@@ -12,23 +12,27 @@ developer can follow like a checklist.
 
 | File | Purpose |
 |---|---|
-| `bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → links → fish → mise → macOS defaults. |
-| `scripts/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files. |
-| `scripts/cleanup.sh` | Remove only the symlinks that initd created. |
-| `scripts/git-profile.sh` | Switch `~/.gitconfig` between the curated Git profiles. |
-| `scripts/brewinstall.sh` | Add a formula or cask to the curated Brewfile and apply it locally. |
-| `scripts/fs.sh` | Shared filesystem helpers: `path_exists`, `symlink_points_to`, `verify_symlink_target`, `backup_path`. |
-| `scripts/managed-configs.sh` | The list of paths initd owns and the git-profile helpers. Sources `fs.sh`. |
-| `scripts/macos.sh` | Apply macOS system defaults (key repeat, hushlogin). |
-| `scripts/update.sh` | Upgrade Homebrew packages and mise-managed tools. |
-| `scripts/logging.sh` | Colored log helpers: `log`, `log_info`, `log_success`, `log_warn`, `log_error`. |
-| `scripts/test-install-behavior.sh` | Behavior tests that run against temporary home directories. |
+| `bootstrap.sh` | Dispatcher: detects `uname -s` and execs the platform bootstrap. |
+| `macos/bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → links → fish → mise → macOS defaults. |
+| `linux/bootstrap.sh` | Linux setup: apt packages → gh/mise → links → linux/setup.sh → fish → mise → git profile. |
+| `linux/setup.sh` | Linux system fixes (xorg, wifi, picom hook, fonts, polybar patch, firefox, Xresources). |
+| `shared/lib/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files. Takes platform arg. |
+| `shared/lib/cleanup.sh` | Remove only the symlinks that initd created. Takes platform arg. |
+| `shared/lib/git-profile.sh` | Switch `~/.gitconfig` between the curated Git profiles. |
+| `macos/brewinstall.sh` | Add a formula or cask to the curated Brewfile and apply it locally. |
+| `shared/lib/fs.sh` | Shared filesystem helpers: `path_exists`, `symlink_points_to`, `verify_symlink_target`, `backup_path`. |
+| `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` + git-profile helpers. Sources `fs.sh`. |
+| `<platform>/managed-links.sh` | Appends platform-specific entries to `MANAGED_LINKS`. |
+| `macos/defaults.sh` | Apply macOS system defaults (key repeat, hushlogin). |
+| `macos/update.sh` / `linux/update.sh` | Upgrade Homebrew/apt packages and mise-managed tools. |
+| `shared/lib/logging.sh` | Colored log helpers: `log`, `log_info`, `log_success`, `log_warn`, `log_error`. |
+| `shared/test.sh` | Behavior tests that run against temporary home directories. |
 
 ## How to read a script
 
 Start at `main`, which is always at the bottom. The larger scripts are written
 so `main` reads like a plain-English checklist. For example,
-`bootstrap.sh`:
+`macos/bootstrap.sh`:
 
 ```bash
 main() {
@@ -38,13 +42,13 @@ main() {
   # install packages...
   brew bundle --file "${work_brewfile}"
 
-  "${ROOT_DIR}/scripts/link.sh"
+  "${SHARED_DIR}/lib/link.sh" macos
 
   ensure_fish
 
   mise install --yes
 
-  "${ROOT_DIR}/scripts/macos.sh"
+  "${MACOS_DIR}/defaults.sh"
 }
 ```
 
@@ -53,9 +57,10 @@ open the helper function whose name matches the step you care about.
 
 ## Design rules used here
 
-1. **Keep policy data in one place.** `scripts/managed-configs.sh` defines which runtime
-   paths initd owns via `MANAGED_LINKS`.
-2. **Keep filesystem mechanics in one place.** `scripts/fs.sh` owns helpers
+1. **Keep policy data in one place per scope.** `shared/managed-links.sh` defines
+   the cross-platform `MANAGED_LINKS`; each `<platform>/managed-links.sh` appends
+   its OS-only entries to the same array.
+2. **Keep filesystem mechanics in one place.** `shared/lib/fs.sh` owns helpers
    like `path_exists`, `symlink_points_to`, `backup_path`, and
    `verify_symlink_target`.
 3. **Do not delete user files.** Existing unmanaged files are moved to
@@ -67,18 +72,22 @@ open the helper function whose name matches the step you care about.
 
 ## The MANAGED_LINKS list
 
-`scripts/managed-configs.sh` contains the ownership list:
+`shared/managed-links.sh` defines the cross-platform ownership list:
 
 ```bash
 MANAGED_LINKS=(
-  "${HOME}/.config/fish:${ROOT_DIR}/fish/.config/fish"
-  "${HOME}/.config/ghostty:${ROOT_DIR}/ghostty/.config/ghostty"
-  "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
-  "${HOME}/.config/mise:${ROOT_DIR}/mise/.config/mise"
-  "${HOME}/.config/nvim:${ROOT_DIR}/nvim/.config/nvim"
-  "${HOME}/.config/tmux:${ROOT_DIR}/tmux/.config/tmux"
+  "${HOME}/.config/fish:${ROOT_DIR}/shared/configs/fish/.config/fish"
+  "${HOME}/.config/ghostty:${ROOT_DIR}/shared/configs/ghostty/.config/ghostty"
+  "${HOME}/.config/kitty:${ROOT_DIR}/shared/configs/kitty/.config/kitty"
+  "${HOME}/.config/mise:${ROOT_DIR}/shared/configs/mise/.config/mise"
+  "${HOME}/.config/nvim:${ROOT_DIR}/shared/configs/nvim/.config/nvim"
+  "${HOME}/.config/tmux:${ROOT_DIR}/shared/configs/tmux/.config/tmux"
 )
 ```
+
+`linux/managed-links.sh` appends OS-only entries to the same array (i3, polybar,
+rofi, dunst, picom, xsettingsd, gtk-3.0). `macos/managed-links.sh` is currently
+empty — every macOS dotfile lives in `shared/configs/`.
 
 Each entry is `home path:repo path`. Scripts split
 the pair like this:
@@ -88,8 +97,9 @@ home_path="${managed_link%%:*}"  # everything before the first colon
 repo_path="${managed_link#*:}"   # everything after the first colon
 ```
 
-**Adding a new managed config** means adding one line to `MANAGED_LINKS` and
-adding the corresponding assertion to `test-install-behavior.sh`.
+**Adding a new managed config:** add one line to the appropriate `MANAGED_LINKS`
+(`shared/managed-links.sh` for cross-platform, `<platform>/managed-links.sh` for
+OS-only) and re-run `shared/test.sh`.
 
 ## Bash syntax used most often
 
@@ -129,7 +139,7 @@ ln -s $source $path           # breaks if path contains spaces
 
 ### Checking whether a path exists
 
-`path_exists` from `scripts/fs.sh` handles regular files, directories, and
+`path_exists` from `shared/lib/fs.sh` handles regular files, directories, and
 broken symlinks:
 
 ```bash
@@ -143,7 +153,7 @@ deleted), so `path_exists` checks both `-e` and `-L`.
 
 ### Checking where a symlink points
 
-`symlink_points_to` and `verify_symlink_target` from `scripts/fs.sh`:
+`symlink_points_to` and `verify_symlink_target` from `shared/lib/fs.sh`:
 
 ```bash
 # Returns true/false — use in if-conditions
@@ -242,7 +252,7 @@ This is why `BACKUP_ROOT` must be set before calling `backup_path`.
 ### Behavior tests
 
 ```bash
-scripts/test-install-behavior.sh
+shared/test.sh
 ```
 
 This is the most important test. It creates temporary `$HOME` directories and
@@ -262,24 +272,26 @@ After editing a script, verify there are no syntax errors:
 
 ```bash
 bash -n bootstrap.sh \
-  scripts/macos.sh \
-  scripts/link.sh \
-  scripts/cleanup.sh \
-  scripts/git-profile.sh \
-  scripts/logging.sh \
-  scripts/fs.sh \
-  scripts/managed-configs.sh \
-  scripts/test-install-behavior.sh
+  shared/lib/logging.sh shared/lib/fs.sh \
+  shared/lib/link.sh shared/lib/cleanup.sh shared/lib/git-profile.sh \
+  shared/managed-links.sh shared/test.sh \
+  macos/bootstrap.sh macos/defaults.sh macos/brewinstall.sh macos/update.sh macos/managed-links.sh \
+  linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh
 ```
 
 ## How to safely change these scripts
 
-1. **To add a new managed config:** add one line to `MANAGED_LINKS` in
-   `scripts/managed-configs.sh` and add a corresponding assertion to
-   `test-install-behavior.sh`.
-2. **To add a new Homebrew package:** run `./brewinstall <package>` from the
-   repo root. It updates the Brewfile and installs it locally.
-3. **Keep `main` readable as a checklist.** Put filesystem logic in
-   `scripts/fs.sh` and path/profile knowledge in `scripts/managed-configs.sh`.
-4. **Run the behavior tests** after any filesystem-related change.
-5. **Do not touch `nvim/`** unless the task explicitly asks for Neovim changes.
+1. **To add a new managed config:** add one line to the appropriate
+   `MANAGED_LINKS` (`shared/managed-links.sh` for cross-platform,
+   `<platform>/managed-links.sh` for OS-only) and re-run `shared/test.sh`.
+2. **To add a new Homebrew package:** run `macos/brewinstall <package>`. It
+   updates `macos/Brewfile` and installs it locally.
+3. **To add a new apt package:** append it to `linux/packages.txt`, then re-run
+   `linux/bootstrap.sh`.
+4. **Keep `main` readable as a checklist.** Put filesystem logic in
+   `shared/lib/fs.sh` and path knowledge in the `managed-links.sh` files.
+5. **Don't branch on OS inside `shared/`.** If shared code would need to, push
+   the branch into the platform bootstrap script instead.
+6. **Run the behavior tests** after any filesystem-related change.
+7. **Do not touch `shared/configs/nvim/`** unless the task explicitly asks for
+   Neovim changes.

@@ -1,0 +1,60 @@
+# apt packages installed by linux/bootstrap.sh.
+# One package per line, comments start with #.
+# Tested on Linux Mint and Ubuntu (Debian-based).
+
+# ── i3 desktop environment ───────────────────────────────────────────────────
+i3
+i3status
+i3lock
+xss-lock
+dex
+xorg
+xinit
+x11-xserver-utils
+picom
+autorandr
+arandr
+nitrogen
+polybar
+rofi
+xfce4-terminal
+dunst
+libnotify-bin
+xsettingsd
+
+# ── System utilities ──────────────────────────────────────────────────────────
+pulseaudio-utils
+brightnessctl
+scrot
+imagemagick
+curl
+unzip
+network-manager-gnome
+copyq
+power-profiles-daemon
+
+# ── Theming ───────────────────────────────────────────────────────────────────
+arc-theme
+papirus-icon-theme
+dmz-cursor-theme
+
+# ── Dev tools (cross-platform equivalents of Brewfile entries) ───────────────
+fish
+tmux
+tig
+git
+gnupg
+neovim
+kitty
+
+# ── Build dependencies for mise-managed Ruby / Python / Node ─────────────────
+build-essential
+autoconf
+libssl-dev
+libreadline-dev
+libyaml-dev
+libgmp-dev
+zlib1g-dev
+libffi-dev
+libxml2-dev
+libxslt1-dev

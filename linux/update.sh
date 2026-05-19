@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# shellcheck disable=SC1091
+source "${ROOT_DIR}/shared/lib/logging.sh"
+
+usage() {
+  cat <<EOF
+Usage: ${0##*/}
+
+Update apt packages and mise-managed tools.
+
+Runs:
+  sudo apt-get update
+  sudo apt-get upgrade -y
+  sudo apt-get autoremove -y
+  mise upgrade --yes
+
+Options:
+  -h, --help     Show this help.
+EOF
+}
+
+main() {
+  while (($#)); do
+    case "$1" in
+      -h|--help) usage; return ;;
+      *) log_error "Unknown argument: $1"; usage >&2; exit 1 ;;
+    esac
+    shift
+  done
+
+  require_command apt-get "to update Debian packages"
+
+  log "Refreshing apt package lists..."
+  sudo apt-get update
+
+  log "Upgrading apt packages..."
+  sudo apt-get upgrade -y
+
+  log "Removing obsolete packages..."
+  sudo apt-get autoremove -y
+
+  require_command mise "to upgrade mise-managed tools"
+  log "Upgrading mise-managed tools..."
+  mise upgrade --yes
+
+  log_success "Machine update complete."
+}
+
+main "$@"

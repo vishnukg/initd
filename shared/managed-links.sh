@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
 
-: "${ROOT_DIR:?ROOT_DIR must be set before sourcing scripts/managed-configs.sh}"
+# Source of truth for cross-platform managed symlinks plus git-profile helpers.
+# Platform-specific entries are appended in <platform>/managed-links.sh.
+
+: "${ROOT_DIR:?ROOT_DIR must be set before sourcing shared/managed-links.sh}"
 
 # shellcheck disable=SC1091
-source "${ROOT_DIR}/scripts/fs.sh"
+source "${ROOT_DIR}/shared/lib/fs.sh"
 
-GIT_PROFILES_DIR="${ROOT_DIR}/git/profiles"
+GIT_PROFILES_DIR="${ROOT_DIR}/shared/configs/git/profiles"
 DEFAULT_GIT_PROFILE="${GIT_PROFILES_DIR}/personal.gitconfig"
 
 # Format: "home path:repo path".
-# To add a managed config, add one entry here and update the tests.
+# Cross-platform configs only. Add platform-only entries in <platform>/managed-links.sh.
 MANAGED_LINKS=(
-  "${HOME}/.config/fish:${ROOT_DIR}/fish/.config/fish"
-  "${HOME}/.config/ghostty:${ROOT_DIR}/ghostty/.config/ghostty"
-  "${HOME}/.config/kitty:${ROOT_DIR}/kitty/.config/kitty"
-  "${HOME}/.config/mise:${ROOT_DIR}/mise/.config/mise"
-  "${HOME}/.config/nvim:${ROOT_DIR}/nvim/.config/nvim"
-  "${HOME}/.config/tmux:${ROOT_DIR}/tmux/.config/tmux"
+  "${HOME}/.config/fish:${ROOT_DIR}/shared/configs/fish/.config/fish"
+  "${HOME}/.config/ghostty:${ROOT_DIR}/shared/configs/ghostty/.config/ghostty"
+  "${HOME}/.config/kitty:${ROOT_DIR}/shared/configs/kitty/.config/kitty"
+  "${HOME}/.config/mise:${ROOT_DIR}/shared/configs/mise/.config/mise"
+  "${HOME}/.config/nvim:${ROOT_DIR}/shared/configs/nvim/.config/nvim"
+  "${HOME}/.config/tmux:${ROOT_DIR}/shared/configs/tmux/.config/tmux"
 )
 
 # Returns true when ${path} is a symlink pointing at one of the curated git profiles.

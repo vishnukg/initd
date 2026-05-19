@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Convenience wrapper: keep the easy `./brewinstall ...` command at the repo
-# root, while the real implementation lives with the other scripts.
-exec "${ROOT_DIR}/scripts/brewinstall.sh" "$@"

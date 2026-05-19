@@ -1,0 +1,18 @@
+/* Thin scrollbars on all web pages */
+@-moz-document url-prefix() {
+  * {
+    scrollbar-width: thin !important;
+    scrollbar-color: #3e4452 #282c34 !important;
+  }
+}
+
+/* about:newtab — One Dark background */
+@-moz-document url("about:newtab"), url("about:home") {
+  body {
+    background-color: #282c34 !important;
+    color: #abb2bf !important;
+  }
+  .outer-wrapper {
+    background-color: #282c34 !important;
+  }
+}
