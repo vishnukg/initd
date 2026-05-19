@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MACOS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Convenience wrapper sitting next to the real implementation.
+exec "${MACOS_DIR}/brewinstall.sh" "$@"

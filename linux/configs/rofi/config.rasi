@@ -1,0 +1,109 @@
+/* Floating Prompt — minimalist dark */
+configuration {
+    modi:               "drun,window,run";
+    font:               "FiraCode Nerd Font Mono Bold 15";
+    show-icons:         true;
+    drun-display-format: "{icon} {name}";
+    sidebar-mode:       false;
+}
+
+* {
+    /* Override ALL rofi built-in color variables to kill the Solarized base */
+    background:                  transparent;
+    foreground:                  #ffffff;
+    lightbg:                     #1e1e2e;
+    lightfg:                     #6b7280;
+    separatorcolor:              transparent;
+
+    normal-background:           transparent;
+    normal-foreground:           #ffffff;
+    alternate-normal-background: transparent;
+    alternate-normal-foreground: #ffffff;
+    selected-normal-background:  #7aa2f7;
+    selected-normal-foreground:  #1a1b2e;
+
+    urgent-background:           transparent;
+    urgent-foreground:           #f7768e;
+    alternate-urgent-background: transparent;
+    alternate-urgent-foreground: #f7768e;
+    selected-urgent-background:  #f7768e;
+    selected-urgent-foreground:  #1a1b2e;
+
+    active-background:           transparent;
+    active-foreground:           #9ece6a;
+    alternate-active-background: transparent;
+    alternate-active-foreground: #9ece6a;
+    selected-active-background:  #9ece6a;
+    selected-active-foreground:  #1a1b2e;
+
+    /* Custom vars */
+    bar:              #1a1b2ef4;
+    fg:               #ffffff;
+    fg-dim:           #6b7280;
+    sel-bg:           #7aa2f7;
+    sel-fg:           #1a1b2e;
+
+    background-color: transparent;
+    text-color:       #ffffff;
+    border-color:     transparent;
+}
+
+window {
+    background-color: transparent;
+    border:           0px;
+    width:            40%;
+}
+
+mainbox {
+    background-color: transparent;
+    spacing:          6px;
+    padding:          0;
+    children:         [ inputbar, listview ];
+}
+
+inputbar {
+    background-color: @bar;
+    border-radius:    10px;
+    padding:          12px 16px;
+    spacing:          10px;
+    children:         [ prompt, entry ];
+}
+
+prompt {
+    background-color: transparent;
+    text-color:       @sel-bg;
+}
+
+entry {
+    background-color:  transparent;
+    text-color:        @fg;
+    placeholder:       "search apps...";
+    placeholder-color: @fg-dim;
+}
+
+listview {
+    background-color: #000000aa;
+    border:           0;
+    spacing:          2px;
+    padding:          4px 0 0;
+    scrollbar:        false;
+    lines:            8;
+}
+
+element {
+    background-color: transparent;
+    border-radius:    8px;
+    padding:          8px 12px;
+    spacing:          10px;
+    children:         [ element-icon, element-text ];
+}
+
+element-icon { size: 20px; background-color: transparent; }
+element-text { text-color: inherit; background-color: transparent; }
+
+element.normal.normal   { background-color: transparent; text-color: #ffffff; }
+element.selected.normal { background-color: @sel-bg;     text-color: @sel-fg; }
+element.normal.urgent   { background-color: transparent; text-color: #f7768e; }
+element.selected.urgent { background-color: #f7768e;     text-color: @sel-fg; }
+element.normal.active   { background-color: transparent; text-color: #9ece6a; }
+element.selected.active { background-color: #9ece6a;     text-color: @sel-fg; }

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# This script lives in scripts/, so .. is the repository root.
+# This script lives in macos/, so .. is the repository root.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # The curated Brewfile is the source of truth that bootstrap uses on every Mac.
-BREWFILE="${ROOT_DIR}/Brewfile"
+BREWFILE="${ROOT_DIR}/macos/Brewfile"
 
-source "${ROOT_DIR}/scripts/logging.sh"
+source "${ROOT_DIR}/shared/lib/logging.sh"
 
 # Script-level state set by parse_args and shared across all functions below.
 kind=""

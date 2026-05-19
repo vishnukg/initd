@@ -5,19 +5,19 @@ bin/
 .claude/
 
 # Machine-local git identity (email) — never commit this.
-git/local.gitconfig
+shared/configs/git/local.gitconfig
 
 # Fish — files managed by fisher or fish itself, not by this repo.
-fish/.config/fish/fish_variables
-fish/.config/fish/local.fish
-fish/.config/fish/conf.d/local.fish
-fish/.config/fish/functions/
-fish/.config/fish/completions/
-fish/.config/fish/conf.d/*
-!fish/.config/fish/conf.d/00-initd-env.fish
+shared/configs/fish/.config/fish/fish_variables
+shared/configs/fish/.config/fish/local.fish
+shared/configs/fish/.config/fish/conf.d/local.fish
+shared/configs/fish/.config/fish/functions/
+shared/configs/fish/.config/fish/completions/
+shared/configs/fish/.config/fish/conf.d/*
+!shared/configs/fish/.config/fish/conf.d/00-initd-env.fish
 
 # Neovim — generated plugin directory.
-nvim/.config/nvim/plugin/
+shared/configs/nvim/.config/nvim/plugin/
 
 # ruby-lsp drops this in whatever directory nvim is opened from.
 .ruby-lsp/
