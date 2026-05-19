@@ -99,6 +99,40 @@ test_clean_link_install() {
   log_success "clean link install (${PLATFORM})"
 }
 
+test_platform_links_are_self_contained() {
+  local entry repo_path allowed_prefix_1 allowed_prefix_2 forbidden_prefix
+
+  case "${PLATFORM}" in
+    macos)
+      allowed_prefix_1="${ROOT_DIR}/shared/"
+      allowed_prefix_2="${ROOT_DIR}/macos/"
+      forbidden_prefix="${ROOT_DIR}/linux/"
+      ;;
+    linux)
+      allowed_prefix_1="${ROOT_DIR}/shared/"
+      allowed_prefix_2="${ROOT_DIR}/linux/"
+      forbidden_prefix="${ROOT_DIR}/macos/"
+      ;;
+    *)
+      fail "Unsupported platform for self-containment test: ${PLATFORM}"
+      ;;
+  esac
+
+  while IFS= read -r entry; do
+    repo_path="${entry#*:}"
+
+    if [[ "${repo_path}" == "${forbidden_prefix}"* ]]; then
+      fail "${PLATFORM} managed link points at the other platform: ${repo_path}"
+    fi
+
+    if [[ "${repo_path}" != "${allowed_prefix_1}"* && "${repo_path}" != "${allowed_prefix_2}"* ]]; then
+      fail "${PLATFORM} managed link points outside its allowed roots: ${repo_path}"
+    fi
+  done < <(get_managed_links)
+
+  log_success "platform links are self-contained (${PLATFORM})"
+}
+
 test_backup_unmanaged_configs() {
   local home output backup_count
   home="$(new_home)"
@@ -210,6 +244,7 @@ main() {
 
   log "Running install behavior tests in ${TEST_ROOT} for platform=${PLATFORM}"
   test_clean_link_install
+  test_platform_links_are_self_contained
   test_backup_unmanaged_configs
   test_git_profile_switcher
   test_broken_git_profile_link_is_repaired
