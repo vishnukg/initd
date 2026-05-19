@@ -6,8 +6,10 @@ require("fzf-lua").setup({
 	},
 	keymap = {
 		fzf = {
+			["ctrl-d"] = "half-page-down",
 			["ctrl-n"] = "down",
 			["ctrl-p"] = "up",
+			["ctrl-u"] = "half-page-up",
 		},
 	},
 	winopts = {
