@@ -10,7 +10,6 @@ go        = "1.26"
 node      = "lts"
 npm       = "latest"
 python    = "3.14"
-ruby      = "4.0"
 terraform = "latest"
 yarn      = ["latest", "1.22.22"]
 
@@ -26,7 +25,6 @@ yarn      = ["latest", "1.22.22"]
 "npm:yaml-language-server"              = "latest" # yamlls
 "npm:emmet-ls"                          = "latest" # emmet_ls
 "npm:dockerfile-language-server-nodejs" = "latest" # dockerls
-"gem:ruby-lsp"                          = "latest" # ruby_lsp
 "dotnet:csharp-ls"                      = "latest" # csharp_ls
 
 # ── CLI tools ──────────────────────────────────────────────────────────
