@@ -152,10 +152,9 @@ return require("lazy").setup({
 			"marilari88/neotest-vitest",
 			"fredrikaverpil/neotest-golang",
 			"nsidorenco/neotest-vstest",
-			"zidhuss/neotest-minitest",
 		},
 		config = function() require("user.neotest") end,
-		ft = { "go", "javascript", "typescript", "typescriptreact", "javascriptreact", "cs", "ruby" },
+		ft = { "go", "javascript", "typescript", "typescriptreact", "javascriptreact", "cs" },
 	},
 
 	-- ── AI / Copilot ──────────────────────────────────────────────────────────
@@ -212,14 +211,12 @@ return require("lazy").setup({
 					javascript = { coverage_file = "coverage/lcov.info" },
 					-- coverage run -m pytest && coverage json
 					python     = { coverage_file = ".coverage" },
-					-- SimpleCov JSON formatter in spec_helper.rb
-					ruby       = { coverage_file = "coverage/coverage.json" },
 					-- dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 					cs         = { coverage_file = "TestResults/lcov.info" },
 				},
 			})
 		end,
-		ft = { "go", "javascript", "typescript", "python", "ruby", "cs" },
+		ft = { "go", "javascript", "typescript", "python", "cs" },
 	},
 
 	-- Go: struct tags, if-err, impl — NOT an LSP tool, no interference with gopls.

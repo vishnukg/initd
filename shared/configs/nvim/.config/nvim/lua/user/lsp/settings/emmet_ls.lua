@@ -2,7 +2,6 @@
 return {
 	filetypes = {
 		"css",
-		"eruby",
 		"html",
 		"javascriptreact",
 		"less",

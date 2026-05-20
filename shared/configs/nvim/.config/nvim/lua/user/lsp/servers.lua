@@ -13,7 +13,6 @@ local lsp_servers = {
 	"taplo",
 	"terraformls",
 	"csharp_ls",
-	"ruby_lsp",
 	"dockerls",
 }
 

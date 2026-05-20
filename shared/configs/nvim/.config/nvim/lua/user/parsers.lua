@@ -46,7 +46,6 @@ M.registry = {
 	proto           = { url = "https://github.com/coder3101/tree-sitter-proto" },
 	python          = { url = "https://github.com/tree-sitter/tree-sitter-python" },
 	regex           = { url = "https://github.com/tree-sitter/tree-sitter-regex" },
-	ruby            = { url = "https://github.com/tree-sitter/tree-sitter-ruby" },
 	rust            = { url = "https://github.com/tree-sitter/tree-sitter-rust" },
 	sql             = { url = "https://github.com/derekstride/tree-sitter-sql" },
 	toml            = { url = "https://github.com/tree-sitter-grammars/tree-sitter-toml" },
