@@ -45,7 +45,7 @@ git
 gnupg
 kitty
 
-# ── Build dependencies for mise-managed Ruby / Python / Node ─────────────────
+# ── Build dependencies for mise-managed Python / Node ────────────────────────
 build-essential
 autoconf
 libssl-dev

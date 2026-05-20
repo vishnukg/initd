@@ -18,7 +18,6 @@ require("neotest").setup({
 	adapters = {
 		require("neotest-golang")({}),
 		require("neotest-vstest")({}),
-		require("neotest-minitest")({}),
 		require("neotest-vitest")({
 			filter_dir = filter_dir,
 			vitestConfigFile = function(path)
