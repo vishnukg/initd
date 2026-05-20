@@ -145,7 +145,7 @@ before initd takes ownership. Nothing is deleted.
 
 ## Linux — apt specifics
 
-`linux/packages.txt` is one package per line, comments allowed. Add to it and re-run `linux/bootstrap.sh`. The packages list intentionally tracks the brew formulas where equivalents exist (`fish`, `tmux`, `tig`, `git`, `gnupg`, `neovim`, `kitty`) plus Debian build deps for mise-managed Ruby/Python/Node.
+`linux/packages.txt` is one package per line, comments allowed. Add to it and re-run `linux/bootstrap.sh`. The packages list intentionally tracks the brew formulas where equivalents exist (`fish`, `tmux`, `tig`, `git`, `gnupg`, `neovim`, `kitty`) plus Debian build deps for mise-managed Python/Node.
 
 `linux/setup.sh` handles four classes of thing that don't fit the symlink flow:
 - system fixes requiring sudo (xorg TearFree, Intel BE200 WiFi d3cold udev rule, NetworkManager power save, swappiness, Chrome apt arch pin, power-profiles-daemon)

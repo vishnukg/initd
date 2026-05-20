@@ -52,7 +52,6 @@ A personal Neovim configuration built on [lazy.nvim](https://github.com/folke/la
             ├── null-ls.lua   # none-ls sources (formatters & linters)
             └── settings/     # Per-server config overrides
                 ├── lua_ls.lua
-                ├── ruby_lsp.lua
                 ├── terraformls.lua
                 └── ...
 ```
@@ -171,7 +170,7 @@ LSP servers, formatters, and linters are **not** managed by Neovim. They are ins
 mise tool sources (one committed file, every machine identical):
 
 ~/.config/initd/shared/configs/mise/.config/mise/config.toml
-  ├── runtimes                 ← go, node, python, ruby, dotnet, terraform
+  ├── runtimes                 ← go, node, python, dotnet, terraform
   ├── LSP servers              ← lua_ls, gopls, pyright, ts_ls, taplo, …
   └── linters / formatters     ← stylua, black, golangci-lint, prettierd, …
 ```
@@ -230,8 +229,6 @@ None-ls (a maintained fork of null-ls) **pretends to be an LSP server** so that 
 On BufWritePre (save):
 
 vim.lsp.buf.format()
-      │
-      ├──► ruby_lsp  (if Ruby file)  → formats via standard addon
       │
       └──► none-ls client            → runs the right CLI tool:
                 │
@@ -299,36 +296,6 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 
 > ¹ ESLint diagnostics only activate when `.eslintrc` or `eslint.config.js` is present in the project.
 > ² Jest adapter activates with `jest.config.*`; Vitest adapter activates with `vitest.config.*` or `vite.config.*`.
-
----
-
-#### 🔵 Requires external setup
-
-| Language | LSP | Formatter | Linter | External Requirement |
-|----------|-----|-----------|--------|----------------------|
-| **Ruby** | ruby_lsp | standard (via ruby_lsp) | standard (via ruby_lsp) | Install `standard` gem — see below |
-
-**Ruby setup:**
-
-ruby_lsp uses the `standard` gem as an internal addon for both formatting and linting. mise installs the `ruby_lsp` binary (via the `gem:` backend, so it shares the active ruby), but the `standard` gem must be available in the project's bundle or as a globally installed gem.
-
-Option A — global (works for all projects):
-```bash
-gem install standard
-```
-
-Option B — per project (recommended for teams):
-```ruby
-# Gemfile
-group :development do
-  gem "standard"
-end
-```
-```bash
-bundle install
-```
-
-ruby_lsp checks the project bundle first, then falls back to global gems automatically.
 
 ---
 
@@ -433,7 +400,6 @@ Adding a language is now a two-place change: the tool binary goes into `mise/.co
    | `npm:`  | Node-based tools                            | `"npm:bash-language-server" = "latest"` |
    | `pipx:` | Python tools (pipx installed via Homebrew)  | `"pipx:yamllint" = "latest"` |
    | `go:`   | Tools built from a Go module path           | `"go:github.com/mgechev/revive" = "latest"` |
-   | `gem:`  | Ruby gems                                   | `"gem:ruby-lsp" = "latest"` |
    | `dotnet:` | .NET global tools                          | `"dotnet:csharpier" = "latest"` |
 
    Run `mise install` after editing.
@@ -444,4 +410,4 @@ Adding a language is now a two-place change: the tool binary goes into `mise/.co
 
 4. **Treesitter** — no committed parser list is required. `lua/user/treesitter.lua` auto-installs a parser the first time a supported filetype is opened.
 
-5. **External tools** — if the language requires gems, pip packages, or system tools that genuinely cannot be installed by mise (like Ruby's `standard` gem, which has to live in the project bundle), document it in the [External Setup](#-requires-external-setup) section above.
+5. **External tools** — if the language requires pip packages or system tools that genuinely cannot be installed by mise, document it in the [External Setup](#-requires-external-setup) section above.

@@ -1,6 +1,6 @@
 # Keep the prompt fast in large repos. The default Starship format probes many
 # runtimes and cloud/tooling modules; keep the modules used in this repo set.
-format = "$directory$git_branch$git_state$git_status$nodejs$golang$ruby$python$cmd_duration$line_break$character"
+format = "$directory$git_branch$git_state$git_status$nodejs$golang$python$cmd_duration$line_break$character"
 command_timeout = 500
 scan_timeout = 10
 add_newline = true

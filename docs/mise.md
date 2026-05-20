@@ -101,7 +101,7 @@ lookup for commands that run every time an interactive shell starts.
 | Section | What it contains |
 |---|---|
 | `[settings]` | Global mise settings (e.g. `experimental = true` for the `dotnet:` backend) |
-| `[tools]` runtimes | `node`, `python`, `ruby`, `go`, `dotnet`, `terraform` — language runtimes with pinned versions |
+| `[tools]` runtimes | `node`, `python`, `go`, `dotnet`, `terraform` — language runtimes with pinned versions |
 | `[tools]` LSPs + CLI tools | Everything nvim's LSP config and null-ls expect to find on PATH |
 
 Version strings follow mise's resolution rules:
