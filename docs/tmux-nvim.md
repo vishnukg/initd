@@ -367,3 +367,45 @@ Ctrl-a Ctrl-a
 This is usually a good tradeoff because `Ctrl-a` is easy to press, works
 reliably in terminals, and keeps tmux commands away from Neovim's leader and
 window mappings.
+
+## Practical Cheatsheet
+
+### Sessions
+
+| Key / Command | Action |
+|---|---|
+| `Ctrl-a d` | Detach (leave everything running) |
+| `Ctrl-a $` | Rename current session |
+| `tmux ls` | List sessions |
+| `tmux attach -t <name>` | Reattach to a session |
+
+### Panes
+
+| Key / Command | Action |
+|---|---|
+| `Ctrl-a {` | Move current pane left |
+| `Ctrl-a }` | Move current pane right |
+| `Ctrl-a q` | Show pane indices |
+| `Ctrl-a : swap-pane -s 1 -t 2` | Swap pane 1 and pane 2 by index |
+| `Ctrl-a !` | Break pane out into its own window |
+| `Ctrl-a : join-pane -s 2 -t 1` | Pull window 2 into current window as a pane |
+| `Ctrl-a z` | Zoom/unzoom current pane |
+
+### Copy Mode (scrollback)
+
+| Key | Action |
+|---|---|
+| `Ctrl-a [` | Enter copy mode |
+| `h/j/k/l` | Navigate |
+| `Ctrl-u` / `Ctrl-d` | Page up/down |
+| `/` | Search forward |
+| `?` | Search backward |
+| `v` | Start selection |
+| `y` | Copy selection (pipes to clipboard) |
+| `q` | Exit copy mode |
+
+### Layouts
+
+| Key | Action |
+|---|---|
+| `Ctrl-a Space` | Cycle preset layouts (horizontal, vertical, tiled, …) |
