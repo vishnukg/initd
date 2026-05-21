@@ -9,10 +9,10 @@ local tmux_theme = {
 		b = { bg = "#24283b", fg = "#7aa2f7" },
 		c = { bg = "#24283b", fg = "#7aa2f7" },
 	},
-	insert  = { a = { bg = "#e0af68", fg = "#141414", gui = "bold" } },
+	insert  = { a = { bg = "#7aa2f7", fg = "#141414", gui = "bold" } },
 	visual  = { a = { bg = "#f7768e", fg = "#141414", gui = "bold" } },
 	replace = { a = { bg = "#e46876", fg = "#141414", gui = "bold" } },
-	command = { a = { bg = "#4ec994", fg = "#141414", gui = "bold" } },
+	command = { a = { bg = "#e0af68", fg = "#141414", gui = "bold" } },
 	inactive = {
 		a = { bg = "#24283b", fg = "#7aa2f7" },
 		b = { bg = "#24283b", fg = "#7aa2f7" },
