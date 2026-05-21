@@ -19,7 +19,7 @@ window-colorspace = display-p3
 # --- Background & Opacity ---
 background = #000000
 background-opacity = 0.58
-background-blur = 20
+background-blur = false
 
 # --- Fonts ---
 font-family = "Fira Code"
