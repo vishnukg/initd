@@ -114,12 +114,24 @@ abbr -a gswc 'git switch --create'
 
 # ── Zoxide ────────────────────────────────────────────────────────────────────
 if command -q zoxide
-    command zoxide init fish | source
+    set -l _cache ~/.cache/fish/zoxide_init.fish
+    set -l _bin (command -v zoxide)
+    if not test -f $_cache; or test $_bin -nt $_cache
+        mkdir -p (dirname $_cache)
+        command zoxide init fish > $_cache
+    end
+    source $_cache
 end
 
 # ── Starship ──────────────────────────────────────────────────────────────────
 if command -q starship
-    command starship init fish | source
+    set -l _cache ~/.cache/fish/starship_init.fish
+    set -l _bin (command -v starship)
+    if not test -f $_cache; or test $_bin -nt $_cache
+        mkdir -p (dirname $_cache)
+        command starship init fish > $_cache
+    end
+    source $_cache
 end
 
 # ── Local overrides (machine-specific, not committed) ─────────────────────────
