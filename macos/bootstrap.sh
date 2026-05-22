@@ -163,9 +163,10 @@ main() {
   cp "${BREWFILE}" "${brewfile_tmp}"
   if [[ -d "${DOCKER_APP}" ]] && ! brew list --cask "${DOCKER_CASK}" >/dev/null 2>&1; then
     log_warn "Skipping Docker cask: /Applications/Docker.app already exists outside Homebrew."
-    grep -Ev "^[[:space:]]*cask[[:space:]]+[\"']${DOCKER_CASK}[\"'][[:space:]]*$" \
-      "${brewfile_tmp}" > "${brewfile_tmp}.tmp"
-    mv "${brewfile_tmp}.tmp" "${brewfile_tmp}"
+    if grep -Ev "^[[:space:]]*cask[[:space:]]+[\"']${DOCKER_CASK}[\"'][[:space:]]*$" \
+        "${brewfile_tmp}" > "${brewfile_tmp}.tmp" && [[ -s "${brewfile_tmp}.tmp" ]]; then
+      mv "${brewfile_tmp}.tmp" "${brewfile_tmp}"
+    fi
   fi
 
   log "Installing Homebrew packages and casks..."
