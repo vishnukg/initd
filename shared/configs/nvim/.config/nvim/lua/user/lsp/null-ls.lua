@@ -48,6 +48,7 @@ null_ls.setup({
 		diagnostics.yamllint,
 		diagnostics.hadolint,
 		require("none-ls.diagnostics.eslint").with({
+			dynamic_command = require("null-ls.helpers.command_resolver").from_node_modules,
 			condition = function(utils)
 				return utils.root_has_file({
 					".eslintrc",
