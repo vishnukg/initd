@@ -1,5 +1,4 @@
 tap "hashicorp/tap"
-tap "threedotslabs/tap"
 
 brew "autoconf"
 brew "gh"
@@ -16,9 +15,6 @@ brew "presenterm"
 brew "readline"
 brew "tig"
 brew "tmux"
-brew "bruno-cli"
-brew "gemini-cli"
-brew "threedotslabs/tap/tdl"
 
 cask "betterdisplay"
 cask "copilot-cli"
