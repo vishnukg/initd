@@ -26,6 +26,16 @@ if not status is-interactive
     exit
 end
 
+# ── Tmux auto-attach ──────────────────────────────────────────────────────────
+if not set -q TMUX
+    set -l s main
+    if tmux has-session -t $s 2>/dev/null
+        exec tmux attach -t $s
+    else
+        exec tmux new-session -s $s
+    end
+end
+
 # ── Greeting ──────────────────────────────────────────────────────────────────
 set -g fish_greeting ""
 
