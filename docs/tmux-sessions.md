@@ -124,6 +124,49 @@ Pane
 
 ---
 
+## Copy mode
+
+tmux copy mode lets you scroll and copy from the terminal buffer — works everywhere (shell, Claude CLI, any TUI).
+
+### Enter / exit
+
+| What | Keys |
+|---|---|
+| Enter copy mode | `C-a [` |
+| Exit copy mode | `q` or `Escape` |
+
+### Navigate (vi keys — already enabled)
+
+| What | Keys |
+|---|---|
+| Up / down | `k` / `j` |
+| Half page up / down | `C-u` / `C-d` |
+| Top / bottom of buffer | `g` / `G` |
+| Search forward / backward | `/` / `?` |
+| Next / previous match | `n` / `N` |
+
+### Select and copy
+
+1. `C-a [` — enter copy mode
+2. Navigate to start of text
+3. `v` — start selection
+4. Move to end of selection
+5. `y` — copy to system clipboard and exit copy mode
+
+### Paste
+
+`C-a ]` — paste (must be outside copy mode)
+
+### When to use what
+
+| Where | How to copy |
+|---|---|
+| Shell / Claude CLI / any TUI | `C-a [` → vi keys → `v` → `y` |
+| Neovim | Use Neovim's own visual mode |
+| Anywhere (mouse) | Hold `Option` + drag |
+
+---
+
 ## Practice exercises
 
 1. Open a new terminal → confirm it auto-attaches to `main` (after adding the fish snippet).
