@@ -1,22 +1,22 @@
 local lualine = require("lualine")
 
 -- Matches tmux tab colors:
---   active tab:   bg=#4ec994  fg=#141414
---   inactive tab: bg=#24283b  fg=#7aa2f7
+--   active tab:   bg=#1c3a2e  fg=#4ec994
+--   inactive tab: bg=#24283b  fg=#9aa5ce
 local tmux_theme = {
 	normal = {
-		a = { bg = "#4ec994", fg = "#141414", gui = "bold" },
-		b = { bg = "#24283b", fg = "#7aa2f7" },
-		c = { bg = "#24283b", fg = "#7aa2f7" },
+		a = { bg = "#1c3a2e", fg = "#4ec994", gui = "bold" },
+		b = { bg = "#1c1c1c", fg = "#9aa5ce" },
+		c = { bg = "#1c1c1c", fg = "#9aa5ce" },
 	},
 	insert  = { a = { bg = "#7aa2f7", fg = "#141414", gui = "bold" } },
 	visual  = { a = { bg = "#f7768e", fg = "#141414", gui = "bold" } },
 	replace = { a = { bg = "#e46876", fg = "#141414", gui = "bold" } },
 	command = { a = { bg = "#e0af68", fg = "#141414", gui = "bold" } },
 	inactive = {
-		a = { bg = "#24283b", fg = "#7aa2f7" },
-		b = { bg = "#24283b", fg = "#7aa2f7" },
-		c = { bg = "#24283b", fg = "#727169" },
+		a = { bg = "#1c1c1c", fg = "#9aa5ce" },
+		b = { bg = "#1c1c1c", fg = "#9aa5ce" },
+		c = { bg = "#1c1c1c", fg = "#727169" },
 	},
 }
 
@@ -32,7 +32,7 @@ lualine.setup({
 	sections = {
 		lualine_a = { "mode" },
 		lualine_b = { "branch", "diff", "diagnostics" },
-		lualine_c = { { "filename", path = 1, symbols = { modified = "[+]", readonly = "", unnamed = "[No Name]", newfile = "[New]" }, color = { fg = "#7aa2f7" }, symbols_color = { modified = { fg = "#4ec994", gui = "bold" } } } },
+		lualine_c = { { "filename", path = 1, symbols = { modified = "[+]", readonly = "", unnamed = "[No Name]", newfile = "[New]" }, color = { fg = "#9aa5ce" }, symbols_color = { modified = { fg = "#4ec994", gui = "bold" } } } },
 		lualine_x = { "encoding", "fileformat", "filetype" },
 		lualine_y = { "progress" },
 		lualine_z = { "location" },
