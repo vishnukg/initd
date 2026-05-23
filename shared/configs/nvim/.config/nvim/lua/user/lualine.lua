@@ -1,18 +1,18 @@
 local lualine = require("lualine")
 
 -- Matches tmux tab colors:
---   active tab:   bg=#1c3a2e  fg=#4ec994
+--   active tab:   bg=#111116  fg=#4ec994
 --   inactive tab: bg=#111116  fg=#9aa5ce
 local tmux_theme = {
 	normal = {
-		a = { bg = "#1c3a2e", fg = "#4ec994", gui = "bold" },
+		a = { bg = "#111116", fg = "#89b4fa", gui = "bold" },
 		b = { bg = "#111116", fg = "#9aa5ce" },
 		c = { bg = "#111116", fg = "#9aa5ce" },
 	},
-	insert  = { a = { bg = "#7aa2f7", fg = "#141414", gui = "bold" } },
-	visual  = { a = { bg = "#f7768e", fg = "#141414", gui = "bold" } },
-	replace = { a = { bg = "#e46876", fg = "#141414", gui = "bold" } },
-	command = { a = { bg = "#e0af68", fg = "#141414", gui = "bold" } },
+	insert  = { a = { bg = "#111116", fg = "#9ece6a", gui = "bold" } },
+	visual  = { a = { bg = "#111116", fg = "#bb9af7", gui = "bold" } },
+	replace = { a = { bg = "#111116", fg = "#f7768e", gui = "bold" } },
+	command = { a = { bg = "#111116", fg = "#e0af68", gui = "bold" } },
 	inactive = {
 		a = { bg = "#111116", fg = "#9aa5ce" },
 		b = { bg = "#111116", fg = "#9aa5ce" },
