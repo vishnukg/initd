@@ -6,17 +6,17 @@ local lualine = require("lualine")
 local tmux_theme = {
 	normal = {
 		a = { bg = "#1c3a2e", fg = "#4ec994", gui = "bold" },
-		b = { bg = "#1c1c1c", fg = "#9aa5ce" },
-		c = { bg = "#1c1c1c", fg = "#9aa5ce" },
+		b = { bg = "#1a1a22", fg = "#9aa5ce" },
+		c = { bg = "#1a1a22", fg = "#9aa5ce" },
 	},
 	insert  = { a = { bg = "#7aa2f7", fg = "#141414", gui = "bold" } },
 	visual  = { a = { bg = "#f7768e", fg = "#141414", gui = "bold" } },
 	replace = { a = { bg = "#e46876", fg = "#141414", gui = "bold" } },
 	command = { a = { bg = "#e0af68", fg = "#141414", gui = "bold" } },
 	inactive = {
-		a = { bg = "#1c1c1c", fg = "#9aa5ce" },
-		b = { bg = "#1c1c1c", fg = "#9aa5ce" },
-		c = { bg = "#1c1c1c", fg = "#727169" },
+		a = { bg = "#1a1a22", fg = "#9aa5ce" },
+		b = { bg = "#1a1a22", fg = "#9aa5ce" },
+		c = { bg = "#1a1a22", fg = "#727169" },
 	},
 }
 
