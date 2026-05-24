@@ -66,8 +66,12 @@ null_ls.setup({
 		diagnostics.golangci_lint,
 		diagnostics.yamllint,
 		diagnostics.hadolint,
-		require("none-ls.diagnostics.eslint").with({
-			dynamic_command = require("null-ls.helpers.command_resolver").from_node_modules,
+		require("none-ls.diagnostics.eslint_d").with({
+			-- eslint_d is always global; it resolves the project-local eslint internally.
+			-- Override dynamic_command so null-ls skips the redundant node_modules walk.
+			generator_opts = {
+				dynamic_command = function(params, done) done(params.command) end,
+			},
 			condition = function(utils)
 				return utils.root_has_file({
 					".eslintrc",
