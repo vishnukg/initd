@@ -23,7 +23,7 @@ require("fidget").setup({
 			done_ttl = 2, -- How long to show completed messages
 			done_icon = "✓", -- Clean checkmark for completion
 			done_style = "DiagnosticOk", -- Green success color
-			progress_ttl = math.huge, -- Keep progress messages visible
+			progress_ttl = 10,
 			progress_icon = { pattern = "moon", period = 1 }, -- Moon phases animation
 			progress_style = "WarningMsg", -- Yellow/orange for in-progress
 			group_style = "Title", -- Bold server names
