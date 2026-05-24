@@ -36,7 +36,26 @@ end
 null_ls.setup({
 	debug = false,
 	sources = {
-		formatting.prettierd.with({ disabled_filetypes = { "yaml" } }),
+		formatting.prettierd.with({
+			disabled_filetypes = { "yaml" },
+			condition = function(utils)
+				return utils.root_has_file({
+					".prettierrc",
+					".prettierrc.js",
+					".prettierrc.cjs",
+					".prettierrc.mjs",
+					".prettierrc.json",
+					".prettierrc.json5",
+					".prettierrc.yaml",
+					".prettierrc.yml",
+					".prettierrc.toml",
+					"prettier.config.js",
+					"prettier.config.cjs",
+					"prettier.config.mjs",
+					"prettier.config.ts",
+				})
+			end,
+		}),
 		formatting.black.with({ extra_args = { "--fast" } }),
 		formatting.stylua,
 		formatting.goimports,
@@ -53,11 +72,14 @@ null_ls.setup({
 				return utils.root_has_file({
 					".eslintrc",
 					".eslintrc.js",
+					".eslintrc.cjs",
 					".eslintrc.json",
 					".eslintrc.yaml",
 					".eslintrc.yml",
 					"eslint.config.js",
 					"eslint.config.mjs",
+					"eslint.config.cjs",
+					"eslint.config.ts",
 				})
 			end,
 		}),
