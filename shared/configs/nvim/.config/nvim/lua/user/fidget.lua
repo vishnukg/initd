@@ -32,10 +32,10 @@ require("fidget").setup({
 			priority = 30,
 			skip_history = true, -- Don't clutter notification history
 			format_message = function(msg)
-				return msg.message
+				return msg.message or ""
 			end,
 			format_annote = function(msg)
-				return msg.title
+				return msg.title or ""
 			end,
 			format_group_name = function(group)
 				return "  " .. tostring(group) .. " " -- Icon prefix for server names
