@@ -67,11 +67,6 @@ null_ls.setup({
 		diagnostics.yamllint,
 		diagnostics.hadolint,
 		require("none-ls.diagnostics.eslint_d").with({
-			-- eslint_d is always global; it resolves the project-local eslint internally.
-			-- Override dynamic_command so null-ls skips the redundant node_modules walk.
-			generator_opts = {
-				dynamic_command = function(params, done) done(params.command) end,
-			},
 			condition = function(utils)
 				return utils.root_has_file({
 					".eslintrc",

@@ -18,6 +18,7 @@ require("fidget").setup({
 		},
 	},
 	progress = {
+		ignore = { "null-ls" }, -- null-ls fires per buffer; suppress its spinner
 		display = {
 			render_limit = 16,
 			done_ttl = 2, -- How long to show completed messages
