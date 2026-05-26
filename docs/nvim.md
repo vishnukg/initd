@@ -40,6 +40,7 @@ A reference for reading and editing this config. Covers Vim fundamentals, Lua, a
    - [How LSP loads when you open a file](#how-lsp-loads-when-you-open-a-file)
    - [PATH workaround in null-ls.lua](#path-workaround-in-null-lslua)
    - [How treesitter loads when you open a file](#how-treesitter-loads-when-you-open-a-file)
+   - [Auto-reload when an external process edits a file](#auto-reload-when-an-external-process-edits-a-file)
 
 ---
 
@@ -740,3 +741,52 @@ Treesitter also uses `event = "BufReadPre"` so the plugin loads at the same mome
    - **Parser not installed**: treesitter installs it asynchronously, then attaches once done. This only happens the first time you open a file of that language.
 
 Treesitter is faster than LSP in practice — no server process startup, just loading a `.so` parser file. The only delay you'll ever see is the one-time async install on first open.
+
+### Auto-reload when an external process edits a file
+
+When an external tool (Claude, Copilot, a code generator) edits a file that's already open in Neovim, Neovim doesn't know the file changed — it keeps showing the stale in-memory buffer. This setup makes Neovim reload silently and automatically.
+
+**Three pieces work together:**
+
+**1. `autoread = true` (options.lua)**
+
+Tells Neovim: if a buffer has no unsaved changes and the file on disk has changed, reload it automatically instead of asking. Without this, `:checktime` would prompt you to confirm every reload. With it, the reload is silent.
+
+**2. `updatetime = 300` (options.lua)**
+
+Controls how long Neovim waits with the cursor idle before firing `CursorHold`. Lower = more responsive reloads when you're not typing. 300ms is a good balance — fast enough to feel instant, not so low that it causes LSP diagnostic churn (diagnostics are also debounced by `updatetime`).
+
+**3. The `AutoReload` autocmd (options.lua)**
+
+```lua
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI" }, {
+    group = vim.api.nvim_create_augroup("AutoReload", { clear = true }),
+    pattern = "*",
+    callback = function()
+        if vim.fn.mode() ~= "c" then
+            vim.cmd("checktime")
+        end
+    end,
+})
+```
+
+`:checktime` is what actually asks Neovim to re-read the file from disk and trigger `autoread`. Without an autocmd calling `checktime`, Neovim would only check when you switch focus or run it manually.
+
+Why each event:
+
+| Event | When it fires | Why it's here |
+|-------|--------------|---------------|
+| `FocusGained` | Neovim window regains OS focus | Instant reload the moment you switch from the Claude pane back to Vim |
+| `BufEnter` | Entering a buffer (e.g. switching with `:b`) | Catches changes when you cycle between open buffers |
+| `CursorHold` | Cursor idle for `updatetime` ms in normal mode | Polls while you're watching; no keypress needed |
+| `CursorHoldI` | Cursor idle for `updatetime` ms in insert mode | Same coverage in insert mode |
+
+The `mode() ~= "c"` guard skips `checktime` while you're typing a `:` command — calling it mid-command could interrupt the command line.
+
+**Why `FocusGained` requires a tmux setting**
+
+Inside tmux, terminal applications don't receive focus events by default — tmux intercepts them. `set -g focus-events on` (already in `tmux.conf`) tells tmux to forward focus in/out escape sequences (`\033[I` / `\033[O`) to the active pane. Without it, switching from the Claude pane to the Vim pane never fires `FocusGained` and the most responsive trigger is lost.
+
+**Why not `vim.uv.new_fs_event()`?**
+
+Neovim also exposes libuv's OS-level file watcher (`vim.uv.new_fs_event()`), which is truly event-driven — it reacts the instant the OS signals a file change, with no polling interval. But it requires managing the watcher lifecycle (stop on `BufDelete`, handle errors, restart if the file is replaced rather than mutated). The API also already changed once: it was `vim.loop` before Neovim 0.10 renamed it to `vim.uv`. For a personal dotfile, the maintenance cost isn't worth it. The `CursorHold` approach with 300ms `updatetime` is imperceptibly fast and has been stable across Vim and Neovim for over a decade.

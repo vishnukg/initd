@@ -41,8 +41,8 @@ vim.opt.shortmess:append("c")
 -- Neovim has no built-in detection for .bru; without this syntax/bru.vim never loads.
 vim.filetype.add({ extension = { bru = "bru" } })
 
--- Auto-reload buffers when files change on disk (e.g. changed by Copilot)
-vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter" }, {
+-- Auto-reload buffers when files change on disk (e.g. changed by Claude/Copilot)
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI" }, {
 	group = vim.api.nvim_create_augroup("AutoReload", { clear = true }),
 	pattern = "*",
 	callback = function()
