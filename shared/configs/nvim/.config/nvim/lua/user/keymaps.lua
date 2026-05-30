@@ -11,6 +11,8 @@ map("i", "kj", "<ESC>", d("Exit insert mode"))
 
 -- ── Save ──────────────────────────────────────────────────────────────────────
 map("",  "<leader><leader>", ":wa<cr>",  d("Save all buffers"))
+map("n", "ZZ", "<cmd>xa<CR>", d("Write all and quit"))
+map("n", "ZQ", "<cmd>qa!<CR>", d("Quit all without saving"))
 
 -- ── Search ────────────────────────────────────────────────────────────────────
 map("n", "<C-l>", ":noh<cr><C-l>", d("Clear search highlight"))
