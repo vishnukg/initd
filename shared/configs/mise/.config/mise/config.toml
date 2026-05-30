@@ -38,7 +38,7 @@ yarn      = ["latest", "1.22.22"]
 "starship"               = "latest"
 "zoxide"                 = "latest"
 "github:openfga/openfga" = "latest"
-"npm:tree-sitter-cli" = "latest" # required by nvim treesitter parser compilation
+"tree-sitter"         = "latest" # required by nvim treesitter parser compilation
 "npm:@anthropic-ai/claude-code" = { version = "latest", postinstall = "test -f \"$MISE_TOOL_INSTALL_PATH/lib/node_modules/@anthropic-ai/claude-code/install.cjs\" && node \"$MISE_TOOL_INSTALL_PATH/lib/node_modules/@anthropic-ai/claude-code/install.cjs\"" }
 
 # ── linters / formatters (consumed by nvim/.../user/lsp/null-ls.lua) ───
