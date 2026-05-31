@@ -16,6 +16,7 @@ Runs:
   brew upgrade
   brew cleanup
   mise upgrade --yes
+  fisher update (if installed)
 
 Options:
   -h, --help     Show this help.
@@ -56,6 +57,11 @@ main() {
   require_command mise "to upgrade mise-managed tools"
   log "Upgrading mise-managed tools..."
   mise upgrade --yes
+
+  if command -v fish &>/dev/null && fish -c "type -q fisher" 2>/dev/null; then
+    log "Updating fish plugins..."
+    fish -c "fisher update"
+  fi
 
   log_success "Machine update complete."
 }

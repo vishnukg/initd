@@ -3,5 +3,5 @@
 win_id="$1"
 existing=$(tmux show-options -wqv -t "$win_id" @emoji 2>/dev/null)
 [[ -n "$existing" ]] && exit 0
-emojis=(🚀 🔥 ⚡ 🌈 🦄 💎 🎯 🌊 🦋 🌺 🍄 🎸 🌙 ⭐ 🎨 🪄 🎃 🦊 🐉 🌴 🍕 🎲 🧩 🦅)
+emojis=(🚀 🔥 ⚡ 🍄 🎃 🍕 🐱 ☕ 🃏 💎 🎯 🌊 🐺 🎸 🌙 ⭐ 💫 🪄 🦊 🐉 🎲 🍦 🦅 🐙)
 tmux set-option -wt "$win_id" @emoji "${emojis[RANDOM % ${#emojis[@]}]}"
