@@ -553,7 +553,6 @@ nvim/.config/nvim/
         │   └── settings/   ← per-server settings returned as tables
         ├── cmp.lua         ← nvim-cmp completion setup
         ├── treesitter.lua  ← treesitter setup + auto-install + FileType attach
-        ├── parsers.lua     ← standalone tree-sitter parser manager (not wired up; alternative to nvim-treesitter)
         ├── nvimtree.lua    ← file explorer
         ├── lualine.lua     ← status line
         ├── gitsigns.lua    ← git gutter signs
@@ -759,7 +758,7 @@ Controls how long Neovim waits with the cursor idle before firing `CursorHold`. 
 **3. The `AutoReload` autocmd (options.lua)**
 
 ```lua
-vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI" }, {
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold" }, {
     group = vim.api.nvim_create_augroup("AutoReload", { clear = true }),
     pattern = "*",
     callback = function()
@@ -779,7 +778,6 @@ Why each event:
 | `FocusGained` | Neovim window regains OS focus | Instant reload the moment you switch from the Claude pane back to Vim |
 | `BufEnter` | Entering a buffer (e.g. switching with `:b`) | Catches changes when you cycle between open buffers |
 | `CursorHold` | Cursor idle for `updatetime` ms in normal mode | Polls while you're watching; no keypress needed |
-| `CursorHoldI` | Cursor idle for `updatetime` ms in insert mode | Same coverage in insert mode |
 
 The `mode() ~= "c"` guard skips `checktime` while you're typing a `:` command — calling it mid-command could interrupt the command line.
 
