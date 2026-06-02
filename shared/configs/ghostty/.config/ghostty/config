@@ -1,5 +1,5 @@
 # --- Core Settings ---
-scrollback-limit = 500
+scrollback-limit = 150000
 window-padding-x = 0
 window-padding-y = 0
 window-decoration = true
@@ -23,9 +23,6 @@ background-blur = false
 
 # --- Fonts ---
 font-family = "Fira Code"
-font-family-bold = "Fira Code"
-font-family-italic = "Fira Code"
-font-family-bold-italic = "Fira Code"
 font-style = Medium
 font-style-italic = Medium
 font-size = 15
@@ -69,7 +66,6 @@ split-divider-color = #414140
 
 # Opacity preset
 keybind = super+shift+o=toggle_background_opacity
-keybind = super+shift+p=toggle_background_opacity
 
 # Splitting terminals
 keybind = super+shift+v=new_split:right
