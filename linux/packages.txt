@@ -25,6 +25,7 @@ xsettingsd
 pulseaudio-utils
 brightnessctl
 scrot
+xclip
 imagemagick
 curl
 unzip
