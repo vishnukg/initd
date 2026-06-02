@@ -123,27 +123,19 @@ abbr -a gstp 'git stash pop'
 abbr -a gsw  'git switch'
 abbr -a gswc 'git switch --create'
 
-# ── Zoxide ────────────────────────────────────────────────────────────────────
-if command -q zoxide
-    set -l _cache ~/.cache/fish/zoxide_init.fish
-    set -l _bin (command -v zoxide)
-    if not test -f $_cache; or test $_bin -nt $_cache
-        mkdir -p (dirname $_cache)
-        command zoxide init fish > $_cache
+# ── Cached tool init (zoxide, starship) ───────────────────────────────────────
+# Regenerate the cached init script only when the binary is newer than the cache.
+function __source_cached_init --argument-names tool
+    command -q $tool; or return
+    set -l cache ~/.cache/fish/{$tool}_init.fish
+    if not test -f $cache; or test (command -v $tool) -nt $cache
+        mkdir -p (dirname $cache)
+        command $tool init fish >$cache
     end
-    source $_cache
+    source $cache
 end
-
-# ── Starship ──────────────────────────────────────────────────────────────────
-if command -q starship
-    set -l _cache ~/.cache/fish/starship_init.fish
-    set -l _bin (command -v starship)
-    if not test -f $_cache; or test $_bin -nt $_cache
-        mkdir -p (dirname $_cache)
-        command starship init fish > $_cache
-    end
-    source $_cache
-end
+__source_cached_init zoxide
+__source_cached_init starship
 
 # ── Local overrides (machine-specific, not committed) ─────────────────────────
 if test -f ~/.config/fish/local.fish
