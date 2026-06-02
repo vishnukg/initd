@@ -34,7 +34,6 @@ local options = {
 	guifont = "monospace:h17",
 	guicursor = "",
 	autoread = true,
-	showmatch = false,
 }
 vim.opt.shortmess:append("c")
 
@@ -42,7 +41,7 @@ vim.opt.shortmess:append("c")
 vim.filetype.add({ extension = { bru = "bru" } })
 
 -- Auto-reload buffers when files change on disk (e.g. changed by Claude/Copilot)
-vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI" }, {
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold" }, {
 	group = vim.api.nvim_create_augroup("AutoReload", { clear = true }),
 	pattern = "*",
 	callback = function()

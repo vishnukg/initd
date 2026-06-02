@@ -14,9 +14,6 @@ vim.opt.rtp:prepend(lazypath)
 
 return require("lazy").setup({
 
-	-- ── Core utilities ────────────────────────────────────────────────────────
-	{ "nvim-lua/plenary.nvim" },
-
 	-- ── Colorscheme ───────────────────────────────────────────────────────────
 	{
 		"Mofiqul/vscode.nvim",
