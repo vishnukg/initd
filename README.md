@@ -17,7 +17,7 @@ initd/
 ├── shared/                      # cross-platform
 │   ├── lib/                     # logging, fs, link, cleanup, git-profile
 │   ├── managed-links.sh         # MANAGED_LINKS for shared configs + git helpers
-│   ├── configs/                 # fish, git, ghostty, kitty, mise, nvim, tmux
+│   ├── configs/                 # fish, git, ghostty, kitty, mise, nvim, starship, tmux
 │   └── test.sh                  # behavior tests (auto-detects host OS)
 ├── macos/                       # self-contained macOS bootstrap
 │   ├── bootstrap.sh
@@ -79,6 +79,7 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 | `~/.config/kitty` | `shared/configs/kitty/.config/kitty` |
 | `~/.config/mise` | `shared/configs/mise/.config/mise` |
 | `~/.config/nvim` | `shared/configs/nvim/.config/nvim` |
+| `~/.config/starship.toml` | `shared/configs/starship/.config/starship.toml` |
 | `~/.config/tmux` | `shared/configs/tmux/.config/tmux` |
 | `~/.gitconfig` | `shared/configs/git/profiles/{personal,work}.gitconfig` |
 
@@ -103,25 +104,6 @@ Two gitignored files — sourced/included if present, silently skipped if absent
 |---|---|
 | `shared/configs/git/local.gitconfig` | Git email for this machine |
 | `shared/configs/fish/.config/fish/local.fish` | Machine-specific env vars and overrides |
-
-## Migrating an existing machine from the old flat layout
-
-If a Mac already had `initd` bootstrapped before the three-bucket restructure
-(where everything lived at the repo root in `fish/`, `git/`, `nvim/`, etc.),
-run the one-shot migrator once after `git pull`. It moves the gitignored
-machine-local files (`git/local.gitconfig`, `fish` local files, fisher
-plugins, fish variables) into their new `shared/configs/...` locations and
-clears empty old directories. Tracked files follow the rename automatically;
-this only handles what `git pull` can't.
-
-```bash
-cd ~/.config/initd
-git pull
-shared/lib/migrate-from-flat-layout.sh
-bash bootstrap.sh
-```
-
-The migrator is idempotent — safe to re-run, does nothing on a clean tree.
 
 ## Backups
 
@@ -167,3 +149,6 @@ Then re-run `shared/test.sh`.
 - `docs/fish.md` — fish/bash/zsh syntax comparison
 - `docs/nvim.md` — Neovim setup with Lazy.nvim
 - `docs/mise.md` — mise tool management
+- `docs/git-branching-conflicts.md` — Git branching and conflict resolution
+- `docs/tmux-nvim.md` — tmux and Neovim workspace concepts
+- `docs/tmux-sessions.md` — tmux session/window/pane workflow and keybindings
