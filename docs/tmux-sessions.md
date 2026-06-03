@@ -47,6 +47,30 @@ What this does:
 
 ---
 
+## Auto-attach on a remote server
+
+The classic tmux use case: run tmux **on the server** so long-running work (builds, migrations, jobs) survives SSH disconnects. Detach with `C-a d`, drop the connection, and re-attach later from anywhere — the process never gets `SIGHUP`'d.
+
+To make every interactive SSH login drop you straight into a persistent session, add this to the **server's** shell rc (`~/.bashrc` or `~/.zshrc` on the remote box):
+
+```bash
+# Auto-attach to tmux on interactive SSH login
+if [ -n "$SSH_CONNECTION" ] && [ -z "$TMUX" ] && command -v tmux >/dev/null; then
+    tmux attach -t main 2>/dev/null || tmux new-session -s main
+fi
+```
+
+What this does:
+- Only runs over SSH (`SSH_CONNECTION` is set) and only in interactive shells not already inside tmux.
+- Attaches to a session named `main` if it exists → your work survives across logins.
+- Otherwise creates a fresh `main`.
+
+Notes:
+- **Nested tmux** (local tmux + server tmux): press `C-a C-a` to send the prefix to the *inner* (remote) tmux. The repo config already binds `C-a C-a` to `send-prefix`.
+- A bare server shows plain default tmux unless you also deploy these dotfiles there — the durability works regardless of theme.
+
+---
+
 ## Session commands
 
 ### From the command line (outside tmux)
