@@ -6,8 +6,8 @@ A personal Neovim configuration built on [lazy.nvim](https://github.com/folke/la
 
 ## Table of Contents
 
-- [Fresh Install](#fresh-install)
 - [Config Structure](#config-structure)
+- [Fresh Install](#fresh-install)
 - [How Everything Works Together](#how-everything-works-together)
   - [Treesitter](#treesitter--syntax-highlighting)
   - [Tool installation (mise)](#tool-installation-mise)
@@ -64,7 +64,7 @@ require "user"        -- 2. lazy.nvim + all plugins + LSP + keymaps
 
 ---
 
-
+## Fresh Install
 
 ### 1. Bootstrap `initd`
 
@@ -215,7 +215,7 @@ The Language Server Protocol (LSP) is a standard that allows editors to talk to 
 | `vim.lsp` | Built-in Neovim LSP engine — speaks the protocol |
 | `nvim-lspconfig` | Knows the startup command & options for each server |
 
-`lua/user/lsp/servers.lua` iterates the server list, applies any per-server overrides from `lua/user/lsp/settings/<server>.lua`, and calls `vim.lsp.config` + `vim.lsp.enable`. Server binaries are resolved from `PATH`, which mise's activation in fish populates with the shim directory.
+`lua/user/lsp/servers.lua` iterates the server list, applies any per-server overrides from `lua/user/lsp/settings/<server>.lua`, and calls `vim.lsp.config` + `vim.lsp.enable`. Server binaries are resolved from `PATH`, which the fish config populates with the mise shim directory via `fish_add_path` (no `mise activate` — it is explicitly disabled).
 
 **What LSP provides:** completions, diagnostics, go-to-definition, hover docs, find references, rename, code actions, inlay hints.
 
