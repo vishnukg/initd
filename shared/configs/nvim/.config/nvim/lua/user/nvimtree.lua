@@ -18,14 +18,15 @@ nvim_tree.setup({
 	hijack_cursor = false,
 	sync_root_with_cwd = true,
 	view = {
-		width = 30,
-		adaptive_size = true,
+		width = { min = 30 },
 		side = "left",
 	},
 	update_focused_file = {
 		enable = true,
-		update_cwd = false,
-		ignore_list = {},
+		update_root = {
+			enable = false,
+			ignore_list = {},
+		},
 	},
 	-- macOS fsevents miss single-file deletes, so the tree wouldn't refresh
 	-- until reopen (and surfaced spurious "Could not remove" errors). Disabling
@@ -35,7 +36,6 @@ nvim_tree.setup({
 	},
 	git = {
 		enable = true,
-		ignore = false,
 		timeout = 500,
 	},
 	renderer = {
@@ -68,6 +68,7 @@ nvim_tree.setup({
 	},
 	filters = {
 		dotfiles = false,
+		git_ignored = false,
 	},
 	actions = {
 		open_file = {
