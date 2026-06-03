@@ -38,7 +38,6 @@ A reference for reading and editing this config. Covers Vim fundamentals, Lua, a
    - [LspAttach autocmd](#lspattach-autocmd)
    - [vim.lsp.config + vim.lsp.enable](#vimlspconfig--vimlspenable)
    - [How LSP loads when you open a file](#how-lsp-loads-when-you-open-a-file)
-   - [PATH workaround in null-ls.lua](#path-workaround-in-null-lslua)
    - [How treesitter loads when you open a file](#how-treesitter-loads-when-you-open-a-file)
    - [Auto-reload when an external process edits a file](#auto-reload-when-an-external-process-edits-a-file)
 
@@ -678,56 +677,6 @@ The entire LSP stack (nvim-lspconfig + none-ls) is set to `event = { "BufReadPre
 5. **none-ls attaches** — its `on_attach` registers the `BufWritePre` format-on-save autocmd for that buffer.
 
 The perceived delay (typically 300–800ms for gopls on a fresh module) is purely the server binary starting and indexing — not the config. Using `BufReadPre` instead of `VeryLazy` or `BufEnter` shaves the only part that's controllable: plugin load time happens in parallel with the very first file read rather than after it.
-
-### PATH workaround in null-ls.lua
-
-At the top of `lua/user/lsp/null-ls.lua` you'll find:
-
-```lua
-if vim.fn.has("mac") == 1 then
-    vim.env.PATH = vim.fn.expand("~/.local/share/mise/shims")
-        .. ":/opt/homebrew/bin:/opt/homebrew/sbin:"
-        .. vim.env.PATH
-end
-```
-
-This exists because of a specific interaction between fish shell, macOS Apple
-Silicon, and `null_ls.setup()`. Without it, none-ls fails to find tools that
-are correctly installed (via mise or Homebrew) with a "not executable" error.
-
-**Root cause:**
-
-1. On Apple Silicon, `/etc/paths` does not include `/opt/homebrew/bin` or the
-   mise shim directory. The system's `path_helper` rebuilds `PATH` from
-   `/etc/paths` on shell startup.
-2. Fish invokes `path_helper` and the user-added directories (Homebrew, mise
-   shims) can get reordered or lost in the rebuild. Neovim inherits the
-   resulting `PATH`.
-3. `null_ls.setup()` snapshots `vim.env.PATH` at call time and uses it for
-   `vim.fn.executable()` checks against each source.
-
-By the time `null_ls.setup()` runs, the directories that hold the binaries
-have been dropped from `vim.env.PATH` and they become invisible to none-ls.
-
-**Why it's specifically in null-ls.lua and not options.lua / bootstrap.lua:**
-
-The PATH gets reset somewhere during lazy.nvim's plugin load sequence. Setting
-`vim.env.PATH` earlier in `options.lua` or `bootstrap.lua` doesn't help — by
-the time `null_ls.setup()` runs, the fix has been overwritten. The only
-placement that reliably works is immediately before `require("null-ls")` so
-the prepend happens last.
-
-**Why zsh users never see this:**
-
-zsh on macOS sources `/etc/zprofile` exactly once per login session, runs
-`path_helper` once, then the user's profile adds Homebrew/mise after it. The
-order sticks for every child process. Fish runs its full config on every
-invocation, so `path_helper` can intervene differently.
-
-**The "proper" alternative** would be adding the mise shim dir and Homebrew
-to `/etc/paths.d/` system-wide. That requires `sudo` and modifies a system
-file, which Homebrew itself deliberately avoids. The Neovim-level workaround
-is narrower and contained to this repo.
 
 ### How treesitter loads when you open a file
 

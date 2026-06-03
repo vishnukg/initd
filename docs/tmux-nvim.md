@@ -342,10 +342,10 @@ Example:
 
 ```text
 Ctrl-a c        tmux: new window
-Ctrl-a s        tmux: horizontal split
+Ctrl-a b        tmux: horizontal split (below)
 Ctrl-a v        tmux: vertical split
 Ctrl-a h/j/k/l  tmux: move between panes
-Ctrl-a H/J/K/L  tmux: resize panes
+Ctrl-a e        tmux: enter resize mode, then h/j/k/l to resize
 Ctrl-a z        tmux: zoom pane
 
 \ff             nvim: find file
