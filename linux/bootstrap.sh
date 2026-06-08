@@ -89,6 +89,19 @@ ensure_gh() {
     && sudo apt-get install -y gh
 }
 
+ensure_ghostty() {
+  if command -v ghostty >/dev/null 2>&1; then
+    log_success "ghostty already installed."
+    return
+  fi
+
+  log "Installing ghostty from Ubuntu PPA (mkasberg/ghostty-ubuntu)..."
+  sudo add-apt-repository -y ppa:mkasberg/ghostty-ubuntu
+  sudo apt-get update -qq
+  sudo apt-get install -y ghostty
+  log_success "ghostty installed."
+}
+
 ensure_gh_auth() {
   if gh auth token >/dev/null 2>&1; then
     log_success "gh auth check done."
@@ -170,6 +183,7 @@ main() {
 
   install_packages
   ensure_gh
+  ensure_ghostty
   ensure_mise
 
   log "Linking managed configs into ${HOME}..."

@@ -29,6 +29,7 @@ xclip
 imagemagick
 curl
 unzip
+software-properties-common
 network-manager-gnome
 copyq
 power-profiles-daemon
