@@ -15,6 +15,7 @@ brew "readline"
 brew "tig"
 brew "tmux"
 
+cask "1password"
 cask "betterdisplay"
 cask "copilot-cli"
 cask "docker-desktop"
