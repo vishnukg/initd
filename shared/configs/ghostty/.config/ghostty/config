@@ -1,10 +1,9 @@
 # --- Core Settings ---
-scrollback-limit = 150000
+scrollback-limit = 10000
 window-padding-x = 0
 window-padding-y = 0
-window-decoration = true
 confirm-close-surface = false
-shell-integration = detect
+shell-integration = fish
 
 bell-features = no-system,no-audio,no-attention,no-title,no-border
 cursor-style = block
@@ -13,8 +12,8 @@ cursor-color = #ffffff
 cursor-text = #141414
 
 macos-titlebar-style = transparent
-window-titlebar-background = #000000
 window-colorspace = display-p3
+resize-overlay = never
 
 # --- Background & Opacity ---
 background = #000000
@@ -29,7 +28,6 @@ font-size = 15
 font-feature = -calt
 font-feature = -liga
 font-thicken = false
-minimum-contrast = 1.1
 
 # --- Theme: VSCode Dark ---
 foreground = #cccccc
