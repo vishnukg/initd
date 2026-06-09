@@ -47,6 +47,11 @@ ensure_homebrew() {
   else
     require_command curl "to install Homebrew"
     log "Homebrew not found. Installing..."
+    # NONINTERACTIVE=1 makes the installer probe sudo with `sudo -n`, which never
+    # prompts — so on a fresh machine with no cached credential it fails with a
+    # misleading "Need sudo access … needs to be an Administrator" even for admins.
+    # Prime (and cache) the credential first so the installer sails through.
+    sudo -v || { log_error "Need admin (sudo) access to install Homebrew."; exit 1; }
     NONINTERACTIVE=1 /bin/bash -c \
       "$(curl -fsSL --max-time 60 https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   fi
