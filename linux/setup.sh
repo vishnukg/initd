@@ -260,9 +260,9 @@ patch_polybar_hardware() {
 
   wlan_iface="$(ip -o link show 2>/dev/null | awk '$2 ~ /^w/ {gsub(/:/, "", $2); print $2; exit}' || true)"
   wlan_iface="${wlan_iface:-wlan0}"
-  battery="$(ls /sys/class/power_supply/ 2>/dev/null | grep -i bat | head -1 || true)"
+  battery="$(find /sys/class/power_supply -mindepth 1 -maxdepth 1 -iname '*bat*' -printf '%f\n' 2>/dev/null | head -1 || true)"
   battery="${battery:-BAT0}"
-  backlight="$(ls /sys/class/backlight/ 2>/dev/null | head -1 || true)"
+  backlight="$(find /sys/class/backlight -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -1 || true)"
   backlight="${backlight:-intel_backlight}"
 
   _patch_kv() {
