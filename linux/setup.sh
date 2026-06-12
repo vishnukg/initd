@@ -37,7 +37,7 @@ install_firacode_nerd_font() {
 
   mkdir -p "${font_dir}"
   log "Downloading FiraCode Nerd Font..."
-  curl -L --progress-bar \
+  curl -fL --progress-bar --max-time 300 \
     "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip" \
     -o /tmp/FiraCode-nerd.zip
   unzip -q -o /tmp/FiraCode-nerd.zip "*.ttf" -d "${font_dir}"
@@ -148,8 +148,9 @@ enable_power_profiles_daemon() {
     log "Removed static performance governor service."
   fi
 
-  if systemctl is-active --quiet power-profiles-daemon; then
-    log_success "power-profiles-daemon already running."
+  if systemctl is-active --quiet power-profiles-daemon \
+      && systemctl is-enabled --quiet power-profiles-daemon; then
+    log_success "power-profiles-daemon already running and enabled."
     return
   fi
   sudo systemctl unmask power-profiles-daemon 2>/dev/null || true

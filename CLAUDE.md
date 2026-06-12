@@ -50,7 +50,7 @@ initd/
 ├── shared/                   # cross-platform — sourced by both bootstraps
 │   ├── lib/                  # logging.sh, fs.sh, link.sh, cleanup.sh, git-profile.sh
 │   ├── managed-links.sh      # MANAGED_LINKS for shared configs + git helpers
-│   ├── configs/              # fish, git, ghostty, kitty, mise, nvim, starship, tmux
+│   ├── configs/              # fish, git, ghostty, mise, nvim, starship, tmux
 │   └── test.sh
 ├── macos/                    # self-contained — `rm -rf macos/` and Linux still works
 │   ├── bootstrap.sh
@@ -112,7 +112,7 @@ shared/managed-links.sh         ← MANAGED_LINKS (shared) + GIT_PROFILES_DIR + 
 
 The single array `MANAGED_LINKS` is built in two steps:
 
-1. `shared/managed-links.sh` defines the cross-platform entries (fish, ghostty, kitty, mise, nvim, starship, tmux).
+1. `shared/managed-links.sh` defines the cross-platform entries (fish, ghostty, mise, nvim, starship, tmux).
 2. `<platform>/managed-links.sh` appends OS-only entries (currently nothing on macOS; i3/polybar/rofi/dunst/picom/xsettingsd/gtk-3.0 on Linux).
 
 Entry format: `"home path:repo path"`. Scripts split with `home_path="${entry%%:*}"` / `repo_path="${entry#*:}"`.
@@ -142,7 +142,7 @@ Each managed package lives in a subdirectory that mirrors `$HOME`:
 
 ```
 shared/configs/fish/.config/fish/    →  symlinked as ~/.config/fish
-shared/configs/kitty/.config/kitty/  →  symlinked as ~/.config/kitty
+shared/configs/tmux/.config/tmux/    →  symlinked as ~/.config/tmux
 linux/configs/i3/                    →  symlinked as ~/.config/i3
 linux/configs/polybar/               →  symlinked as ~/.config/polybar
 ```

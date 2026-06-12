@@ -24,13 +24,12 @@ EOF
 }
 
 main() {
-  while (($#)); do
+  if [[ "$#" -gt 0 ]]; then
     case "$1" in
       -h|--help) usage; return ;;
       *) log_error "Unknown argument: $1"; usage >&2; exit 1 ;;
     esac
-    shift
-  done
+  fi
 
   require_command apt-get "to update Debian packages"
 

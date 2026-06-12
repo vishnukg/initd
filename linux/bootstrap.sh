@@ -121,6 +121,7 @@ ensure_fish() {
 
   local fish_path
   fish_path="$(command -v fish)"
+  local account_name="${USER:-$(id -un)}"
 
   if ! grep -qxF "${fish_path}" /etc/shells; then
     log "Adding ${fish_path} to /etc/shells."
@@ -130,10 +131,10 @@ ensure_fish() {
   fi
 
   local login_shell
-  login_shell="$(getent passwd "${USER}" | cut -d: -f7)"
+  login_shell="$(getent passwd "${account_name}" | cut -d: -f7)"
   if [[ "${login_shell}" != "${fish_path}" ]]; then
-    log "Setting fish as default shell for ${USER}."
-    sudo chsh -s "${fish_path}" "${USER}"
+    log "Setting fish as default shell for ${account_name}."
+    sudo chsh -s "${fish_path}" "${account_name}"
   else
     log_success "fish is already the default shell."
   fi

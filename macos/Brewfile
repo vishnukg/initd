@@ -1,5 +1,3 @@
-tap "hashicorp/tap"
-
 brew "autoconf"
 brew "gh"
 brew "fish"
@@ -27,5 +25,4 @@ cask "font-meslo-lg-nerd-font"
 cask "font-victor-mono-nerd-font"
 cask "ghostty"
 cask "iterm2"
-cask "kitty"
 cask "visual-studio-code"

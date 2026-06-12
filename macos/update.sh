@@ -13,6 +13,7 @@ Update machine-managed tools outside the bootstrap path.
 
 Runs:
   brew update
+  brew bundle --file macos/Brewfile
   brew upgrade
   brew cleanup
   mise upgrade --yes
@@ -35,18 +36,20 @@ ensure_homebrew_env() {
 }
 
 main() {
-  while (($#)); do
+  if [[ "$#" -gt 0 ]]; then
     case "$1" in
       -h|--help) usage; return ;;
       *) log_error "Unknown argument: $1"; usage >&2; exit 1 ;;
     esac
-    shift
-  done
+  fi
 
   ensure_homebrew_env
 
   log "Updating Homebrew metadata..."
   brew update
+
+  log "Installing any new Brewfile entries..."
+  brew bundle --file "${ROOT_DIR}/macos/Brewfile"
 
   log "Upgrading Homebrew formulae and casks..."
   brew upgrade
