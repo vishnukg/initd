@@ -5,7 +5,7 @@
 It owns both:
 
 - **machine setup**: Homebrew (mac) / apt (linux), apps, runtimes, OS defaults, i3 desktop
-- **user config**: Neovim, Ghostty, Kitty, Fish, tmux, Git, i3/polybar/rofi/dunst, and other dotfiles via managed symlinks
+- **user config**: Neovim, Ghostty, Fish, tmux, Git, i3/polybar/rofi/dunst, and other dotfiles via managed symlinks
 
 ## Layout
 
@@ -17,7 +17,7 @@ initd/
 ├── shared/                      # cross-platform
 │   ├── lib/                     # logging, fs, link, cleanup, git-profile
 │   ├── managed-links.sh         # MANAGED_LINKS for shared configs + git helpers
-│   ├── configs/                 # fish, git, ghostty, kitty, mise, nvim, starship, tmux
+│   ├── configs/                 # fish, git, ghostty, mise, nvim, starship, tmux
 │   └── test.sh                  # behavior tests (auto-detects host OS)
 ├── macos/                       # self-contained macOS bootstrap
 │   ├── bootstrap.sh
@@ -76,7 +76,6 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 |---|---|
 | `~/.config/fish` | `shared/configs/fish/.config/fish` |
 | `~/.config/ghostty` | `shared/configs/ghostty/.config/ghostty` |
-| `~/.config/kitty` | `shared/configs/kitty/.config/kitty` |
 | `~/.config/mise` | `shared/configs/mise/.config/mise` |
 | `~/.config/nvim` | `shared/configs/nvim/.config/nvim` |
 | `~/.config/starship.toml` | `shared/configs/starship/.config/starship.toml` |
@@ -127,7 +126,7 @@ before initd takes ownership. Nothing is deleted.
 
 ## Linux — apt specifics
 
-`linux/packages.txt` is one package per line, comments allowed. Add to it and re-run `linux/bootstrap.sh`. The packages list intentionally tracks the brew formulas where equivalents exist (`fish`, `tmux`, `tig`, `git`, `gnupg`, `neovim`, `kitty`) plus Debian build deps for mise-managed Python/Node.
+`linux/packages.txt` is one package per line, comments allowed. Add to it and re-run `linux/bootstrap.sh`. The packages list intentionally tracks the brew formulas where equivalents exist (`fish`, `tmux`, `tig`, `git`, `gnupg`, `neovim`) plus Debian build deps for mise-managed Python/Node.
 
 `linux/setup.sh` handles four classes of thing that don't fit the symlink flow:
 - system fixes requiring sudo (xorg TearFree, Intel BE200 WiFi d3cold udev rule, NetworkManager power save, swappiness, Chrome apt arch pin, power-profiles-daemon)

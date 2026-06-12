@@ -1,5 +1,7 @@
 # --- Core Settings ---
-scrollback-limit = 10000
+# Bytes, not lines (10MB = the default; allocated lazily, ~tens of
+# thousands of lines). The old value of 10000 was only ~10KB.
+scrollback-limit = 10000000
 window-padding-x = 0
 window-padding-y = 0
 confirm-close-surface = false

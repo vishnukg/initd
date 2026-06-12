@@ -45,7 +45,6 @@ tmux
 tig
 git
 gnupg
-kitty
 
 # ── Build dependencies for mise-managed Python / Node ────────────────────────
 build-essential

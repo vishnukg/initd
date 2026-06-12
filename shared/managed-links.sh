@@ -16,7 +16,6 @@ DEFAULT_GIT_PROFILE="${GIT_PROFILES_DIR}/personal.gitconfig"
 MANAGED_LINKS=(
   "${HOME}/.config/fish:${ROOT_DIR}/shared/configs/fish/.config/fish"
   "${HOME}/.config/ghostty:${ROOT_DIR}/shared/configs/ghostty/.config/ghostty"
-  "${HOME}/.config/kitty:${ROOT_DIR}/shared/configs/kitty/.config/kitty"
   "${HOME}/.config/mise:${ROOT_DIR}/shared/configs/mise/.config/mise"
   "${HOME}/.config/nvim:${ROOT_DIR}/shared/configs/nvim/.config/nvim"
   "${HOME}/.config/starship.toml:${ROOT_DIR}/shared/configs/starship/.config/starship.toml"

@@ -12,6 +12,6 @@ defaults write NSGlobalDomain InitialKeyRepeat -int 15
 defaults write NSGlobalDomain KeyRepeat -int 2
 log_success "macOS defaults applied."
 
-# Suppress the "Last login" line printed by /usr/bin/login when kitty opens a tab.
+# Suppress the "Last login" line printed by /usr/bin/login on new terminal sessions.
 touch "${HOME}/.hushlogin"
 log_success "Suppressed last-login message (~/.hushlogin)."
