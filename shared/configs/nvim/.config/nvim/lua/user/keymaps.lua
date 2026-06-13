@@ -46,12 +46,19 @@ map("v", "<A-k>", ":m .-2<CR>==", d("Move line up"))
 map("v", "p",     '"_dP',      d("Paste without yanking replaced text"))
 
 -- ── FzfLua ────────────────────────────────────────────────────────────────────
-map("n", "<leader>ff", ":FzfLua files<CR>",      d("FZF: find files"))
-map("n", "<leader>fg", ":FzfLua live_grep<CR>",  d("FZF: live grep"))
-map("n", "<leader>fb", ":FzfLua buffers<CR>",    d("FZF: buffers"))
+-- Mapped to Lua callbacks rather than ":FzfLua <cmd><CR>" strings: requiring the
+-- module triggers lazy.nvim's load-on-require, so the picker opens on the first
+-- keypress. The old cmdline form went through lazy's `cmd` stub, which had to
+-- load the plugin and re-dispatch the command + argument — that re-dispatch
+-- intermittently dropped the action, so it took a few tries to open.
+map("n", "<leader>ff", function() require("fzf-lua").files() end,     d("FZF: find files"))
+map("n", "<leader>fg", function() require("fzf-lua").live_grep() end, d("FZF: live grep"))
+map("n", "<leader>fb", function() require("fzf-lua").buffers() end,   d("FZF: buffers"))
 
 -- ── File tree ─────────────────────────────────────────────────────────────────
-map("n", "<C-g>", ":NvimTreeToggle<cr>", d("Toggle file tree"))
+-- Callback (not ":NvimTreeToggle<cr>") so the require-hook lazy-loads nvim-tree
+-- and toggles in one keypress, avoiding the cmd-stub re-dispatch.
+map("n", "<C-g>", function() require("nvim-tree.api").tree.toggle() end, d("Toggle file tree"))
 
 -- ── Search and replace (grug-far) ────────────────────────────────────────────
 map("n", "<leader>sp", function() require("grug-far").open() end,                              d("Search & replace"))
@@ -75,8 +82,8 @@ map("n", "<leader>cpt", "<cmd>CopilotChatTests<CR>",   d("Copilot Chat: write te
 map("n", "<leader>cpr", "<cmd>CopilotChatReset<CR>",   d("Copilot Chat: reset"))
 
 -- ── Trouble ───────────────────────────────────────────────────────────────────
-map("n", "<leader>xx", "<cmd>Trouble diagnostics toggle<CR>",             d("Trouble: workspace diagnostics"))
-map("n", "<leader>xd", "<cmd>Trouble diagnostics toggle filter.buf=0<CR>",d("Trouble: buffer diagnostics"))
+map("n", "<leader>xx", function() require("trouble").toggle("diagnostics") end,                              d("Trouble: workspace diagnostics"))
+map("n", "<leader>xd", function() require("trouble").toggle({ mode = "diagnostics", filter = { buf = 0 } }) end, d("Trouble: buffer diagnostics"))
 
 -- ── Tabs ──────────────────────────────────────────────────────────────────────
 map("n", "<leader>nt", "<cmd>tabnew<CR>", d("New tab"))

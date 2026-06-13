@@ -164,7 +164,11 @@ return require("lazy").setup({
 		},
 		build = "make tiktoken",
 		opts = {},
-		cmd = "CopilotChat",
+		-- All CopilotChat* sub-commands used by keymaps must be listed here, not
+		-- just "CopilotChat": lazy only stubs the commands it's told about, so
+		-- otherwise <leader>cpe/cpt/cpr would error until CopilotChat was opened
+		-- once. "Copilot" stubs the copilot.vim dependency's command too.
+		cmd = { "CopilotChat", "CopilotChatExplain", "CopilotChatTests", "CopilotChatReset", "Copilot" },
 	},
 
 	-- ── Markdown ──────────────────────────────────────────────────────────────
