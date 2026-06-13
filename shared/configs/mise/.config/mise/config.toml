@@ -40,6 +40,7 @@ yarn      = ["latest", "1.22.22"]
 
 # ── CLI tools ──────────────────────────────────────────────────────────
 "neovim"                 = "latest"
+"ast-grep"               = "latest" # structural search; extends grug-far
 "delta"                  = "latest" # git-delta
 "fd"                     = "latest"
 "fzf"                    = "latest"
