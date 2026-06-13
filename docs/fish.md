@@ -179,7 +179,7 @@ Config split in `config.fish`:
 │  fish_add_path              (PATH additions, idempotent) │
 │  mise shims                 (tool versions for scripts)  │
 └─────────────────────────────────────────────────────────┘
-  if not status is-interactive; exit; end
+  if not status is-interactive; return; end
 ┌─ interactive only ──────────────────────────────────────┐
 │  Theme, vi mode, key bindings                           │
 │  Aliases and abbreviations                              │
