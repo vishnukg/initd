@@ -13,6 +13,11 @@ if test -d ~/.dotnet/tools
 end
 
 # ── Mise ──────────────────────────────────────────────────────────────────────
+# Hybrid setup (see docs/mise.md): shims are the baseline PATH for every
+# context (scripts, editors, non-interactive shells); interactive shells
+# additionally run `mise activate` (cached, below) which puts the real
+# binaries first so launches skip the shim hop and tools keep their own
+# process name (e.g. tmux tabs show nvim, not mise).
 fish_add_path ~/.local/share/mise/shims
 if test -d ~/.local/share/mise/installs/starship/latest
     fish_add_path ~/.local/share/mise/installs/starship/latest
@@ -123,19 +128,23 @@ abbr -a gstp 'git stash pop'
 abbr -a gsw  'git switch'
 abbr -a gswc 'git switch --create'
 
-# ── Cached tool init (zoxide, starship) ───────────────────────────────────────
+# ── Cached tool init (zoxide, starship, mise) ─────────────────────────────────
 # Regenerate the cached init script only when the binary is newer than the cache.
-function __source_cached_init --argument-names tool
+function __source_cached_init --argument-names tool subcmd
+    set -q subcmd[1]; or set subcmd init
     command -q $tool; or return
-    set -l cache ~/.cache/fish/{$tool}_init.fish
+    set -l cache ~/.cache/fish/{$tool}_{$subcmd}.fish
     if not test -f $cache; or test (command -v $tool) -nt $cache
         mkdir -p (dirname $cache)
-        command $tool init fish >$cache
+        command $tool $subcmd fish >$cache
     end
     source $cache
 end
 __source_cached_init zoxide
 __source_cached_init starship
+# Interactive-only mise activation: prepends real tool bins to PATH via a
+# prompt hook (~20ms/prompt) so shims are only the non-interactive fallback.
+__source_cached_init mise activate
 
 # ── Local overrides (machine-specific, not committed) ─────────────────────────
 if test -f ~/.config/fish/local.fish

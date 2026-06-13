@@ -56,20 +56,40 @@ milliseconds but the shim directory never changes, so any process that has it
 on `$PATH` — the shell, nvim, CI, a launchd daemon — always gets the right
 version without needing mise to be "activated" at all.
 
-This repo uses shims. `~/.config/fish/config.fish` adds the shim directory at
-shell startup:
+This repo uses **both**, each where it is strongest:
 
-```fish
-fish_add_path ~/.local/share/mise/shims
-```
+- **Shims are the baseline.** `~/.config/fish/config.fish` adds the shim
+  directory at shell startup, for every shell:
+
+  ```fish
+  fish_add_path ~/.local/share/mise/shims
+  ```
+
+  Anything that inherits PATH without going through an interactive prompt —
+  scripts, nvim's `vim.fn.executable()` lookups for LSPs/formatters, CI,
+  launchd — resolves tools through shims and always gets the right version.
+
+- **Interactive shells additionally run `mise activate`.** The interactive
+  section of `config.fish` sources it through the same `__source_cached_init`
+  caching used for zoxide and starship:
+
+  ```fish
+  __source_cached_init mise activate
+  ```
+
+  That registers a prompt hook which prepends the *real* tool `bin/`
+  directories to PATH, ahead of the shims. Interactive launches therefore
+  exec the actual binary directly.
 
 Fish also sets `MISE_FISH_AUTO_ACTIVATE=0` in
-`~/.config/fish/conf.d/00-initd-env.fish`. That disables the automatic
-Homebrew-installed mise fish hook before vendor snippets run. No
-`mise activate`, no `eval`, no prompt hooks.
+`~/.config/fish/conf.d/00-initd-env.fish`. mise's Homebrew formula ships a
+vendor conf.d hook that would run `mise activate fish | source` (uncached) on
+every shell; disabling it keeps the cached call in `config.fish` as the single
+activation path on both macOS and Linux.
 
 For startup speed, `config.fish` also adds the direct install directories for a
-couple of prompt-time tools when they exist:
+couple of prompt-time tools when they exist (these run during shell init,
+before the first prompt hook has fired):
 
 ```fish
 if test -d ~/.local/share/mise/installs/starship/latest
@@ -80,19 +100,28 @@ if test -d ~/.local/share/mise/installs/zoxide/latest
 end
 ```
 
-That keeps normal mise-managed tools on shims, while avoiding an extra shim
-lookup for commands that run every time an interactive shell starts.
+## Why the hybrid
 
-## Why shims work better for this setup
+Shims alone have two interactive costs. Every launch pays the lookup: the shim
+*is* the `mise` binary, which resolves the version and then `exec`s the real
+tool — ~25ms added to every `nvim`, `rg`, `node`. And because the foreground
+process is briefly named `mise`, tmux's `#{pane_current_command}` samples that
+name and shows `mise` in the tab until the next redraw trigger.
 
-- **Editors and tools inherit PATH correctly.** Nvim launched from fish sees
-  `~/.local/share/mise/shims` because it was baked into PATH at fish startup,
-  not injected dynamically. LSP servers and formatters resolved by nvim's
-  `vim.fn.executable()` just work.
-- **No shell startup overhead.** `mise activate` re-evaluates on every prompt
-  draw. Shims move the version lookup to the moment you actually run the tool.
-- **Simpler shell behavior.** A fixed PATH plus one early opt-out variable is
-  easier to reason about than `mise activate fish | source` plus hook functions.
+Activate alone breaks non-interactive contexts: PATH is injected by a prompt
+hook, so editors, daemons, and scripts that never render a prompt would start
+with no mise tools at all.
+
+The hybrid costs and gains:
+
+- **Per interactive shell startup:** sourcing the cached activation script
+  (~1ms). The script itself is regenerated only when the mise binary's mtime
+  changes (i.e. after an upgrade) — same invalidation as zoxide/starship.
+- **Per prompt:** one `mise hook-env` call (~20ms), which short-circuits
+  unless a mise config file changed. This replaces the ~25ms previously paid
+  on *every tool launch*.
+- **Non-interactive contexts** are unchanged: shims stay on PATH as the
+  fallback and keep working everywhere.
 
 ## Configuration
 

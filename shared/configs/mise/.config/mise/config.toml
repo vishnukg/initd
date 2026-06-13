@@ -1,15 +1,26 @@
 [settings]
 experimental              = true            # required for dotnet: backend (csharp-ls, csharpier)
 github.credential_command = "gh auth token" # use gh CLI for GitHub auth instead of a stored token
+# Install pipx: tools with uv instead of pipx. uv builds their venvs against
+# its own managed pythons (~/.local/share/uv), which mise upgrades never
+# delete — so python patch bumps can't orphan yamllint/pylint venvs again.
+pipx.uvx                  = true
+
+[env]
+# Make uv build pipx: tool venvs against its own downloaded pythons
+# (~/.local/share/uv/python) instead of whatever python is on PATH. mise
+# never deletes uv's pythons, so repinning/upgrading [tools].python can't
+# break these venvs.
+UV_MANAGED_PYTHON = "1"
 
 [tools]
 # ── runtimes ───────────────────────────────────────────────────────────
-pipx      = "latest"              # required for pipx: backend (yamllint, pylint)
+uv        = "latest"              # required for pipx: backend with pipx.uvx (yamllint, pylint)
 dotnet    = ["latest", "8"]
 go        = "1.26"
 node      = "lts"
 npm       = "latest"
-python    = "3.14"
+python    = "latest"
 terraform = "latest"
 yarn      = ["latest", "1.22.22"]
 
