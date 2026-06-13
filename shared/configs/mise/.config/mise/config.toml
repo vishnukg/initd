@@ -39,7 +39,7 @@ yarn      = ["latest", "1.22.22"]
 "dotnet:csharp-ls"                      = "latest" # csharp_ls
 
 # ── CLI tools ──────────────────────────────────────────────────────────
-"neovim"                 = "stable"
+"neovim"                 = "latest"
 "delta"                  = "latest" # git-delta
 "fd"                     = "latest"
 "fzf"                    = "latest"
