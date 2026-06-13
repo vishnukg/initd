@@ -28,7 +28,7 @@ end
 
 # ── Interactive-only config ────────────────────────────────────────────────────
 if not status is-interactive
-    exit
+    return
 end
 
 # ── Tmux auto-attach ──────────────────────────────────────────────────────────
