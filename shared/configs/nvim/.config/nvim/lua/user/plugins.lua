@@ -285,4 +285,9 @@ return require("lazy").setup({
 			disabled_plugins = { "gzip", "tarPlugin", "tohtml", "tutor", "zipPlugin" },
 		},
 	},
+	-- No plugin in this config requires luarocks (lazy's healthcheck confirms
+	-- "no plugins require luarocks"). Disabling it stops lazy from trying to
+	-- bootstrap a hererocks/luarocks toolchain — which otherwise shows up as a
+	-- spurious ERROR in :checkhealth lazy.
+	rocks = { enabled = false },
 })
