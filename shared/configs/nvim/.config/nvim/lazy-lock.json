@@ -9,7 +9,7 @@
   "copilot.vim": { "branch": "release", "commit": "a12fd5672110c8aa7e3c8419e28c96943ca179be" },
   "easy-dotnet.nvim": { "branch": "main", "commit": "4a4a12add28922e5e22d9cfdeda88194f487a8e2" },
   "fga.nvim": { "branch": "main", "commit": "b2abd2ccde2ff2d72130f011cb3f19c8df6dde34" },
-  "fidget.nvim": { "branch": "main", "commit": "fcba7a2acf12ceadf810b91573dce4d62ba5c0e3" },
+  "fidget.nvim": { "branch": "main", "commit": "57bd054365e6fa089704854bdba668bff1c83227" },
   "friendly-snippets": { "branch": "main", "commit": "6cd7280adead7f586db6fccbd15d2cac7e2188b9" },
   "fzf-lua": { "branch": "main", "commit": "267f5db2aa2202b9f6cc7a50783f0ccd2121766c" },
   "gitsigns.nvim": { "branch": "main", "commit": "2038c666bd9d8a0b7349a0b6ee00dc83104b9ecf" },
