@@ -22,7 +22,7 @@ bash bootstrap.sh
 # Re-apply managed symlinks only
 shared/lib/link.sh macos    # or: linux
 
-# Switch the active Git profile
+# Set the Git identity (personal = default email; work = write override to local.gitconfig)
 shared/lib/git-profile.sh personal
 shared/lib/git-profile.sh work
 
@@ -102,7 +102,7 @@ linux/bootstrap.sh
 ```
 shared/lib/logging.sh           ← must be first; defines log_*, require_command, INITD_* color vars
 shared/lib/fs.sh                ← filesystem helpers; requires logging.sh first
-shared/managed-links.sh         ← MANAGED_LINKS (shared) + GIT_PROFILES_DIR + git-profile helpers; requires ROOT_DIR
+shared/managed-links.sh         ← MANAGED_LINKS (shared); requires ROOT_DIR
 <platform>/managed-links.sh     ← appends to MANAGED_LINKS; requires ROOT_DIR + initial MANAGED_LINKS
 ```
 
@@ -117,7 +117,7 @@ The single array `MANAGED_LINKS` is built in two steps:
 
 Entry format: `"home path:repo path"`. Scripts split with `home_path="${entry%%:*}"` / `repo_path="${entry#*:}"`.
 
-`~/.gitconfig` is deliberately **not** in `MANAGED_LINKS` — it is handled separately in `link.sh` and `cleanup.sh` because the target file under `shared/configs/git/profiles/` varies by profile.
+`~/.gitconfig` is an ordinary `MANAGED_LINKS` entry pointing at the single `shared/configs/git/gitconfig`. That base config bakes in the default (personal) Git email and `[include]`s `shared/configs/git/local.gitconfig` *after* the `[user]` block, so a work email written there overrides the default. `shared/lib/git-profile.sh personal|work` only decides whether that override file gets written — it no longer switches what `~/.gitconfig` links to.
 
 **Adding a managed config:**
 - Cross-platform: add to `MANAGED_LINKS` in `shared/managed-links.sh` and place the source under `shared/configs/<name>/`.
@@ -131,7 +131,7 @@ Two files are gitignored and never committed:
 
 | File | Purpose |
 |---|---|
-| `shared/configs/git/local.gitconfig` | Git email for this machine |
+| `shared/configs/git/local.gitconfig` | Work (or other) Git email override; absent on personal machines |
 | `shared/configs/fish/.config/fish/local.fish` | Machine-specific env vars and overrides |
 
 Both follow the same pattern: sourced/included at startup if present, silently skipped if absent.

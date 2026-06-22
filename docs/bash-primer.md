@@ -18,10 +18,10 @@ developer can follow like a checklist.
 | `linux/setup.sh` | Linux system fixes (xorg, wifi, picom hook, fonts, polybar patch, firefox, Xresources). |
 | `shared/lib/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files. Takes platform arg. |
 | `shared/lib/cleanup.sh` | Remove only the symlinks that initd created. Takes platform arg. |
-| `shared/lib/git-profile.sh` | Switch `~/.gitconfig` between the curated Git profiles. |
+| `shared/lib/git-profile.sh` | Set the Git identity: personal uses the default email; work writes an override to `local.gitconfig`. |
 | `macos/brewinstall.sh` | Add a formula or cask to the curated Brewfile and apply it locally. |
 | `shared/lib/fs.sh` | Shared filesystem helpers: `path_exists`, `symlink_points_to`, `verify_symlink_target`, `backup_path`. |
-| `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` + git-profile helpers. Sources `fs.sh`. |
+| `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` array. Sources `fs.sh`. |
 | `<platform>/managed-links.sh` | Appends platform-specific entries to `MANAGED_LINKS`. |
 | `macos/defaults.sh` | Apply macOS system defaults (key repeat, hushlogin). |
 | `macos/update.sh` / `linux/update.sh` | Upgrade Homebrew/apt packages and mise-managed tools. |
@@ -260,7 +260,7 @@ checks the four core behaviors:
 
 1. **Clean install** — all managed paths are symlinked on a fresh home
 2. **Backup of unmanaged configs** — existing user files are moved to the backup dir
-3. **Git profile switching** — the profile switcher updates `~/.gitconfig` correctly and re-running link.sh does not reset a manually chosen profile
+3. **Git identity** — the personal path reports the baked-in default email; a work override goes into `local.gitconfig` without touching the linked base config
 4. **Cleanup** — only initd-owned symlinks are removed; unrelated symlinks and real files are left alone
 
 These behave like integration tests, which is the right choice for setup scripts

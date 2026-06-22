@@ -154,25 +154,18 @@ setup_git_profile() {
   local existing_email
   existing_email="$(git config --file "${local_gitconfig}" user.email 2>/dev/null || true)"
 
-  # shellcheck disable=SC1091
-  source "${SHARED_DIR}/managed-links.sh"
-
-  if git_profile_link_is_managed "${HOME}/.gitconfig" && [[ -n "${existing_email}" ]]; then
-    log_success "Git profile already configured (${existing_email})."
+  if [[ -n "${existing_email}" ]]; then
+    log_success "Git identity already configured (override email: ${existing_email})."
     return
   fi
   if [[ ! -t 0 ]]; then
-    log_warn "Git profile needs setup, but bootstrap is not running interactively."
+    log_warn "Git identity needs setup, but bootstrap is not running interactively."
     log_info "Run shared/lib/git-profile.sh personal or work later."
     return
   fi
 
-  log "Setting up Git profile..."
-  local git_profile
-  printf '%b::%b Machine type [personal/work] (default: personal): ' "${INITD_CYAN}" "${INITD_RESET}"
-  read -r git_profile
-  git_profile="${git_profile:-personal}"
-  "${SHARED_DIR}/lib/git-profile.sh" "${git_profile}"
+  log "Setting up Git identity..."
+  "${SHARED_DIR}/lib/git-profile.sh"
 }
 
 main() {
