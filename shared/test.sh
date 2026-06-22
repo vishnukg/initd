@@ -94,8 +94,6 @@ test_clean_link_install() {
     assert_symlink_resolves_to "${home_path}" "${repo_path}"
   done < <(get_managed_links)
 
-  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/shared/configs/git/profiles/personal.gitconfig"
-
   log_success "clean link install (${PLATFORM})"
 }
 
@@ -163,40 +161,32 @@ test_backup_unmanaged_configs() {
   log_success "unmanaged config backup"
 }
 
-test_git_profile_switcher() {
-  local home output
-  home="$(new_home)"
+test_git_profile() {
+  local output
   output="${TEST_ROOT}/git-profile.out"
 
-  run_link "${home}" "${output}"
+  # The personal path writes no override file, so it is safe to run against the
+  # real repo: it just confirms the baked-in default email is used.
+  "${ROOT_DIR}/shared/lib/git-profile.sh" personal >"${output}" 2>&1
+  assert_output_contains "${output}" "using the default git email"
 
-  HOME="${home}" "${ROOT_DIR}/shared/lib/git-profile.sh" work </dev/null >>"${output}" 2>&1
-  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/shared/configs/git/profiles/work.gitconfig"
-  assert_output_contains "${output}" "Active git profile: work"
-
-  run_link "${home}" "${output}"
-  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/shared/configs/git/profiles/work.gitconfig"
-
-  HOME="${home}" "${ROOT_DIR}/shared/lib/git-profile.sh" personal </dev/null >>"${output}" 2>&1
-  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/shared/configs/git/profiles/personal.gitconfig"
-  assert_output_contains "${output}" "Active git profile: personal"
-
-  log_success "git profile switcher"
+  log_success "git profile (personal)"
 }
 
-test_broken_git_profile_link_is_repaired() {
+test_broken_managed_link_is_repaired() {
   local home output backup_count
   home="$(new_home)"
-  output="${TEST_ROOT}/broken-git-profile.out"
+  output="${TEST_ROOT}/broken-link.out"
 
-  ln -s "${ROOT_DIR}/shared/configs/git/profiles/missing.gitconfig" "${home}/.gitconfig"
+  # A dangling managed symlink must be backed up and replaced with a valid one.
+  ln -s "${ROOT_DIR}/shared/configs/git/missing.gitconfig" "${home}/.gitconfig"
 
   run_link "${home}" "${output}"
-  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/shared/configs/git/profiles/personal.gitconfig"
+  assert_symlink_resolves_to "${home}/.gitconfig" "${ROOT_DIR}/shared/configs/git/gitconfig"
   backup_count="$(find "${home}/.config/initd-backups" -name .gitconfig -type l | wc -l | tr -d ' ')"
   [[ "${backup_count}" -eq 1 ]] || fail "Expected one backed-up broken .gitconfig symlink, found ${backup_count}"
 
-  log_success "broken git profile link repair"
+  log_success "broken managed link repair"
 }
 
 test_cleanup_managed_links() {
@@ -207,7 +197,6 @@ test_cleanup_managed_links() {
   mkdir -p "${home}/.config" "${home}/outside"
 
   # Pre-create every managed symlink the platform would install.
-  ln -s "${ROOT_DIR}/shared/configs/git/profiles/work.gitconfig" "${home}/.gitconfig"
   while IFS= read -r entry; do
     home_path="${entry%%:*}"
     repo_path="${entry#*:}"
@@ -221,7 +210,6 @@ test_cleanup_managed_links() {
 
   HOME="${home}" "${ROOT_DIR}/shared/lib/cleanup.sh" "${PLATFORM}" >"${output}" 2>&1
 
-  assert_path_missing "${home}/.gitconfig"
   while IFS= read -r entry; do
     home_path="${entry%%:*}"
     home_path="${home_path/${INSPECT_PREFIX}/${home}}"
@@ -244,8 +232,8 @@ main() {
   test_clean_link_install
   test_platform_links_are_self_contained
   test_backup_unmanaged_configs
-  test_git_profile_switcher
-  test_broken_git_profile_link_is_repaired
+  test_git_profile
+  test_broken_managed_link_is_repaired
   test_cleanup_managed_links
   log_success "All install behavior tests passed."
 }

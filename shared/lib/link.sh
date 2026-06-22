@@ -8,7 +8,6 @@ set -euo pipefail
 PLATFORM="${1:?platform required: macos or linux}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-GITCONFIG="${HOME}/.gitconfig"
 
 BACKUP_ROOT="${BACKUP_ROOT:-${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S).$$}"
 
@@ -56,16 +55,6 @@ main() {
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Target home directory: ${HOME}"
 
-  # .gitconfig is handled separately — it can point to any file under git/profiles.
-  if ! git_profile_link_is_managed "${GITCONFIG}"; then
-    if path_exists "${GITCONFIG}"; then
-      backup_path "${GITCONFIG}"
-    fi
-
-    log "Linking ${GITCONFIG} -> ${DEFAULT_GIT_PROFILE}."
-    ln -s "${DEFAULT_GIT_PROFILE}" "${GITCONFIG}"
-  fi
-
   for managed_link in "${MANAGED_LINKS[@]}"; do
     home_path="${managed_link%%:*}"
     repo_path="${managed_link#*:}"
@@ -73,7 +62,6 @@ main() {
     verify_symlink_target "${home_path}" "${repo_path}"
   done
 
-  verify_git_profile_link "${GITCONFIG}"
   log_success "Managed symlinks verified."
 }
 

@@ -76,12 +76,6 @@ main() {
 
   log "Removing initd-managed symlinks from ${HOME} (${PLATFORM})"
 
-  if [[ -L "${HOME}/.gitconfig" ]] && ! git_profile_link_is_managed "${HOME}/.gitconfig"; then
-    log_warn "Leaving symlink outside initd ownership: ${HOME}/.gitconfig -> $(readlink "${HOME}/.gitconfig")"
-  else
-    remove_link "${HOME}/.gitconfig"
-  fi
-
   for managed_link in "${MANAGED_LINKS[@]}"; do
     home_path="${managed_link%%:*}"
     repo_path="${managed_link#*:}"

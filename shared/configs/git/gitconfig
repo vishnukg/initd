@@ -3,8 +3,11 @@
 
 [user]
 	name = Vishnu Ganesan
+	email = vishnukg@gmail.com
 
-; email is loaded from a machine-local file — never committed
+; Personal machines need nothing more — the email above is the default.
+; Work (or any other) machines drop a different email into the gitignored
+; local.gitconfig; because this include comes after [user], it overrides.
 [include]
 	path = ~/.config/initd/shared/configs/git/local.gitconfig
 

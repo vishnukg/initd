@@ -50,7 +50,7 @@ The dispatcher runs `macos/bootstrap.sh` on Darwin and `linux/bootstrap.sh` on L
 - link managed configs into `$HOME`, backing up unmanaged files to `~/.config/initd-backups/<timestamp>/`
 - set fish as the login shell (`dscl` on macOS, `chsh` on Linux), then sync fisher plugins
 - run `mise install` for shared runtimes and LSP tooling
-- prompt for `personal`/`work` Git profile and email on first run
+- prompt for `personal`/`work` Git identity on first run (work stores a separate email in `local.gitconfig`)
 
 Re-running is safe and idempotent.
 
@@ -60,7 +60,7 @@ Re-running is safe and idempotent.
 |---|---|
 | Full bootstrap | `bash bootstrap.sh` |
 | Re-apply links only | `shared/lib/link.sh <macos\|linux>` |
-| Switch Git profile | `shared/lib/git-profile.sh personal` / `work` |
+| Set Git identity | `shared/lib/git-profile.sh personal` / `work` |
 | Remove managed symlinks | `shared/lib/cleanup.sh <macos\|linux> --dry-run` |
 | Add a brew formula/cask | `macos/brewinstall <name>` |
 | Update tools | `macos/update.sh` or `linux/update.sh` |
@@ -80,7 +80,7 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 | `~/.config/nvim` | `shared/configs/nvim/.config/nvim` |
 | `~/.config/starship.toml` | `shared/configs/starship/.config/starship.toml` |
 | `~/.config/tmux` | `shared/configs/tmux/.config/tmux` |
-| `~/.gitconfig` | `shared/configs/git/profiles/{personal,work}.gitconfig` |
+| `~/.gitconfig` | `shared/configs/git/gitconfig` (work email override via `local.gitconfig`) |
 
 ### Linux-only
 
@@ -101,7 +101,7 @@ Two gitignored files — sourced/included if present, silently skipped if absent
 
 | File | Purpose |
 |---|---|
-| `shared/configs/git/local.gitconfig` | Git email for this machine |
+| `shared/configs/git/local.gitconfig` | Work (or other) Git email override — absent on personal machines |
 | `shared/configs/fish/.config/fish/local.fish` | Machine-specific env vars and overrides |
 
 ## Backups
