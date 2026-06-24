@@ -75,6 +75,9 @@ bindsym $mod+Shift+q kill
 bindsym $mod+d exec --no-startup-id rofi -show drun
 bindsym $mod+Tab exec --no-startup-id rofi -show window
 
+# Cycle power profile (power-saver -> balanced -> performance)
+bindsym $mod+p exec --no-startup-id ~/.config/power-profile-cycle.sh
+
 # change focus
 bindsym $mod+h focus left
 bindsym $mod+j focus down
@@ -195,6 +198,9 @@ mode "resize" {
 }
 
 bindsym $mod+r mode "resize"
+
+# Sync power profile to current AC/battery state on login/reload
+exec_always --no-startup-id /usr/local/bin/power-profile-switch.sh
 
 # Polybar (replaces i3bar)
 exec_always --no-startup-id ~/.config/polybar/launch.sh
