@@ -62,10 +62,10 @@ initd/
 └── linux/                    # self-contained — `rm -rf linux/` and macOS still works
     ├── bootstrap.sh
     ├── packages.txt          # apt package list (one per line)
-    ├── setup.sh              # system fixes (xorg, wifi, picom hook, fonts, polybar patch)
+    ├── setup.sh              # system fixes (xorg, wifi, picom hook, fonts, polybar patch, power auto-switch)
     ├── managed-links.sh      # appends i3/polybar/rofi/dunst/picom links
     ├── update.sh
-    ├── scripts/              # sleep/resume hooks copied into /etc/systemd/system-sleep/
+    ├── scripts/              # sleep/resume hooks (/etc/systemd/system-sleep/), udev/polkit rules, session scripts
     └── configs/              # i3, polybar, rofi, dunst, picom, gtk, xsettingsd, firefox, …
 ```
 
@@ -91,7 +91,7 @@ linux/bootstrap.sh
   ├─ install apt packages from linux/packages.txt
   ├─ ensure_gh (official apt repo), ensure_mise (curl mise.run)
   ├─ shared/lib/link.sh linux                 # symlinks
-  ├─ linux/setup.sh                           # xorg/wifi/picom hook/fonts/polybar patch
+  ├─ linux/setup.sh                           # xorg/wifi/picom hook/fonts/polybar patch/power auto-switch
   ├─ ensure_gh_auth, ensure_fish (chsh)
   ├─ mise install
   └─ setup_git_profile
@@ -161,10 +161,11 @@ Edit files inside this repo, not through the live symlinks.
 
 ### Linux-specific quirks
 
-`linux/setup.sh` handles four classes of things that don't fit the standard symlink flow:
+`linux/setup.sh` handles five classes of things that don't fit the standard symlink flow:
 
 - **System fixes** that need sudo: xorg TearFree, Intel BE200 WiFi d3cold udev rule, NetworkManager power save, swappiness, Chrome apt arch pin, power-profiles-daemon enable.
 - **Sleep/resume hooks** copied into `/etc/systemd/system-sleep/` from `linux/scripts/` (`picom-resume.sh`, `wifi-reconnect.sh`).
+- **Power-profile auto-switch** (`install_power_profile_autoswitch`): a udev rule + `/usr/local/bin/power-profile-switch.sh` flip power-profiles-daemon between `balanced` (AC) and `power-saver` (battery), with a polkit rule, a `$mod+p` cycle keybind, and a polybar indicator. Session scripts are symlinked by `link_session_scripts`. See `docs/linux-power.md` for the full design.
 - **Hardware-specific config patching**: `polybar/config.ini` gets the live `interface`, `battery`, and `card` names sed'd in based on `ip link`, `/sys/class/power_supply/`, and `/sys/class/backlight/`. This mutates the source file under `linux/configs/polybar/` — symlinks pick it up immediately.
 - **Special-case paths**: `~/.Xresources`, `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, and Firefox profile files (dynamic profile path) live outside `~/.config/` and are linked individually rather than via `MANAGED_LINKS`.
 
@@ -175,5 +176,6 @@ Edit files inside this repo, not through the live symlinks.
 - `docs/nvim.md` — Neovim plugin setup and Lazy.nvim usage
 - `docs/mise.md` — mise tool management
 - `docs/git-branching-conflicts.md` — Git branching and conflict resolution
+- `docs/linux-power.md` — Linux power management (PPD, AC/battery auto-switch, manual controls)
 - `docs/tmux-nvim.md` — tmux and Neovim workspace concepts
 - `docs/tmux-sessions.md` — tmux session/window/pane workflow and keybindings

@@ -161,6 +161,47 @@ enable_power_profiles_daemon() {
   fi
 }
 
+install_power_profile_autoswitch() {
+  # Auto-switch the PPD profile on AC vs battery via a udev-triggered script
+  # (i3 has no GNOME/KDE-style logic to do this). The udev hook runs as root with
+  # no active session, so a polkit rule is needed or the switch is denied.
+  local switch_bin=/usr/local/bin/power-profile-switch.sh
+  local udev_rule=/etc/udev/rules.d/99-power-profile.rules
+  local polkit_rule=/etc/polkit-1/rules.d/49-power-profiles.rules
+  local udev_changed=0
+
+  if [[ -f "${switch_bin}" ]] && diff -q "${SCRIPTS_DIR}/power-profile-switch.sh" "${switch_bin}" >/dev/null 2>&1; then
+    log_success "Power-profile switcher already installed."
+  else
+    sudo cp "${SCRIPTS_DIR}/power-profile-switch.sh" "${switch_bin}"
+    sudo chmod +x "${switch_bin}"
+    log_success "Power-profile switcher installed."
+  fi
+
+  if [[ -f "${udev_rule}" ]] && diff -q "${SCRIPTS_DIR}/99-power-profile.rules" "${udev_rule}" >/dev/null 2>&1; then
+    log_success "Power-profile udev rule already installed."
+  else
+    sudo cp "${SCRIPTS_DIR}/99-power-profile.rules" "${udev_rule}"
+    udev_changed=1
+    log_success "Power-profile udev rule installed."
+  fi
+
+  sudo mkdir -p /etc/polkit-1/rules.d
+  if [[ -f "${polkit_rule}" ]] && diff -q "${SCRIPTS_DIR}/49-power-profiles.rules" "${polkit_rule}" >/dev/null 2>&1; then
+    log_success "Power-profile polkit rule already installed."
+  else
+    sudo cp "${SCRIPTS_DIR}/49-power-profiles.rules" "${polkit_rule}"
+    log_success "Power-profile polkit rule installed."
+  fi
+
+  if [[ "${udev_changed}" -eq 1 ]]; then
+    sudo udevadm control --reload-rules
+    log "Reloaded udev rules."
+  fi
+  # Sync to the current AC/battery state right away.
+  "${switch_bin}" 2>/dev/null || true
+}
+
 install_picom_resume_hook() {
   local picom_hook=/etc/systemd/system-sleep/picom-resume.sh
   sudo mkdir -p /etc/systemd/system-sleep
@@ -234,11 +275,12 @@ link_icons_default() {
   fi
 }
 
-link_lockscreen_scripts() {
-  # i3 invokes these by absolute ~/.config/ path, so they need their own symlinks
-  # (they live in linux/scripts/ rather than under any MANAGED_LINKS-style dir).
+link_session_scripts() {
+  # i3/polybar invoke these by absolute ~/.config/ path, so they need their own
+  # symlinks (they live in linux/scripts/ rather than under a MANAGED_LINKS dir).
   local name target src
-  for name in lockscreen.sh lockscreen-update.sh; do
+  for name in lockscreen.sh lockscreen-update.sh \
+              power-profile-cycle.sh power-profile-status.sh; do
     target="${HOME}/.config/${name}"
     src="${SCRIPTS_DIR}/${name}"
     chmod +x "${src}" 2>/dev/null || true
@@ -357,13 +399,14 @@ main() {
   apply_wifi_reconnect_speedup
   apply_chrome_apt_arch
   enable_power_profiles_daemon
+  install_power_profile_autoswitch
   install_picom_resume_hook
   apply_swappiness
 
   link_xresources
   link_gtkrc_2
   link_icons_default
-  link_lockscreen_scripts
+  link_session_scripts
   patch_polybar_hardware
   link_firefox_profile
 
