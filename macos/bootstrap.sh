@@ -11,6 +11,8 @@ SHARED_DIR="${ROOT_DIR}/shared"
 BREWFILE="${MACOS_DIR}/Brewfile"
 DOCKER_CASK="docker-desktop"
 DOCKER_APP="/Applications/Docker.app"
+CHROME_CASK="google-chrome"
+CHROME_APP="/Applications/Google Chrome.app"
 
 # Exported so shared/lib/link.sh reuses the same timestamped folder.
 export BACKUP_ROOT="${BACKUP_ROOT:-${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S).$$}"
@@ -122,6 +124,20 @@ ensure_gh_auth() {
   gh auth login
 }
 
+# Drop a cask from the temp Brewfile when its app already lives outside Homebrew,
+# so brew bundle doesn't fail trying to install into an already-occupied path.
+strip_cask_if_app_exists() {
+  local cask="$1" app="$2"
+
+  if [[ -d "${app}" ]] && ! brew list --cask "${cask}" >/dev/null 2>&1; then
+    log_warn "Skipping ${cask} cask: ${app} already exists outside Homebrew."
+    if grep -Ev "^[[:space:]]*cask[[:space:]]+[\"']${cask}[\"'][[:space:]]*$" \
+        "${brewfile_tmp}" > "${brewfile_tmp}.tmp" && [[ -s "${brewfile_tmp}.tmp" ]]; then
+      mv "${brewfile_tmp}.tmp" "${brewfile_tmp}"
+    fi
+  fi
+}
+
 setup_git_profile() {
   local local_gitconfig="${SHARED_DIR}/configs/git/local.gitconfig"
   local existing_email
@@ -159,16 +175,11 @@ main() {
   ensure_xcode_clt
   ensure_homebrew
 
-  # If Docker.app exists outside Homebrew, strip the cask so brew bundle doesn't
+  # Drop casks whose apps already exist outside Homebrew so brew bundle doesn't
   # fail trying to install into an already-occupied path.
   cp "${BREWFILE}" "${brewfile_tmp}"
-  if [[ -d "${DOCKER_APP}" ]] && ! brew list --cask "${DOCKER_CASK}" >/dev/null 2>&1; then
-    log_warn "Skipping Docker cask: /Applications/Docker.app already exists outside Homebrew."
-    if grep -Ev "^[[:space:]]*cask[[:space:]]+[\"']${DOCKER_CASK}[\"'][[:space:]]*$" \
-        "${brewfile_tmp}" > "${brewfile_tmp}.tmp" && [[ -s "${brewfile_tmp}.tmp" ]]; then
-      mv "${brewfile_tmp}.tmp" "${brewfile_tmp}"
-    fi
-  fi
+  strip_cask_if_app_exists "${DOCKER_CASK}" "${DOCKER_APP}"
+  strip_cask_if_app_exists "${CHROME_CASK}" "${CHROME_APP}"
 
   log "Installing Homebrew packages and casks..."
   brew bundle --file "${brewfile_tmp}"
