@@ -63,8 +63,6 @@ null_ls.setup({
 		formatting.csharpier,
 		taplo,
 		formatting.yamlfmt,
-		formatting.standardrb,
-		diagnostics.standardrb,
 		diagnostics.golangci_lint,
 		diagnostics.yamllint,
 		diagnostics.hadolint,

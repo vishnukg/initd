@@ -14,7 +14,6 @@ local lsp_servers = {
 	"terraformls",
 	"csharp_ls",
 	"dockerls",
-	"ruby_lsp",
 }
 
 local handlers = require("user.lsp.handlers")

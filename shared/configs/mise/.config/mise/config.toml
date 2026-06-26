@@ -21,7 +21,6 @@ go        = "1.26"
 node      = "lts"
 npm       = "latest"
 python    = "latest"
-ruby      = "latest"
 terraform = "latest"
 yarn      = ["latest", "1.22.22"]
 
@@ -38,7 +37,6 @@ yarn      = ["latest", "1.22.22"]
 "npm:emmet-ls"                          = "latest" # emmet_ls
 "npm:dockerfile-language-server-nodejs" = "latest" # dockerls
 "dotnet:csharp-ls"                      = "latest" # csharp_ls
-"gem:ruby-lsp"                          = "latest" # ruby_lsp
 
 # ── CLI tools ──────────────────────────────────────────────────────────
 "neovim"                 = "latest"
@@ -71,4 +69,3 @@ yarn      = ["latest", "1.22.22"]
 "pipx:pylint"                              = "latest"
 "dotnet:csharpier"                         = "latest"
 "taplo"                                    = "latest" # toml formatter
-"gem:standard"                             = "latest" # standardrb (ruby lint + format)
