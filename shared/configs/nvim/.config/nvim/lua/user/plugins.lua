@@ -149,9 +149,10 @@ return require("lazy").setup({
 			"marilari88/neotest-vitest",
 			"fredrikaverpil/neotest-golang",
 			"nsidorenco/neotest-vstest",
+			"zidhuss/neotest-minitest",
 		},
 		config = function() require("user.neotest") end,
-		ft = { "go", "javascript", "typescript", "typescriptreact", "javascriptreact", "cs" },
+		ft = { "go", "javascript", "typescript", "typescriptreact", "javascriptreact", "cs", "ruby" },
 	},
 
 	-- ── AI / Copilot ──────────────────────────────────────────────────────────
