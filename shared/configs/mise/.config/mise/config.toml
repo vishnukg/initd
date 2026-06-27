@@ -3,7 +3,7 @@ experimental              = true            # required for dotnet: backend (csha
 github.credential_command = "gh auth token" # use gh CLI for GitHub auth instead of a stored token
 # Install pipx: tools with uv instead of pipx. uv builds their venvs against
 # its own managed pythons (~/.local/share/uv), which mise upgrades never
-# delete — so python patch bumps can't orphan yamllint/pylint venvs again.
+# delete — so python patch bumps can't orphan the yamllint venv again.
 pipx.uvx                  = true
 
 [env]
@@ -15,7 +15,7 @@ UV_MANAGED_PYTHON = "1"
 
 [tools]
 # ── runtimes ───────────────────────────────────────────────────────────
-uv        = "latest"              # required for pipx: backend with pipx.uvx (yamllint, pylint)
+uv        = "latest"              # required for pipx: backend with pipx.uvx (yamllint)
 dotnet    = ["latest", "8"]
 go        = "1.26"
 node      = "lts"
@@ -29,6 +29,7 @@ yarn      = ["latest", "1.22.22"]
 "npm:typescript-language-server"        = "latest" # ts_ls
 "npm:typescript"                        = "latest" # required by typescript-language-server
 "npm:pyright"                           = "latest"
+"ruff"                                  = "latest" # ruff LSP — python lint + format + imports
 "go:golang.org/x/tools/gopls"           = "latest"
 "terraform-ls"                          = "latest" # terraformls
 "npm:vscode-langservers-extracted"      = "latest" # html, jsonls, cssls
@@ -58,7 +59,6 @@ yarn      = ["latest", "1.22.22"]
 "stylua"                                   = "latest"
 "hadolint"                                 = "latest"
 "golangci-lint"                            = "latest"
-"black"                                    = "latest"
 "go:github.com/mgechev/revive"             = "latest"
 "go:github.com/google/yamlfmt/cmd/yamlfmt" = "latest"
 "go:golang.org/x/tools/cmd/goimports"      = "latest"
@@ -66,6 +66,5 @@ yarn      = ["latest", "1.22.22"]
 "npm:eslint_d"                             = "latest"
 "npm:@fsouza/prettierd"                    = "latest"
 "pipx:yamllint"                            = "latest"
-"pipx:pylint"                              = "latest"
 "dotnet:csharpier"                         = "latest"
 "taplo"                                    = "latest" # toml formatter

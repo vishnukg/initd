@@ -17,22 +17,9 @@ local taplo = h.make_builtin({
 	factory = h.formatter_factory,
 })
 
--- LspFormatting
-local augroup = vim.api.nvim_create_augroup("LspFormatting", { clear = true })
-
-local function lsp_format_on_save(client, bufnr)
-	if client:supports_method("textDocument/formatting") then
-		vim.api.nvim_clear_autocmds({ group = augroup, buffer = bufnr })
-		vim.api.nvim_create_autocmd("BufWritePre", {
-			group = augroup,
-			buffer = bufnr,
-			callback = function()
-				vim.lsp.buf.format({ async = false, filter = function(c) return c.name == "null-ls" end })
-			end,
-		})
-	end
-end
-
+-- Format-on-save is registered centrally in lsp/handlers.lua (LspAttach), which
+-- routes each filetype to its preferred formatter — null-ls here, ruff's LSP for
+-- python. null-ls only needs to register its sources.
 null_ls.setup({
 	debug = false,
 	sources = {
@@ -56,7 +43,6 @@ null_ls.setup({
 				})
 			end,
 		}),
-		formatting.black.with({ extra_args = { "--fast" } }),
 		formatting.stylua,
 		formatting.goimports,
 		formatting.terraform_fmt,
@@ -83,5 +69,4 @@ null_ls.setup({
 			end,
 		}),
 	},
-	on_attach = lsp_format_on_save,
 })

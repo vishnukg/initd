@@ -5,6 +5,7 @@ local lsp_servers = {
 	"html",
 	"ts_ls",
 	"pyright",
+	"ruff",
 	"bashls",
 	"jsonls",
 	"gopls",
