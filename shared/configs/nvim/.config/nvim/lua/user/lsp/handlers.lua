@@ -7,6 +7,26 @@ M.capabilities = require("cmp_nvim_lsp").default_capabilities()
 -- so we don't get two competing format-on-save triggers.
 local formatting_disabled = { ts_ls = true, lua_ls = true, gopls = true }
 
+-- Per-filetype preferred formatter, keyed by LSP client name. Filetypes not
+-- listed here fall back to null-ls, which owns formatting for everything else.
+-- (Python is formatted by ruff's own LSP, not null-ls.)
+local preferred_formatter = { python = "ruff" }
+
+-- Servers whose hover we suppress so another client provides it instead.
+-- ruff defers hover to pyright (which has richer type info).
+local hover_disabled = { ruff = true }
+
+local fmt_augroup = vim.api.nvim_create_augroup("LspFormatting", { clear = true })
+
+-- Build a vim.lsp.buf.format filter that keeps only the right formatter client
+-- for the given buffer's filetype.
+local function format_filter(bufnr)
+	local preferred = preferred_formatter[vim.bo[bufnr].filetype]
+	return function(client)
+		return client.name == (preferred or "null-ls")
+	end
+end
+
 -- Keymaps applied to every buffer where an LSP client attaches.
 -- 0.12 built-in defaults (no explicit mapping needed):
 --   K        → hover documentation
@@ -81,6 +101,25 @@ M.setup = function()
 			-- Disable native formatter so none-ls/null-ls takes over exclusively
 			if formatting_disabled[client.name] then
 				client.server_capabilities.documentFormattingProvider = false
+			end
+
+			-- Suppress hover where another client owns it (ruff → pyright).
+			if hover_disabled[client.name] then
+				client.server_capabilities.hoverProvider = false
+			end
+
+			-- Format-on-save. Registered once per buffer (idempotent: cleared
+			-- first). The filter routes each filetype to its preferred formatter
+			-- (ruff for python, null-ls otherwise).
+			if client:supports_method("textDocument/formatting") then
+				vim.api.nvim_clear_autocmds({ group = fmt_augroup, buffer = bufnr })
+				vim.api.nvim_create_autocmd("BufWritePre", {
+					group = fmt_augroup,
+					buffer = bufnr,
+					callback = function()
+						vim.lsp.buf.format({ async = false, filter = format_filter(bufnr) })
+					end,
+				})
 			end
 
 			-- Inlay hints (skip csharp_ls: tends to be too noisy)

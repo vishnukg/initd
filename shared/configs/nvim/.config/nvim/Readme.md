@@ -171,8 +171,8 @@ mise tool sources (one committed file, every machine identical):
 
 ~/.config/initd/shared/configs/mise/.config/mise/config.toml
   ├── runtimes                 ← go, node, python, dotnet, terraform
-  ├── LSP servers              ← lua_ls, gopls, pyright, ts_ls, taplo, …
-  └── linters / formatters     ← stylua, black, golangci-lint, prettierd, …
+  ├── LSP servers              ← lua_ls, gopls, pyright, ruff, ts_ls, taplo, …
+  └── linters / formatters     ← stylua, ruff, golangci-lint, prettierd, …
 ```
 
 **Why mise instead of [mason.nvim](https://github.com/williamboman/mason.nvim):**
@@ -223,7 +223,7 @@ The Language Server Protocol (LSP) is a standard that allows editors to talk to 
 
 ### None-ls — Formatting & Linting
 
-None-ls (a maintained fork of null-ls) **pretends to be an LSP server** so that standalone CLI tools (black, prettier, stylua, etc.) can plug into Neovim's LSP formatting pipeline without needing a real language server.
+None-ls (a maintained fork of null-ls) **pretends to be an LSP server** so that standalone CLI tools (prettier, stylua, csharpier, etc.) can plug into Neovim's LSP formatting pipeline without needing a real language server.
 
 ```
 On BufWritePre (save):
@@ -232,7 +232,6 @@ vim.lsp.buf.format()
       │
       └──► none-ls client            → runs the right CLI tool:
                 │
-                ├── Python  → black
                 ├── Lua     → stylua
                 ├── Go      → goimports
                 ├── JS/TS   → prettier
@@ -241,6 +240,8 @@ vim.lsp.buf.format()
 ```
 
 > **Why not just use the LSP formatter directly?** Some LSP servers (like `ts_ls` and `lua_ls`) have built-in formatters that don't match your preferred style tool. None-ls lets you override them with the exact tool you want. For those servers, the built-in formatter is explicitly disabled in this config.
+
+> **Python is the exception.** Python lint + format + import-sorting all come from ruff's own LSP server, not none-ls. Format-on-save is registered centrally in `lsp/handlers.lua` (the `LspAttach` autocmd) and routed per-filetype: ruff formats python, none-ls formats everything else. ruff's hover is suppressed so pyright provides it, and pyright's "organize imports" is disabled so ruff owns it.
 
 ---
 
@@ -281,7 +282,7 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 | Language | LSP | Formatter | Linter | Test Runner |
 |----------|-----|-----------|--------|-------------|
 | **Lua** | lua_ls | stylua | — | — |
-| **Python** | pyright | black | pylint | — |
+| **Python** | pyright + ruff | ruff | ruff | neotest-python (pytest)³ |
 | **Go** | gopls | goimports | golangci_lint | neotest-golang |
 | **TypeScript / JavaScript** | ts_ls | prettierd | eslint_d¹ | neotest-jest / neotest-vitest² |
 | **JSON** | jsonls | prettierd | — | — |
@@ -296,6 +297,7 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 
 > ¹ ESLint diagnostics only activate when `.eslintrc` or `eslint.config.js` is present in the project.
 > ² Jest adapter activates with `jest.config.*`; Vitest adapter activates with `vitest.config.*` or `vite.config.*`.
+> ³ Runs the project's own `pytest` (venv / mise / system python), not a mise-managed tool — make sure `pytest` is installed in the project environment.
 
 ---
 
