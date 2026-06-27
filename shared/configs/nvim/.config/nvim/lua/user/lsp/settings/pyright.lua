@@ -11,6 +11,15 @@ return {
 				autoSearchPaths = true,
 				useLibraryCodeForTypes = true,
 				diagnosticMode = "workspace",
+				-- ruff owns linting (Pyflakes-class checks); silence pyright's
+				-- overlapping rules so each issue is reported once. pyright still
+				-- does everything ruff can't — type errors.
+				diagnosticSeverityOverrides = {
+					reportUndefinedVariable = "none", -- ruff F821
+					reportUnusedImport = "none",      -- ruff F401
+					reportUnusedVariable = "none",    -- ruff F841
+					reportUnusedExpression = "none",  -- ruff B018 / pyflakes
+				},
 				inlayHints = {
 					variableTypes = true,
 					functionReturnTypes = true,

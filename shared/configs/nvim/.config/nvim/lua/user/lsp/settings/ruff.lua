@@ -6,8 +6,12 @@
 -- Defaults respect any pyproject.toml / ruff.toml / .ruff.toml in the project
 -- root. Add overrides under init_options.settings when there is no project file
 -- (e.g. lineLength, lint = { select = { ... } }, format = { ... }).
+--
+-- settings must encode as a JSON object: an empty Lua table {} becomes a JSON
+-- array [], which ruff rejects ("invalid client settings"). vim.empty_dict()
+-- forces {}. Once you add keys below, a plain table is fine.
 return {
 	init_options = {
-		settings = {},
+		settings = vim.empty_dict(),
 	},
 }
