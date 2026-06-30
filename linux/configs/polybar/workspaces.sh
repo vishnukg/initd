@@ -2,10 +2,9 @@
 PYTHON_SCRIPT='
 import json, sys
 
-colors = ["", "#89b4fa", "#a6e3a1", "#cba6f7", "#74c7ec", "#b4befe", "#94e2d5", "#f9e2af", "#f5c2e7", "#89b4fa", "#a6e3a1"]
-text = "#000000"
+colors = ["", "#a6e3a1", "#89b4fa", "#cba6f7", "#74c7ec", "#b4befe", "#94e2d5", "#f9e2af", "#f5c2e7", "#89b4fa", "#a6e3a1"]
 
-def dim(hex_color, factor=0.35):
+def dim(hex_color, factor=0.6):
     r = int(int(hex_color[1:3], 16) * factor)
     g = int(int(hex_color[3:5], 16) * factor)
     b = int(int(hex_color[5:7], 16) * factor)
@@ -21,11 +20,11 @@ try:
         name = ws["name"]
         click = f"i3-msg workspace \"{name}\""
         if ws["focused"]:
-            parts.append(f"%{{B{color}}}%{{F{text}}}%{{A1:{click}:}}%{{O12}}{name}%{{O12}}%{{A}}%{{B-}}%{{F-}}")
+            parts.append(f"%{{F{color}}}%{{u{color}}}%{{+u}}%{{A1:{click}:}}%{{O8}}%{{T3}}{name}%{{T-}}%{{O8}}%{{A}}%{{-u}}%{{F-}}")
         elif ws["urgent"]:
-            parts.append(f"%{{B#f9e2af}}%{{F{text}}}%{{A1:{click}:}}%{{O12}}{name}%{{O12}}%{{A}}%{{B-}}%{{F-}}")
+            parts.append(f"%{{F#f9e2af}}%{{u#f9e2af}}%{{+u}}%{{A1:{click}:}}%{{O8}}%{{T3}}{name}%{{T-}}%{{O8}}%{{A}}%{{-u}}%{{F-}}")
         else:
-            parts.append(f"%{{B{dim(color)}}}%{{F{text}}}%{{A1:{click}:}}%{{O12}}{name}%{{O12}}%{{A}}%{{B-}}%{{F-}}")
+            parts.append(f"%{{F{dim(color)}}}%{{A1:{click}:}}%{{O8}}%{{T3}}{name}%{{T-}}%{{O8}}%{{A}}%{{F-}}")
     print("%{O6}".join(parts))
 except (json.JSONDecodeError, KeyError):
     pass
