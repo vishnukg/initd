@@ -43,6 +43,12 @@ if not set -q TMUX
     if test -n "$detached"
         exec tmux attach -t "=$detached"
     else
+        # Terse names instead of tmux's 0/1/2; first free one wins.
+        for s in fox owl elk bee ant koi ram yak
+            if not tmux has-session -t "=$s" 2>/dev/null
+                exec tmux new-session -s $s
+            end
+        end
         exec tmux new-session
     end
 end
