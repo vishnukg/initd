@@ -32,12 +32,18 @@ if not status is-interactive
 end
 
 # ── Tmux auto-attach ──────────────────────────────────────────────────────────
+# One session per terminal window: reclaim the most recently used session that
+# has no client attached, or start a fresh one. Simultaneous windows never
+# mirror each other; reopening a window picks detached work back up.
 if not set -q TMUX
-    set -l s main
-    if tmux has-session -t $s 2>/dev/null
-        exec tmux attach -t $s
+    set -l detached (tmux list-sessions \
+        -f '#{==:#{session_attached},0}' \
+        -F '#{session_last_attached} #{session_name}' 2>/dev/null |
+        sort -rn | head -n1 | string split -m1 -f2 ' ')
+    if test -n "$detached"
+        exec tmux attach -t "=$detached"
     else
-        exec tmux new-session -s $s
+        exec tmux new-session
     end
 end
 
