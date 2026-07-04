@@ -11,7 +11,8 @@ treesitter.setup({
 treesitter.install({ "markdown_inline", "luadoc", "jsdoc", "regex" })
 
 -- Filetypes where treesitter indentation is known to be broken
-local indent_disabled = { yaml = true, html = true }
+-- (cs: easy-dotnet's healthcheck flags treesitter indentexpr as breaking C# indentation)
+local indent_disabled = { yaml = true, html = true, cs = true }
 
 ---Attach treesitter features (highlighting, folding, indentation) to a buffer.
 ---If the parser .so is missing (stale queries), force-reinstall once.
@@ -32,9 +33,13 @@ local function try_attach(buf, language, retried)
 	vim.treesitter.start(buf, language)
 	treesitter_attached[buf] = true
 
-	vim.wo[0][0].foldexpr  = "v:lua.vim.treesitter.foldexpr()"
-	vim.wo[0][0].foldmethod = "expr"
-	vim.wo[0][0].foldlevel  = 99
+	-- Apply to the windows actually showing this buffer — after an async parser
+	-- install the current window may no longer be the one that triggered attach.
+	for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+		vim.wo[win][0].foldexpr   = "v:lua.vim.treesitter.foldexpr()"
+		vim.wo[win][0].foldmethod = "expr"
+		vim.wo[win][0].foldlevel  = 99
+	end
 
 	if not indent_disabled[vim.bo[buf].filetype] then
 		vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"

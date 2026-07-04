@@ -54,7 +54,7 @@ return require("lazy").setup({
 	-- ── Treesitter ────────────────────────────────────────────────────────────
 	{
 		"nvim-treesitter/nvim-treesitter",
-		event = "BufReadPre",
+		event = { "BufReadPre", "BufNewFile" },
 		cmd = { "TSUpdate", "TSInstall", "TSUninstall", "TSModuleInfo" },
 		build = ":TSUpdate",
 		config = function()
@@ -125,7 +125,7 @@ return require("lazy").setup({
 	-- configs run (it would otherwise only load on InsertEnter via nvim-cmp).
 	{
 		"neovim/nvim-lspconfig",
-		event = "BufReadPre",
+		event = { "BufReadPre", "BufNewFile" },
 		dependencies = {
 			{ "nvimtools/none-ls.nvim", dependencies = "nvimtools/none-ls-extras.nvim" },
 			"hrsh7th/cmp-nvim-lsp",

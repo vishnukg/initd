@@ -10,7 +10,8 @@ map("i", "jk", "<ESC>", d("Exit insert mode"))
 map("i", "kj", "<ESC>", d("Exit insert mode"))
 
 -- ── Save ──────────────────────────────────────────────────────────────────────
-map("",  "<leader><leader>", ":wa<cr>",  d("Save all buffers"))
+-- <cmd> form: ":wa" from visual mode would get a '<,'> range prepended, which :wa rejects
+map("",  "<leader><leader>", "<cmd>wa<cr>",  d("Save all buffers"))
 
 -- ── Search ────────────────────────────────────────────────────────────────────
 map("n", "<C-l>", ":noh<cr><C-l>", d("Clear search highlight"))
@@ -39,8 +40,8 @@ map("n", "<S-h>", ":bprevious<CR>", d("Prev buffer"))
 -- ── Visual mode ───────────────────────────────────────────────────────────────
 map("v", "<",     "<gv",       d("Indent left (stay in visual)"))
 map("v", ">",     ">gv",       d("Indent right (stay in visual)"))
-map("v", "<A-j>", ":m .+1<CR>==", d("Move line down"))
-map("v", "<A-k>", ":m .-2<CR>==", d("Move line up"))
+map("v", "<A-j>", ":m '>+1<CR>gv=gv", d("Move selection down"))
+map("v", "<A-k>", ":m '<-2<CR>gv=gv", d("Move selection up"))
 map("v", "p",     '"_dP',      d("Paste without yanking replaced text"))
 
 -- ── FzfLua ────────────────────────────────────────────────────────────────────

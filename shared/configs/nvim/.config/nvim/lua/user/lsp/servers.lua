@@ -25,6 +25,10 @@ for _, server in ipairs(lsp_servers) do
 	local ok, server_opts = pcall(require, "user.lsp.settings." .. server)
 	if ok then
 		opts = vim.tbl_deep_extend("force", opts, server_opts)
+	elseif not tostring(server_opts):find("not found", 1, true) then
+		-- Settings module exists but failed to load (syntax error etc.) —
+		-- surface it instead of silently starting the server with defaults.
+		error(server_opts)
 	end
 
 	vim.lsp.config(server, opts)
