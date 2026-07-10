@@ -278,6 +278,31 @@ apply_swappiness() {
   log_success "swappiness set to 10."
 }
 
+# ── GTK theme (adw-gtk3) ─────────────────────────────────────────────────────
+ADW_GTK3_VERSION="v6.5"
+
+install_adw_gtk3_theme() {
+  # Modern libadwaita-style dark theme for GTK3 apps, referenced by
+  # gtk-3.0/settings.ini, gtkrc-2.0 and xsettingsd.conf. Not packaged for
+  # Mint/Ubuntu, so pull the prebuilt release tarball (no sudo needed).
+  local themes_dir="${HOME}/.local/share/themes"
+  local stamp="${themes_dir}/adw-gtk3-dark/.initd-version"
+
+  if [[ -f "${stamp}" ]] && [[ "$(cat "${stamp}")" == "${ADW_GTK3_VERSION}" ]]; then
+    log_success "adw-gtk3 ${ADW_GTK3_VERSION} already installed."
+    return
+  fi
+
+  require_command curl "to download the adw-gtk3 theme"
+  mkdir -p "${themes_dir}"
+  log "Downloading adw-gtk3 ${ADW_GTK3_VERSION}..."
+  curl -fL --max-time 120 \
+    "https://github.com/lassekongo83/adw-gtk3/releases/download/${ADW_GTK3_VERSION}/adw-gtk3${ADW_GTK3_VERSION}.tar.xz" \
+    | tar -xJ -C "${themes_dir}"
+  echo "${ADW_GTK3_VERSION}" > "${stamp}"
+  log_success "adw-gtk3 ${ADW_GTK3_VERSION} installed to ~/.local/share/themes."
+}
+
 # ── Config glue (special-case paths) ─────────────────────────────────────────
 link_xresources() {
   # ~/.Xresources lives at $HOME, not under ~/.config, so it's outside the
@@ -469,6 +494,7 @@ main() {
   install_picom_resume_hook
   apply_swappiness
 
+  install_adw_gtk3_theme
   link_xresources
   link_gtkrc_2
   link_icons_default
