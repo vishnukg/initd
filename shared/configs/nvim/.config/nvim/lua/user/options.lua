@@ -41,7 +41,8 @@ vim.opt.shortmess:append("c")
 vim.filetype.add({ extension = { bru = "bru" } })
 
 -- Auto-reload buffers when files change on disk (e.g. changed by Claude/Copilot)
-vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold" }, {
+-- TermClose/TermLeave catch changes made from a terminal inside nvim (toggleterm)
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "TermClose", "TermLeave" }, {
 	group = vim.api.nvim_create_augroup("AutoReload", { clear = true }),
 	pattern = "*",
 	callback = function()
