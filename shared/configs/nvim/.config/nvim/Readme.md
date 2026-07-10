@@ -171,7 +171,7 @@ mise tool sources (one committed file, every machine identical):
 
 ~/.config/initd/shared/configs/mise/.config/mise/config.toml
   ├── runtimes                 ← go, node, python, dotnet, terraform
-  ├── LSP servers              ← lua_ls, gopls, pyright, ruff, ts_ls, taplo, …
+  ├── LSP servers              ← lua_ls, gopls, pyright, ruff, tsgo, taplo, …
   └── linters / formatters     ← stylua, ruff, golangci-lint, prettierd, …
 ```
 
@@ -239,7 +239,7 @@ vim.lsp.buf.format()
                 └── YAML    → yamlfmt
 ```
 
-> **Why not just use the LSP formatter directly?** Some LSP servers (like `ts_ls` and `lua_ls`) have built-in formatters that don't match your preferred style tool. None-ls lets you override them with the exact tool you want. For those servers, the built-in formatter is explicitly disabled in this config.
+> **Why not just use the LSP formatter directly?** Some LSP servers (like `tsgo` and `lua_ls`) have built-in formatters that don't match your preferred style tool. None-ls lets you override them with the exact tool you want. For those servers, the built-in formatter is explicitly disabled in this config.
 
 > **Python is the exception.** Python lint + format + import-sorting all come from ruff's own LSP server, not none-ls. Format-on-save is registered centrally in `lsp/handlers.lua` (the `LspAttach` autocmd) and routed per-filetype: ruff formats python, none-ls formats everything else. ruff's hover is suppressed so pyright provides it, and pyright's "organize imports" is disabled so ruff owns it.
 
@@ -284,7 +284,7 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 | **Lua** | lua_ls | stylua | — | — |
 | **Python** | pyright + ruff | ruff | ruff | neotest-python (pytest)³ |
 | **Go** | gopls | goimports | golangci_lint | neotest-golang |
-| **TypeScript / JavaScript** | ts_ls | prettierd | eslint_d¹ | neotest-jest / neotest-vitest² |
+| **TypeScript / JavaScript** | tsgo (TS7 built-in LSP) | prettierd | eslint_d¹ | neotest-jest / neotest-vitest² |
 | **JSON** | jsonls | prettierd | — | — |
 | **HTML** | html + emmet_ls | prettierd | — | — |
 | **CSS / SCSS** | — | prettierd | stylelint | — |
