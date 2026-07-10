@@ -28,11 +28,11 @@ nvim_tree.setup({
 			ignore_list = {},
 		},
 	},
-	-- macOS fsevents miss single-file deletes, so the tree wouldn't refresh
-	-- until reopen (and surfaced spurious "Could not remove" errors). Disabling
-	-- watchers makes nvim-tree explicitly reload after each fs operation.
+	-- Auto-refresh the tree on external file changes (Claude, git, other panes).
+	-- Once disabled because macOS fsevents missed single-file deletes and threw
+	-- "Could not remove" errors; verified fixed as of nvim-tree 531b807.
 	filesystem_watchers = {
-		enable = false,
+		enable = true,
 	},
 	git = {
 		enable = true,
