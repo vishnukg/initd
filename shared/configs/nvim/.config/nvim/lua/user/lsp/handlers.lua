@@ -5,7 +5,7 @@ M.capabilities = require("cmp_nvim_lsp").default_capabilities()
 
 -- Servers where none-ls handles formatting — disable the native LSP formatter
 -- so we don't get two competing format-on-save triggers.
-local formatting_disabled = { ts_ls = true, lua_ls = true, gopls = true }
+local formatting_disabled = { tsgo = true, lua_ls = true, gopls = true }
 
 -- Per-filetype preferred formatter, keyed by LSP client name. Filetypes not
 -- listed here fall back to null-ls, which owns formatting for everything else.

@@ -26,8 +26,10 @@ yarn      = ["latest", "1.22.22"]
 
 # ── LSP servers (consumed by nvim/.../user/lsp/servers.lua) ────────────
 "lua-language-server"                   = "latest" # lua_ls
-"npm:typescript-language-server"        = "latest" # ts_ls
-"npm:typescript"                        = "latest" # required by typescript-language-server
+# TypeScript 7 (native Go rewrite) ships its own LSP server (`tsc --lsp`),
+# replacing tsserver + typescript-language-server. nvim's settings/tsgo.lua
+# points at this install's bin/tsc.
+"npm:typescript"                        = "latest" # tsgo
 "npm:pyright"                           = "latest"
 "ruff"                                  = "latest" # ruff LSP — python lint + format + imports
 "go:golang.org/x/tools/gopls"           = "latest"
