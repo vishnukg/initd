@@ -2,14 +2,16 @@
 # Auto-switch power-profiles-daemon between AC and battery.
 # Invoked by udev on power_supply changes and once at i3 login. Idempotent.
 #
-# AC      -> balanced    (everyday default; bump to performance manually via $mod+p)
-# Battery -> power-saver (caps turbo / drops EPP to power for longer runtime)
+# AC      -> balanced (everyday default; bump to performance manually via $mod+p)
+# Battery -> balanced (power-saver caps the CPU hard enough that app launches
+#                      visibly lag; drop to it manually via $mod+p when you
+#                      need max runtime)
 
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 export PATH
 
 AC_PROFILE=balanced
-BATTERY_PROFILE=power-saver
+BATTERY_PROFILE=balanced
 
 on_ac() {
   # Primary signal: any Mains-type adapter reporting online.
