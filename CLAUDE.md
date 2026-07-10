@@ -161,9 +161,10 @@ Edit files inside this repo, not through the live symlinks.
 
 ### Linux-specific quirks
 
-`linux/setup.sh` handles five classes of things that don't fit the standard symlink flow:
+`linux/setup.sh` handles six classes of things that don't fit the standard symlink flow:
 
 - **System fixes** that need sudo: xorg TearFree, Intel BE200 WiFi d3cold udev rule, NetworkManager power save, swappiness, Chrome apt arch pin, power-profiles-daemon enable.
+- **Picom v13 from source** (`install_picom_from_source`): apt ships v10, which predates the animation engine; v13 is built with meson/ninja into `/usr/local/bin` (shadows the apt binary). `picom.conf` uses v12+ syntax (`animations`, `rules`, dual_kawase blur) and is a no-op fancy-wise on v10.
 - **Sleep/resume hooks** copied into `/etc/systemd/system-sleep/` from `linux/scripts/` (`picom-resume.sh`, `wifi-reconnect.sh`).
 - **Power-profile auto-switch** (`install_power_profile_autoswitch`): a udev rule + `/usr/local/bin/power-profile-switch.sh` flip power-profiles-daemon between `balanced` (AC) and `power-saver` (battery), with a polkit rule, a `$mod+p` cycle keybind, and a polybar indicator. Session scripts are symlinked by `link_session_scripts`. See `docs/linux-power.md` for the full design.
 - **Hardware-specific config patching**: `polybar/config.ini` gets the live `interface`, `battery`, and `card` names sed'd in based on `ip link`, `/sys/class/power_supply/`, and `/sys/class/backlight/`. This mutates the source file under `linux/configs/polybar/` — symlinks pick it up immediately.

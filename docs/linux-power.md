@@ -66,7 +66,8 @@ plug / unplug  ─▶  udev event (power_supply add/change)
 ```
 
 - **Plug in →** `balanced`
-- **Unplug →** `power-saver`
+- **Unplug →** `balanced` (was `power-saver`; on the 155H that capped app
+  launches hard enough to feel laggy — use `$mod+p` when you need max runtime)
 - i3 also runs the switcher once at login (`exec_always`), so the profile is
   correct the moment your session starts, not just after the next plug event.
 
@@ -137,12 +138,12 @@ The AC and battery targets are two variables at the top of
 
 ```sh
 AC_PROFILE=balanced
-BATTERY_PROFILE=power-saver
+BATTERY_PROFILE=balanced
 ```
 
-Want full speed whenever you're docked? Set `AC_PROFILE=performance`. Want the
-battery side to be less aggressive? Set `BATTERY_PROFILE=balanced`. After
-editing, reinstall the system copy:
+Want full speed whenever you're docked? Set `AC_PROFILE=performance`. Want
+longer battery runtime at the cost of noticeably slower app launches? Set
+`BATTERY_PROFILE=power-saver`. After editing, reinstall the system copy:
 
 ```bash
 sudo install -m755 linux/scripts/power-profile-switch.sh /usr/local/bin/power-profile-switch.sh

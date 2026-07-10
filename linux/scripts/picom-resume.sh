@@ -12,4 +12,4 @@ xauth="$home_dir/.Xauthority"
 [ -f "$xauth" ] || exit 0
 
 sudo -u "$i3_user" env DISPLAY=:0 XAUTHORITY="$xauth" \
-    bash -c 'pkill -x picom 2>/dev/null; sleep 0.3; picom --config ~/.config/picom.conf &'
+    bash -c 'pkill -x picom 2>/dev/null; sleep 0.3; picom --config ~/.config/picom/picom.conf &'

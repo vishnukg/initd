@@ -202,6 +202,54 @@ install_power_profile_autoswitch() {
   "${switch_bin}" 2>/dev/null || true
 }
 
+# ── Picom v13 (animation engine) ─────────────────────────────────────────────
+PICOM_VERSION="v13"
+
+install_picom_from_source() {
+  # Mint/Ubuntu apt ships picom v10, which predates the animation engine
+  # (added in v12). Build the pinned release into /usr/local/bin, which
+  # shadows the apt binary on PATH. picom.conf relies on v12+ syntax
+  # (animations, rules, dual_kawase blur).
+  local installed=""
+  if command -v picom >/dev/null 2>&1; then
+    installed="$(picom --version 2>/dev/null || true)"
+  fi
+  if [[ "${installed}" == "${PICOM_VERSION}" || "${installed}" == "${PICOM_VERSION}."* ]]; then
+    log_success "picom ${PICOM_VERSION} already installed."
+    return
+  fi
+
+  require_command curl "to download picom sources"
+  log "Building picom ${PICOM_VERSION} from source (currently: ${installed:-not installed})..."
+
+  sudo apt-get install -y \
+    meson ninja-build cmake pkg-config \
+    libconfig-dev libdbus-1-dev libegl-dev libev-dev libgl-dev libepoxy-dev \
+    libpcre2-dev libpixman-1-dev libx11-xcb-dev libxcb1-dev \
+    libxcb-composite0-dev libxcb-damage0-dev libxcb-dpms0-dev libxcb-glx0-dev \
+    libxcb-image0-dev libxcb-present-dev libxcb-randr0-dev libxcb-render0-dev \
+    libxcb-render-util0-dev libxcb-shape0-dev libxcb-util-dev \
+    libxcb-xfixes0-dev libxcb-xinerama0-dev libxext-dev uthash-dev
+
+  local src_dir=/tmp/picom-build
+  rm -rf "${src_dir}"
+  mkdir -p "${src_dir}"
+  curl -fL --max-time 300 \
+    "https://github.com/yshui/picom/archive/refs/tags/${PICOM_VERSION}.tar.gz" \
+    | tar -xz -C "${src_dir}" --strip-components=1
+
+  (
+    cd "${src_dir}"
+    meson setup --buildtype=release build
+    ninja -C build
+    sudo ninja -C build install
+  )
+  rm -rf "${src_dir}"
+  hash -r
+
+  log_success "picom $(picom --version) installed to /usr/local/bin."
+}
+
 install_picom_resume_hook() {
   local picom_hook=/etc/systemd/system-sleep/picom-resume.sh
   sudo mkdir -p /etc/systemd/system-sleep
@@ -381,6 +429,23 @@ restart_dunst() {
   fi
 }
 
+restart_picom() {
+  # Pick up a freshly-built binary and/or new picom.conf without an i3 restart.
+  # Skipped when there's no X session (e.g. first bootstrap from a TTY).
+  if [[ -z "${DISPLAY:-}" ]] || ! pgrep -x i3 >/dev/null 2>&1; then
+    return
+  fi
+  pkill -x picom 2>/dev/null || true
+  local i
+  for i in $(seq 1 20); do
+    pgrep -x picom >/dev/null 2>&1 || break
+    sleep 0.1
+  done
+  picom --config "${HOME}/.config/picom/picom.conf" >/dev/null 2>&1 &
+  disown
+  log "picom restarted."
+}
+
 restart_xsettingsd() {
   if pgrep -x xsettingsd >/dev/null 2>&1; then
     pkill -x xsettingsd; sleep 0.1
@@ -400,6 +465,7 @@ main() {
   apply_chrome_apt_arch
   enable_power_profiles_daemon
   install_power_profile_autoswitch
+  install_picom_from_source
   install_picom_resume_hook
   apply_swappiness
 
@@ -412,6 +478,7 @@ main() {
 
   restart_dunst
   restart_xsettingsd
+  restart_picom
 
   if [[ "${NEEDS_REBOOT}" -eq 1 ]]; then
     log_warn "Reboot required for screen tearing fix to take effect."
