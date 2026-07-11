@@ -54,8 +54,8 @@ yarn      = ["latest", "1.22.22"]
 "zoxide"                 = "latest"
 "github:openfga/openfga" = "latest"
 "tree-sitter"         = "latest" # required by nvim treesitter parser compilation
-"npm:@anthropic-ai/claude-code" = { version = "latest", postinstall = "test -f \"$MISE_TOOL_INSTALL_PATH/lib/node_modules/@anthropic-ai/claude-code/install.cjs\" && mise exec node -- node \"$MISE_TOOL_INSTALL_PATH/lib/node_modules/@anthropic-ai/claude-code/install.cjs\"" }
-"npm:@openai/codex"             = "latest"
+"claude-code"            = "latest" # native binary via mise registry; the npm package needs a postinstall step mise doesn't run
+"npm:@openai/codex"      = "latest"
 
 # ── linters / formatters (consumed by nvim/.../user/lsp/null-ls.lua) ───
 "stylua"                                   = "latest"
