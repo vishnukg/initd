@@ -19,13 +19,19 @@ case "${profile}" in
   *)              dpi=108 ;;   # docked/external: 32" 4K, compact-UI preference
 esac
 
-printf 'Xft.dpi: %s\n' "${dpi}" | xrdb -merge
+# Cursor scales with the DPI (48px reference at 144). GTK apps resize it live
+# via xsettingsd; the Gtk/CursorThemeSize in the repo config is the fallback
+# that gets replaced here.
+cursor=$(( 48 * dpi / 144 ))
+
+printf 'Xft.dpi: %s\nXcursor.size: %s\n' "${dpi}" "${cursor}" | xrdb -merge
 
 conf="${XDG_CACHE_HOME:-${HOME}/.cache}/xsettingsd.conf"
 mkdir -p "$(dirname "${conf}")"
 {
-  cat "${HOME}/.config/xsettingsd/xsettingsd.conf"
+  grep -v '^Gtk/CursorThemeSize' "${HOME}/.config/xsettingsd/xsettingsd.conf"
   printf 'Xft/DPI %s\n' "$((dpi * 1024))"
+  printf 'Gtk/CursorThemeSize %s\n' "${cursor}"
 } > "${conf}"
 
 # If xsettingsd is already running off the generated config, a HUP reloads it

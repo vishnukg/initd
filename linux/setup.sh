@@ -440,12 +440,10 @@ patch_polybar_hardware() {
   # Auto-detect hardware names so polybar shows real values. Patches the source
   # file under linux/configs/, which is symlinked from ~/.config/polybar.
   local file="${CONFIGS_DIR}/polybar/config.ini"
-  local wlan_iface battery backlight
+  local wlan_iface backlight
 
   wlan_iface="$(ip -o link show 2>/dev/null | awk '$2 ~ /^w/ {gsub(/:/, "", $2); print $2; exit}' || true)"
   wlan_iface="${wlan_iface:-wlan0}"
-  battery="$(find /sys/class/power_supply -mindepth 1 -maxdepth 1 -iname '*bat*' -printf '%f\n' 2>/dev/null | head -1 || true)"
-  battery="${battery:-BAT0}"
   backlight="$(find /sys/class/backlight -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -1 || true)"
   backlight="${backlight:-intel_backlight}"
 
@@ -459,10 +457,10 @@ patch_polybar_hardware() {
     fi
   }
   _patch_kv "interface" "${wlan_iface}"
-  _patch_kv "battery"   "${battery}"
   _patch_kv "card"      "${backlight}"
 
-  chmod +x "${CONFIGS_DIR}/polybar/launch.sh" "${CONFIGS_DIR}/polybar/workspaces.sh"
+  chmod +x "${CONFIGS_DIR}/polybar/launch.sh" "${CONFIGS_DIR}/polybar/workspaces.sh" \
+           "${CONFIGS_DIR}/polybar/battery-status.sh"
 }
 
 link_firefox_profile() {
