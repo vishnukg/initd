@@ -114,9 +114,11 @@ map("n", "<leader>gie", "<cmd>GoIfErr<CR>",  d("Go: add if-err block"))
 map("n", "<leader>gim", "<cmd>GoImpl<CR>",   d("Go: implement interface"))
 
 -- ── Folding ───────────────────────────────────────────────────────────────────
-map("n", "<leader>ft",  "za", d("Fold: toggle at cursor"))
-map("n", "<leader>fC",  "zc", d("Fold: close at cursor"))
-map("n", "<leader>foc", "zo", d("Fold: open at cursor"))
-map("n", "<leader>fO",  "zR", d("Fold: open all"))
-map("n", "<leader>fc",  "zM", d("Fold: close all"))
-map("n", "<leader>fT",  "zA", d("Fold: toggle recursively at cursor"))
+-- z prefix (mirrors vim's native z* fold commands); lowercase = at cursor,
+-- uppercase = all / recursive. Keeps <leader>f* free for find/format.
+map("n", "<leader>zt", "za", d("Fold: toggle at cursor"))
+map("n", "<leader>zT", "zA", d("Fold: toggle recursively at cursor"))
+map("n", "<leader>zo", "zo", d("Fold: open at cursor"))
+map("n", "<leader>zc", "zc", d("Fold: close at cursor"))
+map("n", "<leader>zO", "zR", d("Fold: open all"))
+map("n", "<leader>zC", "zM", d("Fold: close all"))

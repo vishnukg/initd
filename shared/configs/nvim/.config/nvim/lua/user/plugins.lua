@@ -188,63 +188,19 @@ return require("lazy").setup({
 		opts = { install_treesitter_grammar = true },
 	},
 
-	-- Test coverage overlay (gcv = load & show, then <leader>cvs for summary)
-	-- Workflow: run tests with neotest → gcv to overlay coverage gutters
+	-- Test coverage overlay
 	{
 		"andythigpen/nvim-coverage",
 		dependencies = { "nvim-lua/plenary.nvim" },
-		config = function()
-			require("coverage").setup({
-				commands = true,
-				auto_reload = true,
-				highlights = {
-					covered   = { bg = "#004400" },
-					uncovered = { bg = "#440000" },
-				},
-				signs = {
-					covered   = { hl = "CoverageCovered",   text = "▎" },
-					uncovered = { hl = "CoverageUncovered", text = "▎" },
-				},
-				lang = {
-					-- go test -coverprofile=coverage.out ./...
-					go         = { coverage_file = "coverage.out" },
-					-- npm run test:coverage (vitest/jest with lcov reporter)
-					typescript = { coverage_file = "coverage/lcov.info" },
-					javascript = { coverage_file = "coverage/lcov.info" },
-					-- coverage run -m pytest && coverage json
-					python     = { coverage_file = ".coverage" },
-					-- dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
-					cs         = { coverage_file = "TestResults/lcov.info" },
-				},
-			})
-		end,
+		config = function() require("user.coverage") end,
 		ft = { "go", "javascript", "typescript", "python", "cs" },
 	},
 
-	-- Go: struct tags, if-err, impl — NOT an LSP tool, no interference with gopls.
-	-- Run :GoInstallDeps once after install.
+	-- Go: struct tags, if-err, impl
 	{
 		"olexsmir/gopher.nvim",
 		ft = "go",
-		config = function(_, opts)
-			require("gopher").setup(opts)
-			-- Auto-install binaries on first Go file open (only if missing)
-			if vim.fn.executable("gomodifytags") == 0 then
-				vim.api.nvim_create_autocmd("FileType", {
-					pattern = "go",
-					once = true,
-					callback = function() pcall(vim.cmd, "GoInstallDeps") end,
-				})
-			end
-		end,
-		opts = {
-			commands = { gotests = "gotests" },
-			gotag = {
-				transform   = "camelcase",
-				default_tag = "json",
-				option      = nil, -- omitempty should be added per field, not by default
-			},
-		},
+		config = function() require("user.gopher") end,
 	},
 
 	-- .NET
