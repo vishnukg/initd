@@ -161,9 +161,11 @@ Edit files inside this repo, not through the live symlinks.
 
 ### Linux-specific quirks
 
-`linux/setup.sh` handles six classes of things that don't fit the standard symlink flow:
+`linux/setup.sh` handles seven classes of things that don't fit the standard symlink flow:
 
 - **System fixes** that need sudo: xorg TearFree, Intel BE200 WiFi d3cold udev rule, NetworkManager power save, swappiness, Chrome apt arch pin, power-profiles-daemon enable.
+- **Monitor hotplug** (`configure_autorandr`): the autorandr apt package ships the plumbing — a udev rule fires on DRM change (plug/unplug) and `autorandr-lid-listener.service` fires on lid open/close; autorandr treats `eDP-*` as disconnected while the lid is closed, so a docked laptop falls through to the external-only profile. setup.sh links `~/.config/autorandr/postswitch` to `linux/scripts/autorandr-postswitch.sh` (per-profile DPI + wallpaper + polybar reflow), seeds a `laptop` profile on first bootstrap, and installs systemd drop-ins switching both units' fallback to the virtual `clone-largest` profile, so a never-seen monitor lights up (mirrored) instead of staying dark. Profiles are machine-specific EDID fingerprints in `~/.config/autorandr` (not in the repo) — plug in a new monitor, arrange with arandr/xrandr, then `autorandr --save <name>` (repeat lid-closed for the external-only variant); `$mod+Shift+m` force-reapplies everything.
+- **Per-profile Xft DPI** (`linux/scripts/display-dpi.sh`): X11 has one global `Xft.dpi`, so the value follows the active autorandr profile (laptop 144, docked/external 108) instead of being static. The script merges the value into xrdb (future apps) and runs xsettingsd on a generated config — repo `xsettingsd.conf` + an `Xft/DPI` line in `~/.cache/xsettingsd.conf` — so running GTK apps rescale live. Note GTK apps read XSETTINGS, not `.Xresources`; a DPI key must go through xsettingsd to affect them. Called by the autorandr postswitch hook, i3 startup, and `restart_xsettingsd`.
 - **Picom v13 from source** (`install_picom_from_source`): apt ships v10, which predates the animation engine; v13 is built with meson/ninja into `/usr/local/bin` (shadows the apt binary). `picom.conf` uses v12+ syntax (`animations`, `rules`, dual_kawase blur) and is a no-op fancy-wise on v10.
 - **Sleep/resume hooks** copied into `/etc/systemd/system-sleep/` from `linux/scripts/` (`picom-resume.sh`, `wifi-reconnect.sh`).
 - **Power-profile auto-switch** (`install_power_profile_autoswitch`): a udev rule + `/usr/local/bin/power-profile-switch.sh` flip power-profiles-daemon between `balanced` (AC) and `power-saver` (battery), with a polkit rule, a `$mod+p` cycle keybind, and a polybar indicator. Session scripts are symlinked by `link_session_scripts`. See `docs/linux-power.md` for the full design.
@@ -178,5 +180,6 @@ Edit files inside this repo, not through the live symlinks.
 - `docs/mise.md` — mise tool management
 - `docs/git-branching-conflicts.md` — Git branching and conflict resolution
 - `docs/linux-power.md` — Linux power management (PPD, AC/battery auto-switch, manual controls)
+- `docs/linux-monitors.md` — monitor hotplug/lid switching, attaching a new monitor, per-profile DPI
 - `docs/tmux-nvim.md` — tmux and Neovim workspace concepts
 - `docs/tmux-sessions.md` — tmux session/window/pane workflow and keybindings

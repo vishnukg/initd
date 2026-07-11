@@ -1,3 +1,5 @@
+! Session default only — display-dpi.sh overrides per autorandr profile
+! (laptop 144, docked/external 108) via xrdb -merge and xsettingsd Xft/DPI.
 Xft.dpi: 144
 Xft.autohint: 0
 Xft.lcdfilter: lcddefault

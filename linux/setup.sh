@@ -4,6 +4,7 @@ set -euo pipefail
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font)
 #   - System fixes that need sudo (xorg, WiFi, NetworkManager, swappiness)
+#   - Monitor hotplug via autorandr (postswitch hook, default profile, lid listener)
 #   - Picom resume hook (lives under /etc/systemd/system-sleep/)
 #   - Polybar hardware-specific patching (interface / battery / backlight names)
 #   - Firefox profile glue (profile path is dynamic)
@@ -202,6 +203,74 @@ install_power_profile_autoswitch() {
   "${switch_bin}" 2>/dev/null || true
 }
 
+# ── Monitor hotplug (autorandr) ──────────────────────────────────────────────
+configure_autorandr() {
+  # The autorandr apt package already ships the switching plumbing: a udev rule
+  # fires on DRM change (plug/unplug) and autorandr-lid-listener.service fires
+  # on lid open/close; autorandr treats eDP-* as disconnected while the lid is
+  # closed, so a docked laptop falls through to the external-only profile.
+  # Profiles are machine-specific EDID fingerprints and live unmanaged in
+  # ~/.config/autorandr — capture layouts with `autorandr --save <name>`.
+  local ar_dir="${HOME}/.config/autorandr"
+  mkdir -p "${ar_dir}"
+
+  # Hook: reflow wallpaper + polybar after every profile switch.
+  local target="${ar_dir}/postswitch"
+  local src="${SCRIPTS_DIR}/autorandr-postswitch.sh"
+  chmod +x "${src}" 2>/dev/null || true
+  if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
+    log_success "autorandr postswitch hook already linked."
+  else
+    [[ -e "${target}" || -L "${target}" ]] && rm -f "${target}"
+    ln -s "${src}" "${target}"
+    log_success "Linked autorandr postswitch hook."
+  fi
+
+  # First bootstrap on a new machine: capture the current layout as "laptop" —
+  # but only when a single output is connected, so a docked bootstrap doesn't
+  # get a multi-monitor layout saved under the wrong name.
+  if [[ ! -d "${ar_dir}/laptop" ]] && [[ -n "${DISPLAY:-}" ]] \
+      && [[ "$(xrandr --query 2>/dev/null | grep -c ' connected')" -eq 1 ]]; then
+    if autorandr --save laptop >/dev/null 2>&1; then
+      log_success "Saved current layout as autorandr profile 'laptop'."
+    fi
+  fi
+
+  # Unknown monitors: the packaged units fall back to `--default default`,
+  # a profile that can't exist for hardware we've never seen. Override both
+  # units to `clone-largest` so any new monitor lights up (mirrored)
+  # immediately; saved profiles still win when their fingerprint matches.
+  local unit dropin units_changed=0
+  for unit in autorandr autorandr-lid-listener; do
+    dropin="/etc/systemd/system/${unit}.service.d/initd.conf"
+    if [[ -f "${dropin}" ]] && diff -q "${SCRIPTS_DIR}/${unit}-override.conf" "${dropin}" >/dev/null 2>&1; then
+      log_success "${unit} clone-largest override already installed."
+    else
+      sudo mkdir -p "$(dirname "${dropin}")"
+      sudo cp "${SCRIPTS_DIR}/${unit}-override.conf" "${dropin}"
+      units_changed=1
+      log_success "${unit} clone-largest override installed."
+    fi
+  done
+  if [[ "${units_changed}" -eq 1 ]]; then
+    sudo systemctl daemon-reload
+    sudo systemctl try-restart autorandr-lid-listener.service 2>/dev/null || true
+  fi
+
+  # Stale leftover from the earlier default->laptop fallback design.
+  if [[ -L "${ar_dir}/default" ]]; then
+    rm -f "${ar_dir}/default"
+    log "Removed stale autorandr 'default' symlink."
+  fi
+
+  if systemctl is-enabled --quiet autorandr-lid-listener.service 2>/dev/null; then
+    log_success "autorandr lid listener already enabled."
+  else
+    sudo systemctl enable --now autorandr-lid-listener.service
+    log_success "autorandr lid listener enabled."
+  fi
+}
+
 # ── Picom v13 (animation engine) ─────────────────────────────────────────────
 PICOM_VERSION="v13"
 
@@ -352,7 +421,7 @@ link_session_scripts() {
   # i3/polybar invoke these by absolute ~/.config/ path, so they need their own
   # symlinks (they live in linux/scripts/ rather than under a MANAGED_LINKS dir).
   local name target src
-  for name in lockscreen.sh lockscreen-update.sh \
+  for name in lockscreen.sh lockscreen-update.sh display-dpi.sh \
               power-profile-cycle.sh power-profile-status.sh; do
     target="${HOME}/.config/${name}"
     src="${SCRIPTS_DIR}/${name}"
@@ -472,11 +541,11 @@ restart_picom() {
 }
 
 restart_xsettingsd() {
-  if pgrep -x xsettingsd >/dev/null 2>&1; then
-    pkill -x xsettingsd; sleep 0.1
-    xsettingsd >/dev/null 2>&1 &
-    disown
-    log "xsettingsd restarted."
+  # display-dpi.sh regenerates the runtime config (repo config + per-profile
+  # Xft/DPI) and reloads or restarts xsettingsd on it.
+  if [[ -n "${DISPLAY:-}" ]] && pgrep -x xsettingsd >/dev/null 2>&1; then
+    "${SCRIPTS_DIR}/display-dpi.sh" >/dev/null 2>&1 || true
+    log "xsettingsd reloaded."
   fi
 }
 
@@ -490,6 +559,7 @@ main() {
   apply_chrome_apt_arch
   enable_power_profiles_daemon
   install_power_profile_autoswitch
+  configure_autorandr
   install_picom_from_source
   install_picom_resume_hook
   apply_swappiness
