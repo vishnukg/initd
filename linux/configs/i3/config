@@ -38,9 +38,11 @@ exec --no-startup-id xss-lock --transfer-sleep-lock -- ~/.config/lockscreen.sh
 # NetworkManager is the most popular way to manage wireless networks on Linux,
 # and nm-applet is a desktop environment-independent system tray GUI for it.
 exec --no-startup-id nm-applet
-exec --no-startup-id autorandr --change
+exec --no-startup-id autorandr --change --default clone-largest
 exec --no-startup-id copyq
-exec --no-startup-id xsettingsd
+# display-dpi.sh starts xsettingsd on a generated config (repo config plus a
+# per-autorandr-profile Xft/DPI line) — see linux/scripts/display-dpi.sh.
+exec --no-startup-id ~/.config/display-dpi.sh
 exec --no-startup-id ~/.config/lockscreen-update.sh
 
 # Picom
@@ -225,6 +227,10 @@ client.urgent           #bf616a   #2e3440   #eceff4   #bf616a   #bf616a
 client.background       #2e3440
 
 bindsym $mod+Shift+x exec --no-startup-id loginctl lock-session
+
+# Re-apply monitor layout + DPI + xsettingsd + wallpaper + polybar for the
+# current hardware state (runs the autorandr postswitch hook chain).
+bindsym $mod+Shift+m exec --no-startup-id autorandr --change --force --default clone-largest
 
 # Nitrogen
 exec_always nitrogen --restore
