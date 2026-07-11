@@ -14,6 +14,16 @@
 
 profile="${1:-$(autorandr --current 2>/dev/null | head -n1)}"
 
+# Virtual/unknown profile (fresh machine before `laptop` is saved, or the
+# clone-largest fallback): if the laptop panel is the only active output,
+# treat it as the laptop profile so first login gets the right scale.
+if [[ -z "${profile}" || "${profile}" == "clone-largest" ]]; then
+  monitors="$(xrandr --listmonitors 2>/dev/null | awk 'NR > 1 {print $NF}')"
+  if [[ "${monitors}" == eDP* && "${monitors}" != *$'\n'* ]]; then
+    profile=laptop
+  fi
+fi
+
 case "${profile}" in
   laptop|default) dpi=144 ;;   # dense 13" panel needs the larger scale
   *)              dpi=108 ;;   # docked/external: 32" 4K, compact-UI preference
