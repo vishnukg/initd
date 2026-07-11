@@ -8,4 +8,5 @@ Xft.hinting: 1
 Xft.antialias: 1
 Xft.rgba: rgb
 Xcursor.theme: DMZ-White
+! Session default — display-dpi.sh scales this with the profile DPI (48@144).
 Xcursor.size: 48
