@@ -44,6 +44,9 @@ exec --no-startup-id copyq
 # per-autorandr-profile Xft/DPI line) — see linux/scripts/display-dpi.sh.
 exec --no-startup-id ~/.config/display-dpi.sh
 exec --no-startup-id ~/.config/lockscreen-update.sh
+# Gamma resets when X restarts, so clear the night-light state file to match
+# (see linux/scripts/night-light-toggle.sh).
+exec --no-startup-id rm -f ~/.cache/night-light-on
 
 # Picom
 exec_always --no-startup-id pkill -x picom; while pgrep -x picom > /dev/null; do sleep 0.1; done; picom --config ~/.config/picom/picom.conf
@@ -79,6 +82,9 @@ bindsym $mod+Tab exec --no-startup-id rofi -show window
 
 # Cycle power profile (power-saver -> balanced -> performance)
 bindsym $mod+p exec --no-startup-id ~/.config/power-profile-cycle.sh
+
+# Toggle night light (moderately warm screen, manual only)
+bindsym $mod+Shift+n exec --no-startup-id ~/.config/night-light-toggle.sh
 
 # change focus
 bindsym $mod+h focus left
