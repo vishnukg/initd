@@ -18,6 +18,28 @@ local hover_disabled = { ruff = true }
 
 local fmt_augroup = vim.api.nvim_create_augroup("LspFormatting", { clear = true })
 
+-- Client ids we've already announced — LspAttach fires per (client, buffer),
+-- but one toast per server instance is enough. A restart gets a new id, so it
+-- re-announces. null-ls is announced per filetype instead (see below), since
+-- the useful info is which sources cover the file, not that null-ls is up.
+local notified_clients = {}
+local notified_filetypes = {}
+
+-- One-line summary of the null-ls sources available for a filetype, e.g.
+-- "go: goimports (format), golangci_lint (lint)". nil if none.
+local function null_ls_ft_summary(ft)
+	local ok, sources = pcall(require, "null-ls.sources")
+	if not ok then return nil end
+	local internal = require("null-ls.methods").internal
+	local parts = {}
+	for _, source in ipairs(sources.get_available(ft)) do
+		local kind = source.methods[internal.FORMATTING] and "format" or "lint"
+		table.insert(parts, ("%s (%s)"):format(source.name, kind))
+	end
+	if #parts == 0 then return nil end
+	return ("%s: %s"):format(ft, table.concat(parts, ", "))
+end
+
 -- Build a vim.lsp.buf.format filter that keeps only the right formatter client
 -- for the given buffer's filetype.
 local function format_filter(bufnr)
@@ -51,7 +73,9 @@ local function lsp_keymaps(bufnr)
 		vim.tbl_extend("force", opts, { desc = "LSP: type subtypes" }))
 	vim.keymap.set("n", "<leader>fm", function() vim.lsp.buf.format({ async = true }) end,
 		vim.tbl_extend("force", opts, { desc = "LSP: format buffer" }))
-	vim.keymap.set("n", "<leader>li", "<cmd>LspInfo<CR>",  vim.tbl_extend("force", opts, { desc = "LSP: info" }))
+	-- :LspInfo was removed: nvim 0.12 ships a native :lsp command, and
+	-- nvim-lspconfig's plugin file skips defining Lsp* commands when it exists.
+	vim.keymap.set("n", "<leader>li", "<cmd>checkhealth vim.lsp<CR>", vim.tbl_extend("force", opts, { desc = "LSP: info (checkhealth)" }))
 	vim.keymap.set("n", "<leader>lj", function() vim.diagnostic.jump({ count =  1, float = true }) end,
 		vim.tbl_extend("force", opts, { desc = "LSP: next diagnostic" }))
 	vim.keymap.set("n", "<leader>lk", function() vim.diagnostic.jump({ count = -1, float = true }) end,
@@ -97,6 +121,21 @@ M.setup = function()
 			local client = vim.lsp.get_client_by_id(args.data.client_id)
 			if not client then return end
 			local bufnr = args.buf
+
+			-- Fidget routes vim.notify to the bottom-right notification window.
+			if client.name == "null-ls" then
+				local ft = vim.bo[bufnr].filetype
+				if ft ~= "" and not notified_filetypes[ft] then
+					notified_filetypes[ft] = true
+					local summary = null_ls_ft_summary(ft)
+					if summary then
+						vim.notify(summary, vim.log.levels.INFO, { group = "lsp" })
+					end
+				end
+			elseif not notified_clients[client.id] then
+				notified_clients[client.id] = true
+				vim.notify(("attached %s"):format(client.name), vim.log.levels.INFO, { group = "lsp" })
+			end
 
 			-- Disable native formatter so none-ls/null-ls takes over exclusively
 			if formatting_disabled[client.name] then
