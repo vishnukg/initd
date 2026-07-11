@@ -336,6 +336,26 @@ install_picom_resume_hook() {
   fi
 }
 
+mask_picom_xdg_autostart() {
+  # The apt picom package ships /etc/xdg/autostart/picom.desktop, and the
+  # `dex --autostart` line in the i3 config executes it — a second bare picom
+  # that races the exec_always one and warns "Another composite manager is
+  # already running". A user-level entry with Hidden=true masks the system one.
+  local target="${HOME}/.config/autostart/picom.desktop"
+  if [[ -f "${target}" ]] && grep -q '^Hidden=true$' "${target}"; then
+    log_success "picom XDG autostart already masked."
+    return
+  fi
+  mkdir -p "${HOME}/.config/autostart"
+  cat > "${target}" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=picom
+Hidden=true
+EOF
+  log_success "Masked apt picom's XDG autostart entry."
+}
+
 apply_swappiness() {
   local sysctl_conf=/etc/sysctl.d/99-performance.conf
   if [[ -f "${sysctl_conf}" ]] && grep -q 'swappiness=10' "${sysctl_conf}"; then
@@ -561,6 +581,7 @@ main() {
   configure_autorandr
   install_picom_from_source
   install_picom_resume_hook
+  mask_picom_xdg_autostart
   apply_swappiness
 
   install_adw_gtk3_theme
