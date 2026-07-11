@@ -422,7 +422,8 @@ link_session_scripts() {
   # symlinks (they live in linux/scripts/ rather than under a MANAGED_LINKS dir).
   local name target src
   for name in lockscreen.sh lockscreen-update.sh display-dpi.sh \
-              power-profile-cycle.sh power-profile-status.sh; do
+              power-profile-cycle.sh power-profile-status.sh \
+              night-light-toggle.sh; do
     target="${HOME}/.config/${name}"
     src="${SCRIPTS_DIR}/${name}"
     chmod +x "${src}" 2>/dev/null || true

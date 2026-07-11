@@ -26,7 +26,7 @@ bar_env() {
     export POLYBAR_HEIGHT="$(px 46)"
     export POLYBAR_FONT0="${font}:size=13.3;$(px 5)"
     export POLYBAR_FONT1="${font}:size=20.7;$(px 7)"
-    export POLYBAR_FONT2="${font}:size=14;$(px 6)"
+    export POLYBAR_FONT2="${font}:size=15.5;$(px 6)"
     export POLYBAR_TRAYPAD="$(px 6)px"
     export POLYBAR_TRAYMAX="$(px 16)"
 }
