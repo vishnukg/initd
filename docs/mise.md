@@ -133,6 +133,12 @@ The hybrid costs and gains:
 | `[tools]` runtimes | `node`, `python`, `go`, `dotnet`, `terraform` — language runtimes with pinned versions |
 | `[tools]` LSPs + CLI tools | Everything nvim's LSP config and null-ls expect to find on PATH |
 
+Claude Code is installed as `claude-code` from the mise registry
+(`aqua:anthropics/claude-code`), which downloads the platform-native binary
+directly. Don't switch it to `npm:@anthropic-ai/claude-code`: that package
+ships a stub and relies on an npm postinstall script (which mise doesn't run)
+to swap in the native binary, leaving a broken `claude` after every upgrade.
+
 Version strings follow mise's resolution rules:
 
 | Value | Meaning |
