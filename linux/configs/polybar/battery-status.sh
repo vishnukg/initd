@@ -19,17 +19,18 @@ cap="${cap:-0}"
 status="$(cat "${bat}/status" 2>/dev/null)"
 online="$(cat "${ac}/online" 2>/dev/null)"
 
-# Colors mirror [colors] in config.ini.
-blue="#89b4fa" red="#f7768e" green="#9ece6a"
+# Colors mirror [colors] in config.ini; the icon stays the bar foreground
+# (macOS-menubar style) except for the charging/low states.
+fg="#c0caf5" red="#f7768e" green="#9ece6a"
 
 if [[ "${online}" == "1" ]]; then
   if [[ "${status}" == "Charging" ]]; then
     icon="󰂄" color="${green}"   # actively charging
   else
-    icon="󰚥" color="${blue}"    # plugged in; battery full or held at threshold
+    icon="󰚥" color="${fg}"      # plugged in; battery full or held at threshold
   fi
 else
-  color="${blue}"
+  color="${fg}"
   (( cap <= 10 )) && color="${red}"
   if   (( cap >= 90 )); then icon="󰁹"
   elif (( cap >= 60 )); then icon="󰂀"
