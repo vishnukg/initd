@@ -55,7 +55,7 @@ yarn      = ["latest", "1.22.22"]
 "github:openfga/openfga" = "latest"
 "tree-sitter"         = "latest" # required by nvim treesitter parser compilation
 "claude-code"            = "latest" # native binary via mise registry; the npm package needs a postinstall step mise doesn't run
-"npm:@openai/codex"      = "latest"
+"aqua:openai/codex"      = "latest" # prebuilt binary from GitHub releases, not the npm wrapper
 
 # ── linters / formatters (consumed by nvim/.../user/lsp/null-ls.lua) ───
 "stylua"                                   = "latest"
