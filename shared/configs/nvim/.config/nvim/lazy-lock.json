@@ -16,7 +16,7 @@
   "gopher.nvim": { "branch": "main", "commit": "27ba078f14dd39fcd5e8a57d7009cdd77450ebbb" },
   "grug-far.nvim": { "branch": "main", "commit": "1cc080f55706b38aabfa97d40acb6adf59ac4a5a" },
   "indent-blankline.nvim": { "branch": "master", "commit": "d28a3f70721c79e3c5f6693057ae929f3d9c0a03" },
-  "lazy.nvim": { "branch": "main", "commit": "85c7ff3711b730b4030d03144f6db6375044ae82" },
+  "lazy.nvim": { "branch": "main", "commit": "306a05526ada86a7b30af95c5cc81ffba93fef97" },
   "lualine.nvim": { "branch": "master", "commit": "221ce6b2d999187044529f49da6554a92f740a96" },
   "neotest": { "branch": "master", "commit": "4e2cd42c4252ee9d2435571d9adcdbc1d47931fe" },
   "neotest-golang": { "branch": "main", "commit": "542cbaf37f1233a2723ccd64ce8ed7e3acbd192b" },
