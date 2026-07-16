@@ -60,13 +60,13 @@ initd/
 │   ├── managed-links.sh      # appends macOS-only links to MANAGED_LINKS
 │   └── update.sh
 └── linux/                    # self-contained — `rm -rf linux/` and macOS still works
-    ├── bootstrap.sh
-    ├── packages.txt          # apt package list (one per line)
-    ├── setup.sh              # system fixes (xorg, wifi, picom hook, fonts, polybar patch, power auto-switch)
-    ├── managed-links.sh      # appends i3/polybar/rofi/dunst/picom links
+    ├── bootstrap.sh          # targets Ubuntu 26.04+ (all packages from the official archive)
+    ├── packages.txt          # apt package list (one per line) — Wayland/Hyprland stack
+    ├── setup.sh              # system fixes (wifi, fonts, power auto-switch, theme/config glue)
+    ├── managed-links.sh      # appends hypr/waybar/rofi/dunst links
     ├── update.sh
     ├── scripts/              # sleep/resume hooks (/etc/systemd/system-sleep/), udev/polkit rules, session scripts
-    └── configs/              # i3, polybar, rofi, dunst, picom, gtk, xsettingsd, firefox, …
+    └── configs/              # hypr, waybar, rofi, dunst, gtk, firefox, … (plus legacy X11 configs, unused)
 ```
 
 ### Execution flow
@@ -88,10 +88,11 @@ macos/bootstrap.sh
 
 linux/bootstrap.sh
   ├─ ensure_debian
-  ├─ install apt packages from linux/packages.txt
-  ├─ ensure_gh (official apt repo), ensure_mise (curl mise.run)
+  ├─ install apt packages from linux/packages.txt   # Hyprland + Wayland tools, all native on 26.04
+  ├─ ensure_gh (official apt repo), ensure_ghostty (archive on 26.04+, PPA fallback),
+  │  ensure_1password (official apt repo), ensure_mise (curl mise.run)
   ├─ shared/lib/link.sh linux                 # symlinks
-  ├─ linux/setup.sh                           # xorg/wifi/picom hook/fonts/polybar patch/power auto-switch
+  ├─ linux/setup.sh                           # wifi fixes/fonts/power auto-switch/theme + config glue
   ├─ ensure_gh_auth, ensure_fish (chsh)
   ├─ mise install
   └─ setup_git_profile
@@ -113,7 +114,7 @@ shared/managed-links.sh         ← MANAGED_LINKS (shared); requires ROOT_DIR
 The single array `MANAGED_LINKS` is built in two steps:
 
 1. `shared/managed-links.sh` defines the cross-platform entries (fish, ghostty, mise, nvim, starship, tmux).
-2. `<platform>/managed-links.sh` appends OS-only entries (currently nothing on macOS; i3/polybar/rofi/dunst/picom/xsettingsd/gtk-3.0 on Linux).
+2. `<platform>/managed-links.sh` appends OS-only entries (currently nothing on macOS; hypr/waybar/rofi/dunst/gtk-3.0 on Linux).
 
 Entry format: `"home path:repo path"`. Scripts split with `home_path="${entry%%:*}"` / `repo_path="${entry#*:}"`.
 
@@ -143,8 +144,8 @@ Each managed package lives in a subdirectory that mirrors `$HOME`:
 ```
 shared/configs/fish/.config/fish/    →  symlinked as ~/.config/fish
 shared/configs/tmux/.config/tmux/    →  symlinked as ~/.config/tmux
-linux/configs/i3/                    →  symlinked as ~/.config/i3
-linux/configs/polybar/               →  symlinked as ~/.config/polybar
+linux/configs/hypr/                  →  symlinked as ~/.config/hypr
+linux/configs/waybar/                →  symlinked as ~/.config/waybar
 ```
 
 For shared/ the path inside the package mirrors `$HOME` exactly. For linux/ the configs live directly under `linux/configs/<name>/` (no `.config` prefix) because the source path is already namespaced by platform.
@@ -161,16 +162,15 @@ Edit files inside this repo, not through the live symlinks.
 
 ### Linux-specific quirks
 
-`linux/setup.sh` handles seven classes of things that don't fit the standard symlink flow:
+The Linux desktop is **Wayland-only**: Hyprland installed alongside Ubuntu's stock GNOME (both offered at the GDM login screen; the apt `hyprland` package ships the session file). Everything in `packages.txt` comes from the official Ubuntu 26.04 archive — no PPAs, no source builds. The old X11 stack (i3, polybar, picom, xsettingsd, autorandr, Xresources and their scripts) still sits under `linux/configs/` and `linux/scripts/` for reference but is not installed or linked by anything.
 
-- **System fixes** that need sudo: xorg TearFree, Intel BE200 WiFi d3cold udev rule, NetworkManager power save, swappiness, Chrome apt arch pin, power-profiles-daemon enable.
-- **Monitor hotplug** (`configure_autorandr`): the autorandr apt package ships the plumbing — a udev rule fires on DRM change (plug/unplug) and `autorandr-lid-listener.service` fires on lid open/close; autorandr treats `eDP-*` as disconnected while the lid is closed, so a docked laptop falls through to the external-only profile. setup.sh links `~/.config/autorandr/postswitch` to `linux/scripts/autorandr-postswitch.sh` (per-profile DPI + wallpaper + polybar reflow), seeds a `laptop` profile on first bootstrap, and installs systemd drop-ins switching both units' fallback to the virtual `clone-largest` profile, so a never-seen monitor lights up (mirrored) instead of staying dark. Profiles are machine-specific EDID fingerprints in `~/.config/autorandr` (not in the repo) — plug in a new monitor, arrange with arandr/xrandr, then `autorandr --save <name>` (repeat lid-closed for the external-only variant); `$mod+Shift+m` force-reapplies everything.
-- **Per-profile Xft DPI** (`linux/scripts/display-dpi.sh`): X11 has one global `Xft.dpi`, so the value follows the active autorandr profile (laptop 144, docked/external 108) instead of being static. The script merges the value into xrdb (future apps) and runs xsettingsd on a generated config — repo `xsettingsd.conf` + an `Xft/DPI` line in `~/.cache/xsettingsd.conf` — so running GTK apps rescale live. Note GTK apps read XSETTINGS, not `.Xresources`; a DPI key must go through xsettingsd to affect them. Called by the autorandr postswitch hook, i3 startup, and `restart_xsettingsd`.
-- **Picom v13 from source** (`install_picom_from_source`): apt ships v10, which predates the animation engine; v13 is built with meson/ninja into `/usr/local/bin` (shadows the apt binary). `picom.conf` uses v12+ syntax (`animations`, `rules`, dual_kawase blur) and is a no-op fancy-wise on v10. The apt package also ships `/etc/xdg/autostart/picom.desktop`, which `dex --autostart` (i3 config) would launch as a second racing picom — `mask_picom_xdg_autostart` masks it with a user-level `Hidden=true` entry.
-- **Sleep/resume hooks** copied into `/etc/systemd/system-sleep/` from `linux/scripts/` (`picom-resume.sh`, `wifi-reconnect.sh`).
-- **Power-profile auto-switch** (`install_power_profile_autoswitch`): a udev rule + `/usr/local/bin/power-profile-switch.sh` flip power-profiles-daemon between `balanced` (AC) and `power-saver` (battery), with a polkit rule, a `$mod+p` cycle keybind, and a polybar indicator. Session scripts are symlinked by `link_session_scripts`. See `docs/linux-power.md` for the full design.
-- **Hardware-specific config patching**: `polybar/config.ini` gets the live `interface`, `battery`, and `card` names sed'd in based on `ip link`, `/sys/class/power_supply/`, and `/sys/class/backlight/`. This mutates the source file under `linux/configs/polybar/` — symlinks pick it up immediately.
-- **Special-case paths**: `~/.Xresources`, `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, and Firefox profile files (dynamic profile path) live outside `~/.config/` and are linked individually rather than via `MANAGED_LINKS`.
+- **Hyprland config** (`linux/configs/hypr/hyprland.conf`) is a 1:1 keybinding port of the old i3 config. It also absorbs several former subsystems: per-monitor scale replaces the autorandr/xsettingsd/Xft.dpi machinery (laptop panel 1.5x, externals 1.25x); `switch:on:Lid Switch` binds replace the autorandr lid listener; built-in blur/rounding/animations replace picom; `kb_options = ctrl:nocaps` and `repeat_delay/rate` replace setxkbmap/xset. i3 concepts without an exact equivalent are commented in the file (groups stand in for stacked/tabbed; no "focus parent").
+- **Companion stack**: waybar (polybar → auto-detects network/battery/backlight, so no hardware patching), rofi 2.0 (Wayland-native, same `config.rasi`), dunst (Wayland-native, same `dunstrc`), hyprlock + hypridle (i3lock + xss-lock — hyprlock blurs the live screen, so the whole `lockscreen-update.sh` image pipeline is gone), hyprpaper (nitrogen; wallpaper is machine-local at `~/Pictures/wallpaper.png`), grim/slurp (scrot), wl-clipboard (xclip).
+- **System fixes** that need sudo: Intel BE200 WiFi d3cold udev rule, NetworkManager power save, wifi-reconnect sleep hook (`/etc/systemd/system-sleep/`), swappiness, Chrome apt arch pin, power-profiles-daemon enable. These are hardware/kernel-level and unchanged from the X11 era.
+- **Power-profile auto-switch** (`install_power_profile_autoswitch`): a udev rule + `/usr/local/bin/power-profile-switch.sh` flip power-profiles-daemon between `balanced` (AC) and `power-saver` (battery), with a polkit rule, a `$mod+p` cycle keybind, and a waybar indicator. Session scripts (`power-profile-cycle/status.sh`, `night-light-toggle.sh`) are symlinked by `link_session_scripts`. See `docs/linux-power.md` for the full design (written for the X11 setup; the PPD/udev/polkit parts still apply).
+- **Night light** (`linux/scripts/night-light-toggle.sh`): on Wayland the gamma table resets when the client exits, so gammastep runs as a persistent process while warm is active (the process itself is the state) instead of the old X11 one-shot mode.
+- **Special-case paths**: `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, and Firefox profile files (dynamic profile path) live outside `~/.config/` and are linked individually rather than via `MANAGED_LINKS`.
+- **Legacy docs**: `docs/linux-monitors.md` describes the old autorandr/X11 monitor flow and no longer applies; Hyprland's `monitor =` rules cover it.
 
 ### Reference docs
 

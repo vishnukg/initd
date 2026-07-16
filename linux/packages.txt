@@ -1,36 +1,33 @@
 # apt packages installed by linux/bootstrap.sh.
 # One package per line, comments start with #.
-# Tested on Linux Mint and Ubuntu (Debian-based).
+# Targets Ubuntu 26.04 (resolute) — every package below is in the official
+# archive (main/universe), no PPAs or source builds required.
 
-# ── i3 desktop environment ───────────────────────────────────────────────────
-i3
-i3status
-i3lock
-xss-lock
-dex
-xorg
-xinit
-x11-xserver-utils
-picom
-autorandr
-arandr
-nitrogen
-polybar
+# ── Hyprland desktop (Wayland; installed alongside stock GNOME) ──────────────
+# The hyprland package ships /usr/share/wayland-sessions/hyprland.desktop, so
+# GDM offers Hyprland as a session next to Ubuntu's default GNOME.
+hyprland
+hyprlock
+hypridle
+hyprpaper
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+xwayland
+waybar
 rofi
 dunst
 libnotify-bin
-xsettingsd
+policykit-1-gnome
+grim
+slurp
+wl-clipboard
 gammastep
 
 # ── System utilities ──────────────────────────────────────────────────────────
 pulseaudio-utils
 brightnessctl
-scrot
-xclip
-imagemagick
 curl
 unzip
-software-properties-common
 network-manager-gnome
 copyq
 power-profiles-daemon

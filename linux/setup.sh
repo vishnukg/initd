@@ -3,12 +3,14 @@ set -euo pipefail
 
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font)
-#   - System fixes that need sudo (xorg, WiFi, NetworkManager, swappiness)
-#   - Monitor hotplug via autorandr (postswitch hook, default profile, lid listener)
-#   - Picom resume hook (lives under /etc/systemd/system-sleep/)
-#   - Polybar hardware-specific patching (interface / battery / backlight names)
+#   - System fixes that need sudo (WiFi, NetworkManager, swappiness)
+#   - Power-profile auto-switch (udev + polkit; works under any session)
+#   - Session scripts linked to absolute ~/.config/ paths (waybar/hyprland use them)
 #   - Firefox profile glue (profile path is dynamic)
-#   - .Xresources (lives at $HOME, not under .config)
+#
+# Wayland/Hyprland only — the old X11 fixes (xorg TearFree, autorandr, picom,
+# xsettingsd, Xresources) are gone; Hyprland handles compositing, monitors and
+# per-monitor scale natively.
 #
 # Safe to re-run. Standard ~/.config symlinks are handled by shared/lib/link.sh.
 
@@ -21,8 +23,6 @@ SCRIPTS_DIR="${LINUX_DIR}/scripts"
 source "${ROOT_DIR}/shared/lib/logging.sh"
 # shellcheck disable=SC1091
 source "${ROOT_DIR}/shared/lib/fs.sh"
-
-NEEDS_REBOOT=0
 
 # ── Fonts ─────────────────────────────────────────────────────────────────────
 install_firacode_nerd_font() {
@@ -48,33 +48,6 @@ install_firacode_nerd_font() {
 }
 
 # ── System fixes ──────────────────────────────────────────────────────────────
-apply_screen_tearing_fix() {
-  # /etc/X11/xorg.conf.d/ survives package upgrades; /usr/share/X11/xorg.conf.d/ does not.
-  local xorg_conf=/etc/X11/xorg.conf.d/20-intel.conf
-
-  sudo mkdir -p /etc/X11/xorg.conf.d
-  if [[ -f "${xorg_conf}" ]] && grep -q 'TearFree' "${xorg_conf}"; then
-    log_success "Screen tearing fix already applied."
-  else
-    sudo tee "${xorg_conf}" >/dev/null <<'EOF'
-Section "Device"
-  Identifier "Intel Graphics"
-  Driver "modesetting"
-  Option "TearFree" "true"
-  Option "TripleBuffer" "true"
-  Option "DRI" "iris"
-EndSection
-EOF
-    log_success "Screen tearing fix written — reboot required."
-    NEEDS_REBOOT=1
-  fi
-
-  if [[ -f /usr/share/X11/xorg.conf.d/20-intel.conf ]]; then
-    sudo rm -f /usr/share/X11/xorg.conf.d/20-intel.conf
-    log "Removed old /usr/share/X11/xorg.conf.d/20-intel.conf"
-  fi
-}
-
 apply_intel_wifi_d3cold_fix() {
   # Intel BE200 (vendor 8086, device 272b) wedges firmware when entering PCIe D3cold.
   # Keep the device in D3hot across suspend.
@@ -118,6 +91,7 @@ apply_wifi_reconnect_speedup() {
   fi
 
   local reconnect_hook=/etc/systemd/system-sleep/wifi-reconnect.sh
+  sudo mkdir -p /etc/systemd/system-sleep
   if [[ -f "${reconnect_hook}" ]] && diff -q "${SCRIPTS_DIR}/wifi-reconnect.sh" "${reconnect_hook}" >/dev/null 2>&1; then
     log_success "WiFi reconnect hook already installed."
   else
@@ -164,8 +138,8 @@ enable_power_profiles_daemon() {
 
 install_power_profile_autoswitch() {
   # Auto-switch the PPD profile on AC vs battery via a udev-triggered script
-  # (i3 has no GNOME/KDE-style logic to do this). The udev hook runs as root with
-  # no active session, so a polkit rule is needed or the switch is denied.
+  # (Hyprland has no GNOME/KDE-style logic to do this). The udev hook runs as
+  # root with no active session, so a polkit rule is needed or the switch is denied.
   local switch_bin=/usr/local/bin/power-profile-switch.sh
   local udev_rule=/etc/udev/rules.d/99-power-profile.rules
   local polkit_rule=/etc/polkit-1/rules.d/49-power-profiles.rules
@@ -203,159 +177,6 @@ install_power_profile_autoswitch() {
   "${switch_bin}" 2>/dev/null || true
 }
 
-# ── Monitor hotplug (autorandr) ──────────────────────────────────────────────
-configure_autorandr() {
-  # The autorandr apt package already ships the switching plumbing: a udev rule
-  # fires on DRM change (plug/unplug) and autorandr-lid-listener.service fires
-  # on lid open/close; autorandr treats eDP-* as disconnected while the lid is
-  # closed, so a docked laptop falls through to the external-only profile.
-  # Profiles are machine-specific EDID fingerprints and live unmanaged in
-  # ~/.config/autorandr — capture layouts with `autorandr --save <name>`.
-  local ar_dir="${HOME}/.config/autorandr"
-  mkdir -p "${ar_dir}"
-
-  # Hook: reflow wallpaper + polybar after every profile switch.
-  local target="${ar_dir}/postswitch"
-  local src="${SCRIPTS_DIR}/autorandr-postswitch.sh"
-  chmod +x "${src}" 2>/dev/null || true
-  if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
-    log_success "autorandr postswitch hook already linked."
-  else
-    [[ -e "${target}" || -L "${target}" ]] && rm -f "${target}"
-    ln -s "${src}" "${target}"
-    log_success "Linked autorandr postswitch hook."
-  fi
-
-  # First bootstrap on a new machine: capture the current layout as "laptop" —
-  # but only when a single output is connected, so a docked bootstrap doesn't
-  # get a multi-monitor layout saved under the wrong name.
-  if [[ ! -d "${ar_dir}/laptop" ]] && [[ -n "${DISPLAY:-}" ]] \
-      && [[ "$(xrandr --query 2>/dev/null | grep -c ' connected')" -eq 1 ]]; then
-    if autorandr --save laptop >/dev/null 2>&1; then
-      log_success "Saved current layout as autorandr profile 'laptop'."
-    fi
-  fi
-
-  # Unknown monitors: the packaged units fall back to `--default default`,
-  # a profile that can't exist for hardware we've never seen. Override both
-  # units to `clone-largest` so any new monitor lights up (mirrored)
-  # immediately; saved profiles still win when their fingerprint matches.
-  local unit dropin units_changed=0
-  for unit in autorandr autorandr-lid-listener; do
-    dropin="/etc/systemd/system/${unit}.service.d/initd.conf"
-    if [[ -f "${dropin}" ]] && diff -q "${SCRIPTS_DIR}/${unit}-override.conf" "${dropin}" >/dev/null 2>&1; then
-      log_success "${unit} clone-largest override already installed."
-    else
-      sudo mkdir -p "$(dirname "${dropin}")"
-      sudo cp "${SCRIPTS_DIR}/${unit}-override.conf" "${dropin}"
-      units_changed=1
-      log_success "${unit} clone-largest override installed."
-    fi
-  done
-  if [[ "${units_changed}" -eq 1 ]]; then
-    sudo systemctl daemon-reload
-    sudo systemctl try-restart autorandr-lid-listener.service 2>/dev/null || true
-  fi
-
-  # Stale leftover from the earlier default->laptop fallback design.
-  if [[ -L "${ar_dir}/default" ]]; then
-    rm -f "${ar_dir}/default"
-    log "Removed stale autorandr 'default' symlink."
-  fi
-
-  if systemctl is-enabled --quiet autorandr-lid-listener.service 2>/dev/null; then
-    log_success "autorandr lid listener already enabled."
-  else
-    sudo systemctl enable --now autorandr-lid-listener.service
-    log_success "autorandr lid listener enabled."
-  fi
-}
-
-# ── Picom v13 (animation engine) ─────────────────────────────────────────────
-PICOM_VERSION="v13"
-
-install_picom_from_source() {
-  # Mint/Ubuntu apt ships picom v10, which predates the animation engine
-  # (added in v12). Build the pinned release into /usr/local/bin, which
-  # shadows the apt binary on PATH. picom.conf relies on v12+ syntax
-  # (animations, rules, dual_kawase blur).
-  local installed=""
-  if command -v picom >/dev/null 2>&1; then
-    installed="$(picom --version 2>/dev/null || true)"
-  fi
-  if [[ "${installed}" == "${PICOM_VERSION}" || "${installed}" == "${PICOM_VERSION}."* ]]; then
-    log_success "picom ${PICOM_VERSION} already installed."
-    return
-  fi
-
-  require_command curl "to download picom sources"
-  log "Building picom ${PICOM_VERSION} from source (currently: ${installed:-not installed})..."
-
-  sudo apt-get install -y \
-    meson ninja-build cmake pkg-config \
-    libconfig-dev libdbus-1-dev libegl-dev libev-dev libgl-dev libepoxy-dev \
-    libpcre2-dev libpixman-1-dev libx11-xcb-dev libxcb1-dev \
-    libxcb-composite0-dev libxcb-damage0-dev libxcb-dpms0-dev libxcb-glx0-dev \
-    libxcb-image0-dev libxcb-present-dev libxcb-randr0-dev libxcb-render0-dev \
-    libxcb-render-util0-dev libxcb-shape0-dev libxcb-util-dev \
-    libxcb-xfixes0-dev libxcb-xinerama0-dev libxext-dev uthash-dev
-
-  local src_dir=/tmp/picom-build
-  rm -rf "${src_dir}"
-  mkdir -p "${src_dir}"
-  curl -fL --max-time 300 \
-    "https://github.com/yshui/picom/archive/refs/tags/${PICOM_VERSION}.tar.gz" \
-    | tar -xz -C "${src_dir}" --strip-components=1
-
-  (
-    cd "${src_dir}"
-    meson setup --buildtype=release build
-    ninja -C build
-    sudo ninja -C build install
-  )
-  rm -rf "${src_dir}"
-  hash -r
-
-  log_success "picom $(picom --version) installed to /usr/local/bin."
-}
-
-install_picom_resume_hook() {
-  local picom_hook=/etc/systemd/system-sleep/picom-resume.sh
-  sudo mkdir -p /etc/systemd/system-sleep
-  if [[ -f "${picom_hook}" ]] && diff -q "${SCRIPTS_DIR}/picom-resume.sh" "${picom_hook}" >/dev/null 2>&1; then
-    log_success "picom resume hook already installed."
-  else
-    sudo cp "${SCRIPTS_DIR}/picom-resume.sh" "${picom_hook}"
-    sudo chmod +x "${picom_hook}"
-    log_success "picom resume hook installed."
-  fi
-
-  if [[ -f /usr/lib/systemd/system-sleep/picom-resume.sh ]]; then
-    sudo rm -f /usr/lib/systemd/system-sleep/picom-resume.sh
-    log "Removed old /usr/lib/systemd/system-sleep/picom-resume.sh"
-  fi
-}
-
-mask_picom_xdg_autostart() {
-  # The apt picom package ships /etc/xdg/autostart/picom.desktop, and the
-  # `dex --autostart` line in the i3 config executes it — a second bare picom
-  # that races the exec_always one and warns "Another composite manager is
-  # already running". A user-level entry with Hidden=true masks the system one.
-  local target="${HOME}/.config/autostart/picom.desktop"
-  if [[ -f "${target}" ]] && grep -q '^Hidden=true$' "${target}"; then
-    log_success "picom XDG autostart already masked."
-    return
-  fi
-  mkdir -p "${HOME}/.config/autostart"
-  cat > "${target}" <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=picom
-Hidden=true
-EOF
-  log_success "Masked apt picom's XDG autostart entry."
-}
-
 apply_swappiness() {
   local sysctl_conf=/etc/sysctl.d/99-performance.conf
   if [[ -f "${sysctl_conf}" ]] && grep -q 'swappiness=10' "${sysctl_conf}"; then
@@ -367,13 +188,24 @@ apply_swappiness() {
   log_success "swappiness set to 10."
 }
 
+# ── Hyprland session ──────────────────────────────────────────────────────────
+check_hyprland_session() {
+  # The apt hyprland package ships the GDM session entry; verify it's there so
+  # the login screen actually offers Hyprland next to GNOME.
+  if [[ -f /usr/share/wayland-sessions/hyprland.desktop ]]; then
+    log_success "Hyprland session available at the login screen."
+  else
+    log_warn "No /usr/share/wayland-sessions/hyprland.desktop — is the hyprland package installed?"
+  fi
+}
+
 # ── GTK theme (adw-gtk3) ─────────────────────────────────────────────────────
 ADW_GTK3_VERSION="v6.5"
 
 install_adw_gtk3_theme() {
   # Modern libadwaita-style dark theme for GTK3 apps, referenced by
-  # gtk-3.0/settings.ini, gtkrc-2.0 and xsettingsd.conf. Not packaged for
-  # Mint/Ubuntu, so pull the prebuilt release tarball (no sudo needed).
+  # gtk-3.0/settings.ini and gtkrc-2.0. Not packaged for Ubuntu, so pull the
+  # prebuilt release tarball (no sudo needed).
   local themes_dir="${HOME}/.local/share/themes"
   local stamp="${themes_dir}/adw-gtk3-dark/.initd-version"
 
@@ -393,22 +225,6 @@ install_adw_gtk3_theme() {
 }
 
 # ── Config glue (special-case paths) ─────────────────────────────────────────
-link_xresources() {
-  # ~/.Xresources lives at $HOME, not under ~/.config, so it's outside the
-  # standard managed-links flow.
-  local target="${HOME}/.Xresources"
-  local src="${CONFIGS_DIR}/Xresources"
-
-  if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
-    log_success ".Xresources already linked."
-  else
-    [[ -e "${target}" || -L "${target}" ]] && rm -f "${target}"
-    ln -s "${src}" "${target}"
-    log_success "Linked ~/.Xresources -> ${src}"
-  fi
-  xrdb "${target}" 2>/dev/null || true
-}
-
 link_gtkrc_2() {
   local target="${HOME}/.gtkrc-2.0"
   local src="${CONFIGS_DIR}/gtkrc-2.0"
@@ -438,11 +254,10 @@ link_icons_default() {
 }
 
 link_session_scripts() {
-  # i3/polybar invoke these by absolute ~/.config/ path, so they need their own
-  # symlinks (they live in linux/scripts/ rather than under a MANAGED_LINKS dir).
+  # hyprland.conf/waybar invoke these by absolute ~/.config/ path, so they need
+  # their own symlinks (they live in linux/scripts/, not under a MANAGED_LINKS dir).
   local name target src
-  for name in lockscreen.sh lockscreen-update.sh display-dpi.sh \
-              power-profile-cycle.sh power-profile-status.sh \
+  for name in power-profile-cycle.sh power-profile-status.sh \
               night-light-toggle.sh; do
     target="${HOME}/.config/${name}"
     src="${SCRIPTS_DIR}/${name}"
@@ -455,33 +270,6 @@ link_session_scripts() {
       log_success "Linked ~/.config/${name}"
     fi
   done
-}
-
-patch_polybar_hardware() {
-  # Auto-detect hardware names so polybar shows real values. Patches the source
-  # file under linux/configs/, which is symlinked from ~/.config/polybar.
-  local file="${CONFIGS_DIR}/polybar/config.ini"
-  local wlan_iface backlight
-
-  wlan_iface="$(ip -o link show 2>/dev/null | awk '$2 ~ /^w/ {gsub(/:/, "", $2); print $2; exit}' || true)"
-  wlan_iface="${wlan_iface:-wlan0}"
-  backlight="$(find /sys/class/backlight -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -1 || true)"
-  backlight="${backlight:-intel_backlight}"
-
-  _patch_kv() {
-    local key="$1" val="$2"
-    if grep -q "^${key}[[:space:]]*=[[:space:]]*${val}[[:space:]]*$" "${file}"; then
-      log "polybar ${key} already = ${val}"
-    else
-      sed -i "s|^${key}[[:space:]]*=.*|${key} = ${val}|" "${file}"
-      log_success "polybar ${key} -> ${val}"
-    fi
-  }
-  _patch_kv "interface" "${wlan_iface}"
-  _patch_kv "card"      "${backlight}"
-
-  chmod +x "${CONFIGS_DIR}/polybar/launch.sh" "${CONFIGS_DIR}/polybar/workspaces.sh" \
-           "${CONFIGS_DIR}/polybar/battery-status.sh"
 }
 
 link_firefox_profile() {
@@ -542,63 +330,25 @@ restart_dunst() {
   fi
 }
 
-restart_picom() {
-  # Pick up a freshly-built binary and/or new picom.conf without an i3 restart.
-  # Skipped when there's no X session (e.g. first bootstrap from a TTY).
-  if [[ -z "${DISPLAY:-}" ]] || ! pgrep -x i3 >/dev/null 2>&1; then
-    return
-  fi
-  pkill -x picom 2>/dev/null || true
-  local i
-  for i in $(seq 1 20); do
-    pgrep -x picom >/dev/null 2>&1 || break
-    sleep 0.1
-  done
-  picom --config "${HOME}/.config/picom/picom.conf" >/dev/null 2>&1 &
-  disown
-  log "picom restarted."
-}
-
-restart_xsettingsd() {
-  # display-dpi.sh regenerates the runtime config (repo config + per-profile
-  # Xft/DPI) and reloads or restarts xsettingsd on it.
-  if [[ -n "${DISPLAY:-}" ]] && pgrep -x xsettingsd >/dev/null 2>&1; then
-    "${SCRIPTS_DIR}/display-dpi.sh" >/dev/null 2>&1 || true
-    log "xsettingsd reloaded."
-  fi
-}
-
 main() {
   log "Applying Linux system tweaks..."
 
   install_firacode_nerd_font
-  apply_screen_tearing_fix
   apply_intel_wifi_d3cold_fix
   apply_wifi_reconnect_speedup
   apply_chrome_apt_arch
   enable_power_profiles_daemon
   install_power_profile_autoswitch
-  configure_autorandr
-  install_picom_from_source
-  install_picom_resume_hook
-  mask_picom_xdg_autostart
   apply_swappiness
+  check_hyprland_session
 
   install_adw_gtk3_theme
-  link_xresources
   link_gtkrc_2
   link_icons_default
   link_session_scripts
-  patch_polybar_hardware
   link_firefox_profile
 
   restart_dunst
-  restart_xsettingsd
-  restart_picom
-
-  if [[ "${NEEDS_REBOOT}" -eq 1 ]]; then
-    log_warn "Reboot required for screen tearing fix to take effect."
-  fi
 
   log_success "Linux tweaks applied."
 }

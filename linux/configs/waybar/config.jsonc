@@ -1,0 +1,81 @@
+// Waybar — port of the polybar layout (workspaces left; cpu, memory, wlan,
+// pulseaudio, backlight, power profile, battery, tray, clock right).
+// No hardware patching needed: waybar auto-detects the default network
+// interface, battery and backlight device.
+{
+    "layer": "top",
+    "position": "top",
+    "height": 32,
+    "spacing": 14,
+
+    "modules-left": ["hyprland/workspaces"],
+    "modules-center": [],
+    "modules-right": [
+        "cpu", "memory", "network", "pulseaudio", "backlight",
+        "custom/powerprofile", "battery", "tray", "clock"
+    ],
+
+    "hyprland/workspaces": {
+        "format": "{id}",
+        "on-click": "activate",
+        "sort-by": "number"
+    },
+
+    "cpu": {
+        "interval": 2,
+        "format": "󰍛 {usage}%"
+    },
+
+    "memory": {
+        "interval": 3,
+        "format": "󰾆 {percentage}%"
+    },
+
+    "network": {
+        "interval": 5,
+        "format-wifi": "󰤨 {essid}",
+        "format-ethernet": "󰈀 {ipaddr}",
+        "format-disconnected": "󰤭 --",
+        "tooltip-format": "{ifname}: {ipaddr}"
+    },
+
+    "pulseaudio": {
+        "format": "{icon} {volume}%",
+        "format-muted": "󰝟 muted",
+        "format-icons": { "default": ["󰕿", "󰖀", "󰕾"] },
+        "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
+    },
+
+    "backlight": {
+        "format": "{icon} {percent}%",
+        "format-icons": ["󰃞", "󰃟", "󰃠"]
+    },
+
+    "custom/powerprofile": {
+        "exec": "~/.config/power-profile-status.sh",
+        "interval": 5,
+        "format": "{}",
+        "on-click": "~/.config/power-profile-cycle.sh"
+    },
+
+    "battery": {
+        "interval": 5,
+        "states": { "critical": 10 },
+        // "Plugged" covers the firmware's "Not charging" hold state — the
+        // case the old polybar battery-status.sh script existed for.
+        "format": "{icon} {capacity}%",
+        "format-charging": "󰂄 {capacity}%",
+        "format-plugged": "󰚥 {capacity}%",
+        "format-icons": ["󰂎", "󰁺", "󰁾", "󰂀", "󰁹"]
+    },
+
+    "tray": {
+        "icon-size": 16,
+        "spacing": 8
+    },
+
+    "clock": {
+        "interval": 5,
+        "format": "󰃭 {:%a %d %b %H:%M}"
+    }
+}

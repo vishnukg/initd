@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Linux platform bootstrap. Invoked by the top-level dispatcher when uname=Linux.
-# Targets Debian-based systems (Ubuntu, Linux Mint).
+# Targets Ubuntu 26.04+ (everything in packages.txt is in the official archive);
+# other Debian-based distros work if their repos carry the same packages.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LINUX_DIR="${ROOT_DIR}/linux"
@@ -95,11 +96,46 @@ ensure_ghostty() {
     return
   fi
 
-  log "Installing ghostty from Ubuntu PPA (mkasberg/ghostty-ubuntu)..."
-  sudo add-apt-repository -y ppa:mkasberg/ghostty-ubuntu
-  sudo apt-get update -qq
-  sudo apt-get install -y ghostty
+  # Ubuntu 26.04+ ships ghostty in universe; older releases need the PPA.
+  if apt-cache policy ghostty 2>/dev/null | grep -q 'Candidate: [0-9]'; then
+    log "Installing ghostty from the Ubuntu archive..."
+    sudo apt-get install -y ghostty
+  else
+    log "Installing ghostty from Ubuntu PPA (mkasberg/ghostty-ubuntu)..."
+    sudo apt-get install -y software-properties-common
+    sudo add-apt-repository -y ppa:mkasberg/ghostty-ubuntu
+    sudo apt-get update -qq
+    sudo apt-get install -y ghostty
+  fi
   log_success "ghostty installed."
+}
+
+ensure_1password() {
+  if command -v 1password >/dev/null 2>&1; then
+    log_success "1Password already installed."
+    return
+  fi
+
+  # 1Password is proprietary — not in the Ubuntu archive. Official apt repo per
+  # https://support.1password.com/install-linux/#debian-or-ubuntu
+  log "Installing 1Password from the official apt repo..."
+  require_command curl "to fetch the 1Password signing key"
+
+  curl -sS --max-time 60 https://downloads.1password.com/linux/keys/1password.asc \
+    | sudo gpg --dearmor --yes --output /usr/share/keyrings/1password-archive-keyring.gpg
+  echo "deb [arch=amd64 signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/amd64 stable main" \
+    | sudo tee /etc/apt/sources.list.d/1password.list >/dev/null
+
+  # debsig verification policy (1Password's .deb packages are signature-checked).
+  sudo mkdir -p /etc/debsig/policies/AC2D62742012EA22 /usr/share/debsig/keyrings/AC2D62742012EA22
+  curl -sS --max-time 60 https://downloads.1password.com/linux/debian/debsig/1password.pol \
+    | sudo tee /etc/debsig/policies/AC2D62742012EA22/1password.pol >/dev/null
+  curl -sS --max-time 60 https://downloads.1password.com/linux/keys/1password.asc \
+    | sudo gpg --dearmor --yes --output /usr/share/debsig/keyrings/AC2D62742012EA22/debsig.gpg
+
+  sudo apt-get update -qq
+  sudo apt-get install -y 1password
+  log_success "1Password installed."
 }
 
 ensure_gh_auth() {
@@ -178,6 +214,7 @@ main() {
   install_packages
   ensure_gh
   ensure_ghostty
+  ensure_1password
   ensure_mise
 
   log "Linking managed configs into ${HOME}..."
