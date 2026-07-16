@@ -1,13 +1,13 @@
-/* One Dark chrome with a clean, contemporary Firefox layout. Layered over the
-   built-in dark theme from user.js, so menus and popups stay consistently dark. */
+/* Near-black chrome with a clean, contemporary Firefox layout. Layered over
+   the built-in dark theme from user.js, so menus and popups stay consistently dark. */
 
 :root {
-  --od-bg:      #282c34;   /* main bar background */
-  --od-bg-dark: #21252b;   /* tab strip background */
-  --od-surface: #2c313a;   /* fields, active tab */
-  --od-fg:      #abb2bf;
-  --od-muted:   #5c6370;
-  --od-accent:  #61afef;
+  --od-bg:      #24232b;   /* darker Firefox-style toolbar background */
+  --od-bg-dark: #24232b;   /* darker Firefox-style tab strip background */
+  --od-surface: #151515;   /* fields, active tab */
+  --od-fg:      #e2e2e2;
+  --od-muted:   #929292;
+  --od-accent:  #b8b8b8;
   --od-accent-soft: color-mix(in srgb, var(--od-accent) 18%, transparent);
   --toolbarbutton-border-radius: 9px !important;
 }
@@ -16,14 +16,25 @@
 #navigator-toolbox,
 #navigator-toolbox * {
   font-family: "Ubuntu Sans", "Noto Sans", sans-serif !important;
-  font-size: 13px !important;
+  font-size: 18px !important;
   letter-spacing: 0.01em;
 }
 
 #urlbar-input,
 #searchbar input {
-  font-size: 16px !important;
+  font-size: 18px !important;
   font-weight: 450 !important;
+}
+
+/* Give the address bar more room while allowing narrow windows to shrink it. */
+#urlbar-container {
+  flex: 1 1 clamp(360px, 52vw, 820px) !important;
+}
+
+/* Address-bar suggestions and search results. */
+#urlbarView,
+#PopupSearchAutoComplete {
+  font-size: 18px !important;
 }
 
 /* ── Main chrome surfaces ───────────────────────────────────────────────── */
@@ -35,40 +46,6 @@
 #nav-bar, #PersonalToolbar {
   background-color: var(--od-bg) !important;
   color: var(--od-fg) !important;
-}
-
-#TabsToolbar {
-  background-color: var(--od-bg-dark) !important;
-  padding: 3px 5px 1px !important;
-}
-
-/* ── Tabs — compact, floating, rounded ──────────────────────────────────── */
-#TabsToolbar { height: 38px !important; }
-.tab-stack   { height: 32px !important; }
-
-.tabbrowser-tab .tab-background {
-  border-radius: 9px !important;
-  margin: 2px 2px !important;
-  border: 1px solid transparent !important;
-  transition: background-color 120ms ease, border-color 120ms ease !important;
-}
-
-.tabbrowser-tab[selected] .tab-background {
-  background-color: var(--od-surface) !important;
-  border-color: color-mix(in srgb, var(--od-accent) 35%, transparent) !important;
-  box-shadow: 0 1px 5px rgb(0 0 0 / 18%) !important;
-}
-
-.tabbrowser-tab:hover:not([selected]) .tab-background {
-  background-color: color-mix(in srgb, var(--od-surface) 72%, transparent) !important;
-}
-
-.tabbrowser-tab .tab-label {
-  color: var(--od-fg) !important;
-}
-
-.tabbrowser-tab:not([selected]) .tab-label {
-  color: var(--od-muted) !important;
 }
 
 /* ── URL bar ────────────────────────────────────────────────────────────── */

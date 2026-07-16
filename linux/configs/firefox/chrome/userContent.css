@@ -1,20 +1,20 @@
-/* One Dark content tweaks — matches the chrome (userChrome.css). */
+/* Near-black content tweaks — matches the chrome (userChrome.css). */
 
 /* Thin scrollbars on all web pages */
 @-moz-document url-prefix() {
   * {
     scrollbar-width: thin !important;
-    scrollbar-color: #3e4452 #282c34 !important;
+    scrollbar-color: #696775 #24232b !important;
   }
 }
 
-/* about:newtab / about:home / about:blank — One Dark background */
+/* about:newtab / about:home / about:blank — darker Firefox-style background */
 @-moz-document url("about:newtab"), url("about:home"), url("about:blank") {
   body {
-    background-color: #282c34 !important;
-    color: #abb2bf !important;
+    background-color: #24232b !important;
+    color: #e2e2e2 !important;
   }
   .outer-wrapper {
-    background-color: #282c34 !important;
+    background-color: #24232b !important;
   }
 }
