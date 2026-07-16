@@ -28,6 +28,7 @@ gnome-software
 # ── System utilities ──────────────────────────────────────────────────────────
 pulseaudio-utils
 brightnessctl
+ca-certificates
 curl
 unzip
 network-manager-gnome

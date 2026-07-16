@@ -14,6 +14,22 @@ user_pref("extensions.activeThemeID", "firefox-compact-dark@mozilla.org");
 user_pref("browser.uidensity", 1);
 user_pref("browser.compactmode.show", true);
 
+// Typography: Ubuntu Sans gives Firefox a crisp, contemporary proportional
+// interface and is shipped with Ubuntu. Keep Fira Code for source and terminal
+// content, where a monospaced face is actually useful.
+user_pref("font.default.x-western", "sans-serif");
+user_pref("font.name.sans-serif.x-western", "Ubuntu Sans");
+user_pref("font.name.serif.x-western", "Noto Serif");
+user_pref("font.name.monospace.x-western", "FiraCode Nerd Font Mono");
+user_pref("font.size.variable.x-western", 17);
+user_pref("font.size.monospace.x-western", 14);
+user_pref("font.minimum-size.x-western", 0);
+
+// Use one global full-page zoom level rather than saving a different value for
+// every site. The profile setup seeds its content preference to 125%.
+user_pref("browser.zoom.full", true);
+user_pref("browser.zoom.siteSpecific", false);
+
 // Dark preference for sites that honor prefers-color-scheme
 user_pref("layout.css.prefers-color-scheme.content-override", 0);
 
