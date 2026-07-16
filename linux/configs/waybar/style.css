@@ -1,0 +1,49 @@
+/* Tokyo Night — transparent bar, matches the old polybar look. */
+
+* {
+    font-family: "FiraCode Nerd Font Mono";
+    font-weight: bold;
+    font-size: 14px;
+    min-height: 0;
+}
+
+window#waybar {
+    background: transparent;
+    color: #c0caf5;
+}
+
+#workspaces button {
+    padding: 0 8px;
+    color: #565f89;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+}
+
+#workspaces button.active {
+    color: #1a1b2e;
+    background: #7aa2f7;
+}
+
+#workspaces button.urgent {
+    color: #1a1b2e;
+    background: #f7768e;
+}
+
+#cpu, #memory, #network, #pulseaudio, #backlight,
+#custom-powerprofile, #battery, #tray, #clock {
+    padding: 0 6px;
+    color: #c0caf5;
+}
+
+#network.disconnected, #pulseaudio.muted {
+    color: #565f89;
+}
+
+#battery.critical:not(.charging) {
+    color: #f7768e;
+}
+
+#battery.charging {
+    color: #9ece6a;
+}

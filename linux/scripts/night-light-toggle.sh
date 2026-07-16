@@ -1,19 +1,19 @@
 #!/bin/sh
 # Toggle a moderately warm screen temperature (night light) on/off. Manual
-# only — no daemon, no schedule. Bound to $mod+n. Uses gammastep one-shot
-# mode, so nothing keeps running; a state file remembers that warm is active.
-# Gamma resets on X restart, so i3 startup clears the state file to match.
+# only — no schedule. Bound to $mod+Shift+n.
+#
+# On Wayland the gamma table resets when the client disconnects, so gammastep
+# must stay running while warm is active (unlike the old X11 one-shot mode).
+# The running process itself is the state — no state file needed.
 
 TEMP=4500
-STATE="${XDG_CACHE_HOME:-${HOME}/.cache}/night-light-on"
 
-if [ -e "${STATE}" ]; then
-  gammastep -x >/dev/null 2>&1
-  rm -f "${STATE}"
+if pgrep -x gammastep >/dev/null 2>&1; then
+  pkill -x gammastep
   icon="" ; label="Off"
 else
-  gammastep -P -O "${TEMP}" >/dev/null 2>&1
-  touch "${STATE}"
+  # Constant temperature day and night; -l 0:0 skips location lookup.
+  gammastep -P -m wayland -l 0:0 -t "${TEMP}:${TEMP}" >/dev/null 2>&1 &
   icon="" ; label="On (${TEMP}K)"
 fi
 
