@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
 # Linux-only managed symlinks. Appended to the shared MANAGED_LINKS array.
-# Wayland/Hyprland stack only — the old X11 configs (i3, polybar, picom,
-# xsettingsd) remain in linux/configs/ for reference but are not linked.
+# Wayland/Hyprland stack only.
 
 : "${ROOT_DIR:?ROOT_DIR must be set before sourcing linux/managed-links.sh}"
 : "${MANAGED_LINKS:?MANAGED_LINKS must be initialised by shared/managed-links.sh first}"
