@@ -348,6 +348,39 @@ PYEOF
     ln -s "${src}" "${target}"
     log_success "Linked $(basename "${target}")"
   done
+
+  # Firefox stores the global default zoom in content-prefs.sqlite rather than
+  # prefs.js, so user.js cannot express it. Only touch the database while
+  # Firefox is closed; the next setup run will apply it if it is currently open.
+  local content_prefs="${ff_dir}/content-prefs.sqlite"
+  if pgrep -x firefox >/dev/null 2>&1; then
+    log_warn "Firefox is running — leaving its default zoom unchanged. Close Firefox and re-run setup.sh to set 125%."
+  elif [[ -f "${content_prefs}" ]]; then
+    python3 - "${content_prefs}" <<'PYEOF'
+import sqlite3, sys, time
+
+db = sqlite3.connect(sys.argv[1])
+try:
+    setting = "browser.content.full-zoom"
+    row = db.execute("SELECT id FROM settings WHERE name = ? ORDER BY id LIMIT 1", (setting,)).fetchone()
+    if row is None:
+        cursor = db.execute("INSERT INTO settings (name) VALUES (?)", (setting,))
+        setting_id = cursor.lastrowid
+    else:
+        setting_id = row[0]
+    db.execute("DELETE FROM prefs WHERE groupID IS NULL AND settingID = ?", (setting_id,))
+    db.execute(
+        "INSERT INTO prefs (groupID, settingID, value, timestamp) VALUES (NULL, ?, ?, ?)",
+        (setting_id, 1.25, int(time.time() * 1_000_000)),
+    )
+    db.commit()
+finally:
+    db.close()
+PYEOF
+    log_success "Set Firefox default zoom to 125%."
+  else
+    log_warn "Firefox content preferences are not initialized yet — open Firefox once, close it, then re-run setup.sh to set 125% zoom."
+  fi
 }
 
 add_user_to_video_group() {
