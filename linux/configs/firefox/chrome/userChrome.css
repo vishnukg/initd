@@ -1,15 +1,80 @@
-/* Structural tweaks only — colors come from Firefox's built-in dark theme */
+/* One Dark chrome (Atom palette: #282c34 / #abb2bf / #61afef), with the same
+   FiraCode Nerd Font used across the desktop (gtk, waybar, ghostty).
+   Layered over Firefox's built-in dark theme (set in user.js), which keeps
+   menus/popups dark; this file tints the main surfaces and modernizes tabs. */
 
-/* Compact tab bar height */
-#TabsToolbar { height: 32px !important; }
-.tab-stack    { height: 30px !important; }
-
-/* Slightly rounded URL bar */
-#urlbar-background {
-  border-radius: 8px !important;
+:root {
+  --od-bg:      #282c34;   /* main bar background */
+  --od-bg-dark: #21252b;   /* tab strip background */
+  --od-surface: #2c313a;   /* fields, active tab */
+  --od-fg:      #abb2bf;
+  --od-muted:   #5c6370;
+  --od-accent:  #61afef;
 }
 
-/* Thin scrollbars */
+/* ── UI font ────────────────────────────────────────────────────────────── */
+#navigator-toolbox,
+#navigator-toolbox * {
+  font-family: "FiraCode Nerd Font Mono", monospace !important;
+}
+
+/* ── Main chrome surfaces ───────────────────────────────────────────────── */
+#navigator-toolbox {
+  background-color: var(--od-bg-dark) !important;
+  border-bottom: none !important;
+}
+
+#nav-bar, #PersonalToolbar {
+  background-color: var(--od-bg) !important;
+  color: var(--od-fg) !important;
+}
+
+#TabsToolbar {
+  background-color: var(--od-bg-dark) !important;
+}
+
+/* ── Tabs — compact, floating, rounded ──────────────────────────────────── */
+#TabsToolbar { height: 34px !important; }
+.tab-stack   { height: 30px !important; }
+
+.tabbrowser-tab .tab-background {
+  border-radius: 8px !important;
+  margin: 3px 1px !important;
+}
+
+.tabbrowser-tab[selected] .tab-background {
+  background-color: var(--od-surface) !important;
+  box-shadow: inset 0 -2px 0 var(--od-accent) !important;
+}
+
+.tabbrowser-tab:hover:not([selected]) .tab-background {
+  background-color: color-mix(in srgb, var(--od-surface) 60%, transparent) !important;
+}
+
+.tabbrowser-tab .tab-label {
+  color: var(--od-fg) !important;
+}
+
+.tabbrowser-tab:not([selected]) .tab-label {
+  color: var(--od-muted) !important;
+}
+
+/* ── URL bar ────────────────────────────────────────────────────────────── */
+#urlbar-background {
+  background-color: var(--od-surface) !important;
+  border-radius: 8px !important;
+  border: 1px solid transparent !important;
+}
+
+#urlbar[focused] #urlbar-background {
+  border-color: var(--od-accent) !important;
+}
+
+#urlbar-input, #urlbar {
+  color: var(--od-fg) !important;
+}
+
+/* ── Thin scrollbars in the chrome ──────────────────────────────────────── */
 scrollbar {
   -moz-appearance: none !important;
   width: 6px !important;

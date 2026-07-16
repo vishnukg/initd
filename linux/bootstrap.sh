@@ -31,6 +31,71 @@ ensure_debian() {
   require_command apt-get "to install Debian packages"
 }
 
+disable_snap() {
+  if ! command -v snap >/dev/null 2>&1; then
+    log_success "snapd already removed."
+    return
+  fi
+
+  log "Removing snap packages and snapd..."
+  # Remove snaps in dependency order: retry the full list until a pass
+  # removes nothing more (leaf app snaps go first, base/runtime snaps last).
+  local remaining prev_count=-1
+  while true; do
+    remaining=$(snap list 2>/dev/null | tail -n +2 | awk '{print $1}')
+    [[ -z "${remaining}" ]] && break
+    local count
+    count=$(wc -l <<< "${remaining}")
+    [[ "${count}" -eq "${prev_count}" ]] && break
+    prev_count="${count}"
+    while IFS= read -r s; do
+      [[ -z "${s}" ]] && continue
+      sudo snap remove --purge "${s}" 2>/dev/null || true
+    done <<< "${remaining}"
+  done
+
+  sudo apt-get purge -y snapd
+
+  # Pin snapd out so a later `apt upgrade`/meta-package pull never reinstalls it.
+  sudo tee /etc/apt/preferences.d/nosnap.pref > /dev/null << 'EOF'
+Package: snapd
+Pin: release a=*
+Pin-Priority: -10
+EOF
+
+  sudo rm -rf /var/cache/snapd /var/lib/snapd /var/snap /snap
+  rm -rf "${HOME}/snap"
+  log_success "snapd removed and blocked from reinstalling."
+}
+
+ensure_firefox() {
+  if [[ -f /etc/apt/sources.list.d/mozilla.list ]]; then
+    log_success "Firefox already installed from Mozilla's apt repo."
+    return
+  fi
+
+  # Ubuntu's `firefox` apt package is a transitional stub that installs the
+  # snap. Add Mozilla's official repo, pinned above the Ubuntu archive, so a
+  # plain `apt install firefox` resolves to the real .deb.
+  log "Adding Mozilla's official apt repo for Firefox..."
+  require_command wget "to fetch the Mozilla signing key"
+
+  sudo install -d -m 0755 /etc/apt/keyrings
+  wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- \
+    | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
+  echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" \
+    | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
+  sudo tee /etc/apt/preferences.d/mozilla.pref > /dev/null << 'EOF'
+Package: *
+Pin: origin packages.mozilla.org
+Pin-Priority: 1000
+EOF
+
+  sudo apt-get update -qq
+  sudo apt-get install -y firefox
+  log_success "Firefox installed from Mozilla's apt repo."
+}
+
 install_packages() {
   [[ -f "${PACKAGES_FILE}" ]] || { log_error "Missing ${PACKAGES_FILE}"; exit 1; }
 
@@ -211,10 +276,12 @@ main() {
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Starting initd bootstrap for Linux."
 
+  disable_snap
   install_packages
   ensure_gh
   ensure_ghostty
   ensure_1password
+  ensure_firefox
   ensure_mise
 
   log "Linking managed configs into ${HOME}..."
