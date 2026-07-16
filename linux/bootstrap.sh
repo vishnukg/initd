@@ -96,6 +96,80 @@ EOF
   log_success "Firefox installed from Mozilla's apt repo."
 }
 
+ensure_docker() {
+  local account_name="${USER:-$(id -un)}"
+  local distro codename
+  local docker_key=/etc/apt/keyrings/docker.asc
+  local docker_source=/etc/apt/sources.list.d/docker.sources
+
+  # Docker's packages include its own compatible containerd. Do not silently
+  # remove a user's existing runtime, containers, or Docker-compatible tools.
+  local conflicts=() package
+  for package in docker.io docker-compose docker-compose-v2 docker-doc podman-docker containerd runc; do
+    dpkg -s "${package}" >/dev/null 2>&1 && conflicts+=("${package}")
+  done
+  if [[ "${#conflicts[@]}" -gt 0 ]]; then
+    log_error "Docker's official packages conflict with: ${conflicts[*]}"
+    log_info "Remove those packages first, then re-run bootstrap.sh. Existing container data is left untouched."
+    return 1
+  fi
+
+  if ! dpkg -s docker-ce >/dev/null 2>&1; then
+    # Docker provides separate repositories for Ubuntu and Debian. Linux Mint
+    # uses Ubuntu's repository and exposes its base codename as UBUNTU_CODENAME.
+    # shellcheck disable=SC1091
+    source /etc/os-release
+    case "${ID}" in
+      ubuntu)
+        distro=ubuntu
+        codename="${UBUNTU_CODENAME:-${VERSION_CODENAME}}"
+        ;;
+      debian)
+        distro=debian
+        codename="${VERSION_CODENAME}"
+        ;;
+      linuxmint)
+        distro=ubuntu
+        codename="${UBUNTU_CODENAME:-}"
+        ;;
+      *)
+        log_error "Docker Engine setup supports Ubuntu, Linux Mint, and Debian; detected ${ID}."
+        return 1
+        ;;
+    esac
+    if [[ -z "${codename}" ]]; then
+      log_error "Could not determine the base distribution codename for Docker's apt repository."
+      return 1
+    fi
+
+    log "Installing Docker Engine from Docker's official apt repo..."
+    sudo install -d -m 0755 /etc/apt/keyrings
+    sudo curl -fsSL "https://download.docker.com/linux/${distro}/gpg" -o "${docker_key}"
+    sudo chmod a+r "${docker_key}"
+    sudo tee "${docker_source}" >/dev/null <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/${distro}
+Suites: ${codename}
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: ${docker_key}
+EOF
+    sudo apt-get update -qq
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    log_success "Docker Engine installed."
+  else
+    log_success "Docker Engine already installed."
+  fi
+
+  sudo systemctl enable --now docker
+  if id -nG "${account_name}" | grep -qw docker; then
+    log_success "${account_name} already belongs to the docker group."
+  else
+    sudo usermod -aG docker "${account_name}"
+    log_warn "Added ${account_name} to the docker group. Log out and back in before using Docker without sudo."
+  fi
+}
+
 install_packages() {
   [[ -f "${PACKAGES_FILE}" ]] || { log_error "Missing ${PACKAGES_FILE}"; exit 1; }
 
@@ -282,6 +356,7 @@ main() {
   ensure_ghostty
   ensure_1password
   ensure_firefox
+  ensure_docker
   ensure_mise
 
   log "Linking managed configs into ${HOME}..."
