@@ -66,7 +66,7 @@ initd/
     ├── managed-links.sh      # appends hypr/waybar/rofi/dunst links
     ├── update.sh
     ├── scripts/              # sleep/resume hooks (/etc/systemd/system-sleep/), udev/polkit rules, session scripts
-    └── configs/              # hypr, waybar, rofi, dunst, gtk, firefox, … (plus legacy X11 configs, unused)
+    └── configs/              # hypr, waybar, rofi, dunst, gtk, firefox, …
 ```
 
 ### Execution flow
@@ -88,9 +88,11 @@ macos/bootstrap.sh
 
 linux/bootstrap.sh
   ├─ ensure_debian
+  ├─ disable_snap                                # purge all snaps + snapd, pin it out so it can't come back
   ├─ install apt packages from linux/packages.txt   # Hyprland + Wayland tools, all native on 26.04
   ├─ ensure_gh (official apt repo), ensure_ghostty (archive on 26.04+, PPA fallback),
-  │  ensure_1password (official apt repo), ensure_mise (curl mise.run)
+  │  ensure_1password (official apt repo), ensure_firefox (official Mozilla apt repo, pinned over
+  │  Ubuntu's snap-installing stub), ensure_mise (curl mise.run)
   ├─ shared/lib/link.sh linux                 # symlinks
   ├─ linux/setup.sh                           # wifi fixes/fonts/power auto-switch/theme + config glue
   ├─ ensure_gh_auth, ensure_fish (chsh)
@@ -162,14 +164,15 @@ Edit files inside this repo, not through the live symlinks.
 
 ### Linux-specific quirks
 
-The Linux desktop is **Wayland-only**: Hyprland installed alongside Ubuntu's stock GNOME (both offered at the GDM login screen; the apt `hyprland` package ships the session file). Everything in `packages.txt` comes from the official Ubuntu 26.04 archive — no PPAs, no source builds. The old X11 stack (i3, polybar, picom, xsettingsd, autorandr, Xresources and their scripts) still sits under `linux/configs/` and `linux/scripts/` for reference but is not installed or linked by anything.
+The Linux desktop is **Wayland-only**: Hyprland installed alongside Ubuntu's stock GNOME (both offered at the GDM login screen; the apt `hyprland` package ships the session file). Everything in `packages.txt` comes from the official Ubuntu 26.04 archive — no PPAs, no source builds. The old X11 stack (i3, polybar, picom, xsettingsd, autorandr, Xresources and their scripts) has been removed from the repo; git history has it if ever needed.
 
 - **Hyprland config** (`linux/configs/hypr/hyprland.conf`) is a 1:1 keybinding port of the old i3 config. It also absorbs several former subsystems: per-monitor scale replaces the autorandr/xsettingsd/Xft.dpi machinery (laptop panel 1.5x, externals 1.25x); `switch:on:Lid Switch` binds replace the autorandr lid listener; built-in blur/rounding/animations replace picom; `kb_options = ctrl:nocaps` and `repeat_delay/rate` replace setxkbmap/xset. i3 concepts without an exact equivalent are commented in the file (groups stand in for stacked/tabbed; no "focus parent").
-- **Companion stack**: waybar (polybar → auto-detects network/battery/backlight, so no hardware patching), rofi 2.0 (Wayland-native, same `config.rasi`), dunst (Wayland-native, same `dunstrc`), hyprlock + hypridle (i3lock + xss-lock — hyprlock blurs the live screen, so the whole `lockscreen-update.sh` image pipeline is gone), hyprpaper (nitrogen; wallpaper is machine-local at `~/Pictures/wallpaper.png`), grim/slurp (scrot), wl-clipboard (xclip).
-- **System fixes** that need sudo: Intel BE200 WiFi d3cold udev rule, NetworkManager power save, wifi-reconnect sleep hook (`/etc/systemd/system-sleep/`), swappiness, Chrome apt arch pin, power-profiles-daemon enable. These are hardware/kernel-level and unchanged from the X11 era.
+- **Companion stack**: waybar (polybar → auto-detects network/battery/backlight, so no hardware patching), rofi 2.0 (Wayland-native, same `config.rasi`), dunst (Wayland-native, same `dunstrc`), hyprlock + hypridle (i3lock + xss-lock — hyprlock blurs the live screen, so the whole `lockscreen-update.sh` image pipeline is gone), hyprpaper (nitrogen; wallpaper is committed at `linux/configs/wallpaper/wallpaper.jpg` — hyprpaper ≥ 0.8 uses the `wallpaper { monitor/path/fit_mode }` block format, the old `preload =`/`wallpaper =` keywords are silently ignored), grim/slurp (scrot), wl-clipboard (xclip).
+- **System fixes** that need sudo: Intel BE200 WiFi d3cold udev rule, NetworkManager power save, wifi-reconnect sleep hook (`/etc/systemd/system-sleep/`), swappiness, Chrome apt arch pin, power-profiles-daemon enable, `video` group membership (backlight is `root:video`; required for the XF86MonBrightness keybinds — takes effect after re-login), Firefox enterprise policies (`/etc/firefox/policies/policies.json` force-installs uBlock Origin + 1Password from AMO). These are applied by `linux/setup.sh`.
 - **Power-profile auto-switch** (`install_power_profile_autoswitch`): a udev rule + `/usr/local/bin/power-profile-switch.sh` flip power-profiles-daemon between `balanced` (AC) and `power-saver` (battery), with a polkit rule, a `$mod+p` cycle keybind, and a waybar indicator. Session scripts (`power-profile-cycle/status.sh`, `night-light-toggle.sh`) are symlinked by `link_session_scripts`. See `docs/linux-power.md` for the full design (written for the X11 setup; the PPD/udev/polkit parts still apply).
 - **Night light** (`linux/scripts/night-light-toggle.sh`): on Wayland the gamma table resets when the client exits, so gammastep runs as a persistent process while warm is active (the process itself is the state) instead of the old X11 one-shot mode.
 - **Special-case paths**: `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, and Firefox profile files (dynamic profile path) live outside `~/.config/` and are linked individually rather than via `MANAGED_LINKS`.
+- **No snap**: `disable_snap` in `linux/bootstrap.sh` purges every snap (including Ubuntu's default `firefox`/`snap-store`/`firmware-updater`/etc.) and pins `snapd` to priority `-10` so nothing reinstalls it. `ensure_firefox` then adds Mozilla's official apt repo (pinned to priority `1000`, above the Ubuntu archive's snap-installing `firefox` stub) and installs the real `.deb`. `linux/setup.sh:link_firefox_profile` checks the snap profile path (`~/snap/firefox/common/.mozilla/firefox`) before the regular one (`~/.mozilla/firefox`) purely as a defensive fallback — normal installs only ever populate the regular path now.
 - **Legacy docs**: `docs/linux-monitors.md` describes the old autorandr/X11 monitor flow and no longer applies; Hyprland's `monitor =` rules cover it.
 
 ### Reference docs

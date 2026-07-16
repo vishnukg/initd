@@ -10,6 +10,7 @@ hyprland
 hyprlock
 hypridle
 hyprpaper
+hyprland-qtutils
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
 xwayland
@@ -22,6 +23,7 @@ grim
 slurp
 wl-clipboard
 gammastep
+gnome-software
 
 # ── System utilities ──────────────────────────────────────────────────────────
 pulseaudio-utils

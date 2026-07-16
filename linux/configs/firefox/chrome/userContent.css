@@ -1,3 +1,5 @@
+/* One Dark content tweaks — matches the chrome (userChrome.css). */
+
 /* Thin scrollbars on all web pages */
 @-moz-document url-prefix() {
   * {
@@ -6,8 +8,8 @@
   }
 }
 
-/* about:newtab — One Dark background */
-@-moz-document url("about:newtab"), url("about:home") {
+/* about:newtab / about:home / about:blank — One Dark background */
+@-moz-document url("about:newtab"), url("about:home"), url("about:blank") {
   body {
     background-color: #282c34 !important;
     color: #abb2bf !important;

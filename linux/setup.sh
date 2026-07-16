@@ -277,16 +277,46 @@ link_firefox_profile() {
     log_warn "python3 not available — skipping firefox profile linking."
     return
   fi
-  if [[ ! -f "${HOME}/.mozilla/firefox/profiles.ini" ]]; then
+
+  # Firefox's profile root varies by install/version:
+  #   - legacy ~/.mozilla/firefox — used whenever it exists (takes priority)
+  #   - XDG ~/.config/mozilla/firefox — Firefox 143+ default when no legacy dir
+  #   - ~/snap/firefox/common/.mozilla/firefox — the snap sandbox (fallback;
+  #     bootstrap removes snap, but a pre-bootstrap profile may live there)
+  # Match Firefox's own resolution order: legacy first, then XDG, then snap.
+  local moz_dir=""
+  local candidate
+  for candidate in \
+    "${HOME}/.mozilla/firefox" \
+    "${XDG_CONFIG_HOME:-${HOME}/.config}/mozilla/firefox" \
+    "${HOME}/snap/firefox/common/.mozilla/firefox"
+  do
+    if [[ -f "${candidate}/profiles.ini" ]]; then
+      moz_dir="${candidate}"
+      break
+    fi
+  done
+
+  if [[ -z "${moz_dir}" ]]; then
     log "No firefox profile present — skipping."
     return
   fi
 
   local ff_profile
-  ff_profile="$(python3 - <<'PYEOF'
-import configparser, os, sys
+  ff_profile="$(python3 - "${moz_dir}/profiles.ini" <<'PYEOF'
+import configparser, sys
 p = configparser.ConfigParser()
-p.read(os.path.expanduser("~/.mozilla/firefox/profiles.ini"))
+p.read(sys.argv[1])
+# Firefox 67+ tracks the active profile per-install via an [InstallXXXX]
+# section whose Default= value is the profile path directly — this takes
+# priority over the legacy per-profile Default=1 flag, which Firefox stops
+# updating once an [Install...] section exists.
+for s in p.sections():
+    if s.startswith("Install"):
+        path = p.get(s, "Default", fallback="")
+        if path:
+            print(path)
+            sys.exit(0)
 for s in p.sections():
     if p.get(s, "Default", fallback="0") == "1" and p.get(s, "Path", fallback=""):
         print(p.get(s, "Path"))
@@ -299,7 +329,7 @@ PYEOF
     return
   fi
 
-  local ff_dir="${HOME}/.mozilla/firefox/${ff_profile}"
+  local ff_dir="${moz_dir}/${ff_profile}"
   mkdir -p "${ff_dir}/chrome"
 
   local pair target src
@@ -318,6 +348,52 @@ PYEOF
     ln -s "${src}" "${target}"
     log_success "Linked $(basename "${target}")"
   done
+}
+
+add_user_to_video_group() {
+  # /sys/class/backlight/*/brightness is root:video — membership is required
+  # for the brightnessctl keybinds (XF86MonBrightness*) to work.
+  local account_name="${USER:-$(id -un)}"
+  if id -nG "${account_name}" | grep -qw video; then
+    log_success "User already in video group (backlight control)."
+    return
+  fi
+  log "Adding ${account_name} to video group (brightness keys)..."
+  sudo usermod -aG video "${account_name}"
+  log_warn "Log out and back in for the video group to take effect."
+}
+
+install_firefox_policies() {
+  # System-wide Firefox enterprise policies: force-install the standard
+  # extensions from Mozilla Add-ons. Read from /etc/firefox/policies on Linux;
+  # survives Firefox package upgrades (unlike the distribution/ directory).
+  local policies_dir="/etc/firefox/policies"
+  local policies_file="${policies_dir}/policies.json"
+
+  if [[ -f "${policies_file}" ]] && grep -q "uBlock0@raymondhill.net" "${policies_file}"; then
+    log_success "Firefox policies already installed."
+    return
+  fi
+
+  log "Installing Firefox policies (uBlock Origin, 1Password)..."
+  sudo mkdir -p "${policies_dir}"
+  sudo tee "${policies_file}" > /dev/null << 'EOF'
+{
+  "policies": {
+    "ExtensionSettings": {
+      "uBlock0@raymondhill.net": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi"
+      },
+      "{d634138d-c276-4fc8-924b-40a0ea21d284}": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/1password-x-password-manager/latest.xpi"
+      }
+    }
+  }
+}
+EOF
+  log_success "Firefox policies installed."
 }
 
 # ── Service restarts (apply config changes without a reboot) ─────────────────
@@ -347,6 +423,8 @@ main() {
   link_icons_default
   link_session_scripts
   link_firefox_profile
+  install_firefox_policies
+  add_user_to_video_group
 
   restart_dunst
 
