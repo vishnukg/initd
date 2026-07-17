@@ -383,6 +383,22 @@ PYEOF
   fi
 }
 
+apply_gsettings_theme() {
+  # GTK3 apps read gtk-3.0/settings.ini, but GTK4/libadwaita apps on Wayland
+  # get their theme through xdg-desktop-portal, which reads gsettings/dconf.
+  # Keep both in sync or modern apps silently fall back to Ubuntu's Yaru.
+  if ! command -v gsettings >/dev/null 2>&1; then
+    log_warn "gsettings not available — skipping theme sync."
+    return
+  fi
+  gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark"
+  gsettings set org.gnome.desktop.interface icon-theme "Papirus-Dark"
+  gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"
+  gsettings set org.gnome.desktop.interface cursor-theme "DMZ-White"
+  gsettings set org.gnome.desktop.interface cursor-size 24
+  log_success "gsettings theme synced (adw-gtk3-dark / Papirus-Dark)."
+}
+
 add_user_to_video_group() {
   # /sys/class/backlight/*/brightness is root:video — membership is required
   # for the brightnessctl keybinds (XF86MonBrightness*) to work.
@@ -452,6 +468,7 @@ main() {
   check_hyprland_session
 
   install_adw_gtk3_theme
+  apply_gsettings_theme
   link_gtkrc_2
   link_icons_default
   link_session_scripts

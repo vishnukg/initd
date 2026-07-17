@@ -20,10 +20,21 @@ window#waybar {
     border-radius: 8px;
 }
 
+/* Active workspace: pastel green base, and each workspace slot cycles its
+   own pastel so every new workspace gets a different color. */
 #workspaces button.active {
-    color: #1a1b2e;
-    background: #7aa2f7;
+    color: #1e1e24;
+    background: #7fb99a;   /* muted pastel green */
 }
+#workspaces button.active:nth-child(2)  { background: #cfa183; }  /* peach */
+#workspaces button.active:nth-child(3)  { background: #9d8bc4; }  /* lavender */
+#workspaces button.active:nth-child(4)  { background: #c996ab; }  /* pink */
+#workspaces button.active:nth-child(5)  { background: #cfc182; }  /* yellow */
+#workspaces button.active:nth-child(6)  { background: #82abbf; }  /* blue */
+#workspaces button.active:nth-child(7)  { background: #c98680; }  /* coral */
+#workspaces button.active:nth-child(8)  { background: #a984ce; }  /* lilac */
+#workspaces button.active:nth-child(9)  { background: #7cbab6; }  /* aqua */
+#workspaces button.active:nth-child(10) { background: #b5a488; }  /* sand */
 
 #workspaces button.urgent {
     color: #1a1b2e;
