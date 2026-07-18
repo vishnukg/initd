@@ -25,14 +25,12 @@ EOF
 }
 
 ensure_homebrew_env() {
-  # Apple Silicon installs to /opt/homebrew; Intel to /usr/local.
-  if [[ -x /opt/homebrew/bin/brew ]]; then
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-  elif [[ -x /usr/local/bin/brew ]]; then
-    eval "$(/usr/local/bin/brew shellenv)"
+  if [[ ! -x /opt/homebrew/bin/brew ]]; then
+    log_error "Homebrew is required at the Apple Silicon prefix /opt/homebrew. Run macos/bootstrap.sh first."
+    exit 1
   fi
 
-  require_command brew "to update Homebrew packages"
+  eval "$(/opt/homebrew/bin/brew shellenv)"
 }
 
 main() {

@@ -662,7 +662,7 @@ end
 
 The `BufWritePre` autocmd is registered centrally from `LspAttach` and cleared before re-registering, so a buffer gets one save hook even when several clients attach. Selection is recalculated on every save. None-ls sources can be conditional: Prettierd, ESLint, and Stylelint activate only when their corresponding project config exists; a native formatter remains available as fallback.
 
-Current ownership is deliberate: Ruff formats and lints Python while Pyright provides types and analyzes open files; goimports formats Go while gopls provides staticcheck diagnostics; project-local Prettier wins for supported web files, with native LSP formatting used when available otherwise.
+Current ownership is deliberate: Ruff formats and lints Python while Pyright provides types and analyzes open files; goimports formats Go while gopls provides the always-on staticcheck baseline, with golangci-lint added on save only for repositories containing a `.golangci.{yml,yaml,toml,json}` policy; project-local Prettier wins for supported web files, with native LSP formatting used when available otherwise.
 
 ### How LSP loads when you open a file
 
