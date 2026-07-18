@@ -97,3 +97,10 @@ cmp.setup({
 		native_menu = false,
 	},
 })
+
+-- nvim-autopairs is an explicit cmp dependency, so this hook cannot be lost to
+-- an InsertEnter load-order race.
+cmp.event:on(
+	"confirm_done",
+	require("nvim-autopairs.completion.cmp").on_confirm_done({ map_char = { tex = "" } })
+)

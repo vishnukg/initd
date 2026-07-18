@@ -18,8 +18,8 @@ local taplo = h.make_builtin({
 })
 
 -- Format-on-save is registered centrally in lsp/handlers.lua (LspAttach), which
--- routes each filetype to its preferred formatter — null-ls here, ruff's LSP for
--- python. null-ls only needs to register its sources.
+-- selects one available formatter — preferring null-ls here and ruff for Python.
+-- null-ls only needs to register its sources.
 null_ls.setup({
 	debug = false,
 	sources = {
@@ -49,9 +49,24 @@ null_ls.setup({
 		formatting.csharpier,
 		taplo,
 		formatting.yamlfmt,
-		diagnostics.golangci_lint,
 		diagnostics.yamllint,
 		diagnostics.hadolint,
+		diagnostics.stylelint.with({
+			condition = function(utils)
+				return utils.root_has_file({
+					".stylelintrc",
+					".stylelintrc.json",
+					".stylelintrc.yaml",
+					".stylelintrc.yml",
+					".stylelintrc.js",
+					".stylelintrc.cjs",
+					"stylelint.config.js",
+					"stylelint.config.cjs",
+					"stylelint.config.mjs",
+					"stylelint.config.ts",
+				})
+			end,
+		}),
 		require("none-ls.diagnostics.eslint_d").with({
 			condition = function(utils)
 				return utils.root_has_file({

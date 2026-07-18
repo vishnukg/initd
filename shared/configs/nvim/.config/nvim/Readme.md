@@ -36,7 +36,7 @@ A personal Neovim configuration built on [lazy.nvim](https://github.com/folke/la
         ├── plugins.lua       # lazy.nvim plugin specs
         ├── colorscheme.lua   # Theme setup
         ├── cmp.lua           # Completion (nvim-cmp + LuaSnip)
-        ├── treesitter.lua    # Syntax parser config + installed parsers
+        ├── treesitter.lua    # Syntax parser setup, auto-install, attach/folds
         ├── nvimtree.lua      # File explorer
         ├── lualine.lua       # Status line
         ├── fzf.lua           # fzf-lua setup
@@ -45,10 +45,12 @@ A personal Neovim configuration built on [lazy.nvim](https://github.com/folke/la
         ├── toggleterm.lua    # Integrated terminal
         ├── autopairs.lua     # Automatic bracket/quote pairs
         ├── neotest.lua       # Test runner adapters
+        ├── coverage.lua      # Coverage overlays
+        ├── gopher.lua        # Go struct/code-generation helpers
         └── lsp/
             ├── init.lua      # Wires up handlers, null-ls, servers
             ├── servers.lua   # vim.lsp.config + vim.lsp.enable for each server
-            ├── handlers.lua  # on_attach, keymaps, diagnostics, inlay hints
+            ├── handlers.lua  # LspAttach, formatter selection, diagnostics/keymaps
             ├── null-ls.lua   # none-ls sources (formatters & linters)
             └── settings/     # Per-server config overrides
                 ├── lua_ls.lua
@@ -74,21 +76,21 @@ bash ~/.config/initd/bootstrap.sh
 
 This Neovim config is managed by the `initd` repo and linked into `~/.config/nvim`.
 
-### 2. Install system dependencies
+### 2. Provisioned dependencies
 
-| Tool | Purpose | Install |
-|------|---------|---------|
-| [Neovim](https://neovim.io/) v0.11+ | The editor | `brew install neovim` |
-| [tree-sitter CLI](https://github.com/tree-sitter/tree-sitter) v0.26.1+ | Compiles syntax parsers | `brew install tree-sitter` |
-| [ripgrep](https://github.com/BurntSushi/ripgrep) | fzf-lua live grep | `brew install ripgrep` |
-| [fd](https://github.com/sharkdp/fd) | Fast file search for fzf-lua | `brew install fd` |
-| [fzf](https://github.com/junegunn/fzf) | Fuzzy finding | `brew install fzf` |
-| C compiler (gcc/clang) | Builds Treesitter parsers | Xcode CLT on macOS |
-| [FiraCode Nerd Font](https://www.nerdfonts.com/) | Icons & special characters | Installed by `initd` |
+| Tool | Purpose | Provisioned by |
+|------|---------|----------------|
+| [Neovim](https://neovim.io/) v0.12+ | The editor | `mise/config.toml` |
+| [tree-sitter CLI](https://github.com/tree-sitter/tree-sitter) v0.26.1+ | Compiles syntax parsers | `mise/config.toml` |
+| [ripgrep](https://github.com/BurntSushi/ripgrep) | fzf-lua live grep | `mise/config.toml` |
+| [fd](https://github.com/sharkdp/fd) | Fast file search for fzf-lua | `mise/config.toml` |
+| [fzf](https://github.com/junegunn/fzf) | Fuzzy finding | `mise/config.toml` |
+| C compiler (gcc/clang) | Builds Treesitter parsers | Platform bootstrap / Xcode CLT |
+| [Nerd Font](https://www.nerdfonts.com/) | Icons & special characters | Platform bootstrap |
 
-> `initd` installs these dependencies via Homebrew and links this config into place.
+> `initd` provisions these dependencies through mise and the platform bootstrap, then links this config into place.
 
-> **Linux only:** install `xclip` for clipboard support.
+> **Linux:** `linux/bootstrap.sh` installs `wl-clipboard` (`wl-copy` / `wl-paste`) for clipboard support.
 
 ### 3. Launch Neovim
 
@@ -96,9 +98,7 @@ This Neovim config is managed by the `initd` repo and linked into `~/.config/nvi
 nvim
 ```
 
-On first launch, [lazy.nvim](https://github.com/folke/lazy.nvim) automatically:
-- Installs all plugins
-- Treesitter downloads and compiles all language parsers
+On first launch, [lazy.nvim](https://github.com/folke/lazy.nvim) installs all plugins. After that, Treesitter downloads and compiles missing parsers as their filetypes are first opened.
 
 LSP servers, formatters, and linters are **not** installed by Neovim — `initd` bootstrap installs them via `mise` (see [Tool installation (mise)](#tool-installation-mise) below).
 
@@ -106,7 +106,7 @@ Wait for everything to finish, then restart Neovim. Run `:checkhealth` to verify
 
 ### 4. Language-specific external setup
 
-A small number of languages need extra setup beyond what mise + Homebrew install — see the [Language Support](#language-support) table for details.
+A small number of languages need project-specific setup beyond the bootstrap — see the [Language Support](#language-support) table for details.
 
 ---
 
@@ -128,7 +128,6 @@ Four separate systems collaborate to give you IDE features. Each one has a disti
 │ Syntax        │ │ Diagnostics  │ │ Formatting       │
 │ highlighting  │ │ Completions  │ │ Extra linting    │
 │ Code folding  │ │ Go-to-def    │ │ (runs external   │
-│ Text objects  │ │ Hover docs   │ │  CLI tools)      │
 │ Indentation   │ │ Rename       │ │                  │
 └───────────────┘ └──────┬───────┘ └────────┬─────────┘
                          │                  │
@@ -154,9 +153,10 @@ Treesitter **parses your code into a syntax tree**. This is fundamentally differ
 - Accurate, context-aware syntax highlighting
 - Smart code folding
 - Indentation (for most languages)
-- Text objects (select a function, a block, etc.)
 
-Treesitter parsers are compiled native libraries. The `tree-sitter-cli` binary is required to build them. Parsers are auto-installed on first launch from `lua/user/treesitter.lua`.
+Treesitter parsers are compiled native libraries. The `tree-sitter-cli` binary is required to build them. A parser is auto-installed the first time its supported filetype is opened; bundled Neovim parsers are reused directly.
+
+The current nvim-treesitter main branch is loaded eagerly (`lazy = false`), as required by the plugin. Test runners, coverage, and Go helpers remain command/module-loaded and do not add work when an ordinary code file opens.
 
 > ⚠️ Treesitter gives you *highlighting* — it does **not** know about types, errors, or completions. That's LSP's job.
 
@@ -228,20 +228,18 @@ None-ls (a maintained fork of null-ls) **pretends to be an LSP server** so that 
 ```
 On BufWritePre (save):
 
-vim.lsp.buf.format()
+vim.lsp.buf.format({ id = selected_client })
       │
-      └──► none-ls client            → runs the right CLI tool:
+      └──► formatter selector
                 │
-                ├── Lua     → stylua
-                ├── Go      → goimports
-                ├── JS/TS   → prettier
-                ├── C#      → csharpier
-                └── YAML    → yamlfmt
+                ├── Python override       → ruff
+                ├── available none-ls     → stylua, goimports, prettierd, …
+                └── native LSP fallback   → tsgo, jsonls, lua_ls, gopls, …
 ```
 
-> **Why not just use the LSP formatter directly?** Some LSP servers (like `tsgo` and `lua_ls`) have built-in formatters that don't match your preferred style tool. None-ls lets you override them with the exact tool you want. For those servers, the built-in formatter is explicitly disabled in this config.
+Exactly one client formats each save. A matching none-ls source is preferred, while native LSP formatting remains available as a fallback. For example, `prettierd` is used only when the project has a Prettier config; otherwise `tsgo`, `jsonls`, or `html` can format instead of silently doing nothing.
 
-> **Python is the exception.** Python lint + format + import-sorting all come from ruff's own LSP server, not none-ls. Format-on-save is registered centrally in `lsp/handlers.lua` (the `LspAttach` autocmd) and routed per-filetype: ruff formats python, none-ls formats everything else. ruff's hover is suppressed so pyright provides it, and pyright's "organize imports" is disabled so ruff owns it.
+> **Python is the exception.** Python lint + format + import-sorting all come from ruff's own LSP server, not none-ls. Ruff's hover is suppressed so pyright provides it, and pyright's "organize imports" is disabled so ruff owns it.
 
 ---
 
@@ -250,6 +248,8 @@ vim.lsp.buf.format()
 `nvim-cmp` is the completion engine. It aggregates suggestions from multiple sources and displays them in a unified popup.
 
 ```
+
+`nvim-autopairs` is an explicit cmp dependency. Its `confirm_done` hook is registered from `cmp.lua`, so accepting a completion and inserting its closing pair does not depend on `InsertEnter` plugin load order.
 nvim-cmp sources (in priority order):
   1. LSP         ← type/function/variable suggestions from language server
   2. LuaSnip     ← code snippet expansions
@@ -283,27 +283,28 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 |----------|-----|-----------|--------|-------------|
 | **Lua** | lua_ls | stylua | — | — |
 | **Python** | pyright + ruff | ruff | ruff | neotest-python (pytest)³ |
-| **Go** | gopls | goimports | golangci_lint | neotest-golang |
-| **TypeScript / JavaScript** | tsgo (TS7 built-in LSP) | prettierd | eslint_d¹ | neotest-jest / neotest-vitest² |
-| **JSON** | jsonls | prettierd | — | — |
-| **HTML** | html + emmet_ls | prettierd | — | — |
-| **CSS / SCSS** | — | prettierd | stylelint | — |
+| **Go** | gopls | goimports | gopls staticcheck | neotest-golang |
+| **TypeScript / JavaScript** | tsgo (TS7 built-in LSP) | prettierd⁴ or tsgo fallback | eslint_d¹ | neotest-jest / neotest-vitest² |
+| **JSON** | jsonls | prettierd⁴ or jsonls fallback | — | — |
+| **HTML** | html + emmet_ls | prettierd⁴ or html fallback | — | — |
+| **CSS / SCSS** | emmet_ls | prettierd⁴ | stylelint¹ | — |
 | **YAML** | yamlls | yamlfmt | yamllint | — |
 | **Bash** | bashls | — | — | — |
-| **TOML** | taplo | — | — | — |
+| **TOML** | taplo | taplo | — | — |
 | **Terraform / HCL** | terraformls | terraform_fmt | terraformls | — |
 | **C#** | csharp_ls | csharpier | — | neotest-vstest |
 | **Dockerfile** | dockerls | — | hadolint | — |
 
-> ¹ ESLint diagnostics only activate when `.eslintrc` or `eslint.config.js` is present in the project.
+> ¹ ESLint and Stylelint diagnostics activate only when a corresponding project config exists.
 > ² Jest adapter activates with `jest.config.*`; Vitest adapter activates with `vitest.config.*` or `vite.config.*`.
 > ³ Runs the project's own `pytest` (venv / mise / system python), not a mise-managed tool — make sure `pytest` is installed in the project environment.
+> ⁴ Prettierd activates only when a Prettier project config exists. Where the attached LSP supports formatting, it is used as the fallback.
 
 ---
 
 #### ⚪ Treesitter-only — highlighting only, no LSP/formatting
 
-These languages have syntax highlighting via Treesitter but no LSP server or formatter configured:
+There is no fixed parser allow-list: any language in nvim-treesitter's parser registry is installed on first use. Examples that currently have highlighting but no configured LSP or formatter are:
 
 | Language | Highlights | Notes |
 |----------|-----------|-------|
@@ -316,7 +317,6 @@ These languages have syntax highlighting via Treesitter but no LSP server or for
 | HTTP | ✓ | — |
 | Git files | ✓ | gitcommit, gitconfig, gitignore, gitrebase |
 | Diff | ✓ | — |
-| Dockerfile | ✓ | dockerls provides LSP; hadolint provides linting |
 | Protocol Buffers | ✓ | — |
 | SQL | ✓ | Highlighting only — no LSP configured |
 | Regex | ✓ | Embedded in other languages |
@@ -329,9 +329,8 @@ These languages have syntax highlighting via Treesitter but no LSP server or for
 |---------|-------------|
 | `:Lazy` | Open plugin manager — update/install plugins |
 | `:TSUpdate` | Update Treesitter parsers managed by nvim-treesitter |
-| `:LspInfo` | Show LSP clients attached to the current buffer |
-| `:NullLsInfo` | Show none-ls sources active in the current buffer |
-| `:Neotest summary` | Open test suite explorer |
+| `:checkhealth vim.lsp` | Show LSP configuration and attached-client health |
+| `:NullLsInfo` | Show none-ls sources active in the current buffer (after the LSP group loads) |
 | `:checkhealth` | Diagnose configuration issues |
 
 LSP servers, formatters, and linters are installed/updated outside Neovim:
@@ -347,6 +346,8 @@ LSP servers, formatters, and linters are installed/updated outside Neovim:
 
 ## Keymaps
 
+`<leader>` is the backslash key (`\`). For example, `<leader>ff` is `\ff`.
+
 ### LSP (active when an LSP is attached)
 
 | Key | Action |
@@ -354,12 +355,18 @@ LSP servers, formatters, and linters are installed/updated outside Neovim:
 | `gd` | Go to definition |
 | `gD` | Go to declaration |
 | `gri` | Go to implementation |
+| `grt` | Go to type definition |
 | `grr` | Find references |
+| `grl` | Run code lens |
+| `gO` | List document symbols |
 | `K` | Hover documentation |
 | `<leader>fm` | Format buffer |
 | `grn` | Rename symbol |
 | `gra` | Code actions |
 | `gl` | Open diagnostics float |
+| `gch` | Show incoming calls |
+| `gth` / `gtH` | Show type supertypes / subtypes |
+| `<leader>li` | Open LSP health information |
 | `<leader>lj` | Next diagnostic |
 | `<leader>lk` | Previous diagnostic |
 | `<leader>ls` | Signature help |
@@ -373,6 +380,10 @@ LSP servers, formatters, and linters are installed/updated outside Neovim:
 | `<leader>ff` | Find files (fzf-lua) |
 | `<leader>fg` | Live grep (fzf-lua) |
 | `<leader>fb` | Browse open buffers (fzf-lua) |
+| `<S-h>` / `<S-l>` | Previous / next buffer |
+| `<A-Arrow>` | Resize the current window |
+| `<leader>sp` | Search and replace with grug-far |
+| `<leader>sw` | Search and replace the word under the cursor |
 
 ### Git
 
@@ -387,12 +398,36 @@ LSP servers, formatters, and linters are installed/updated outside Neovim:
 | `<leader>tr` | Run nearest test |
 | `<leader>tf` | Run all tests in file |
 | `<leader>ts` | Toggle test summary |
+| `<leader>to` | Open test output |
+
+Neotest and all adapters load only when one of these mappings is first used.
+
+### Terminal
+
+| Key | Action |
+|-----|--------|
+| `<C-\>` | Toggle the floating terminal |
+| `<leader>tv` / `<leader>th` | Toggle a vertical / horizontal terminal |
+| `<leader>gt` | Toggle lazygit |
+| `<Esc>` or `jk` | Leave terminal-input mode |
+
+### Coverage and Go helpers
+
+| Key | Action |
+|-----|--------|
+| `gcv` | Load and display coverage |
+| `<leader>cvs` / `<leader>hcv` / `<leader>ccv` | Summarize / hide / clear coverage |
+| `<leader>ga{j,y,x,e,d}` | Add JSON/YAML/XML/env/db Go struct tags |
+| `<leader>gr{j,y,x,e,d}` | Remove those Go struct tags |
+| `<leader>gie` / `<leader>gim` | Add an if-error block / implement an interface |
+
+Coverage and Gopher are command-loaded on first use. Gopher's helper binaries are installed by lazy.nvim's plugin build step, not while opening a Go file.
 
 ---
 
 ## Adding a New Language
 
-Adding a language is now a two-place change: the tool binary goes into `mise/.config/mise/config.toml`, and Neovim is told to consume it.
+Adding a language usually touches two layers: install the tool in `mise/.config/mise/config.toml`, then register the corresponding LSP, formatter, or linter in Neovim.
 
 1. **Tool binary (mise)** — add the LSP server or lint/format CLI to `mise/.config/mise/config.toml`. Tools live in mise's core registry where possible (`gopls`, `pyright`, `stylua`, …) and otherwise use a backend prefix:
 
@@ -400,7 +435,7 @@ Adding a language is now a two-place change: the tool binary goes into `mise/.co
    |---------|---------|---------|
    | (none)  | Core registry (Go, Rust, prebuilt binaries) | `"gopls" = "latest"` |
    | `npm:`  | Node-based tools                            | `"npm:bash-language-server" = "latest"` |
-   | `pipx:` | Python tools (pipx installed via Homebrew)  | `"pipx:yamllint" = "latest"` |
+   | `pipx:` | Python CLIs (executed with uvx in this config) | `"pipx:yamllint" = "latest"` |
    | `go:`   | Tools built from a Go module path           | `"go:github.com/mgechev/revive" = "latest"` |
    | `dotnet:` | .NET global tools                          | `"dotnet:csharpier" = "latest"` |
 
@@ -412,4 +447,4 @@ Adding a language is now a two-place change: the tool binary goes into `mise/.co
 
 4. **Treesitter** — no committed parser list is required. `lua/user/treesitter.lua` auto-installs a parser the first time a supported filetype is opened.
 
-5. **External tools** — if the language requires pip packages or system tools that genuinely cannot be installed by mise, document it in the [External Setup](#-requires-external-setup) section above.
+5. **External tools** — if the language requires anything that genuinely cannot be installed by mise, document it in the Language Support table or its notes.

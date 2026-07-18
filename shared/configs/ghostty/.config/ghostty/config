@@ -6,6 +6,7 @@ window-padding-x = 0
 window-padding-y = 0
 confirm-close-surface = false
 shell-integration = fish
+shell-integration-features = no-cursor
 
 bell-features = no-system,no-audio,no-attention,no-title,no-border
 cursor-style = block
@@ -123,10 +124,8 @@ keybind = alt+0=goto_tab:10
 keybind = super+n=goto_window:next
 keybind = super+p=goto_window:previous
 
-# Text navigation (macOS style)
+# Home/End navigation (macOS style)
 # Home/End escape sequences, not ^A/^E: ^A is the tmux prefix, which would
 # swallow the keypress instead of moving the cursor.
-keybind = alt+arrow_left=esc:b
-keybind = alt+arrow_right=esc:f
 keybind = super+arrow_left=text:\x1b[H
 keybind = super+arrow_right=text:\x1b[F

@@ -37,6 +37,7 @@ A reference for reading and editing this config. Covers Vim fundamentals, Lua, a
    - [Plugin config callback (lazy.nvim)](#plugin-config-callback-lazynvim)
    - [LspAttach autocmd](#lspattach-autocmd)
    - [vim.lsp.config + vim.lsp.enable](#vimlspconfig--vimlspenable)
+   - [Format on save](#format-on-save-one-selected-client)
    - [How LSP loads when you open a file](#how-lsp-loads-when-you-open-a-file)
    - [How treesitter loads when you open a file](#how-treesitter-loads-when-you-open-a-file)
    - [Auto-reload when an external process edits a file](#auto-reload-when-an-external-process-edits-a-file)
@@ -202,10 +203,10 @@ This config sets `clipboard = "unnamedplus"` so `p` and `y` use the system clipb
 `<leader>` is a prefix key with no built-in meaning — it's your namespace for custom shortcuts.
 
 ```lua
-vim.g.mapleader = " "   -- set in bootstrap.lua before any plugin loads
+vim.g.mapleader = "\\"   -- set in bootstrap.lua before any plugin loads
 ```
 
-So `<leader>ff` means: press Space, then `f`, then `f`. All custom multi-key shortcuts in this config start with `<leader>` to avoid conflicts with Vim's built-in bindings.
+So `<leader>ff` means: press backslash, then `f`, then `f` (`\ff`). The leader keeps custom multi-key shortcuts in one predictable namespace.
 
 ### Options system
 
@@ -261,7 +262,7 @@ print(opts["noremap"])  -- same thing
 -- Mixed / nested
 local config = {
     lsp = {
-        servers = { "gopls", "ts_ls" },
+        servers = { "gopls", "tsgo" },
     },
 }
 print(config.lsp.servers[1])  -- "gopls"
@@ -394,7 +395,7 @@ vim.opt.formatoptions:prepend("j") -- :set formatoptions^=j
 ### vim.g / vim.b / vim.w / vim.o
 
 ```lua
-vim.g.mapleader = " "      -- global Neovim variable (g:mapleader in Vimscript)
+vim.g.mapleader = "\\"     -- global Neovim variable (g:mapleader in Vimscript)
 vim.b.my_flag = true       -- buffer-local variable (b:my_flag)
 vim.w.fold_level = 3       -- window-local variable (w:fold_level)
 vim.o.wrap = false         -- raw global option (no list-option handling)
@@ -415,8 +416,10 @@ vim.keymap.set(mode, lhs, rhs, opts)
 - **opts**: `{ noremap, silent, desc, buffer, expr, nowait, … }`
 
 ```lua
--- String command
-vim.keymap.set("n", "<leader>ff", ":FzfLua files<CR>", { noremap = true, silent = true })
+-- Lua callback; require() also triggers lazy.nvim's module loader
+vim.keymap.set("n", "<leader>ff", function()
+    require("fzf-lua").files()
+end, { noremap = true, silent = true, desc = "FZF: find files" })
 
 -- Lua function
 vim.keymap.set("n", "<leader>gt", function()
@@ -427,7 +430,7 @@ end, { desc = "Toggle lazygit" })
 vim.keymap.set("n", "gd", vim.lsp.buf.definition, { buffer = bufnr, desc = "Go to definition" })
 ```
 
-Always add `desc = "…"` — it shows up in `:nmap`, which-key, and `<leader>?`.
+Always add `desc = "…"` — it shows up in mapping inspection and any UI that consumes Neovim's keymap descriptions.
 
 ### Autocmds and augroups
 
@@ -559,6 +562,8 @@ nvim/.config/nvim/
         ├── fzf.lua         ← fuzzy finder
         ├── fidget.lua      ← LSP progress notifications
         ├── neotest.lua     ← test runner adapters
+        ├── coverage.lua    ← test coverage overlays
+        ├── gopher.lua      ← Go struct/code-generation helpers
         └── autopairs.lua   ← auto-close brackets/quotes
 ```
 
@@ -566,9 +571,9 @@ nvim/.config/nvim/
 
 1. `init.lua` → `bootstrap.lua` (sets `mapleader`, disables providers)
 2. `user/init.lua` → `options.lua`, `keymaps.lua`
-3. `user/plugins.lua` → lazy.nvim initialises, installs missing plugins
-4. On the first buffer open: lazy.nvim fires each plugin's `config =` callback at the right moment (based on `event =`, `ft =`, `cmd =`, etc.)
-5. When a file is opened: `FileType` autocmd fires → treesitter attaches → LSP attaches → `LspAttach` autocmd fires keymaps/hints
+3. `user/plugins.lua` → lazy.nvim initialises, installs missing plugins, and loads startup plugins (colorscheme and Treesitter)
+4. Treesitter registers its `FileType` autocmd during startup; other plugins load from their `event`, `cmd`, `keys`, or module trigger
+5. When a file is opened: the LSP group loads on `BufReadPre` → `FileType` attaches Treesitter → clients attach asynchronously → `LspAttach` registers keymaps, hints, and format-on-save
 
 ---
 
@@ -592,10 +597,10 @@ Common lazy-load triggers:
 |-------|---------|
 | `event = "InsertEnter"` | Load when entering insert mode (common for completion) |
 | `event = "VeryLazy"` | Load after UI, ~100ms after startup |
-| `event = { "BufReadPre", "BufNewFile" }` | Load before reading any file — earliest safe trigger; used for LSP and treesitter so they're ready as soon as the buffer populates |
+| `event = { "BufReadPre", "BufNewFile" }` | Load before reading any file — used by the LSP stack |
 | `ft = "go"` | Load only for Go files |
 | `cmd = "NvimTreeToggle"` | Load when this command is first run |
-| `lazy = false` | Load immediately at startup |
+| `lazy = false` | Load immediately at startup — required by the current nvim-treesitter main branch |
 | `priority = 1000` | Load before other startup plugins (use for colorschemes) |
 
 **Why `config =` matters**: Before this was in place, `require("user.X")` calls in `user/init.lua` ran at startup — before plugins had loaded. The `pcall(require, …)` guard silently returned nil and the plugin was **never configured**. All plugin-specific config now lives in `config =` callbacks where the plugin is guaranteed to exist.
@@ -640,31 +645,24 @@ vim.lsp.config("gopls", {
 vim.lsp.enable("gopls")
 ```
 
-This **nvim 0.11+ API** replaces `require("lspconfig").gopls.setup({ … })`. The separation of config from activation means Neovim doesn't have to know whether the server binary exists at startup — `vim.lsp.enable` runs it the next time a matching file is opened, so mise can finish installing in the background without breaking the first session.
+This is the built-in LSP configuration API used by this Neovim 0.12+ config. It replaces `require("lspconfig").gopls.setup({ … })`: configuration is declared once, while `vim.lsp.enable` starts the matching server when a relevant file is opened.
 
-### Format on save (none-ls)
+### Format on save (one selected client)
 
 ```lua
--- In null-ls.lua: attach format-on-save to every none-ls client
-local augroup = vim.api.nvim_create_augroup("LspFormatting", { clear = true })
-
-null_ls.setup({
-    on_attach = function(client, bufnr)
-        if client:supports_method("textDocument/formatting") then
-            vim.api.nvim_clear_autocmds({ group = augroup, buffer = bufnr })
-            vim.api.nvim_create_autocmd("BufWritePre", {
-                group = augroup,
-                buffer = bufnr,
-                callback = function()
-                    vim.lsp.buf.format({ async = false })
-                end,
-            })
-        end
-    end,
-})
+-- handlers.lua chooses exactly one client for the current buffer:
+--   1. filetype override (ruff for Python)
+--   2. an available none-ls formatter
+--   3. a native LSP formatter
+local client = format_client(bufnr)
+if client then
+    vim.lsp.buf.format({ bufnr = bufnr, async = false, id = client.id })
+end
 ```
 
-`vim.api.nvim_clear_autocmds` before creating ensures only one `BufWritePre` fires per buffer even if the client re-attaches.
+The `BufWritePre` autocmd is registered centrally from `LspAttach` and cleared before re-registering, so a buffer gets one save hook even when several clients attach. Selection is recalculated on every save. None-ls sources can be conditional: Prettierd, ESLint, and Stylelint activate only when their corresponding project config exists; a native formatter remains available as fallback.
+
+Current ownership is deliberate: Ruff formats and lints Python while Pyright provides types and analyzes open files; goimports formats Go while gopls provides staticcheck diagnostics; project-local Prettier wins for supported web files, with native LSP formatting used when available otherwise.
 
 ### How LSP loads when you open a file
 
@@ -674,21 +672,21 @@ The entire LSP stack (nvim-lspconfig + none-ls) is set to `event = { "BufReadPre
 2. **`config =` callbacks run** — `servers.lua` is called, which runs `vim.lsp.config(server, opts)` and `vim.lsp.enable(server)` for every server in its list (including `gopls`).
 3. **Server starts asynchronously** — `vim.lsp.enable` launches the server binary (resolved from `PATH` via the mise shim dir) in the background. Neovim is never blocked; you can type immediately.
 4. **`LspAttach` fires** (once the server is ready) — `handlers.lua`'s autocmd registers buffer-local keymaps and enables inlay hints for that buffer.
-5. **none-ls attaches** — its `on_attach` registers the `BufWritePre` format-on-save autocmd for that buffer.
+5. **none-ls attaches where sources apply** — the central `LspAttach` handler keeps one `BufWritePre` autocmd and the formatter selector prefers an available none-ls source.
 
-The perceived delay (typically 300–800ms for gopls on a fresh module) is purely the server binary starting and indexing — not the config. Using `BufReadPre` instead of `VeryLazy` or `BufEnter` shaves the only part that's controllable: plugin load time happens in parallel with the very first file read rather than after it.
+Any perceived delay after opening a file comes primarily from the language server starting and indexing the project. The LSP plugin group loads on `BufReadPre`, while heavy test and coverage adapters stay unloaded until their mappings or commands are used.
 
 ### How treesitter loads when you open a file
 
-Treesitter also uses `event = "BufReadPre"` so the plugin loads at the same moment, but what happens after is different from LSP — there's no language server process to start.
+The current nvim-treesitter main branch does not support lazy-loading, so its plugin spec uses `lazy = false`. It starts with Neovim and registers the attach autocmd before any initial filetype event can be missed.
 
-1. **`BufReadPre` fires** — lazy.nvim loads nvim-treesitter, `config =` runs: `treesitter.setup()`, baseline parser install, and a `FileType` autocmd is registered.
-2. **`FileType` fires** (after filetype detection, still during the same file open) — the autocmd calls `try_attach(buf, language)`.
+1. **Startup config runs** — `treesitter.setup()` sets the install directory, ensures injection parsers, and registers a `FileType` autocmd.
+2. **`FileType` fires** after detection — the autocmd resolves the parser language and calls `try_attach(buf, language)`.
 3. Two cases from there:
-   - **Parser already installed**: `vim.treesitter.start()` runs synchronously — highlighting, folding, and indentation are active almost instantly, with no perceptible delay.
-   - **Parser not installed**: treesitter installs it asynchronously, then attaches once done. This only happens the first time you open a file of that language.
+   - **Parser already on runtimepath** (including one bundled with Neovim): `vim.treesitter.start()` enables highlighting, folding, and supported indentation.
+   - **Parser missing but available in the registry**: Treesitter installs it asynchronously and attaches if the originating buffer still exists.
 
-Treesitter is faster than LSP in practice — no server process startup, just loading a `.so` parser file. The only delay you'll ever see is the one-time async install on first open.
+Folding switches temporarily to manual mode during insert mode to avoid per-keystroke fold recomputation, then returns to Treesitter expression folds on `InsertLeave`.
 
 ### Auto-reload when an external process edits a file
 
@@ -707,7 +705,9 @@ Controls how long Neovim waits with the cursor idle before firing `CursorHold`. 
 **3. The `AutoReload` autocmd (options.lua)**
 
 ```lua
-vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold" }, {
+vim.api.nvim_create_autocmd({
+    "FocusGained", "BufEnter", "CursorHold", "TermClose", "TermLeave",
+}, {
     group = vim.api.nvim_create_augroup("AutoReload", { clear = true }),
     pattern = "*",
     callback = function()
@@ -727,6 +727,7 @@ Why each event:
 | `FocusGained` | Neovim window regains OS focus | Instant reload the moment you switch from the Claude pane back to Vim |
 | `BufEnter` | Entering a buffer (e.g. switching with `:b`) | Catches changes when you cycle between open buffers |
 | `CursorHold` | Cursor idle for `updatetime` ms in normal mode | Polls while you're watching; no keypress needed |
+| `TermClose` / `TermLeave` | Leaving a Neovim terminal or its process exits | Picks up edits made from toggleterm or another terminal command |
 
 The `mode() ~= "c"` guard skips `checktime` while you're typing a `:` command — calling it mid-command could interrupt the command line.
 

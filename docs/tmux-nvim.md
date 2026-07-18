@@ -284,7 +284,7 @@ Use Neovim when the thing is editing:
 |---|---|
 | Open another file | Neovim buffer |
 | See two files side by side | Neovim split/window |
-| Jump around code | Neovim buffers, LSP, telescope/fzf |
+| Jump around code | Neovim buffers, LSP, fzf-lua |
 | Compare implementation and test | Neovim vertical split |
 | Keep a different editor layout | Neovim tab, rarely |
 
@@ -350,11 +350,13 @@ Ctrl-a z        tmux: zoom pane
 
 \ff             nvim: find file
 \fg             nvim: live grep
+Alt-Arrow        nvim: resize the current editor window
 Ctrl-w h/j/k/l  nvim: move between editor windows
 ```
 
 The tmux config deliberately avoids global tmux bindings like `Alt-h/j/k/l`.
-That keeps Neovim in control while editing. You only enter tmux's keyspace when
+Ghostty also passes Alt-arrow sequences through instead of binding them itself,
+so Neovim remains in control while editing. You only enter tmux's keyspace when
 you press `Ctrl-a`.
 
 One caveat: Vim/Neovim has a built-in `Ctrl-a` command to increment numbers. If
