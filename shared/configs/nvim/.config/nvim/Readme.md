@@ -92,6 +92,10 @@ This Neovim config is managed by the `initd` repo and linked into `~/.config/nvi
 
 > **Linux:** `linux/bootstrap.sh` installs `wl-clipboard` (`wl-copy` / `wl-paste`) for clipboard support.
 
+> **macOS:** Neovim automatically uses the system `pbcopy` / `pbpaste` provider; no additional clipboard package is required.
+
+The shared terminal stack is intentionally portable: macOS bootstrap installs Ghostty, Fish, tmux, mise, and the Xcode command-line compiler; Ghostty reads the same XDG config on macOS and treats Option as terminal Alt; mise uses the same `~/.local/share/mise` data/shim layout on both supported platforms.
+
 ### 3. Launch Neovim
 
 ```bash
@@ -283,7 +287,7 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 |----------|-----|-----------|--------|-------------|
 | **Lua** | lua_ls | stylua | — | — |
 | **Python** | pyright + ruff | ruff | ruff | neotest-python (pytest)³ |
-| **Go** | gopls | goimports | gopls staticcheck | neotest-golang |
+| **Go** | gopls | goimports | gopls staticcheck + golangci-lint⁵ | neotest-golang |
 | **TypeScript / JavaScript** | tsgo (TS7 built-in LSP) | prettierd⁴ or tsgo fallback | eslint_d¹ | neotest-jest / neotest-vitest² |
 | **JSON** | jsonls | prettierd⁴ or jsonls fallback | — | — |
 | **HTML** | html + emmet_ls | prettierd⁴ or html fallback | — | — |
@@ -299,6 +303,7 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 > ² Jest adapter activates with `jest.config.*`; Vitest adapter activates with `vitest.config.*` or `vite.config.*`.
 > ³ Runs the project's own `pytest` (venv / mise / system python), not a mise-managed tool — make sure `pytest` is installed in the project environment.
 > ⁴ Prettierd activates only when a Prettier project config exists. Where the attached LSP supports formatting, it is used as the fallback.
+> ⁵ Golangci-lint runs on save only when `.golangci.yml`, `.golangci.yaml`, `.golangci.toml`, or `.golangci.json` exists in the project; gopls remains the always-on baseline.
 
 ---
 

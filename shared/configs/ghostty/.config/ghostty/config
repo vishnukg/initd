@@ -15,6 +15,9 @@ cursor-color = #ffffff
 cursor-text = #141414
 
 macos-titlebar-style = transparent
+# Make Option behave as terminal Alt on every keyboard layout so Neovim's
+# Alt-arrow resize mappings and other Meta bindings match Linux.
+macos-option-as-alt = true
 # Disable GTK titlebar on Linux (macOS uses its own titlebar system)
 gtk-titlebar = false
 window-colorspace = display-p3

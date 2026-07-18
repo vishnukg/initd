@@ -44,7 +44,7 @@ ensure_xcode_clt() {
 }
 
 ensure_homebrew() {
-  if command -v brew >/dev/null 2>&1; then
+  if [[ -x /opt/homebrew/bin/brew ]]; then
     log_success "Homebrew already installed."
   else
     require_command curl "to install Homebrew"
@@ -58,14 +58,12 @@ ensure_homebrew() {
       "$(curl -fsSL --max-time 60 https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   fi
 
-  # Apple Silicon installs to /opt/homebrew; Intel to /usr/local.
-  if [[ -x /opt/homebrew/bin/brew ]]; then
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-  elif [[ -x /usr/local/bin/brew ]]; then
-    eval "$(/usr/local/bin/brew shellenv)"
+  if [[ ! -x /opt/homebrew/bin/brew ]]; then
+    log_error "Homebrew was not found at the Apple Silicon prefix /opt/homebrew after installation."
+    exit 1
   fi
 
-  require_command brew "but was not found after Homebrew setup"
+  eval "$(/opt/homebrew/bin/brew shellenv)"
 }
 
 ensure_fish() {

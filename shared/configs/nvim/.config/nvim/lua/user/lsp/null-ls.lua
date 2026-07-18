@@ -3,6 +3,12 @@ local h = require("null-ls.helpers")
 
 local formatting = null_ls.builtins.formatting
 local diagnostics = null_ls.builtins.diagnostics
+local golangci_config_files = {
+	".golangci.yml",
+	".golangci.yaml",
+	".golangci.toml",
+	".golangci.json",
+}
 
 local taplo = h.make_builtin({
 	name = "taplo",
@@ -49,6 +55,15 @@ null_ls.setup({
 		formatting.csharpier,
 		taplo,
 		formatting.yamlfmt,
+		-- golangci-lint is intentionally project-scoped and runs on save. gopls
+		-- remains the fast baseline when a repository has no lint policy.
+		diagnostics.golangci_lint.with({
+			runtime_condition = function(params)
+				-- Evaluate per buffer rather than once at plugin startup, so opening
+				-- projects with different policies in one Neovim session is safe.
+				return vim.fs.root(params.bufname, golangci_config_files) ~= nil
+			end,
+		}),
 		diagnostics.yamllint,
 		diagnostics.hadolint,
 		diagnostics.stylelint.with({
