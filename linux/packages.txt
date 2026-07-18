@@ -19,6 +19,7 @@ rofi
 dunst
 libnotify-bin
 policykit-1-gnome
+nwg-displays
 grim
 slurp
 wl-clipboard
@@ -26,6 +27,9 @@ gammastep
 gnome-software
 
 # ── System utilities ──────────────────────────────────────────────────────────
+# VA-API driver for Intel iGPU video decode (Firefox media.ffmpeg.vaapi.enabled
+# silently falls back to CPU decoding without it; non-free variant adds HEVC).
+intel-media-va-driver-non-free
 pulseaudio-utils
 brightnessctl
 ca-certificates

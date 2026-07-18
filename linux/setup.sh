@@ -275,7 +275,8 @@ link_session_scripts() {
   # their own symlinks (they live in linux/scripts/, not under a MANAGED_LINKS dir).
   local name target src
   for name in power-profile-cycle.sh power-profile-status.sh \
-              night-light-toggle.sh; do
+              night-light-toggle.sh clamshell.sh \
+              weather-popup.sh docker-menu.sh; do
     target="${HOME}/.config/${name}"
     src="${SCRIPTS_DIR}/${name}"
     chmod +x "${src}" 2>/dev/null || true
@@ -476,6 +477,18 @@ EOF
   log_success "Firefox policies installed."
 }
 
+configure_copyq() {
+  # CopyQ runs tray-less ($mod+c toggles it — see hyprland.conf); the setting
+  # lives in CopyQ's own config and needs its server up to write. Skip quietly
+  # when no session/server is available (first bootstrap from a TTY).
+  command -v copyq >/dev/null 2>&1 || return 0
+  if copyq config disable_tray true >/dev/null 2>&1; then
+    log_success "CopyQ tray icon disabled."
+  else
+    log_warn "CopyQ server not reachable — tray setting will apply on next setup run."
+  fi
+}
+
 # ── Service restarts (apply config changes without a reboot) ─────────────────
 restart_dunst() {
   if pgrep -x dunst >/dev/null 2>&1; then
@@ -508,6 +521,7 @@ main() {
   link_firefox_profile
   install_firefox_policies
   add_user_to_video_group
+  configure_copyq
 
   restart_dunst
 
