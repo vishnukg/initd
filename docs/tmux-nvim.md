@@ -356,8 +356,9 @@ Ctrl-w h/j/k/l  nvim: move between editor windows
 
 The tmux config deliberately avoids global tmux bindings like `Alt-h/j/k/l`.
 Ghostty also passes Alt-arrow sequences through instead of binding them itself,
-so Neovim remains in control while editing. You only enter tmux's keyspace when
-you press `Ctrl-a`.
+and treats macOS Option as terminal Alt on every keyboard layout, so Neovim
+remains in control while editing. You only enter tmux's keyspace when you press
+`Ctrl-a`.
 
 One caveat: Vim/Neovim has a built-in `Ctrl-a` command to increment numbers. If
 you need to send a literal `Ctrl-a` into Neovim or the shell, press:
