@@ -25,7 +25,7 @@ background-opacity = 0.58
 background-blur = false
 
 # --- Fonts ---
-font-family = "Fira Code"
+font-family = "FiraCode Nerd Font Mono"
 font-style = Medium
 font-style-italic = Medium
 font-size = 15

@@ -433,7 +433,10 @@ apply_gsettings_theme() {
   gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"
   gsettings set org.gnome.desktop.interface cursor-theme "DMZ-White"
   gsettings set org.gnome.desktop.interface cursor-size 24
-  log_success "gsettings theme synced (adw-gtk3-dark / Papirus-Dark)."
+  gsettings set org.gnome.desktop.interface font-name "Ubuntu Sans 11"
+  gsettings set org.gnome.desktop.interface document-font-name "Ubuntu Sans 12"
+  gsettings set org.gnome.desktop.interface monospace-font-name "FiraCode Nerd Font Mono 11"
+  log_success "gsettings theme and fonts synced (Ubuntu Sans / FiraCode Nerd Font Mono)."
 }
 
 apply_gsettings_keyboard() {
