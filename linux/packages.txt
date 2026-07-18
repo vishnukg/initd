@@ -32,6 +32,7 @@ ca-certificates
 curl
 unzip
 network-manager-gnome
+blueman
 copyq
 power-profiles-daemon
 
