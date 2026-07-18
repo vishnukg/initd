@@ -26,23 +26,23 @@ window#waybar {
     color: #1e1e24;
     background: #7fb99a;   /* muted pastel green */
 }
-#workspaces button.active:nth-child(2)  { background: #cfa183; }  /* peach */
-#workspaces button.active:nth-child(3)  { background: #9d8bc4; }  /* lavender */
+#workspaces button.active:nth-child(2)  { background: #9d8bc4; }  /* lavender */
+#workspaces button.active:nth-child(3)  { background: #82abbf; }  /* blue */
 #workspaces button.active:nth-child(4)  { background: #c996ab; }  /* pink */
-#workspaces button.active:nth-child(5)  { background: #cfc182; }  /* yellow */
-#workspaces button.active:nth-child(6)  { background: #82abbf; }  /* blue */
-#workspaces button.active:nth-child(7)  { background: #c98680; }  /* coral */
-#workspaces button.active:nth-child(8)  { background: #a984ce; }  /* lilac */
-#workspaces button.active:nth-child(9)  { background: #7cbab6; }  /* aqua */
-#workspaces button.active:nth-child(10) { background: #b5a488; }  /* sand */
+#workspaces button.active:nth-child(5)  { background: #7cbab6; }  /* aqua */
+#workspaces button.active:nth-child(6)  { background: #a984ce; }  /* lilac */
+#workspaces button.active:nth-child(7)  { background: #8fc79f; }  /* mint */
+#workspaces button.active:nth-child(8)  { background: #8a9fd1; }  /* periwinkle */
+#workspaces button.active:nth-child(9)  { background: #b48ebc; }  /* mauve */
+#workspaces button.active:nth-child(10) { background: #7f9bb3; }  /* steel blue */
 
 #workspaces button.urgent {
     color: #1a1b2e;
     background: #f7768e;
 }
 
-#cpu, #memory, #network, #pulseaudio, #backlight,
-#custom-powerprofile, #battery, #tray, #clock {
+#cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight,
+#custom-powerprofile, #battery, #tray, #custom-weather, #clock {
     padding: 0 6px;
     color: #c0caf5;
 }
