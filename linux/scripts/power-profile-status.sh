@@ -1,5 +1,5 @@
 #!/bin/sh
-# Print the current power profile as an icon for the polybar power-profile module.
+# Print the current power profile as an icon for the waybar custom/powerprofile module.
 
 case "$(powerprofilesctl get 2>/dev/null)" in
   power-saver) printf '\n' ;;

@@ -199,6 +199,23 @@ check_hyprland_session() {
   fi
 }
 
+mask_desktop_user_units() {
+  # Ubuntu's waybar/hypridle/hyprpaper packages ship systemd user units enabled
+  # at graphical-session.target, so they also launch inside GNOME sessions
+  # (where waybar can't work — no layer-shell — and hyprpaper segfaults) and
+  # race the exec-once entries in hyprland.conf under Hyprland. This repo owns
+  # autostart via hyprland.conf, so mask the units at the user level.
+  local unit
+  for unit in waybar.service hypridle.service hyprpaper.service; do
+    if [[ "$(systemctl --user is-enabled "${unit}" 2>/dev/null)" == "masked" ]]; then
+      log_success "${unit} already masked."
+    else
+      systemctl --user mask "${unit}" >/dev/null 2>&1
+      log_success "Masked ${unit} (autostarted via hyprland.conf exec-once instead)."
+    fi
+  done
+}
+
 # ── GTK theme (adw-gtk3) ─────────────────────────────────────────────────────
 ADW_GTK3_VERSION="v6.5"
 
@@ -399,6 +416,20 @@ apply_gsettings_theme() {
   log_success "gsettings theme synced (adw-gtk3-dark / Papirus-Dark)."
 }
 
+apply_gsettings_keyboard() {
+  # Mirror hyprland.conf input settings in GNOME so both sessions feel the
+  # same: caps lock as ctrl (kb_options = ctrl:nocaps) and key repeat
+  # (repeat_delay = 200, repeat_rate = 35/s → interval 1000/35 ≈ 29ms).
+  if ! command -v gsettings >/dev/null 2>&1; then
+    log_warn "gsettings not available — skipping keyboard sync."
+    return
+  fi
+  gsettings set org.gnome.desktop.input-sources xkb-options "['ctrl:nocaps']"
+  gsettings set org.gnome.desktop.peripherals.keyboard delay 200
+  gsettings set org.gnome.desktop.peripherals.keyboard repeat-interval 29
+  log_success "gsettings keyboard synced (ctrl:nocaps, delay 200, interval 29ms)."
+}
+
 add_user_to_video_group() {
   # /sys/class/backlight/*/brightness is root:video — membership is required
   # for the brightnessctl keybinds (XF86MonBrightness*) to work.
@@ -466,9 +497,11 @@ main() {
   install_power_profile_autoswitch
   apply_swappiness
   check_hyprland_session
+  mask_desktop_user_units
 
   install_adw_gtk3_theme
   apply_gsettings_theme
+  apply_gsettings_keyboard
   link_gtkrc_2
   link_icons_default
   link_session_scripts

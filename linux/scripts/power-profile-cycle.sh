@@ -1,6 +1,6 @@
 #!/bin/sh
 # Cycle the power-profiles-daemon profile and notify. Bound to $mod+p and the
-# polybar power-profile module's left click. Runs in the user session, so PPD's
+# waybar power-profile module's left click. Runs in the user session, so PPD's
 # allow_active polkit rule permits it without the 49-power-profiles override.
 
 current="$(powerprofilesctl get 2>/dev/null)"
