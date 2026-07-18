@@ -10,6 +10,13 @@ Hyprland applies `monitor =` rules from `linux/configs/hypr/hyprland.conf`
 (symlinked as `~/.config/hypr`) every time the set of connected outputs
 changes. There is no profile daemon: plugging in a monitor is the event that
 applies the defaults, while nwg-displays can optionally save named overrides.
+Think of the setup as three separate actors:
+
+| Actor | Responsibility |
+|---|---|
+| Hyprland | detects outputs and applies mode, scale, and position rules |
+| `clamshell.sh` | enables or disables the laptop panel in response to the lid |
+| nwg-displays | edits saved monitor rules; it does not need to stay running |
 
 ```
 monitor = eDP-1, preferred, auto, 1.5    # laptop panel, 1.5x scale
@@ -32,12 +39,51 @@ monitor = , preferred, auto, 1.25        # catch-all: any external monitor
   because reloads re-apply the static `eDP-1` rule, which would otherwise
   re-light a closed lid.
 
-| Event | Result |
+## Everyday scenarios
+
+| What happens | Result |
 |---|---|
-| Plug in any monitor | lights up extended, 1.25x, placed to the right |
-| Close lid while docked | external becomes the only screen |
-| Open lid | laptop panel comes back at 1.5x |
-| Unplug | windows migrate to the remaining monitor |
+| Start with the laptop by itself | `eDP-1` uses its preferred mode at 1.5x |
+| Plug in an external with the lid open | both screens work; the external uses its preferred mode, 1.25x, auto-positioned to the right |
+| Close the lid after connecting an external | `clamshell.sh` disables `eDP-1`; the external becomes the only screen |
+| Open the lid while still connected | `eDP-1` returns at 1.5x; both screens work |
+| Unplug the external with the lid open | its workspaces and windows migrate to the laptop panel |
+| Connect an unfamiliar monitor | the catch-all rule gives it preferred mode, 1.25x, and automatic position |
+| Connect multiple external monitors | every unknown output gets the catch-all; Hyprland extends them sequentially to the right |
+
+### Recommended docking order
+
+When connecting: keep the lid open, plug in the monitor, wait for both screens,
+then close the lid if external-only mode is wanted.
+
+When disconnecting: open the lid, wait for the laptop panel, then unplug the
+external. This order guarantees that an active output is always available.
+
+### Closed-lid cable changes
+
+The clamshell script listens for lid events and config reloads, not Hyprland's
+monitor-added/removed IPC events. Consequently, changing cables while the lid
+remains closed is an edge case:
+
+| Situation | What to do |
+|---|---|
+| Plug in an external while the lid is already closed | the external is detected, but clamshell state may not be reassessed until a lid event or reload; open/close the lid or reload |
+| Unplug the external while the lid remains closed | avoid this because it may be the only active output; open the lid first |
+| Laptop panel remains logically active behind a closed lid | open/close the lid or reload |
+| Reload while the lid is closed | the static rule may briefly enable `eDP-1`; after one second the script disables it and restores the focused workspace |
+
+### Windows and workspaces
+
+Removing an output makes Hyprland migrate its workspaces and windows to an
+output that remains. Reconnecting the output does not necessarily move those
+workspaces back: without explicit workspace rules, new workspaces appear on
+the currently focused monitor. This flexible behavior is why
+`workspaces.conf` is left empty by default.
+
+Workspace assignments made in nwg-displays can create a fixed split (for
+example, workspaces 1–5 on an external and 6–10 on the laptop), but that also
+makes docking less flexible. Add assignments only when a permanent layout is
+more useful than automatic migration.
 
 **Fix-it button:** `$mod+Shift+m` runs `hyprctl reload`, re-evaluating all
 monitor rules for the current hardware state.
@@ -67,6 +113,20 @@ path.
 Because named rules beat the catch-all, nwg-displays output composes cleanly
 with the defaults: monitors it has configured get exact settings; anything
 unknown still falls back to preferred/auto/1.25.
+
+nwg-displays rewrites `monitors.conf` with the layout currently represented in
+the GUI; it does not append an unlimited collection of per-monitor profiles.
+The practical result is:
+
+| Later connection | Rule used |
+|---|---|
+| Reconnect a monitor still named in `monitors.conf` | its saved custom rule |
+| Connect a different or unknown monitor | the Hyprland catch-all defaults |
+| Apply a layout for that different monitor | nwg-displays replaces `monitors.conf` with the newly generated layout |
+
+This means any number of monitors can still be connected safely. A saved rule
+is optional customization, while the catch-all remains the reliable fallback
+for everything else.
 
 ### Safe first use
 
