@@ -11,8 +11,9 @@
     "modules-left": ["hyprland/workspaces"],
     "modules-center": [],
     "modules-right": [
-        "cpu", "memory", "network", "pulseaudio", "backlight",
-        "custom/powerprofile", "battery", "tray", "clock"
+        "custom/docker", "custom/weather", "cpu", "memory",
+        "pulseaudio", "backlight", "custom/powerprofile", "battery",
+        "network", "tray", "clock"
     ],
 
     "hyprland/workspaces": {
@@ -23,38 +24,47 @@
 
     "cpu": {
         "interval": 2,
-        "format": "󰍛 {usage}%"
+        "format": "<span size='15pt'>󰍛</span> {usage}%"
     },
 
     "memory": {
         "interval": 3,
-        "format": "󰾆 {percentage}%"
+        "format": "<span size='15pt'>󰾆</span> {percentage}%"
+    },
+
+    "custom/docker": {
+        // Running container count; docker group membership is set by bootstrap.
+        "exec": "docker ps -q 2>/dev/null | wc -l",
+        "interval": 15,
+        "format": "<span size='22pt'>󰡨</span> {}",
+        "on-click": "~/.config/docker-menu.sh",
+        "tooltip": false
     },
 
     "network": {
         "interval": 5,
-        "format-wifi": "󰤨 {essid}",
-        "format-ethernet": "󰈀 {ipaddr}",
-        "format-disconnected": "󰤭 --",
+        "format-wifi": "<span size='15pt'>󰤨</span> {essid}",
+        "format-ethernet": "<span size='15pt'>󰈀</span> {ipaddr}",
+        "format-disconnected": "<span size='15pt'>󰤭</span> --",
         "tooltip-format": "{ifname}: {ipaddr}"
     },
 
     "pulseaudio": {
-        "format": "{icon} {volume}%",
+        "format": "<span size='15pt'>{icon}</span> {volume}%",
         "format-muted": "󰝟 muted",
         "format-icons": { "default": ["󰕿", "󰖀", "󰕾"] },
         "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
     },
 
     "backlight": {
-        "format": "{icon} {percent}%",
+        "format": "<span size='15pt'>{icon}</span> {percent}%",
         "format-icons": ["󰃞", "󰃟", "󰃠"]
     },
 
     "custom/powerprofile": {
         "exec": "~/.config/power-profile-status.sh",
         "interval": 5,
-        "format": "{}",
+        "format": "<span size='15pt'>{}</span>",
         "on-click": "~/.config/power-profile-cycle.sh"
     },
 
@@ -70,12 +80,24 @@
     },
 
     "tray": {
-        "icon-size": 20,
+        "icon-size": 22,
         "spacing": 8
+    },
+
+    "custom/weather": {
+        // wttr.in geolocates by IP; emoji condition + temperature.
+        "exec": "curl -sf --max-time 10 'https://wttr.in/?format=%c%t'",
+        "interval": 1800,
+        // The popup script raises RTMIN+8 after its own fresh fetch, so the
+        // bar re-fetches too and can't stay stale next to the popup.
+        "signal": 8,
+        "format": "{}",
+        "on-click": "~/.config/weather-popup.sh",
+        "tooltip": false
     },
 
     "clock": {
         "interval": 5,
-        "format": "󰃭 {:%a %d %b %H:%M}"
+        "format": "<span size='15pt'>󰃭</span> {:%a %d %b %H:%M}"
     }
 }

@@ -173,7 +173,7 @@ The Linux desktop is **Wayland-only**: Hyprland installed alongside Ubuntu's sto
 - **Night light** (`linux/scripts/night-light-toggle.sh`): on Wayland the gamma table resets when the client exits, so gammastep runs as a persistent process while warm is active (the process itself is the state) instead of the old X11 one-shot mode.
 - **Special-case paths**: `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, and Firefox profile files (dynamic profile path) live outside `~/.config/` and are linked individually rather than via `MANAGED_LINKS`.
 - **No snap**: `disable_snap` in `linux/bootstrap.sh` purges every snap (including Ubuntu's default `firefox`/`snap-store`/`firmware-updater`/etc.) and pins `snapd` to priority `-10` so nothing reinstalls it. `ensure_firefox` then adds Mozilla's official apt repo (pinned to priority `1000`, above the Ubuntu archive's snap-installing `firefox` stub) and installs the real `.deb`. `linux/setup.sh:link_firefox_profile` checks the snap profile path (`~/snap/firefox/common/.mozilla/firefox`) before the regular one (`~/.mozilla/firefox`) purely as a defensive fallback — normal installs only ever populate the regular path now.
-- **Legacy docs**: `docs/linux-monitors.md` describes the old autorandr/X11 monitor flow and no longer applies; Hyprland's `monitor =` rules cover it.
+- **Monitors**: Hyprland's `monitor =` rules in `hyprland.conf` handle hotplug/scale/lid natively; `nwg-displays` (in `packages.txt`) is the GUI, writing per-monitor overrides to `linux/configs/hypr/monitors.conf` + `workspaces.conf` (both `source =`d from `hyprland.conf` and versioned, since `~/.config/hypr` is the repo symlink). See `docs/linux-monitors.md`.
 
 ### Reference docs
 
@@ -183,6 +183,6 @@ The Linux desktop is **Wayland-only**: Hyprland installed alongside Ubuntu's sto
 - `docs/mise.md` — mise tool management
 - `docs/git-branching-conflicts.md` — Git branching and conflict resolution
 - `docs/linux-power.md` — Linux power management (PPD, AC/battery auto-switch, manual controls)
-- `docs/linux-monitors.md` — monitor hotplug/lid switching, attaching a new monitor, per-profile DPI
+- `docs/linux-monitors.md` — monitor hotplug/lid switching, nwg-displays GUI, per-monitor scale
 - `docs/tmux-nvim.md` — tmux and Neovim workspace concepts
 - `docs/tmux-sessions.md` — tmux session/window/pane workflow and keybindings

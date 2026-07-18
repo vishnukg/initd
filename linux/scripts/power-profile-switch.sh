@@ -2,7 +2,7 @@
 # Auto-switch power-profiles-daemon between AC and battery.
 # Invoked by udev on power_supply changes and once at Hyprland login. Idempotent.
 #
-# AC      -> balanced (everyday default; bump to performance manually via $mod+p)
+# AC      -> performance (plugged in = desk/docked; take the full clocks)
 # Battery -> balanced (power-saver caps the CPU hard enough that app launches
 #                      visibly lag; drop to it manually via $mod+p when you
 #                      need max runtime)
@@ -10,7 +10,7 @@
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 export PATH
 
-AC_PROFILE=balanced
+AC_PROFILE=performance
 BATTERY_PROFILE=balanced
 
 on_ac() {
