@@ -1,5 +1,5 @@
--- Go: struct tags, if-err, impl — NOT an LSP tool, no interference with gopls.
--- Run :GoInstallDeps once after install.
+-- Go: struct tags, if-err, impl — not an LSP tool, so it does not overlap gopls.
+-- lazy.nvim runs :GoInstallDepsSync after installing/updating the plugin.
 require("gopher").setup({
 	commands = { gotests = "gotests" },
 	gotag = {
@@ -8,12 +8,3 @@ require("gopher").setup({
 		option      = nil, -- omitempty should be added per field, not by default
 	},
 })
-
--- Auto-install binaries on first Go file open (only if missing)
-if vim.fn.executable("gomodifytags") == 0 then
-	vim.api.nvim_create_autocmd("FileType", {
-		pattern = "go",
-		once = true,
-		callback = function() pcall(vim.cmd, "GoInstallDeps") end,
-	})
-end

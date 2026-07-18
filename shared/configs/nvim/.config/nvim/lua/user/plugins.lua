@@ -54,7 +54,9 @@ return require("lazy").setup({
 	-- ── Treesitter ────────────────────────────────────────────────────────────
 	{
 		"nvim-treesitter/nvim-treesitter",
-		event = { "BufReadPre", "BufNewFile" },
+		-- The main-branch rewrite does not support lazy-loading. Loading it at
+		-- startup also guarantees the FileType attach autocmd is always present.
+		lazy = false,
 		cmd = { "TSUpdate", "TSInstall", "TSUninstall", "TSModuleInfo" },
 		build = ":TSUpdate",
 		config = function()
@@ -103,6 +105,8 @@ return require("lazy").setup({
 		"hrsh7th/nvim-cmp",
 		event = "InsertEnter",
 		dependencies = {
+			-- Loaded before cmp so confirm_done integration is deterministic.
+			"windwp/nvim-autopairs",
 			-- Snippet engine (must load before cmp_luasnip)
 			{
 				"L3MON4D3/LuaSnip",
@@ -141,6 +145,9 @@ return require("lazy").setup({
 	-- ── Testing ───────────────────────────────────────────────────────────────
 	{
 		"nvim-neotest/neotest",
+		-- Global keymaps require("neotest") on first use, which lazy.nvim uses
+		-- as the load trigger. Avoid loading every test adapter on each code file.
+		lazy = true,
 		dependencies = {
 			"nvim-lua/plenary.nvim",
 			"nvim-neotest/nvim-nio",
@@ -152,7 +159,6 @@ return require("lazy").setup({
 			"nvim-neotest/neotest-python",
 		},
 		config = function() require("user.neotest") end,
-		ft = { "go", "javascript", "typescript", "typescriptreact", "javascriptreact", "cs", "python" },
 	},
 
 	-- ── AI / Copilot ──────────────────────────────────────────────────────────
@@ -193,13 +199,22 @@ return require("lazy").setup({
 		"andythigpen/nvim-coverage",
 		dependencies = { "nvim-lua/plenary.nvim" },
 		config = function() require("user.coverage") end,
-		ft = { "go", "javascript", "typescript", "python", "cs" },
+		cmd = {
+			"Coverage", "CoverageLoad", "CoverageLoadLcov", "CoverageShow",
+			"CoverageHide", "CoverageToggle", "CoverageClear", "CoverageSummary",
+		},
 	},
 
 	-- Go: struct tags, if-err, impl
 	{
 		"olexsmir/gopher.nvim",
-		ft = "go",
+		cmd = {
+			"GopherLog", "GoIfErr", "GoCmt", "GoImpl", "GoInstallDeps",
+			"GoInstallDepsSync", "GoTagAdd", "GoTagRm", "GoTagClear",
+			"GoJson", "GoTestAdd", "GoTestsAll", "GoTestsExp", "GoMod",
+			"GoGet", "GoWork", "GoGenerate",
+		},
+		build = ":GoInstallDepsSync",
 		config = function() require("user.gopher") end,
 	},
 

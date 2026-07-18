@@ -3,13 +3,8 @@ local M = {}
 -- cmp-nvim-lsp is a dependency of nvim-lspconfig so it's always loaded first.
 M.capabilities = require("cmp_nvim_lsp").default_capabilities()
 
--- Servers where none-ls handles formatting — disable the native LSP formatter
--- so we don't get two competing format-on-save triggers.
-local formatting_disabled = { tsgo = true, lua_ls = true, gopls = true }
-
--- Per-filetype preferred formatter, keyed by LSP client name. Filetypes not
--- listed here fall back to null-ls, which owns formatting for everything else.
--- (Python is formatted by ruff's own LSP, not null-ls.)
+-- Per-filetype formatter overrides. Other filetypes prefer an available
+-- null-ls source and fall back to their native LSP formatter.
 local preferred_formatter = { python = "ruff" }
 
 -- Servers whose hover we suppress so another client provides it instead.
@@ -26,7 +21,7 @@ local notified_clients = {}
 local notified_filetypes = {}
 
 -- One-line summary of the null-ls sources available for a filetype, e.g.
--- "go: goimports (format), golangci_lint (lint)". nil if none.
+-- "go: goimports (format)". nil if none.
 local function null_ls_ft_summary(ft)
 	local ok, sources = pcall(require, "null-ls.sources")
 	if not ok then return nil end
@@ -40,13 +35,53 @@ local function null_ls_ft_summary(ft)
 	return ("%s: %s"):format(ft, table.concat(parts, ", "))
 end
 
--- Build a vim.lsp.buf.format filter that keeps only the right formatter client
--- for the given buffer's filetype.
-local function format_filter(bufnr)
-	local preferred = preferred_formatter[vim.bo[bufnr].filetype]
-	return function(client)
-		return client.name == (preferred or "null-ls")
+local formatting_method = "textDocument/formatting"
+
+-- null-ls advertises formatting at the protocol level, but whether it can run
+-- depends on the sources available for this filetype (and project conditions,
+-- such as the presence of a Prettier config).
+local function supports_formatting(client, bufnr)
+	if client.name ~= "null-ls" then
+		return client:supports_method(formatting_method, bufnr)
 	end
+
+	local ok, sources = pcall(require, "null-ls.sources")
+	if not ok then return false end
+	local internal = require("null-ls.methods").internal
+	return #sources.get_available(vim.bo[bufnr].filetype, internal.FORMATTING) > 0
+end
+
+-- Pick exactly one formatter: a filetype override first, then null-ls, then a
+-- native LSP. Keeping native capabilities intact gives files without a matching
+-- external formatter a reliable fallback.
+local function format_client(bufnr)
+	local preferred = preferred_formatter[vim.bo[bufnr].filetype]
+	local null_ls_client, native_client
+
+	for _, client in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
+		if supports_formatting(client, bufnr) then
+			if client.name == preferred then return client end
+			if client.name == "null-ls" then
+				null_ls_client = client
+			elseif not native_client then
+				native_client = client
+			end
+		end
+	end
+
+	return null_ls_client or native_client
+end
+
+local function format_buffer(bufnr, async, notify_missing)
+	local client = format_client(bufnr)
+	if not client then
+		if notify_missing then
+			vim.notify("No formatter available for this buffer", vim.log.levels.WARN)
+		end
+		return
+	end
+
+	vim.lsp.buf.format({ bufnr = bufnr, async = async, id = client.id })
 end
 
 -- Keymaps applied to every buffer where an LSP client attaches.
@@ -71,7 +106,7 @@ local function lsp_keymaps(bufnr)
 		vim.tbl_extend("force", opts, { desc = "LSP: type supertypes" }))
 	vim.keymap.set("n", "gtH", function() vim.lsp.buf.typehierarchy("subtypes") end,
 		vim.tbl_extend("force", opts, { desc = "LSP: type subtypes" }))
-	vim.keymap.set("n", "<leader>fm", function() vim.lsp.buf.format({ async = true }) end,
+	vim.keymap.set("n", "<leader>fm", function() format_buffer(bufnr, true, true) end,
 		vim.tbl_extend("force", opts, { desc = "LSP: format buffer" }))
 	-- :LspInfo was removed: nvim 0.12 ships a native :lsp command, and
 	-- nvim-lspconfig's plugin file skips defining Lsp* commands when it exists.
@@ -137,26 +172,20 @@ M.setup = function()
 				vim.notify(("attached %s"):format(client.name), vim.log.levels.INFO, { group = "lsp" })
 			end
 
-			-- Disable native formatter so none-ls/null-ls takes over exclusively
-			if formatting_disabled[client.name] then
-				client.server_capabilities.documentFormattingProvider = false
-			end
-
 			-- Suppress hover where another client owns it (ruff → pyright).
 			if hover_disabled[client.name] then
 				client.server_capabilities.hoverProvider = false
 			end
 
-			-- Format-on-save. Registered once per buffer (idempotent: cleared
-			-- first). The filter routes each filetype to its preferred formatter
-			-- (ruff for python, null-ls otherwise).
-			if client:supports_method("textDocument/formatting") then
+			-- Format-on-save. Registered once per buffer; the selected owner is
+			-- recalculated at save time as clients and project-local sources change.
+			if supports_formatting(client, bufnr) then
 				vim.api.nvim_clear_autocmds({ group = fmt_augroup, buffer = bufnr })
 				vim.api.nvim_create_autocmd("BufWritePre", {
 					group = fmt_augroup,
 					buffer = bufnr,
 					callback = function()
-						vim.lsp.buf.format({ async = false, filter = format_filter(bufnr) })
+						format_buffer(bufnr, false, false)
 					end,
 				})
 			end
