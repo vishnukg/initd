@@ -79,6 +79,25 @@ apply_intel_wifi_d3cold_fix() {
   done
 }
 
+apply_wifi_regdomain() {
+  # Without a regulatory domain the kernel sits in the "world" domain
+  # (country 00): the whole 6 GHz band is disabled and TX power is capped,
+  # so the BE200 can never use WiFi 6E/7's fastest band. Persist via the
+  # cfg80211 module option (applies at boot; legacy /etc/default/crda is dead).
+  local regdomain="AU"
+  local conf=/etc/modprobe.d/cfg80211.conf
+  local line="options cfg80211 ieee80211_regdom=${regdomain}"
+
+  if [[ -f "${conf}" ]] && grep -qxF "${line}" "${conf}"; then
+    log_success "WiFi regulatory domain already set (${regdomain})."
+    return
+  fi
+  echo "${line}" | sudo tee "${conf}" >/dev/null
+  # Best-effort immediate apply; fully in effect after reboot/module reload.
+  command -v iw >/dev/null 2>&1 && sudo iw reg set "${regdomain}" 2>/dev/null || true
+  log_success "WiFi regulatory domain set to ${regdomain} (6 GHz enabled after reboot)."
+}
+
 apply_wifi_reconnect_speedup() {
   # Disable NM's WiFi power save so the card doesn't doze between scans.
   local nm_powersave=/etc/NetworkManager/conf.d/wifi-powersave.conf
@@ -504,6 +523,7 @@ main() {
 
   install_firacode_nerd_font
   apply_intel_wifi_d3cold_fix
+  apply_wifi_regdomain
   apply_wifi_reconnect_speedup
   apply_chrome_apt_arch
   enable_power_profiles_daemon
