@@ -8,8 +8,8 @@ lid switching natively; git history has the X11 version if ever needed.
 
 Hyprland applies `monitor =` rules from `linux/configs/hypr/hyprland.conf`
 (symlinked as `~/.config/hypr`) every time the set of connected outputs
-changes. There is no profile daemon and nothing to save — plugging in a
-monitor *is* the event that applies the rules.
+changes. There is no profile daemon: plugging in a monitor is the event that
+applies the defaults, while nwg-displays can optionally save named overrides.
 
 ```
 monitor = eDP-1, preferred, auto, 1.5    # laptop panel, 1.5x scale
@@ -24,10 +24,13 @@ monitor = , preferred, auto, 1.25        # catch-all: any external monitor
   writes exactly such rules.
 - **Clamshell mode** is handled by `linux/scripts/clamshell.sh` (linked as
   `~/.config/clamshell.sh`): it reads the ACPI lid state and disables or
-  restores `eDP-1` accordingly. It runs on lid events (`bindl` switch binds),
-  at startup, and on every config reload (`exec =` reruns on reload) — the
-  reload case matters because reloads re-apply the static `eDP-1` rule, which
-  would otherwise re-light a closed lid.
+  restores `eDP-1` accordingly. It disables the panel only when another
+  monitor is active, preserves the focused workspace across the monitor
+  migration, and skips redundant changes. It runs immediately on lid events
+  (`bindl` switch binds), plus after a short settling delay at startup and on
+  every config reload (`exec =` reruns on reload). The reload case matters
+  because reloads re-apply the static `eDP-1` rule, which would otherwise
+  re-light a closed lid.
 
 | Event | Result |
 |---|---|
@@ -44,6 +47,8 @@ monitor rules for the current hardware state.
 `nwg-displays` (Ubuntu archive, installed via `packages.txt`) is the visual
 way to inspect and arrange monitors: drag the output rectangles, set
 scale/mode/rotation/position, assign workspaces to monitors, then **Apply**.
+It is a Hyprland configuration generator, not a hotplug/profile daemon;
+Hyprland still performs the actual output configuration and automatic reload.
 
 It persists its result as plain Hyprland config:
 
@@ -55,11 +60,41 @@ It persists its result as plain Hyprland config:
 Both are `source =`d from `hyprland.conf`, and both live *inside the repo*
 (`~/.config/hypr` is a symlink to `linux/configs/hypr/`), so an arrangement
 you apply in the GUI is versioned like any other config change — commit it if
-you want to keep it.
+you want to keep it, or inspect/revert it with `git diff` if not. The files are
+writable through their symlinks, so nwg-displays does not need a custom output
+path.
 
 Because named rules beat the catch-all, nwg-displays output composes cleanly
 with the defaults: monitors it has configured get exact settings; anything
 unknown still falls back to preferred/auto/1.25.
+
+### Safe first use
+
+1. Connect the external display and **open the laptop lid before pressing
+   Apply**.
+2. Use scale `1.5` for the 2880x1800 laptop panel and `1.25` for the 4K
+   external display, then arrange their relative positions.
+3. Enable **Use monitor description** if a dock sometimes exposes the same
+   display under different connector names such as `DP-1` and `DP-2`.
+4. Initially leave workspace assignments unchanged. Explicit assignments pin
+   workspaces to outputs and can affect which workspace Hyprland focuses when
+   an output is removed.
+5. Press **Apply**, verify both displays, and choose **Keep** in the confirmation
+   window. Review the generated files with `git diff` before committing them.
+
+Applying while the lid is closed can make nwg-displays record
+`monitor=eDP-1,disable` in `monitors.conf`, because the panel is inactive at
+that moment. The clamshell script can restore the panel when the lid opens,
+but the saved disable rule would cause an unnecessary disable/enable cycle on
+future reloads and could briefly disturb workspace placement. Open the lid and
+apply again to save a clean two-display layout.
+
+Ubuntu currently packages nwg-displays `0.3.26-1`. It works with this setup's
+Hyprland 0.53 configuration format and covers normal layout, mode, scale, and
+rotation. Upstream `0.3.28` restored mirror and 10-bit controls that are absent
+from this package; newer releases also add profile features and Hyprland 0.55
+Lua output. None of those newer features is required for the basic setup
+described here.
 
 ## Useful commands
 
