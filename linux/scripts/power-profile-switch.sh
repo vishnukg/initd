@@ -1,6 +1,6 @@
 #!/bin/sh
 # Auto-switch power-profiles-daemon between AC and battery.
-# Invoked by udev on power_supply changes and once at i3 login. Idempotent.
+# Invoked by udev on power_supply changes and once at Hyprland login. Idempotent.
 #
 # AC      -> balanced (everyday default; bump to performance manually via $mod+p)
 # Battery -> balanced (power-saver caps the CPU hard enough that app launches
