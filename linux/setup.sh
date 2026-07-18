@@ -79,6 +79,36 @@ apply_intel_wifi_d3cold_fix() {
   done
 }
 
+apply_intel_bluetooth_wakeup() {
+  # BlueZ can mark individual HID devices as WakeAllowed, but the setting is
+  # ineffective when the USB Bluetooth controller itself is not a kernel wake
+  # source.  Keep wake enabled for this laptop's Intel controller so a paired
+  # keyboard or mouse can resume the machine while the lid remains closed.
+  local bluetooth_udev=/etc/udev/rules.d/10-intel-bluetooth-wakeup.rules
+  local bluetooth_udev_rule='ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="8087", ATTR{idProduct}=="0036", TEST=="power/wakeup", ATTR{power/wakeup}="enabled"'
+
+  if [[ -f "${bluetooth_udev}" ]] && grep -qxF "${bluetooth_udev_rule}" "${bluetooth_udev}"; then
+    log_success "Intel Bluetooth wake udev rule already installed."
+  else
+    echo "${bluetooth_udev_rule}" | sudo tee "${bluetooth_udev}" >/dev/null
+    sudo udevadm control --reload
+    log_success "Intel Bluetooth wake udev rule installed."
+  fi
+
+  local bluetooth_usb
+  for bluetooth_usb in /sys/bus/usb/devices/*; do
+    [[ -f "${bluetooth_usb}/idVendor" && -f "${bluetooth_usb}/idProduct" ]] || continue
+    [[ "$(<"${bluetooth_usb}/idVendor")" == "8087" ]] || continue
+    [[ "$(<"${bluetooth_usb}/idProduct")" == "0036" ]] || continue
+    if [[ -w "${bluetooth_usb}/power/wakeup" ]]; then
+      echo enabled > "${bluetooth_usb}/power/wakeup"
+    else
+      echo enabled | sudo tee "${bluetooth_usb}/power/wakeup" >/dev/null
+    fi
+    log "Bluetooth wake enabled on $(basename "${bluetooth_usb}")"
+  done
+}
+
 apply_wifi_regdomain() {
   # Without a regulatory domain the kernel sits in the "world" domain
   # (country 00): the whole 6 GHz band is disabled and TX power is capped,
@@ -393,10 +423,10 @@ PYEOF
   if pgrep -x firefox >/dev/null 2>&1; then
     log_warn "Firefox is running — leaving its default zoom unchanged. Close Firefox and re-run setup.sh to set 125%."
   elif [[ -f "${content_prefs}" ]]; then
-    python3 - "${content_prefs}" <<'PYEOF'
+    if python3 - "${content_prefs}" <<'PYEOF'
 import sqlite3, sys, time
 
-db = sqlite3.connect(sys.argv[1])
+db = sqlite3.connect(sys.argv[1], timeout=2)
 try:
     setting = "browser.content.full-zoom"
     row = db.execute("SELECT id FROM settings WHERE name = ? ORDER BY id LIMIT 1", (setting,)).fetchone()
@@ -414,7 +444,14 @@ try:
 finally:
     db.close()
 PYEOF
-    log_success "Set Firefox default zoom to 125%."
+    then
+      log_success "Set Firefox default zoom to 125%."
+    else
+      # Firefox can keep the database locked even when its main process name
+      # is not exactly "firefox". A cosmetic preference must not abort the
+      # rest of the idempotent system setup.
+      log_warn "Firefox preferences database is busy — leaving default zoom unchanged. Close Firefox and re-run setup.sh to set 125%."
+    fi
   else
     log_warn "Firefox content preferences are not initialized yet — open Firefox once, close it, then re-run setup.sh to set 125% zoom."
   fi
@@ -526,6 +563,7 @@ main() {
 
   install_firacode_nerd_font
   apply_intel_wifi_d3cold_fix
+  apply_intel_bluetooth_wakeup
   apply_wifi_regdomain
   apply_wifi_reconnect_speedup
   apply_chrome_apt_arch
