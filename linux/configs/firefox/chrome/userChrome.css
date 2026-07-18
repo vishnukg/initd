@@ -2,9 +2,9 @@
    the built-in dark theme from user.js, so menus and popups stay consistently dark. */
 
 :root {
-  --od-bg:      #24232b;   /* darker Firefox-style toolbar background */
-  --od-bg-dark: #24232b;   /* darker Firefox-style tab strip background */
-  --od-surface: #151515;   /* fields, active tab */
+  --od-bg:      #15161b;   /* deep graphite toolbar */
+  --od-bg-dark: #0b0c10;   /* near-black tab strip */
+  --od-surface: #0f1014;   /* fields, active tab */
   --od-fg:      #e2e2e2;
   --od-muted:   #929292;
   --od-accent:  #b8b8b8;

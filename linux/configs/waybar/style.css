@@ -1,60 +1,80 @@
-/* Tokyo Night — transparent bar, matches the old polybar look. */
+/* Midnight Pastels — restrained graphite with cool, non-orange accents. */
 
 * {
-    font-family: "FiraCode Nerd Font Mono";
-    font-weight: bold;
-    font-size: 18px;
+    font-family: "Ubuntu Sans", "Noto Sans", "FiraCode Nerd Font Mono";
+    font-weight: 500;
+    font-size: 16px;
     min-height: 0;
 }
 
 window#waybar {
     background: transparent;
-    color: #c0caf5;
+    color: #ececf1;
+}
+
+.modules-left,
+.modules-right {
+    margin: 4px 10px;
+    padding: 0 10px;
+    background: rgba(21, 23, 32, 0.92);
+    border: 1px solid rgba(48, 52, 66, 0.88);
+    border-radius: 14px;
 }
 
 #workspaces button {
-    padding: 0 8px;
-    color: #565f89;
+    margin: 3px 2px;
+    padding: 0 11px;
+    color: #9299aa;
     background: transparent;
     border: none;
-    border-radius: 8px;
+    border-radius: 9px;
 }
 
-/* Active workspace: pastel green base, and each workspace slot cycles its
-   own pastel so every new workspace gets a different color. */
-#workspaces button.active {
-    color: #1e1e24;
-    background: #7fb99a;   /* muted pastel green */
+#workspaces button:hover {
+    color: #ececf1;
+    background: rgba(143, 183, 232, 0.14);
 }
-#workspaces button.active:nth-child(2)  { background: #9d8bc4; }  /* lavender */
-#workspaces button.active:nth-child(3)  { background: #82abbf; }  /* blue */
-#workspaces button.active:nth-child(4)  { background: #c996ab; }  /* pink */
-#workspaces button.active:nth-child(5)  { background: #7cbab6; }  /* aqua */
-#workspaces button.active:nth-child(6)  { background: #a984ce; }  /* lilac */
-#workspaces button.active:nth-child(7)  { background: #8fc79f; }  /* mint */
-#workspaces button.active:nth-child(8)  { background: #8a9fd1; }  /* periwinkle */
-#workspaces button.active:nth-child(9)  { background: #b48ebc; }  /* mauve */
-#workspaces button.active:nth-child(10) { background: #7f9bb3; }  /* steel blue */
+
+#workspaces button.active {
+    color: #0b0c12;
+    background: #8fb7e8;
+}
+
+/* Each workspace gets a distinct cool pastel; no orange/yellow hues. */
+#workspaces button.active:nth-child(2)  { background: #9bcda7; } /* sage */
+#workspaces button.active:nth-child(3)  { background: #c4b5fd; } /* lavender */
+#workspaces button.active:nth-child(4)  { background: #f0a6c2; } /* pink */
+#workspaces button.active:nth-child(5)  { background: #afcbff; } /* periwinkle */
+#workspaces button.active:nth-child(6)  { background: #9fe3c2; } /* mint */
+#workspaces button.active:nth-child(7)  { background: #93c5fd; } /* sky */
+#workspaces button.active:nth-child(8)  { background: #d8b4fe; } /* lilac */
+#workspaces button.active:nth-child(9)  { background: #99e2d0; } /* seafoam */
+#workspaces button.active:nth-child(10) { background: #e8a2b8; } /* rose */
 
 #workspaces button.urgent {
-    color: #1a1b2e;
-    background: #f7768e;
+    color: #0b0c12;
+    background: #ff6b7a;
 }
 
 #cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight,
 #custom-powerprofile, #battery, #tray, #custom-weather, #clock {
-    padding: 0 6px;
-    color: #c0caf5;
+    padding: 0 7px;
+    color: #ececf1;
+}
+
+#clock {
+    margin-left: 4px;
+    padding: 0 12px;
 }
 
 #network.disconnected, #pulseaudio.muted {
-    color: #565f89;
+    color: #9299aa;
 }
 
 #battery.critical:not(.charging) {
-    color: #f7768e;
+    color: #ff6b7a;
 }
 
 #battery.charging {
-    color: #9ece6a;
+    color: #65d6ad;
 }

@@ -5,8 +5,8 @@
 {
     "layer": "top",
     "position": "top",
-    "height": 36,
-    "spacing": 14,
+    "height": 42,
+    "spacing": 8,
 
     "modules-left": ["hyprland/workspaces"],
     "modules-center": [],
@@ -24,47 +24,47 @@
 
     "cpu": {
         "interval": 2,
-        "format": "<span size='15pt'>󰍛</span> {usage}%"
+        "format": "<span size='16pt'>󰍛</span> {usage}%"
     },
 
     "memory": {
         "interval": 3,
-        "format": "<span size='15pt'>󰾆</span> {percentage}%"
+        "format": "<span size='16pt'>󰾆</span> {percentage}%"
     },
 
     "custom/docker": {
         // Running container count; docker group membership is set by bootstrap.
         "exec": "docker ps -q 2>/dev/null | wc -l",
         "interval": 15,
-        "format": "<span size='22pt'>󰡨</span> {}",
+        "format": "<span size='23pt'>󰡨</span> {}",
         "on-click": "~/.config/docker-menu.sh",
         "tooltip": false
     },
 
     "network": {
         "interval": 5,
-        "format-wifi": "<span size='15pt'>󰤨</span> {essid}",
-        "format-ethernet": "<span size='15pt'>󰈀</span> {ipaddr}",
-        "format-disconnected": "<span size='15pt'>󰤭</span> --",
+        "format-wifi": "<span size='16pt'>󰤨</span> {essid}",
+        "format-ethernet": "<span size='16pt'>󰈀</span> {ipaddr}",
+        "format-disconnected": "<span size='16pt'>󰤭</span> --",
         "tooltip-format": "{ifname}: {ipaddr}"
     },
 
     "pulseaudio": {
-        "format": "<span size='15pt'>{icon}</span> {volume}%",
+        "format": "<span size='16pt'>{icon}</span> {volume}%",
         "format-muted": "󰝟 muted",
         "format-icons": { "default": ["󰕿", "󰖀", "󰕾"] },
         "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
     },
 
     "backlight": {
-        "format": "<span size='15pt'>{icon}</span> {percent}%",
+        "format": "<span size='16pt'>{icon}</span> {percent}%",
         "format-icons": ["󰃞", "󰃟", "󰃠"]
     },
 
     "custom/powerprofile": {
         "exec": "~/.config/power-profile-status.sh",
         "interval": 5,
-        "format": "<span size='15pt'>{}</span>",
+        "format": "<span size='16pt'>{}</span>",
         "on-click": "~/.config/power-profile-cycle.sh"
     },
 
@@ -80,7 +80,7 @@
     },
 
     "tray": {
-        "icon-size": 22,
+        "icon-size": 24,
         "spacing": 8
     },
 
@@ -98,6 +98,6 @@
 
     "clock": {
         "interval": 5,
-        "format": "<span size='15pt'>󰃭</span> {:%a %d %b %H:%M}"
+        "format": "<span size='16pt'>󰃭</span>  {:%a  %d  %b    %H:%M}"
     }
 }
