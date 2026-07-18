@@ -90,6 +90,14 @@ set -g fish_pager_color_progress 3b4252 --background=d08770 --bold
 set -g fish_pager_color_selected_background --background=434c5e
 
 # ── Vi mode ───────────────────────────────────────────────────────────────────
+# Fish's vi mode otherwise changes insert/replace modes to line/underline
+# cursors. Keep the terminal cursor a steady block in every mode.
+set -g fish_cursor_default block
+set -g fish_cursor_insert block
+set -g fish_cursor_replace_one block
+set -g fish_cursor_replace block
+set -g fish_cursor_visual block
+set -g fish_cursor_external block
 fish_vi_key_bindings
 # Restore Ctrl+A/E for line start/end in insert mode (ergonomic with vi mode)
 bind -M insert \ca beginning-of-line

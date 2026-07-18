@@ -131,7 +131,7 @@ The hybrid costs and gains:
 |---|---|
 | `[settings]` | Global mise settings (e.g. `experimental = true` for the `dotnet:` backend) |
 | `[tools]` runtimes | `node`, `python`, `go`, `dotnet`, `terraform` — language runtimes with pinned versions |
-| `[tools]` LSPs + CLI tools | Everything nvim's LSP config and null-ls expect to find on PATH |
+| `[tools]` LSPs + CLI tools | Everything nvim's LSP config and none-ls (null-ls API) expect to find on PATH |
 
 Claude Code is installed as `claude-code` from the mise registry
 (`aqua:anthropics/claude-code`), which downloads the platform-native binary
@@ -171,5 +171,6 @@ Add a line to `[tools]` in `mise/.config/mise/config.toml` and run
 "npm:ts-node" = "latest"
 ```
 
-If the tool also needs to be available to nvim (formatter, linter, LSP server),
-that's all you need — nvim already has the shim directory on its PATH.
+If the tool also needs to be available to nvim, the shim makes the binary
+discoverable. Register an LSP in `lua/user/lsp/servers.lua`, or add its
+formatter/linter source in `lua/user/lsp/null-ls.lua`, before Neovim will use it.

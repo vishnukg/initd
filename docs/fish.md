@@ -45,46 +45,27 @@ survive across sessions without `config.fish` needing to run. Useful for
 preferences you want to set once (e.g. `set -U fish_greeting ""`), but
 unnecessary for PATH — since `config.fish` always runs at session start anyway.
 
-## Homebrew + Neovim subprocess PATH (Apple Silicon)
+## Neovim subprocess PATH
 
-On macOS Apple Silicon, there's a long-standing interaction between fish, the
-system `path_helper`, and Homebrew that bites Neovim plugins (specifically
-`none-ls` / `null-ls`) when they spawn subprocesses for tools like `yamllint`
-and `golangci-lint`.
+Neovim and none-ls inherit their environment from the shell that launches
+them; the Neovim config does not rewrite `vim.env.PATH`.
 
-**Why it happens:**
+`config.fish` establishes the portable PATH before its interactive-shell early
+return:
 
-1. macOS ships a tool called `path_helper` that reads `/etc/paths` and rebuilds
-   `PATH` at shell startup. On Apple Silicon, `/etc/paths` only contains
-   `/usr/bin`, `/bin`, `/usr/sbin`, `/sbin` — **not** `/opt/homebrew/bin`.
-2. Fish invokes `path_helper` on startup, which can strip or reorder
-   `/opt/homebrew/bin` even after `fish_add_path` has put it in.
-3. Neovim launches, inherits the truncated `PATH`. When `null_ls.setup()` runs
-   `vim.fn.executable("yamllint")`, the binary is not found.
+```fish
+# Apple Silicon only, when Homebrew exists
+fish_add_path /opt/homebrew/bin /opt/homebrew/sbin
 
-**Why zsh doesn't have this problem:**
-
-zsh on macOS sources `/etc/zprofile` exactly once at **login** — `path_helper`
-runs there, then `~/.zprofile` (or the user's profile config) appends Homebrew
-after it. Because login shells only run once per session, that order sticks for
-every child process. Fish doesn't have an equivalent login-only hook; it runs
-its full config on every invocation, and `path_helper` can be re-evaluated.
-
-**Workaround:**
-
-Rather than modify system files (`/etc/paths.d/homebrew`), the fix is applied at
-the Neovim layer in `nvim/.config/nvim/lua/user/lsp/null-ls.lua` — it prepends
-`/opt/homebrew/bin` to `vim.env.PATH` immediately before `null_ls.setup()` runs.
-See the Neovim docs (`docs/nvim.md`) for the full explanation.
-
-The "proper" fix would be:
-
-```bash
-echo "/opt/homebrew/bin" | sudo tee /etc/paths.d/homebrew
+# Every platform and shell context
+fish_add_path ~/.local/share/mise/shims
 ```
 
-But that requires `sudo` and modifies a system file, which Homebrew itself
-deliberately avoids. The Neovim-level workaround is narrower and reversible.
+That means interactive shells, `fish -c`, Neovim, and commands spawned by
+none-ls all see the same mise-managed LSP/formatter binaries. Interactive fish
+also uses the cached `mise activate` hook so direct tool directories take
+precedence over shims; non-interactive contexts retain the stable shim fallback.
+There is no `/etc/paths` modification or Neovim-specific PATH workaround.
 
 ## Abbreviations vs aliases
 

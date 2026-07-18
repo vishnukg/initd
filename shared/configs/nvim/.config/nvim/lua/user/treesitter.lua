@@ -1,6 +1,7 @@
--- Configure nvim-treesitter (main branch rewrite, Neovim 0.11+)
+-- Configure nvim-treesitter (main branch rewrite, Neovim 0.12+)
 local treesitter = require("nvim-treesitter")
 local treesitter_attached = {}
+local available_parsers = treesitter.get_available()
 
 treesitter.setup({
 	install_dir = vim.fn.stdpath("data") .. "/site",
@@ -20,9 +21,16 @@ local indent_disabled = { yaml = true, html = true, cs = true }
 ---@param language string
 ---@param retried boolean?
 local function try_attach(buf, language, retried)
+	-- Parser installation is asynchronous; the originating buffer may have
+	-- disappeared before its callback runs.
+	if not vim.api.nvim_buf_is_valid(buf) or not vim.api.nvim_buf_is_loaded(buf) then
+		return
+	end
+
 	if not vim.treesitter.language.add(language) then
-		-- .so missing despite queries existing — force a reinstall once
-		if not retried and vim.tbl_contains(treesitter.get_available(), language) then
+		-- Prefer any parser already on runtimepath (including Neovim's bundled
+		-- parsers). Only download when language.add confirms none is available.
+		if not retried and vim.tbl_contains(available_parsers, language) then
 			treesitter.install(language, { force = true }):await(function()
 				try_attach(buf, language, true)
 			end)
@@ -45,8 +53,6 @@ local function try_attach(buf, language, retried)
 		vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
 	end
 end
-
-local available_parsers = treesitter.get_available()
 
 -- Suspend fold recomputation during insert mode to avoid per-keystroke treesitter parse lag
 local fold_insert_group = vim.api.nvim_create_augroup("FoldInsertMode", { clear = true })
@@ -81,16 +87,6 @@ vim.api.nvim_create_autocmd("FileType", {
 		local language = vim.treesitter.language.get_lang(filetype)
 		if not language then return end
 
-		local installed = treesitter.get_installed("parsers")
-
-		if vim.tbl_contains(installed, language) then
-			try_attach(buf, language)
-		elseif vim.tbl_contains(available_parsers, language) then
-			-- auto-install then attach
-			treesitter.install(language):await(function() try_attach(buf, language) end)
-		else
-			-- parser may exist outside nvim-treesitter (e.g. bundled by Neovim)
-			try_attach(buf, language)
-		end
+		try_attach(buf, language)
 	end,
 })

@@ -10,7 +10,9 @@ return {
 				typeCheckingMode = "basic",
 				autoSearchPaths = true,
 				useLibraryCodeForTypes = true,
-				diagnosticMode = "workspace",
+				-- Analyse open files eagerly; avoids indexing every Python file in
+				-- large monorepos while preserving editor diagnostics.
+				diagnosticMode = "openFilesOnly",
 				-- ruff owns linting (Pyflakes-class checks); silence pyright's
 				-- overlapping rules so each issue is reported once. pyright still
 				-- does everything ruff can't — type errors.
