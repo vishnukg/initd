@@ -44,6 +44,7 @@ power-profiles-daemon
 arc-theme
 papirus-icon-theme
 dmz-cursor-theme
+fonts-firacode
 
 # ── Dev tools (cross-platform equivalents of Brewfile entries) ───────────────
 fish
