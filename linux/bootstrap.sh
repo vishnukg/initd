@@ -69,31 +69,35 @@ EOF
 }
 
 ensure_firefox() {
-  if [[ -f /etc/apt/sources.list.d/mozilla.list ]]; then
-    log_success "Firefox already installed from Mozilla's apt repo."
-    return
-  fi
-
   # Ubuntu's `firefox` apt package is a transitional stub that installs the
   # snap. Add Mozilla's official repo, pinned above the Ubuntu archive, so a
   # plain `apt install firefox` resolves to the real .deb.
-  log "Adding Mozilla's official apt repo for Firefox..."
-  require_command wget "to fetch the Mozilla signing key"
+  if [[ ! -f /etc/apt/sources.list.d/mozilla.list ]]; then
+    log "Adding Mozilla's official apt repo for Firefox..."
+    require_command wget "to fetch the Mozilla signing key"
 
-  sudo install -d -m 0755 /etc/apt/keyrings
-  wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- \
-    | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
-  echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" \
-    | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
-  sudo tee /etc/apt/preferences.d/mozilla.pref > /dev/null << 'EOF'
+    sudo install -d -m 0755 /etc/apt/keyrings
+    wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- \
+      | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
+    echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" \
+      | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
+    sudo tee /etc/apt/preferences.d/mozilla.pref > /dev/null << 'EOF'
 Package: *
 Pin: origin packages.mozilla.org
 Pin-Priority: 1000
 EOF
 
-  sudo apt-get update -qq
-  sudo apt-get install -y firefox
-  log_success "Firefox installed from Mozilla's apt repo."
+    sudo apt-get update -qq
+  fi
+
+  # Do not treat the repository file alone as proof of a completed install: an
+  # interrupted earlier bootstrap can leave the repo configured but no browser.
+  if ! command -v firefox >/dev/null 2>&1 || ! dpkg -s firefox >/dev/null 2>&1; then
+    sudo apt-get install -y firefox
+    log_success "Firefox installed from Mozilla's apt repo."
+  else
+    log_success "Firefox already installed from Mozilla's apt repo."
+  fi
 }
 
 ensure_docker() {
