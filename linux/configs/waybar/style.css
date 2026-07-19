@@ -43,29 +43,31 @@ window#waybar {
 
 #workspaces button:hover {
     color: #f4f5f8;
-    background: rgba(127, 185, 154, 0.12);
+    background: rgba(138, 145, 153, 0.12);
 }
 
 #workspaces button.active {
-    color: #0b0d13;
-    background: #7fb99a;
+    color: #f4f5f8;
+    background: transparent;
+    border-bottom: 5px solid #84a599;
+    border-radius: 0;
     font-weight: 700;
-    box-shadow: 0 0 8px rgba(127, 185, 154, 0.24);
+    box-shadow: none;
 }
 
 /* Pastel cycle by button position (CSS can't key on the workspace number
    itself without persistent buttons). Adjacent slots alternate hue families
    — green base, then lavender/blue/pink/mint/… — so any set of open
    workspaces always shows clearly distinct colors. No warm tones. */
-#workspaces button.active:nth-child(2)  { background: #c4b5fd; }  /* lavender */
-#workspaces button.active:nth-child(3)  { background: #afcbff; }  /* powder blue */
-#workspaces button.active:nth-child(4)  { background: #f0a6c2; }  /* pink */
-#workspaces button.active:nth-child(5)  { background: #9fe3c2; }  /* mint */
-#workspaces button.active:nth-child(6)  { background: #d8b4fe; }  /* purple */
-#workspaces button.active:nth-child(7)  { background: #93c5fd; }  /* sky */
-#workspaces button.active:nth-child(8)  { background: #e8a2b8; }  /* rose */
-#workspaces button.active:nth-child(9)  { background: #99e2d0; }  /* seafoam */
-#workspaces button.active:nth-child(10) { background: #8a9fd1; }  /* periwinkle */
+#workspaces button.active:nth-child(2)  { border-bottom-color: #a7a3cb; }  /* lavender */
+#workspaces button.active:nth-child(3)  { border-bottom-color: #9caecc; }  /* powder blue */
+#workspaces button.active:nth-child(4)  { border-bottom-color: #bd9bad; }  /* pink */
+#workspaces button.active:nth-child(5)  { border-bottom-color: #94baad; }  /* mint */
+#workspaces button.active:nth-child(6)  { border-bottom-color: #b1a2cb; }  /* purple */
+#workspaces button.active:nth-child(7)  { border-bottom-color: #8eabcb; }  /* sky */
+#workspaces button.active:nth-child(8)  { border-bottom-color: #b999a8; }  /* rose */
+#workspaces button.active:nth-child(9)  { border-bottom-color: #91b9b4; }  /* seafoam */
+#workspaces button.active:nth-child(10) { background: #8a98b5; }  /* periwinkle */
 
 #workspaces button.urgent {
     color: #0b0d13;
@@ -105,7 +107,7 @@ tooltip {
     padding: 8px 10px;
     color: #e8eaf0;
     background: rgba(16, 18, 25, 0.98);
-    border: 1px solid rgba(127, 185, 154, 0.28);
+    border: 1px solid rgba(138, 145, 153, 0.28);
     border-radius: 10px;
 }
 
