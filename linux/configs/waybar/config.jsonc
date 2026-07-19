@@ -5,11 +5,14 @@
 {
     "layer": "top",
     "position": "top",
-    "height": 42,
-    "spacing": 8,
+    "height": 44,
+    "spacing": 6,
+    // Floating-islands look: gap between the bar and the screen edges.
+    "margin-top": 6,
+    "margin-left": 10,
+    "margin-right": 10,
 
     "modules-left": ["hyprland/workspaces"],
-    "modules-center": [],
     "modules-right": [
         "custom/docker", "custom/weather", "cpu", "memory",
         "pulseaudio", "backlight", "custom/powerprofile", "battery",
@@ -24,47 +27,49 @@
 
     "cpu": {
         "interval": 2,
-        "format": "<span size='16pt'>󰍛</span> {usage}%"
+        "format": "<span size='17pt'>󰍛</span> {usage}%",
+        "tooltip-format": "CPU usage: {usage}%"
     },
 
     "memory": {
         "interval": 3,
-        "format": "<span size='16pt'>󰾆</span> {percentage}%"
+        "format": "<span size='17pt'>󰾆</span> {percentage}%",
+        "tooltip-format": "Memory used: {used:0.1f} GiB / {total:0.1f} GiB"
     },
 
     "custom/docker": {
         // Running container count; docker group membership is set by bootstrap.
         "exec": "docker ps -q 2>/dev/null | wc -l",
         "interval": 15,
-        "format": "<span size='23pt'>󰡨</span> {}",
+        "format": "<span size='21pt'>󰡨</span> {}",
         "on-click": "~/.config/docker-menu.sh",
         "tooltip": false
     },
 
     "network": {
         "interval": 5,
-        "format-wifi": "<span size='16pt'>󰤨</span> {essid}",
-        "format-ethernet": "<span size='16pt'>󰈀</span> {ipaddr}",
-        "format-disconnected": "<span size='16pt'>󰤭</span> --",
+        "format-wifi": "<span size='17pt'>󰤨</span> {essid}",
+        "format-ethernet": "<span size='17pt'>󰈀</span> wired",
+        "format-disconnected": "<span size='17pt'>󰤭</span> offline",
         "tooltip-format": "{ifname}: {ipaddr}"
     },
 
     "pulseaudio": {
-        "format": "<span size='16pt'>{icon}</span> {volume}%",
+        "format": "<span size='17pt'>{icon}</span> {volume}%",
         "format-muted": "󰝟 muted",
         "format-icons": { "default": ["󰕿", "󰖀", "󰕾"] },
         "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
     },
 
     "backlight": {
-        "format": "<span size='16pt'>{icon}</span> {percent}%",
+        "format": "<span size='17pt'>{icon}</span> {percent}%",
         "format-icons": ["󰃞", "󰃟", "󰃠"]
     },
 
     "custom/powerprofile": {
         "exec": "~/.config/power-profile-status.sh",
         "interval": 5,
-        "format": "<span size='16pt'>{}</span>",
+        "format": "<span size='17pt'>{}</span>",
         "on-click": "~/.config/power-profile-cycle.sh"
     },
 
@@ -80,8 +85,8 @@
     },
 
     "tray": {
-        "icon-size": 24,
-        "spacing": 8
+        "icon-size": 23,
+        "spacing": 7
     },
 
     "custom/weather": {
@@ -98,6 +103,19 @@
 
     "clock": {
         "interval": 5,
-        "format": "<span size='16pt'>󰃭</span>  {:%a  %d  %b    %H:%M}"
+        "format": "{:%a, %d %b  ·  %H:%M}",
+        "tooltip-format": "<tt><small>{calendar}</small></tt>",
+        "calendar": {
+            "mode": "month",
+            "weeks-pos": "right",
+            "on-scroll": 1,
+            "format": {
+                "months": "<b><span color='#8fb7e8'>{}</span></b>",
+                "days": "<span color='#aeb4c3'>{}</span>",
+                "weeks": "<span color='#6f7688'>W{}</span>",
+                "weekdays": "<span color='#c4b5fd'>{}</span>",
+                "today": "<b><span color='#0b0d13' background='#8fb7e8'> {} </span></b>"
+            }
+        }
     }
 }
