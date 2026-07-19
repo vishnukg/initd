@@ -353,16 +353,33 @@ link_firefox_profile() {
   # Match Firefox's own resolution order: legacy first, then XDG, then snap.
   local moz_dir=""
   local candidate
-  for candidate in \
-    "${HOME}/.mozilla/firefox" \
-    "${XDG_CONFIG_HOME:-${HOME}/.config}/mozilla/firefox" \
-    "${HOME}/snap/firefox/common/.mozilla/firefox"
-  do
-    if [[ -f "${candidate}/profiles.ini" ]]; then
-      moz_dir="${candidate}"
-      break
+  find_firefox_profile_root() {
+    for candidate in \
+      "${HOME}/.mozilla/firefox" \
+      "${XDG_CONFIG_HOME:-${HOME}/.config}/mozilla/firefox" \
+      "${HOME}/snap/firefox/common/.mozilla/firefox"
+    do
+      if [[ -f "${candidate}/profiles.ini" ]]; then
+        printf '%s\n' "${candidate}"
+        return 0
+      fi
+    done
+    return 1
+  }
+
+  moz_dir="$(find_firefox_profile_root || true)"
+
+  # A freshly installed Firefox has no profiles.ini until its first launch.
+  # Create the profile non-interactively so this initial bootstrap can install
+  # user.js and userChrome.css immediately rather than requiring a second run.
+  if [[ -z "${moz_dir}" ]] && command -v firefox >/dev/null 2>&1; then
+    log "Initializing the managed Firefox profile..."
+    if firefox --headless --CreateProfile default-release >/dev/null 2>&1; then
+      moz_dir="$(find_firefox_profile_root || true)"
+    else
+      log_warn "Firefox could not initialize a profile — theme linking will retry on the next setup run."
     fi
-  done
+  fi
 
   if [[ -z "${moz_dir}" ]]; then
     log "No firefox profile present — skipping."
@@ -396,7 +413,12 @@ PYEOF
     return
   fi
 
-  local ff_dir="${moz_dir}/${ff_profile}"
+  local ff_dir
+  if [[ "${ff_profile}" = /* ]]; then
+    ff_dir="${ff_profile}"
+  else
+    ff_dir="${moz_dir}/${ff_profile}"
+  fi
   mkdir -p "${ff_dir}/chrome"
 
   local pair target src

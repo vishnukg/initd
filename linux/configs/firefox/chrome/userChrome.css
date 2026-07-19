@@ -1,6 +1,200 @@
-/* Minimal on purpose: text sizing only — no layout/geometry overrides.
-   (The previous full theme's megabar hack broke dropdown alignment.) */
+/* Midnight Graphite for Firefox
+ *
+ * Matches Waybar, Rofi and Hyprland without turning the browser into a
+ * high-contrast terminal theme. Solid graphite surfaces reduce visual noise;
+ * soft blue marks keyboard focus and the current tab.
+ */
+
+:root {
+  color-scheme: dark !important;
+
+  --midnight-base: #0b0c12;
+  --midnight-toolbar: #101219;
+  --midnight-raised: #151720;
+  --midnight-hover: #1d202b;
+  --midnight-border: #303442;
+  --midnight-text: #ececf1;
+  --midnight-muted: #9299aa;
+  --midnight-blue: #8fb7e8;
+  --midnight-danger: #ff6b7a;
+
+  --lwt-accent-color: var(--midnight-base) !important;
+  --lwt-text-color: var(--midnight-text) !important;
+  --toolbar-bgcolor: var(--midnight-toolbar) !important;
+  --toolbar-color: var(--midnight-text) !important;
+  --toolbar-field-background-color: var(--midnight-base) !important;
+  --toolbar-field-color: var(--midnight-text) !important;
+  --toolbar-field-border-color: var(--midnight-border) !important;
+  --toolbar-field-focus-background-color: var(--midnight-base) !important;
+  --toolbar-field-focus-color: var(--midnight-text) !important;
+  --toolbar-field-focus-border-color: var(--midnight-blue) !important;
+  --toolbarbutton-icon-fill: #d9dce5 !important;
+  --toolbarbutton-icon-fill-attention: var(--midnight-blue) !important;
+  --tab-selected-bgcolor: var(--midnight-raised) !important;
+  --tab-selected-textcolor: var(--midnight-text) !important;
+  --tab-loading-fill: var(--midnight-blue) !important;
+  --tab-icon-overlay-stroke: var(--midnight-raised) !important;
+  --attention-dot-color: var(--midnight-danger) !important;
+  --focus-outline-color: var(--midnight-blue) !important;
+  --urlbarView-highlight-background: var(--midnight-hover) !important;
+  --urlbarView-highlight-color: var(--midnight-text) !important;
+  --arrowpanel-background: var(--midnight-raised) !important;
+  --arrowpanel-color: var(--midnight-text) !important;
+  --arrowpanel-border-color: var(--midnight-border) !important;
+  --panel-background: var(--midnight-raised) !important;
+  --panel-color: var(--midnight-text) !important;
+  --panel-border-color: var(--midnight-border) !important;
+  --sidebar-background-color: var(--midnight-toolbar) !important;
+  --sidebar-text-color: var(--midnight-text) !important;
+  --sidebar-border-color: var(--midnight-border) !important;
+}
+
+/* Keep the browser chrome calm and opaque, like the Waybar islands. */
+#navigator-toolbox,
+#TabsToolbar,
+#nav-bar,
+#PersonalToolbar {
+  background-color: var(--midnight-toolbar) !important;
+  background-image: none !important;
+  color: var(--midnight-text) !important;
+}
+
+#navigator-toolbox {
+  border-bottom: 1px solid var(--midnight-border) !important;
+}
+
+/* The address bar is the programmer element: code font, clear focus, no glow. */
+#urlbar-background,
+#searchbar {
+  background-color: var(--midnight-base) !important;
+  border: 1px solid var(--midnight-border) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+#urlbar[focused] > #urlbar-background,
+#searchbar:focus-within {
+  border-color: var(--midnight-blue) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--midnight-blue) 35%, transparent) !important;
+}
+
 #urlbar-input,
 #searchbar input {
-  font-size: 17px !important;
+  color: var(--midnight-text) !important;
+  font-family: "FiraCode Nerd Font Mono", "Fira Code", monospace !important;
+  font-size: 15px !important;
+  font-weight: 450 !important;
+  letter-spacing: -0.1px !important;
+}
+
+#urlbar-input::selection,
+#searchbar input::selection {
+  color: var(--midnight-base) !important;
+  background-color: var(--midnight-blue) !important;
+}
+
+.urlbarView-url,
+.urlbarView-action {
+  color: var(--midnight-muted) !important;
+  font-family: "FiraCode Nerd Font Mono", "Fira Code", monospace !important;
+  font-size: 0.92em !important;
+}
+
+/* Tabs stay comfortably sized, with one cool-blue active indicator. */
+.tabbrowser-tab .tab-background {
+  margin-block: 4px 3px !important;
+  border-radius: 8px !important;
+  outline: none !important;
+}
+
+.tabbrowser-tab:not([selected]):hover .tab-background {
+  background-color: var(--midnight-hover) !important;
+}
+
+.tabbrowser-tab[selected] .tab-background {
+  background-color: var(--midnight-raised) !important;
+  box-shadow: inset 0 -2px 0 var(--midnight-blue) !important;
+}
+
+.tabbrowser-tab[selected] .tab-label {
+  color: var(--midnight-text) !important;
+  font-weight: 650 !important;
+}
+
+.tabbrowser-tab:not([selected]) .tab-label {
+  color: #b8bdc9 !important;
+}
+
+.tabbrowser-tab[attention] .tab-label {
+  color: var(--midnight-danger) !important;
+}
+
+/* Rounded, quiet controls; keyboard focus remains unmistakable. */
+:where(.toolbarbutton-1, toolbarbutton.bookmark-item) > :where(.toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-badge-stack) {
+  border-radius: 8px !important;
+}
+
+:where(.toolbarbutton-1, toolbarbutton.bookmark-item):hover > :where(.toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-badge-stack) {
+  background-color: var(--midnight-hover) !important;
+}
+
+:where(.toolbarbutton-1, toolbarbutton.bookmark-item):focus-visible > :where(.toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-badge-stack) {
+  outline: 2px solid var(--midnight-blue) !important;
+  outline-offset: -1px !important;
+}
+
+#PersonalToolbar .bookmark-item {
+  color: #c9cdd6 !important;
+  font-size: 14px !important;
+}
+
+/* Panels, menus, sidebars and the find bar share the same raised surface. */
+panelview,
+menupopup,
+#sidebar-box,
+findbar {
+  color: var(--midnight-text) !important;
+  background-color: var(--midnight-raised) !important;
+}
+
+menuitem:hover,
+menu:hover,
+.subviewbutton:hover {
+  color: var(--midnight-text) !important;
+  background-color: var(--midnight-hover) !important;
+}
+
+#sidebar-header,
+findbar {
+  border-color: var(--midnight-border) !important;
+}
+
+.findbar-textbox {
+  color: var(--midnight-text) !important;
+  background-color: var(--midnight-base) !important;
+  border-color: var(--midnight-border) !important;
+  border-radius: 8px !important;
+}
+
+#statuspanel-label {
+  color: var(--midnight-muted) !important;
+  background-color: var(--midnight-raised) !important;
+  border: 1px solid var(--midnight-border) !important;
+  border-radius: 0 8px 0 0 !important;
+  font-family: "FiraCode Nerd Font Mono", "Fira Code", monospace !important;
+  font-size: 12px !important;
+}
+
+/* Avoid flashes of bright chrome while windows initialize. */
+#browser,
+#appcontent {
+  background-color: var(--midnight-base) !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #urlbar-background,
+  .tabbrowser-tab .tab-background,
+  .toolbarbutton-1 > .toolbarbutton-icon {
+    transition: background-color 120ms ease, border-color 120ms ease !important;
+  }
 }

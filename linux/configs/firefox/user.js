@@ -3,13 +3,16 @@
 // the driver stack is safe — never force-enable compositor/decode paths here
 // (the old X11-era force flags caused visual glitching under Wayland).
 
-// Stock Firefox look: default theme, default density, no userChrome CSS.
-// (Values set explicitly to override anything persisted in prefs.js from the
-// earlier custom-theme era.)
-// userChrome.css enabled for ONE text-size rule (see chrome/userChrome.css).
+// Midnight graphite chrome: Firefox's built-in dark theme provides dark native
+// dialogs and safe icon defaults; userChrome.css applies the shared system
+// palette. Keep normal density so the programmer aesthetic stays comfortable.
 user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
-user_pref("extensions.activeThemeID", "default-theme@mozilla.org");
+user_pref("extensions.activeThemeID", "firefox-compact-dark@mozilla.org");
 user_pref("browser.uidensity", 0);
+
+// Dark built-in pages and a dark canvas prevent white flashes on new tabs.
+user_pref("browser.theme.content-theme", 2);
+user_pref("browser.display.background_color.dark", "#0b0c12");
 
 // Typography: Ubuntu Sans gives Firefox a crisp, contemporary proportional
 // interface and is shipped with Ubuntu. Keep Fira Code for source and terminal
