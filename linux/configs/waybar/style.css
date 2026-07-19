@@ -1,74 +1,96 @@
-/* Midnight Pastels — restrained graphite with cool, non-orange accents. */
+/* Graphite menu bar — macOS-inspired spacing with pastel workspaces. */
 
 * {
     font-family: "Ubuntu Sans", "Noto Sans", "FiraCode Nerd Font Mono";
     font-weight: 500;
-    font-size: 16px;
+    font-size: 18px;
     min-height: 0;
+    border: none;
 }
 
+/* Floating islands: the bar window is invisible; each module cluster is its
+   own rounded translucent pill, hovering below the top edge. */
 window#waybar {
     background: transparent;
-    color: #ececf1;
+    color: #e8eaf0;
 }
 
 .modules-left,
 .modules-right {
-    margin: 4px 10px;
-    padding: 0 10px;
-    background: rgba(21, 23, 32, 0.92);
-    border: 1px solid rgba(48, 52, 66, 0.88);
+    padding: 0 8px;
+    background: rgba(16, 18, 25, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* No center island — keep the empty center box invisible. */
+.modules-center {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
 }
 
 #workspaces button {
-    margin: 3px 2px;
-    padding: 0 11px;
-    color: #9299aa;
+    margin: 3px 1px;
+    padding: 0 9px;
+    color: #858c9e;
     background: transparent;
-    border: none;
-    border-radius: 9px;
+    border-radius: 8px;
+    box-shadow: none;
 }
 
 #workspaces button:hover {
-    color: #ececf1;
-    background: rgba(143, 183, 232, 0.14);
+    color: #f4f5f8;
+    background: rgba(127, 185, 154, 0.12);
 }
 
 #workspaces button.active {
-    color: #0b0c12;
-    background: #8fb7e8;
+    color: #0b0d13;
+    background: #7fb99a;
+    font-weight: 700;
+    box-shadow: 0 0 8px rgba(127, 185, 154, 0.24);
 }
 
-/* Each workspace gets a distinct cool pastel; no orange/yellow hues. */
-#workspaces button.active:nth-child(2)  { background: #9bcda7; } /* sage */
-#workspaces button.active:nth-child(3)  { background: #c4b5fd; } /* lavender */
-#workspaces button.active:nth-child(4)  { background: #f0a6c2; } /* pink */
-#workspaces button.active:nth-child(5)  { background: #afcbff; } /* periwinkle */
-#workspaces button.active:nth-child(6)  { background: #9fe3c2; } /* mint */
-#workspaces button.active:nth-child(7)  { background: #93c5fd; } /* sky */
-#workspaces button.active:nth-child(8)  { background: #d8b4fe; } /* lilac */
-#workspaces button.active:nth-child(9)  { background: #99e2d0; } /* seafoam */
-#workspaces button.active:nth-child(10) { background: #e8a2b8; } /* rose */
+/* Pastel cycle by button position (CSS can't key on the workspace number
+   itself without persistent buttons). Adjacent slots alternate hue families
+   — green base, then lavender/blue/pink/mint/… — so any set of open
+   workspaces always shows clearly distinct colors. No warm tones. */
+#workspaces button.active:nth-child(2)  { background: #c4b5fd; }  /* lavender */
+#workspaces button.active:nth-child(3)  { background: #afcbff; }  /* powder blue */
+#workspaces button.active:nth-child(4)  { background: #f0a6c2; }  /* pink */
+#workspaces button.active:nth-child(5)  { background: #9fe3c2; }  /* mint */
+#workspaces button.active:nth-child(6)  { background: #d8b4fe; }  /* purple */
+#workspaces button.active:nth-child(7)  { background: #93c5fd; }  /* sky */
+#workspaces button.active:nth-child(8)  { background: #e8a2b8; }  /* rose */
+#workspaces button.active:nth-child(9)  { background: #99e2d0; }  /* seafoam */
+#workspaces button.active:nth-child(10) { background: #8a9fd1; }  /* periwinkle */
 
 #workspaces button.urgent {
-    color: #0b0c12;
+    color: #0b0d13;
     background: #ff6b7a;
 }
 
 #cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight,
 #custom-powerprofile, #battery, #tray, #custom-weather, #clock {
-    padding: 0 7px;
-    color: #ececf1;
+    padding: 0 8px;
+    color: #d9dce5;
 }
 
 #clock {
-    margin-left: 4px;
-    padding: 0 12px;
+    padding: 0 10px;
+    color: #f3f4f7;
+    font-weight: 600;
+}
+
+#cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight,
+#custom-powerprofile, #custom-weather, #clock, #tray {
+    color: #f4f5f8;
 }
 
 #network.disconnected, #pulseaudio.muted {
-    color: #9299aa;
+    color: #777e90;
 }
 
 #battery.critical:not(.charging) {
@@ -77,4 +99,16 @@ window#waybar {
 
 #battery.charging {
     color: #65d6ad;
+}
+
+tooltip {
+    padding: 8px 10px;
+    color: #e8eaf0;
+    background: rgba(16, 18, 25, 0.98);
+    border: 1px solid rgba(127, 185, 154, 0.28);
+    border-radius: 10px;
+}
+
+tooltip label {
+    color: #e8eaf0;
 }
