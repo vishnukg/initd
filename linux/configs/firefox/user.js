@@ -3,16 +3,13 @@
 // the driver stack is safe — never force-enable compositor/decode paths here
 // (the old X11-era force flags caused visual glitching under Wayland).
 
-// Enable userChrome.css and userContent.css
+// Stock Firefox look: default theme, default density, no userChrome CSS.
+// (Values set explicitly to override anything persisted in prefs.js from the
+// earlier custom-theme era.)
+// userChrome.css enabled for ONE text-size rule (see chrome/userChrome.css).
 user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
-
-// Built-in dark theme (a fresh profile defaults to "system auto", which can
-// resolve light under Hyprland where no desktop color-scheme is set).
-user_pref("extensions.activeThemeID", "firefox-compact-dark@mozilla.org");
-
-// Compact UI density
-user_pref("browser.uidensity", 1);
-user_pref("browser.compactmode.show", true);
+user_pref("extensions.activeThemeID", "default-theme@mozilla.org");
+user_pref("browser.uidensity", 0);
 
 // Typography: Ubuntu Sans gives Firefox a crisp, contemporary proportional
 // interface and is shipped with Ubuntu. Keep Fira Code for source and terminal

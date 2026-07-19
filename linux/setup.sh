@@ -402,8 +402,7 @@ PYEOF
   local pair target src
   for pair in \
     "user.js:${ff_dir}/user.js" \
-    "chrome/userChrome.css:${ff_dir}/chrome/userChrome.css" \
-    "chrome/userContent.css:${ff_dir}/chrome/userContent.css"
+    "chrome/userChrome.css:${ff_dir}/chrome/userChrome.css"
   do
     target="${pair#*:}"
     src="${CONFIGS_DIR}/firefox/${pair%%:*}"
