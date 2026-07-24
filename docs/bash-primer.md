@@ -24,7 +24,7 @@ developer can follow like a checklist.
 | `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` array. Sources `fs.sh`. |
 | `<platform>/managed-links.sh` | Appends platform-specific entries to `MANAGED_LINKS`. |
 | `macos/defaults.sh` | Apply macOS system defaults (key repeat, hushlogin). |
-| `macos/update.sh` / `linux/update.sh` | Upgrade Homebrew/apt packages and mise-managed tools. |
+| `macos/update.sh` / `linux/update.sh` | Upgrade Homebrew/apt packages and mise-managed tools; Linux also self-updates mise. |
 | `shared/lib/logging.sh` | Colored log helpers: `log`, `log_info`, `log_success`, `log_warn`, `log_error`. |
 | `shared/test.sh` | Behavior tests that run against temporary home directories. |
 
