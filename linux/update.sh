@@ -10,12 +10,13 @@ usage() {
   cat <<EOF
 Usage: ${0##*/}
 
-Update apt packages and mise-managed tools.
+Update apt packages, mise itself, and mise-managed tools.
 
 Runs:
   sudo apt-get update
   sudo apt-get upgrade -y
   sudo apt-get autoremove -y
+  mise self-update --yes
   mise upgrade --yes
 
 Options:
@@ -42,7 +43,10 @@ main() {
   log "Removing obsolete packages..."
   sudo apt-get autoremove -y
 
-  require_command mise "to upgrade mise-managed tools"
+  require_command mise "to update mise and its managed tools"
+  log "Updating mise..."
+  mise self-update --yes
+
   log "Upgrading mise-managed tools..."
   mise upgrade --yes
 
