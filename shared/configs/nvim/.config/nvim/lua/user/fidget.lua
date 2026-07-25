@@ -46,3 +46,16 @@ require("fidget").setup({
 		},
 	},
 })
+
+-- Neovim reports missing paths from an LSP watch registration as an INFO
+-- notification (for example, gopls may register a non-existent vendor/
+-- directory in a multi-module workspace). The watch is skipped and LSP
+-- features remain functional, so keep this implementation detail out of the
+-- notification UI without hiding other notifications.
+local fidget_notify = vim.notify
+vim.notify = function(msg, level, opts)
+	if msg == "watch.watch: ENOENT: no such file or directory" then
+		return
+	end
+	return fidget_notify(msg, level, opts)
+end
