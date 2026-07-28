@@ -6,7 +6,7 @@ existing=$(tmux show-options -wqv -t "$win_id" @emoji 2>/dev/null)
 
 # Mostly fruit, sweets and snacks, plus a few vegetables - kept unambiguously
 # meat- and alcohol-free.
-emojis=(🍎 🍏 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍒 🍑 🥭 🍍 🥝 🍅 🥑 🌽 🥕 ☕
+emojis=(🍎 🍏 🍐 🍊 🍋 🍉 🍇 🍓 🍒 🥭 🍍 🥝 🍅 🌽 🥕 ☕
         🍕 🍩 🍪 🎂 🧁 🍰 🥐 🥯 🥞 🧇 🍫 🍬 🍭 🍯 🥧 🍞 🧀 🥨 🍦 🍨 🍿 🍵 🧃 🧋 🍮)
 
 # Preserve an existing icon when it is already part of the curated set. This
