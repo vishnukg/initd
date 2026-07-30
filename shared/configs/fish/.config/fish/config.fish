@@ -107,7 +107,7 @@ bind -M insert \ce end-of-line
 alias vi nvim
 alias vim nvim
 alias l 'ls -la'
-alias ssh 'TERM=xterm-256color ssh'
+alias ssh 'TERM=xterm-256color command ssh'
 
 # ── Git abbreviations ────────────────────────────────────────────────────────
 abbr -a g    git
