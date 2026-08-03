@@ -1,6 +1,8 @@
 require("fidget").setup({
 	notification = {
-		override_vim_notify = true, -- Route vim.notify to Fidget
+		-- vim.notify is routed to Fidget manually below (with a message filter);
+		-- override_vim_notify stays false so :checkhealth doesn't flag the wrapper.
+		override_vim_notify = false,
 		window = {
 			winblend = 0, -- Transparency (0 = opaque, 100 = transparent)
 			border = "none", -- No border
@@ -52,7 +54,7 @@ require("fidget").setup({
 -- directory in a multi-module workspace). The watch is skipped and LSP
 -- features remain functional, so keep this implementation detail out of the
 -- notification UI without hiding other notifications.
-local fidget_notify = vim.notify
+local fidget_notify = require("fidget.notification").notify
 vim.notify = function(msg, level, opts)
 	if msg == "watch.watch: ENOENT: no such file or directory" then
 		return
