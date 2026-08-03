@@ -190,8 +190,8 @@ M.setup = function()
 				})
 			end
 
-			-- Inlay hints (skip csharp_ls: tends to be too noisy)
-			if client.server_capabilities.inlayHintProvider and client.name ~= "csharp_ls" then
+			-- Inlay hints (skip roslyn_ls: C# hints tend to be too noisy)
+			if client.server_capabilities.inlayHintProvider and client.name ~= "roslyn_ls" then
 				vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
 			end
 

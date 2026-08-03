@@ -12,7 +12,7 @@ treesitter.setup({
 treesitter.install({ "markdown_inline", "luadoc", "jsdoc", "regex" })
 
 -- Filetypes where treesitter indentation is known to be broken
--- (cs: easy-dotnet's healthcheck flags treesitter indentexpr as breaking C# indentation)
+-- (cs: treesitter indentexpr breaks C# indentation)
 local indent_disabled = { yaml = true, html = true, cs = true }
 
 ---Attach treesitter features (highlighting, folding, indentation) to a buffer.
