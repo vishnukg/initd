@@ -296,7 +296,7 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 | **Bash** | bashls | — | — | — |
 | **TOML** | taplo | taplo | — | — |
 | **Terraform / HCL** | terraformls | terraform_fmt | terraformls | — |
-| **C#** | csharp_ls | csharpier | — | neotest-vstest |
+| **C#** | roslyn_ls | csharpier | — | neotest-vstest |
 | **Dockerfile** | dockerls | — | hadolint | — |
 
 > ¹ ESLint and Stylelint diagnostics activate only when a corresponding project config exists.

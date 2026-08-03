@@ -13,7 +13,7 @@ local lsp_servers = {
 	"emmet_ls",
 	"taplo",
 	"terraformls",
-	"csharp_ls",
+	"roslyn_ls",
 	"dockerls",
 }
 

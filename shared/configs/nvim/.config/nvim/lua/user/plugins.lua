@@ -218,28 +218,6 @@ return require("lazy").setup({
 		config = function() require("user.gopher") end,
 	},
 
-	-- .NET
-	{
-		"GustavEikaas/easy-dotnet.nvim",
-		dependencies = { "nvim-lua/plenary.nvim", "ibhagwan/fzf-lua" },
-		cmd = "Dotnet",
-		event = {
-			"BufReadPost *.csproj",  "BufReadPost *.fsproj",  "BufReadPost *.vbproj",
-			"BufReadPost *.sln",     "BufReadPost *.slnx",
-			"BufNewFile *.csproj",   "BufNewFile *.fsproj",   "BufNewFile *.vbproj",
-			"BufNewFile *.sln",      "BufNewFile *.slnx",
-		},
-		config = function()
-			require("easy-dotnet").setup({
-				picker = "fzf",
-				-- Roslyn LSP disabled: csharp_ls handles all features consistently
-				-- with the rest of the LSP stack (gopls, pyright, etc).
-				lsp = { enabled = false },
-			})
-		end,
-		ft = { "cs", "fs", "vb" },
-	},
-
 	-- Surround — manipulate surrounding characters (ys, cs, ds)
 	{
 		"kylechui/nvim-surround",

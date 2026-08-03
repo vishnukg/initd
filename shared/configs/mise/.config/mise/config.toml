@@ -1,5 +1,5 @@
 [settings]
-experimental              = true            # required for dotnet: backend (csharp-ls, csharpier)
+experimental              = true            # required for dotnet: backend (roslyn-language-server, csharpier)
 github.credential_command = "gh auth token" # use gh CLI for GitHub auth instead of a stored token
 # Install pipx: tools with uv instead of pipx. uv builds their venvs against
 # its own managed pythons (~/.local/share/uv), which mise upgrades never
@@ -39,7 +39,9 @@ yarn      = ["latest", "1.22.22"]
 "npm:yaml-language-server"              = "latest" # yamlls
 "npm:emmet-ls"                          = "latest" # emmet_ls
 "npm:dockerfile-language-server-nodejs" = "latest" # dockerls
-"dotnet:csharp-ls"                      = "latest" # csharp_ls
+# Microsoft's official Roslyn LSP (same engine as VS Code's C# extension).
+# Prerelease-only versioning is normal — the package tracks Roslyn's CI feed.
+"dotnet:roslyn-language-server"         = "latest" # roslyn_ls
 
 # ── CLI tools ──────────────────────────────────────────────────────────
 "neovim"                 = "latest"
