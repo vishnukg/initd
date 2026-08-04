@@ -73,13 +73,6 @@ map("n", "<leader>tf", function() neotest().run.run(vim.fn.expand("%")) end,  d(
 map("n", "<leader>ts", function() neotest().summary.toggle() end,             d("Test: toggle summary"))
 map("n", "<leader>to", function() neotest().output.open({ enter = true }) end,d("Test: show output"))
 
--- ── Copilot Chat ──────────────────────────────────────────────────────────────
-map("n", "<leader>co",  "<cmd>Copilot toggle<CR>",     d("Copilot: toggle"))
-map("n", "<leader>cp",  "<cmd>CopilotChat<CR>",        d("Copilot Chat: open"))
-map("n", "<leader>cpe", "<cmd>CopilotChatExplain<CR>", d("Copilot Chat: explain"))
-map("n", "<leader>cpt", "<cmd>CopilotChatTests<CR>",   d("Copilot Chat: write tests"))
-map("n", "<leader>cpr", "<cmd>CopilotChatReset<CR>",   d("Copilot Chat: reset"))
-
 -- ── Trouble ───────────────────────────────────────────────────────────────────
 map("n", "<leader>xx", function() require("trouble").toggle("diagnostics") end,                              d("Trouble: workspace diagnostics"))
 map("n", "<leader>xd", function() require("trouble").toggle({ mode = "diagnostics", filter = { buf = 0 } }) end, d("Trouble: buffer diagnostics"))
