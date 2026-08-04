@@ -161,23 +161,6 @@ return require("lazy").setup({
 		config = function() require("user.neotest") end,
 	},
 
-	-- ── AI / Copilot ──────────────────────────────────────────────────────────
-	-- vim.g.copilot_filetypes is set in bootstrap.lua (must be before this loads).
-	{
-		"CopilotC-Nvim/CopilotChat.nvim",
-		dependencies = {
-			{ "github/copilot.vim" },
-			{ "nvim-lua/plenary.nvim", branch = "master" },
-		},
-		build = "make tiktoken",
-		opts = {},
-		-- All CopilotChat* sub-commands used by keymaps must be listed here, not
-		-- just "CopilotChat": lazy only stubs the commands it's told about, so
-		-- otherwise <leader>cpe/cpt/cpr would error until CopilotChat was opened
-		-- once. "Copilot" stubs the copilot.vim dependency's command too.
-		cmd = { "CopilotChat", "CopilotChatExplain", "CopilotChatTests", "CopilotChatReset", "Copilot" },
-	},
-
 	-- ── Markdown ──────────────────────────────────────────────────────────────
 	{
 		"MeanderingProgrammer/render-markdown.nvim",
