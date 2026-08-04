@@ -540,7 +540,7 @@ nvim/.config/nvim/
 ├── init.lua                ← entry point: loads bootstrap then user/
 └── lua/
     ├── bootstrap.lua       ← vim.g.* globals set BEFORE any plugin loads
-    │                         (leader key, provider disables, copilot flag)
+    │                         (leader key, provider disables)
     └── user/
         ├── init.lua        ← loads options, keymaps, then plugins (lazy.nvim)
         ├── options.lua     ← vim.opt.* settings and persistent autocmds
