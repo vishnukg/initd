@@ -579,7 +579,44 @@ restart_dunst() {
   fi
 }
 
+usage() {
+  cat <<EOF
+Usage: ${0##*/} [--firefox-only]
+
+Apply Linux system tweaks and managed configuration.
+
+Options:
+  --firefox-only  Refresh only the active Firefox profile configuration.
+  -h, --help      Show this help.
+EOF
+}
+
 main() {
+  if [[ "$#" -gt 0 ]]; then
+    case "$1" in
+      --firefox-only)
+        if [[ "$#" -ne 1 ]]; then
+          log_error "--firefox-only does not accept additional arguments."
+          usage >&2
+          exit 1
+        fi
+        log "Refreshing Firefox profile configuration..."
+        link_firefox_profile
+        log_success "Firefox profile configuration refreshed."
+        return
+        ;;
+      -h|--help)
+        usage
+        return
+        ;;
+      *)
+        log_error "Unknown argument: $1"
+        usage >&2
+        exit 1
+        ;;
+    esac
+  fi
+
   log "Applying Linux system tweaks..."
 
   install_firacode_nerd_font
