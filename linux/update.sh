@@ -10,7 +10,7 @@ usage() {
   cat <<EOF
 Usage: ${0##*/}
 
-Update apt packages, mise itself, and mise-managed tools.
+Update apt packages, mise-managed tools, and the active Firefox profile config.
 
 Runs:
   sudo apt-get update
@@ -18,6 +18,7 @@ Runs:
   sudo apt-get autoremove -y
   mise self-update --yes
   mise upgrade --yes
+  linux/setup.sh --firefox-only
 
 Options:
   -h, --help     Show this help.
@@ -49,6 +50,9 @@ main() {
 
   log "Upgrading mise-managed tools..."
   mise upgrade --yes
+
+  log "Refreshing Firefox configuration..."
+  "${ROOT_DIR}/linux/setup.sh" --firefox-only
 
   log_success "Machine update complete."
 }

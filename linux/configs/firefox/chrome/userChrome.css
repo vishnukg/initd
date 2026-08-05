@@ -7,6 +7,7 @@
 
 :root {
   color-scheme: dark !important;
+  font-family: "Ubuntu Sans", "Noto Sans", sans-serif !important;
 
   --midnight-base: #0b0c12;
   --midnight-toolbar: #101219;
@@ -63,7 +64,9 @@
   border-bottom: 1px solid var(--midnight-border) !important;
 }
 
-/* The address bar is the programmer element: code font, clear focus, no glow. */
+/* Use the same proportional UI face as the rest of the desktop. Nerd-font
+ * glyphs are useful in terminals, but their spacing looks heavy in browser
+ * chrome, especially when Firefox is rendered at a fractional Wayland scale. */
 #urlbar-background,
 #searchbar {
   background-color: var(--midnight-base) !important;
@@ -81,10 +84,10 @@
 #urlbar-input,
 #searchbar input {
   color: var(--midnight-text) !important;
-  font-family: "FiraCode Nerd Font Mono", "Fira Code", monospace !important;
+  font-family: "Ubuntu Sans", "Noto Sans", sans-serif !important;
   font-size: 15px !important;
-  font-weight: 450 !important;
-  letter-spacing: -0.1px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
 }
 
 #urlbar-input::selection,
@@ -96,7 +99,7 @@
 .urlbarView-url,
 .urlbarView-action {
   color: var(--midnight-muted) !important;
-  font-family: "FiraCode Nerd Font Mono", "Fira Code", monospace !important;
+  font-family: "Ubuntu Sans", "Noto Sans", sans-serif !important;
   font-size: 0.92em !important;
 }
 
