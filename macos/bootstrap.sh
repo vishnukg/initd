@@ -9,8 +9,6 @@ MACOS_DIR="${ROOT_DIR}/macos"
 SHARED_DIR="${ROOT_DIR}/shared"
 
 BREWFILE="${MACOS_DIR}/Brewfile"
-DOCKER_CASK="docker-desktop"
-DOCKER_APP="/Applications/Docker.app"
 CHROME_CASK="google-chrome"
 CHROME_APP="/Applications/Google Chrome.app"
 
@@ -136,6 +134,44 @@ strip_cask_if_app_exists() {
   fi
 }
 
+ensure_docker_creds_store() {
+  require_command docker-credential-osxkeychain "after brew bundle"
+
+  local docker_config="${HOME}/.docker/config.json"
+  mkdir -p "${HOME}/.docker"
+
+  if [[ ! -f "${docker_config}" ]]; then
+    printf '{\n  "credsStore": "osxkeychain"\n}\n' > "${docker_config}"
+    log_success "Created ${docker_config} with osxkeychain credsStore."
+    return
+  fi
+
+  if grep -q '"credsStore"[[:space:]]*:[[:space:]]*"osxkeychain"' "${docker_config}"; then
+    log_success "Docker credsStore already set to osxkeychain."
+    return
+  fi
+
+  # Merge rather than overwrite: config.json also holds currentContext,
+  # plugin hints, and any existing registry auths.
+  python3 - "${docker_config}" <<'PY' \
+    || { log_error "Failed to set osxkeychain credsStore in ${docker_config}"; exit 1; }
+import json
+import sys
+
+path = sys.argv[1]
+with open(path) as f:
+    config = json.load(f)
+
+config["credsStore"] = "osxkeychain"
+
+with open(path, "w") as f:
+    json.dump(config, f, indent=2)
+    f.write("\n")
+PY
+
+  log_success "Set osxkeychain as Docker's credsStore."
+}
+
 setup_git_profile() {
   local local_gitconfig="${SHARED_DIR}/configs/git/local.gitconfig"
   local existing_email
@@ -176,16 +212,10 @@ main() {
   # Drop casks whose apps already exist outside Homebrew so brew bundle doesn't
   # fail trying to install into an already-occupied path.
   cp "${BREWFILE}" "${brewfile_tmp}"
-  strip_cask_if_app_exists "${DOCKER_CASK}" "${DOCKER_APP}"
   strip_cask_if_app_exists "${CHROME_CASK}" "${CHROME_APP}"
 
   log "Installing Homebrew packages and casks..."
   brew bundle --file "${brewfile_tmp}"
-
-  if brew list --cask "${DOCKER_CASK}" >/dev/null 2>&1 && [[ ! -d "${DOCKER_APP}" ]]; then
-    log_warn "Docker Desktop receipt exists but app is missing. Reinstalling..."
-    brew reinstall --cask "${DOCKER_CASK}"
-  fi
 
   require_command mise "after brew bundle"
 
@@ -208,6 +238,11 @@ main() {
   "${MACOS_DIR}/defaults.sh"
 
   setup_git_profile
+
+  log "Configuring Docker credential storage..."
+  ensure_docker_creds_store
+
+  log_info "colima + docker CLI installed but not started. Run 'colima start' to use Docker (see docs/colima.md)."
 
   echo
   log_success "initd finished for macOS."
