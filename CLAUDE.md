@@ -85,7 +85,7 @@ macos/bootstrap.sh
   ├─ mise install
   ├─ macos/defaults.sh
   ├─ setup_git_profile (uses shared/lib/git-profile.sh)
-  ├─ ensure_docker_creds_store            # merges credsStore=osxkeychain into ~/.docker/config.json
+  ├─ ensure_docker_config                 # merges credsStore=osxkeychain + brew cliPluginsExtraDirs into ~/.docker/config.json
   └─ ensure_colima_service                # brew services start colima (login autostart)
 
 linux/bootstrap.sh
