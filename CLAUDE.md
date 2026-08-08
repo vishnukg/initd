@@ -84,7 +84,9 @@ macos/bootstrap.sh
   ├─ ensure_gh_auth, ensure_fish (dscl)
   ├─ mise install
   ├─ macos/defaults.sh
-  └─ setup_git_profile (uses shared/lib/git-profile.sh)
+  ├─ setup_git_profile (uses shared/lib/git-profile.sh)
+  ├─ ensure_docker_creds_store            # merges credsStore=osxkeychain into ~/.docker/config.json
+  └─ ensure_colima_service                # brew services start colima (login autostart)
 
 linux/bootstrap.sh
   ├─ ensure_debian

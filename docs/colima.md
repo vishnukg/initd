@@ -16,16 +16,27 @@ same time as Colima, since both fight over the default Docker context/socket.
 
 ## Daily use
 
+Colima runs as a login service (`brew services start colima`, enabled by
+`ensure_colima_service` in `macos/bootstrap.sh`), so the VM is already up
+when you log in — `docker` commands just work, no manual start needed.
+
 ```bash
-colima start                # boot the VM + Docker daemon (first run pulls the VM image)
-docker ps                   # normal docker CLI, now talking to Colima
+docker ps                   # normal docker CLI, talking to Colima
 docker compose up           # docker-compose formula wires this in
-colima stop                 # shut the VM down when you're done
-colima status                # check if it's running
+colima status               # check the VM
+brew services stop colima   # stop the VM and disable autostart
+brew services start colima  # start it again / re-enable autostart
 ```
 
-Colima persists state between `start`/`stop`, so stopping it doesn't lose
-images or containers — it just frees the CPU/RAM the VM was holding.
+Use the `brew services` commands rather than bare `colima start`/`stop`:
+launchd owns the process (`colima start -f` under label
+`homebrew.mxcl.colima`, logs in `/opt/homebrew/var/log/colima.log`), and a
+manually-started instance makes the launchd job exit-and-respawn in a loop.
+`ensure_colima_service` handles this handover automatically if it finds a
+manual instance running.
+
+Colima persists state between starts, so stopping it doesn't lose images
+or containers — it just frees the CPU/RAM the VM was holding.
 
 ## Configuring resources
 
@@ -79,5 +90,13 @@ Most single-machine dev setups never need this — the default profile
   `docker context ls` and `docker context use colima` (Colima sets this
   automatically on start, but Docker Desktop launching afterward can steal
   it back).
+- `colima start` looks hung after printing port-forwarding lines (e.g.
+  "failed to set up forwarding tcp port 53 … address already in use") →
+  those lines are harmless; the VM is still booting, so give it a minute.
+  If you Ctrl-C at that point, the VM usually keeps running but the
+  `colima` Docker context never gets (re)activated, leaving `docker`
+  pointing at the wrong socket ("Cannot connect to the Docker daemon at
+  unix:///var/run/docker.sock"). Fix: `brew services restart colima` and
+  let it finish this time.
 - Full reset: `colima delete` (destroys the VM and all containers/images
   inside it), then `colima start` again.
