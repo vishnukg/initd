@@ -172,6 +172,27 @@ PY
   log_success "Set osxkeychain as Docker's credsStore."
 }
 
+ensure_colima_service() {
+  require_command colima "after brew bundle"
+
+  if brew services info colima --json 2>/dev/null | grep -q '"running": true'; then
+    log_success "colima login service already running."
+    return
+  fi
+
+  # Hand ownership to brew services if colima was started manually: the launchd
+  # job runs `colima start -f`, which exits immediately when an instance is
+  # already up, and launchd would respawn it in a loop.
+  if colima status >/dev/null 2>&1; then
+    log "Stopping manually-started colima before enabling the login service."
+    colima stop
+  fi
+
+  log "Enabling colima as a login service (brew services)."
+  brew services start colima \
+    || { log_error "Failed to start colima via brew services — check /opt/homebrew/var/log/colima.log"; exit 1; }
+}
+
 setup_git_profile() {
   local local_gitconfig="${SHARED_DIR}/configs/git/local.gitconfig"
   local existing_email
@@ -242,7 +263,8 @@ main() {
   log "Configuring Docker credential storage..."
   ensure_docker_creds_store
 
-  log_info "colima + docker CLI installed but not started. Run 'colima start' to use Docker (see docs/colima.md)."
+  log "Ensuring colima runs as a login service..."
+  ensure_colima_service
 
   echo
   log_success "initd finished for macOS."
