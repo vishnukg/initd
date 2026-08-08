@@ -122,7 +122,7 @@ before initd takes ownership. Nothing is deleted.
 
 `macos/brewinstall <name>` detects whether the package is a formula or cask, appends it to `macos/Brewfile`, and runs `brew bundle`. `brew bundle dump --force --file macos/Brewfile` exports the current machine's state if you want a starting point — review carefully before committing.
 
-Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-compose`, and `docker-credential-helper` formulas in the Brewfile, a managed VM template at `shared/configs/colima/`, and an `ensure_docker_creds_store` bootstrap step that points `docker login` at the macOS Keychain. See `docs/colima.md`.
+Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-compose`, and `docker-credential-helper` formulas in the Brewfile, a managed VM template at `shared/configs/colima/`, and an `ensure_docker_config` bootstrap step that points `docker login` at the macOS Keychain and wires the brew-installed compose plugin into the docker CLI. See `docs/colima.md`.
 
 ## Linux — apt specifics
 
