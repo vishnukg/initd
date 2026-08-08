@@ -134,42 +134,43 @@ strip_cask_if_app_exists() {
   fi
 }
 
-ensure_docker_creds_store() {
+# Two settings the docker formula needs that Docker Desktop used to provide:
+# credsStore=osxkeychain so `docker login` stores tokens in the Keychain, and
+# cliPluginsExtraDirs so the CLI finds brew-installed plugins (docker compose).
+ensure_docker_config() {
   require_command docker-credential-osxkeychain "after brew bundle"
 
   local docker_config="${HOME}/.docker/config.json"
   mkdir -p "${HOME}/.docker"
 
-  if [[ ! -f "${docker_config}" ]]; then
-    printf '{\n  "credsStore": "osxkeychain"\n}\n' > "${docker_config}"
-    log_success "Created ${docker_config} with osxkeychain credsStore."
-    return
-  fi
-
-  if grep -q '"credsStore"[[:space:]]*:[[:space:]]*"osxkeychain"' "${docker_config}"; then
-    log_success "Docker credsStore already set to osxkeychain."
-    return
-  fi
-
   # Merge rather than overwrite: config.json also holds currentContext,
   # plugin hints, and any existing registry auths.
   python3 - "${docker_config}" <<'PY' \
-    || { log_error "Failed to set osxkeychain credsStore in ${docker_config}"; exit 1; }
+    || { log_error "Failed to update ${docker_config}"; exit 1; }
 import json
+import os
 import sys
 
 path = sys.argv[1]
-with open(path) as f:
-    config = json.load(f)
+config = {}
+if os.path.exists(path):
+    with open(path) as f:
+        config = json.load(f)
 
-config["credsStore"] = "osxkeychain"
+wanted = {
+    "credsStore": "osxkeychain",
+    "cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"],
+}
+if all(config.get(k) == v for k, v in wanted.items()):
+    sys.exit(0)
 
+config.update(wanted)
 with open(path, "w") as f:
     json.dump(config, f, indent=2)
     f.write("\n")
 PY
 
-  log_success "Set osxkeychain as Docker's credsStore."
+  log_success "Docker config OK (osxkeychain credsStore, brew CLI plugins dir)."
 }
 
 ensure_colima_service() {
@@ -260,8 +261,8 @@ main() {
 
   setup_git_profile
 
-  log "Configuring Docker credential storage..."
-  ensure_docker_creds_store
+  log "Configuring Docker CLI (credentials, plugins)..."
+  ensure_docker_config
 
   log "Ensuring colima runs as a login service..."
   ensure_colima_service

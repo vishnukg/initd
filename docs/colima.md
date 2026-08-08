@@ -58,16 +58,25 @@ exist yet to pick up changes — the template only applies at profile
 instance, pass flags directly: `colima start --cpu 6 --memory 12`. To see
 the current profile's live config: `colima list`.
 
-## Registry credentials
+## Docker CLI config (credentials + compose plugin)
 
-`bootstrap.sh` runs `ensure_docker_creds_store` on every bootstrap, which
-sets `"credsStore": "osxkeychain"` in `~/.docker/config.json` (merging it in
-without touching `currentContext`, plugin hints, or existing `auths` —
-that file isn't a `MANAGED_LINKS` symlink, since it can hold live
-credentials and shouldn't ever end up in git). This means `docker login`
-stores registry credentials in the macOS Keychain instead of writing them
-to that JSON file in plaintext. It's idempotent — safe to re-run bootstrap
-any time — and requires no manual step, on this machine or a new one.
+`bootstrap.sh` runs `ensure_docker_config` on every bootstrap, which merges
+two keys into `~/.docker/config.json` without touching `currentContext`,
+plugin hints, or existing `auths` (that file isn't a `MANAGED_LINKS`
+symlink, since it can hold live credentials and shouldn't ever end up in
+git):
+
+- `"credsStore": "osxkeychain"` — `docker login` stores registry
+  credentials in the macOS Keychain instead of writing them to that JSON
+  file in plaintext.
+- `"cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"]` — the
+  brew `docker` formula doesn't look in brew's plugin dir by default, so
+  without this `docker compose …` fails with `unknown flag: --rm`-style
+  errors (the CLI treats `compose` as an unknown command). Docker Desktop
+  used to wire this up; with Colima it's this config key.
+
+It's idempotent — safe to re-run bootstrap any time — and requires no
+manual step, on this machine or a new one.
 
 ## Multiple profiles
 
