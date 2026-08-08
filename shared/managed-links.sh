@@ -14,6 +14,7 @@ source "${ROOT_DIR}/shared/lib/fs.sh"
 # live in shared/configs/git/local.gitconfig (gitignored), included from gitconfig.
 MANAGED_LINKS=(
   "${HOME}/.gitconfig:${ROOT_DIR}/shared/configs/git/gitconfig"
+  "${HOME}/.colima/_templates/default.yaml:${ROOT_DIR}/shared/configs/colima/.colima/_templates/default.yaml"
   "${HOME}/.config/fish:${ROOT_DIR}/shared/configs/fish/.config/fish"
   "${HOME}/.config/ghostty:${ROOT_DIR}/shared/configs/ghostty/.config/ghostty"
   "${HOME}/.config/mise:${ROOT_DIR}/shared/configs/mise/.config/mise"

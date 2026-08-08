@@ -181,6 +181,7 @@ The Linux desktop is **Wayland-only**: Hyprland installed alongside Ubuntu's sto
 - `docs/fish.md` — fish/bash/zsh syntax comparison
 - `docs/nvim.md` — Neovim plugin setup and Lazy.nvim usage
 - `docs/mise.md` — mise tool management
+- `docs/colima.md` — Colima (Docker without Docker Desktop) setup and daily use
 - `docs/git-branching-conflicts.md` — Git branching and conflict resolution
 - `docs/linux-power.md` — Linux power management (PPD, AC/battery auto-switch, manual controls)
 - `docs/linux-monitors.md` — monitor hotplug/lid switching, nwg-displays GUI, per-monitor scale
