@@ -51,6 +51,7 @@ yarn      = ["latest", "1.22.22"]
 "fzf"                    = "latest"
 "glow"                   = "latest"
 "lazygit"                = "latest"
+"npm:npm-check-updates"  = "latest" # ncu — bump package.json deps past semver ranges
 "ripgrep"                = "latest"
 "starship"               = "latest"
 "zoxide"                 = "latest"
