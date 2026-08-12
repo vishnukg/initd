@@ -3,3 +3,7 @@ gtk-icon-theme-name="Papirus-Dark"
 gtk-font-name="Ubuntu Sans 11"
 gtk-cursor-theme-name="DMZ-White"
 gtk-cursor-theme-size=56
+gtk-xft-antialias=1
+gtk-xft-hinting=1
+gtk-xft-hintstyle="hintslight"
+gtk-xft-rgba="none"
