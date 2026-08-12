@@ -6,7 +6,7 @@
     "layer": "top",
     "position": "top",
     "height": 40,
-    "spacing": 6,
+    "spacing": 8,
     // Floating-islands look: gap between the bar and the screen edges.
     "margin-top": 6,
     "margin-left": 10,
@@ -27,13 +27,13 @@
 
     "cpu": {
         "interval": 2,
-        "format": "<span size='17pt'>󰍛</span> {usage}%",
+        "format": "<span size='17pt'>󰍛</span> {usage}%",
         "tooltip-format": "CPU usage: {usage}%"
     },
 
     "memory": {
         "interval": 3,
-        "format": "<span size='17pt'>󰾆</span> {percentage}%",
+        "format": "<span size='17pt'>󰾆</span> {percentage}%",
         "tooltip-format": "Memory used: {used:0.1f} GiB / {total:0.1f} GiB"
     },
 
@@ -41,28 +41,28 @@
         // Running container count; docker group membership is set by bootstrap.
         "exec": "docker ps -q 2>/dev/null | wc -l",
         "interval": 15,
-        "format": "<span size='21pt'>󰡨</span> {}",
+        "format": "<span size='21pt'>󰡨</span> {}",
         "on-click": "~/.config/docker-menu.sh",
         "tooltip": false
     },
 
     "network": {
         "interval": 5,
-        "format-wifi": "<span size='17pt'>󰤨</span> {essid}",
-        "format-ethernet": "<span size='17pt'>󰈀</span> wired",
-        "format-disconnected": "<span size='17pt'>󰤭</span> offline",
+        "format-wifi": "<span size='17pt'>󰤨</span> {essid}",
+        "format-ethernet": "<span size='17pt'>󰈀</span> wired",
+        "format-disconnected": "<span size='17pt'>󰤭</span> offline",
         "tooltip-format": "{ifname}: {ipaddr}"
     },
 
     "pulseaudio": {
-        "format": "<span size='17pt'>{icon}</span> {volume}%",
+        "format": "<span size='17pt'>{icon}</span> {volume}%",
         "format-muted": "󰝟 muted",
         "format-icons": { "default": ["󰕿", "󰖀", "󰕾"] },
         "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
     },
 
     "backlight": {
-        "format": "<span size='17pt'>{icon}</span> {percent}%",
+        "format": "<span size='17pt'>{icon}</span> {percent}%",
         "format-icons": ["󰃞", "󰃟", "󰃠"]
     },
 
@@ -78,9 +78,9 @@
         "states": { "critical": 10 },
         // "Plugged" covers the firmware's "Not charging" hold state — the
         // case the old polybar battery-status.sh script existed for.
-        "format": "{icon} {capacity}%",
-        "format-charging": "󰂄 {capacity}%",
-        "format-plugged": "󰚥 {capacity}%",
+        "format": "{icon} {capacity}%",
+        "format-charging": "󰂄 {capacity}%",
+        "format-plugged": "󰚥 {capacity}%",
         "format-icons": ["󰂎", "󰁺", "󰁾", "󰂀", "󰁹"]
     },
 
