@@ -2,4 +2,4 @@ gtk-theme-name="adw-gtk3-dark"
 gtk-icon-theme-name="Papirus-Dark"
 gtk-font-name="Ubuntu Sans 11"
 gtk-cursor-theme-name="DMZ-White"
-gtk-cursor-theme-size=48
+gtk-cursor-theme-size=56
