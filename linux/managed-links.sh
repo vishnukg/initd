@@ -11,5 +11,6 @@ MANAGED_LINKS+=(
   "${HOME}/.config/waybar:${ROOT_DIR}/linux/configs/waybar"
   "${HOME}/.config/rofi:${ROOT_DIR}/linux/configs/rofi"
   "${HOME}/.config/dunst:${ROOT_DIR}/linux/configs/dunst"
+  "${HOME}/.config/fontconfig:${ROOT_DIR}/linux/configs/fontconfig"
   "${HOME}/.config/gtk-3.0:${ROOT_DIR}/linux/configs/gtk-3.0"
 )

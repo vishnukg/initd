@@ -5,7 +5,7 @@
 {
     "layer": "top",
     "position": "top",
-    "height": 44,
+    "height": 42,
     "spacing": 6,
     // Floating-islands look: gap between the bar and the screen edges.
     "margin-top": 6,

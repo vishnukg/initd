@@ -19,8 +19,8 @@ window#waybar {
 .modules-right {
     padding: 0 8px;
     background: linear-gradient(180deg,
-        rgba(54, 59, 72, 0.66),
-        rgba(20, 23, 32, 0.58));
+        rgba(47, 52, 64, 0.68),
+        rgba(16, 19, 27, 0.61));
     border: 1px solid rgba(255, 255, 255, 0.14);
     border-bottom-color: rgba(255, 255, 255, 0.06);
     border-radius: 16px;
