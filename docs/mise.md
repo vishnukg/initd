@@ -129,7 +129,7 @@ The hybrid costs and gains:
 
 | Section | What it contains |
 |---|---|
-| `[settings]` | Global mise settings (e.g. `experimental = true` for the `dotnet:` backend) |
+| `[settings]` | Global mise settings, including the eight-hour minimum release age |
 | `[tools]` runtimes | `node`, `python`, `go`, `dotnet`, `terraform` — language runtimes with pinned versions |
 | `[tools]` LSPs + CLI tools | Everything nvim's LSP config and none-ls (null-ls API) expect to find on PATH |
 
