@@ -1,6 +1,7 @@
 [settings]
 experimental              = true            # required for dotnet: backend (roslyn-language-server, csharpier)
 github.credential_command = "gh auth token" # use gh CLI for GitHub auth instead of a stored token
+minimum_release_age       = "8h"            # wait eight hours before accepting new releases
 # Install pipx: tools with uv instead of pipx. uv builds their venvs against
 # its own managed pythons (~/.local/share/uv), which mise upgrades never
 # delete — so python patch bumps can't orphan the yamllint venv again.
