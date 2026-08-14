@@ -32,7 +32,10 @@ window#waybar {
     padding: 0;
 }
 
-#workspaces button {
+#custom-workspace-1, #custom-workspace-2, #custom-workspace-3,
+#custom-workspace-4, #custom-workspace-5, #custom-workspace-6,
+#custom-workspace-7, #custom-workspace-8, #custom-workspace-9,
+#custom-workspace-10 {
     margin: 3px 1px;
     padding: 0 9px;
     color: #9299ab;
@@ -42,13 +45,19 @@ window#waybar {
     transition: background 150ms ease, color 150ms ease;
 }
 
-#workspaces button:hover {
+#custom-workspace-1:hover, #custom-workspace-2:hover, #custom-workspace-3:hover,
+#custom-workspace-4:hover, #custom-workspace-5:hover, #custom-workspace-6:hover,
+#custom-workspace-7:hover, #custom-workspace-8:hover, #custom-workspace-9:hover,
+#custom-workspace-10:hover {
     color: #f4f5f8;
     background: rgba(48, 53, 68, 0.82);
     box-shadow: none;
 }
 
-#workspaces button.active {
+#custom-workspace-1.active, #custom-workspace-2.active, #custom-workspace-3.active,
+#custom-workspace-4.active, #custom-workspace-5.active, #custom-workspace-6.active,
+#custom-workspace-7.active, #custom-workspace-8.active, #custom-workspace-9.active,
+#custom-workspace-10.active {
     color: #ffffff;
     background: rgba(255, 255, 255, 0.08);
     border-bottom: 3px solid #b3cdee;
@@ -58,17 +67,27 @@ window#waybar {
     text-shadow: 0 0 5px rgba(255, 255, 255, 0.65);
 }
 
-/* Pastel underline cycle by button position (CSS can't key on the workspace
-   number itself without persistent buttons). */
-#workspaces button.active:nth-child(2)  { border-bottom-color: #cdc5ef; }  /* lavender */
-#workspaces button.active:nth-child(3)  { border-bottom-color: #ebc2d8; }  /* pink */
-#workspaces button.active:nth-child(4)  { border-bottom-color: #bbe1d3; }  /* mint */
-#workspaces button.active:nth-child(5)  { border-bottom-color: #d8c4f0; }  /* purple */
-#workspaces button.active:nth-child(6)  { border-bottom-color: #b1d3f0; }  /* sky */
-#workspaces button.active:nth-child(7)  { border-bottom-color: #e4becf; }  /* rose */
-#workspaces button.active:nth-child(8)  { border-bottom-color: #b7e0da; }  /* seafoam */
-#workspaces button.active:nth-child(9)  { border-bottom-color: #b1c2e1; }  /* periwinkle */
-#workspaces button.active:nth-child(10) { border-bottom-color: #c2cfec; }  /* soft blue */
+/* Pastel underline colors by workspace number. */
+#custom-workspace-2.active  { border-bottom-color: #cdc5ef; }  /* lavender */
+#custom-workspace-3.active  { border-bottom-color: #ebc2d8; }  /* pink */
+#custom-workspace-4.active  { border-bottom-color: #bbe1d3; }  /* mint */
+#custom-workspace-5.active  { border-bottom-color: #d8c4f0; }  /* purple */
+#custom-workspace-6.active  { border-bottom-color: #b1d3f0; }  /* sky */
+#custom-workspace-7.active  { border-bottom-color: #e4becf; }  /* rose */
+#custom-workspace-8.active  { border-bottom-color: #b7e0da; }  /* seafoam */
+#custom-workspace-9.active  { border-bottom-color: #b1c2e1; }  /* periwinkle */
+#custom-workspace-10.active { border-bottom-color: #c2cfec; }  /* soft blue */
+
+/* The custom buttons are on-demand: hide slots for workspaces Hyprland has
+   not created yet. */
+#custom-workspace-1.empty, #custom-workspace-2.empty, #custom-workspace-3.empty,
+#custom-workspace-4.empty, #custom-workspace-5.empty, #custom-workspace-6.empty,
+#custom-workspace-7.empty, #custom-workspace-8.empty, #custom-workspace-9.empty,
+#custom-workspace-10.empty {
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+}
 
 #workspaces button.urgent {
     color: #0b0d13;
