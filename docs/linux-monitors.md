@@ -6,7 +6,7 @@ lid switching natively; git history has the X11 version if ever needed.
 
 ## The mental model
 
-Hyprland applies `monitor =` rules from `linux/configs/hypr/hyprland.conf`
+Hyprland applies `hl.monitor({...})` rules from `linux/configs/hypr/hyprland.lua`
 (symlinked as `~/.config/hypr`) every time the set of connected outputs
 changes. There is no profile daemon: plugging in a monitor is the event that
 applies the defaults, while nwg-displays can optionally save named overrides.
@@ -18,9 +18,9 @@ Think of the setup as three separate actors:
 | `clamshell.sh` | enables or disables the laptop panel in response to the lid |
 | nwg-displays | edits saved monitor rules; it does not need to stay running |
 
-```
-monitor = eDP-1, preferred, auto, 1.25   # laptop panel, 1.25x scale
-monitor = , preferred, auto, 1.25        # catch-all: any external monitor
+```lua
+hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = "1.25" })
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "1.25" })  -- catch-all: any external monitor
 ```
 
 - **Catch-all rule** (empty name): any monitor ever plugged in lights up at
@@ -103,12 +103,15 @@ It persists its result as plain Hyprland config:
 | `~/.config/hypr/monitors.conf` | one `monitor = name, mode, position, scale` line per output |
 | `~/.config/hypr/workspaces.conf` | `workspace = N, monitor:name` pinning lines |
 
-Both are `source =`d from `hyprland.conf`, and both live *inside the repo*
-(`~/.config/hypr` is a symlink to `linux/configs/hypr/`), so an arrangement
-you apply in the GUI is versioned like any other config change — commit it if
-you want to keep it, or inspect/revert it with `git diff` if not. The files are
-writable through their symlinks, so nwg-displays does not need a custom output
-path.
+nwg-displays writes these in plain hyprlang syntax (it has no Lua-config
+awareness); Lua has no `source =` equivalent for that format, so
+`hyprland.lua` includes a small hand-written interop parser that reads both
+files and calls `hl.monitor({...})`/`hl.workspace_rule({...})` for each line.
+Both files live *inside the repo* (`~/.config/hypr` is a symlink to
+`linux/configs/hypr/`), so an arrangement you apply in the GUI is versioned
+like any other config change — commit it if you want to keep it, or
+inspect/revert it with `git diff` if not. The files are writable through
+their symlinks, so nwg-displays does not need a custom output path.
 
 Because named rules beat the catch-all, nwg-displays output composes cleanly
 with the defaults: monitors it has configured get exact settings; anything
