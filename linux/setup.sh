@@ -134,10 +134,14 @@ link_session_scripts() {
   done
 }
 
-link_firefox_profile() {
+# Resolves the active Firefox profile directory, creating a fresh profile
+# non-interactively if none exists yet. Prints the profile dir and returns 0,
+# or prints nothing and returns 1. Shared by link_firefox_profile and
+# set_firefox_default_zoom.
+resolve_firefox_profile_dir() {
   if ! command -v python3 >/dev/null 2>&1; then
-    log_warn "python3 not available — skipping firefox profile linking."
-    return
+    log_warn "python3 not available — skipping firefox profile detection."
+    return 1
   fi
 
   # Firefox's profile root varies by install/version:
@@ -169,24 +173,21 @@ link_firefox_profile() {
     if firefox --headless --CreateProfile default-release >/dev/null 2>&1; then
       moz_dir="$(find_firefox_profile_root || true)"
     else
-      log_warn "Firefox could not initialize a profile — theme linking will retry on the next setup run."
+      log_warn "Firefox could not initialize a profile — retry on the next setup run."
     fi
   fi
 
-  if [[ -z "${moz_dir}" ]]; then
-    log "No firefox profile present — skipping."
-    return
-  fi
+  [[ -z "${moz_dir}" ]] && return 1
 
+  # Firefox 67+ tracks the active profile per-install via an [InstallXXXX]
+  # section whose Default= value is the profile path directly — this takes
+  # priority over the legacy per-profile Default=1 flag, which Firefox stops
+  # updating once an [Install...] section exists.
   local ff_profile
   ff_profile="$(python3 - "${moz_dir}/profiles.ini" <<'PYEOF'
 import configparser, sys
 p = configparser.ConfigParser()
 p.read(sys.argv[1])
-# Firefox 67+ tracks the active profile per-install via an [InstallXXXX]
-# section whose Default= value is the profile path directly — this takes
-# priority over the legacy per-profile Default=1 flag, which Firefox stops
-# updating once an [Install...] section exists.
 for s in p.sections():
     if s.startswith("Install"):
         path = p.get(s, "Default", fallback="")
@@ -200,16 +201,21 @@ for s in p.sections():
 PYEOF
 )"
 
-  if [[ -z "${ff_profile}" ]]; then
-    log_warn "Could not detect Firefox default profile — skipping."
-    return
-  fi
+  [[ -z "${ff_profile}" ]] && return 1
 
-  local ff_dir
   if [[ "${ff_profile}" = /* ]]; then
-    ff_dir="${ff_profile}"
+    printf '%s\n' "${ff_profile}"
   else
-    ff_dir="${moz_dir}/${ff_profile}"
+    printf '%s\n' "${moz_dir}/${ff_profile}"
+  fi
+}
+
+link_firefox_profile() {
+  local ff_dir
+  ff_dir="$(resolve_firefox_profile_dir || true)"
+  if [[ -z "${ff_dir}" ]]; then
+    log "No firefox profile present — skipping."
+    return
   fi
   mkdir -p "${ff_dir}/chrome"
 
@@ -228,15 +234,27 @@ PYEOF
     ln -s "${src}" "${target}"
     log_success "Linked $(basename "${target}")"
   done
+}
 
-  # Firefox stores the global default zoom in content-prefs.sqlite rather than
-  # prefs.js, so user.js cannot express it. Only touch the database while
-  # Firefox is closed; the next setup run will apply it if it is currently open.
+set_firefox_default_zoom() {
+  # Firefox's Zoom UI reads per-site full-zoom levels from content-prefs.sqlite,
+  # not from any user.js pref — this sets 125% as the default for any site
+  # that doesn't already have its own saved zoom level.
+  local ff_dir
+  ff_dir="$(resolve_firefox_profile_dir || true)"
+  [[ -z "${ff_dir}" ]] && return
+
   local content_prefs="${ff_dir}/content-prefs.sqlite"
   if pgrep -x firefox >/dev/null 2>&1; then
     log_warn "Firefox is running — leaving its default zoom unchanged. Close Firefox and re-run setup.sh to set 125%."
-  elif [[ -f "${content_prefs}" ]]; then
-    if python3 - "${content_prefs}" <<'PYEOF'
+    return
+  fi
+  if [[ ! -f "${content_prefs}" ]]; then
+    log_warn "Firefox content preferences are not initialized yet — open Firefox once, close it, then re-run setup.sh to set 125% zoom."
+    return
+  fi
+
+  if python3 - "${content_prefs}" <<'PYEOF'
 import sqlite3, sys, time
 
 db = sqlite3.connect(sys.argv[1], timeout=2)
@@ -257,16 +275,13 @@ try:
 finally:
     db.close()
 PYEOF
-    then
-      log_success "Set Firefox default zoom to 125%."
-    else
-      # Firefox can keep the database locked even when its main process name
-      # is not exactly "firefox". A cosmetic preference must not abort the
-      # rest of the idempotent system setup.
-      log_warn "Firefox preferences database is busy — leaving default zoom unchanged. Close Firefox and re-run setup.sh to set 125%."
-    fi
+  then
+    log_success "Set Firefox default zoom to 125%."
   else
-    log_warn "Firefox content preferences are not initialized yet — open Firefox once, close it, then re-run setup.sh to set 125% zoom."
+    # Firefox can keep the database locked even when its main process name
+    # is not exactly "firefox". A cosmetic preference must not abort the
+    # rest of the idempotent system setup.
+    log_warn "Firefox preferences database is busy — leaving default zoom unchanged. Close Firefox and re-run setup.sh to set 125%."
   fi
 }
 
@@ -329,39 +344,6 @@ add_user_to_video_group() {
   log_warn "Log out and back in for the video group to take effect."
 }
 
-install_firefox_policies() {
-  # System-wide Firefox enterprise policies: force-install the standard
-  # extensions from Mozilla Add-ons. Read from /etc/firefox/policies on Linux;
-  # survives Firefox package upgrades (unlike the distribution/ directory).
-  local policies_dir="/etc/firefox/policies"
-  local policies_file="${policies_dir}/policies.json"
-
-  if [[ -f "${policies_file}" ]] && grep -q "uBlock0@raymondhill.net" "${policies_file}"; then
-    log_success "Firefox policies already installed."
-    return
-  fi
-
-  log "Installing Firefox policies (uBlock Origin, 1Password)..."
-  sudo mkdir -p "${policies_dir}"
-  sudo tee "${policies_file}" > /dev/null << 'EOF'
-{
-  "policies": {
-    "ExtensionSettings": {
-      "uBlock0@raymondhill.net": {
-        "installation_mode": "force_installed",
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi"
-      },
-      "{d634138d-c276-4fc8-924b-40a0ea21d284}": {
-        "installation_mode": "force_installed",
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/1password-x-password-manager/latest.xpi"
-      }
-    }
-  }
-}
-EOF
-  log_success "Firefox policies installed."
-}
-
 # ── Service restarts (apply config changes without a reboot) ─────────────────
 restart_dunst() {
   if pgrep -x dunst >/dev/null 2>&1; then
@@ -379,7 +361,12 @@ Usage: ${0##*/} [--firefox-only]
 Apply Linux system tweaks and managed configuration.
 
 Options:
-  --firefox-only  Refresh only the active Firefox profile configuration.
+  --firefox-only  Refresh only the Firefox profile glue (userChrome.css,
+                  user.js, default zoom) without the rest of setup.sh —
+                  useful right after installing Firefox for the first time,
+                  or once content-prefs.sqlite exists so the zoom setting
+                  (which needs it, and doesn't exist on a brand-new profile)
+                  can be applied on a second pass.
   -h, --help      Show this help.
 EOF
 }
@@ -395,6 +382,7 @@ main() {
         fi
         log "Refreshing Firefox profile configuration..."
         link_firefox_profile
+        set_firefox_default_zoom
         log_success "Firefox profile configuration refreshed."
         return
         ;;
@@ -423,7 +411,7 @@ main() {
   link_icons_default
   link_session_scripts
   link_firefox_profile
-  install_firefox_policies
+  set_firefox_default_zoom
   add_user_to_video_group
 
   restart_dunst
