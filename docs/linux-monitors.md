@@ -90,7 +90,7 @@ monitor rules for the current hardware state.
 
 ## The GUI: nwg-displays
 
-`nwg-displays` (Ubuntu archive, installed via `packages.txt`) is the visual
+`nwg-displays` (`tofik/nwg-shell` COPR, installed via `packages.txt`) is the visual
 way to inspect and arrange monitors: drag the output rectangles, set
 scale/mode/rotation/position, assign workspaces to monitors, then **Apply**.
 It is a Hyprland configuration generator, not a hotplug/profile daemon;
@@ -149,12 +149,11 @@ but the saved disable rule would cause an unnecessary disable/enable cycle on
 future reloads and could briefly disturb workspace placement. Open the lid and
 apply again to save a clean two-display layout.
 
-Ubuntu currently packages nwg-displays `0.3.26-1`. It works with this setup's
-Hyprland 0.53 configuration format and covers normal layout, mode, scale, and
-rotation. Upstream `0.3.28` restored mirror and 10-bit controls that are absent
-from this package; newer releases also add profile features and Hyprland 0.55
-Lua output. None of those newer features is required for the basic setup
-described here.
+The exact nwg-displays version tracks whatever `tofik/nwg-shell` currently
+builds for Fedora, which may lag the newest upstream release (mirror, 10-bit,
+and profile controls). None of those newer features is required for the basic
+setup described here — normal layout, mode, scale, and rotation are covered by
+any recent build.
 
 ## Useful commands
 
