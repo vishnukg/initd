@@ -36,6 +36,7 @@ ghostty
 libva-intel-media-driver
 pulseaudio-utils
 brightnessctl
+btop
 ca-certificates
 curl
 unzip
