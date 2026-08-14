@@ -6,6 +6,9 @@
 
 local mod = "SUPER"
 
+hl.env("XCURSOR_SIZE", "24")
+hl.env("XCURSOR_THEME", "Adwaita")
+
 -- ── Monitors ──────────────────────────────────────────────────────────────────
 -- Wayland replaces the whole autorandr/xsettingsd/Xft.dpi machinery with
 -- per-monitor scale. 1.25 on the laptop panel (2560x1600, ~224 PPI); adjust
@@ -328,8 +331,11 @@ hl.config({
     xwayland = {
         force_zero_scaling = true,
     },
+})
 
-    -- Jump back to previous workspace on repeated press
+-- ── Behavior ──────────────────────────────────────────────────────────────────
+hl.config({
+    -- Jump back to previous workspace on repeated press.
     binds = {
         workspace_back_and_forth = true,
     },
@@ -351,6 +357,3 @@ hl.animation({ leaf = "fade",       enabled = true, speed = 3, bezier = "default
 hl.animation({ leaf = "layersIn",   enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
 hl.animation({ leaf = "layersOut",  enabled = true, speed = 2, bezier = "easeOut", style = "fade" })
 hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "easeOut", style = "slide" })
-
-hl.env("XCURSOR_SIZE", "24")
-hl.env("XCURSOR_THEME", "Adwaita")

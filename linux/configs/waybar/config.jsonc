@@ -123,9 +123,9 @@
         "states": { "critical": 10 },
         // "Plugged" covers the firmware's "Not charging" hold state — the
         // case the old polybar battery-status.sh script existed for.
-        "format": "<span size='19pt'>{icon}</span> {capacity}%",
-        "format-charging": "<span size='19pt'>󰂄</span> {capacity}%",
-        "format-plugged": "<span size='19pt'>󰚥</span> {capacity}%",
+        "format": "<span size='16pt'>{icon}</span> {capacity}%",
+        "format-charging": "<span size='16pt'>󰂄</span> {capacity}%",
+        "format-plugged": "<span size='16pt'>󰚥</span> {capacity}%",
         "format-icons": ["󰂎", "󰁺", "󰁾", "󰂀", "󰁹"]
     },
 
