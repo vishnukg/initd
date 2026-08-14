@@ -1,4 +1,4 @@
-/* Translucent graphite — flat floating islands with pastel accents. */
+/* Dark minimalist — flat floating islands, one accent color, no borders. */
 
 * {
     font-family: "Adwaita Sans", "Noto Sans", "FiraCode Nerd Font Mono";
@@ -8,28 +8,22 @@
     border: none;
 }
 
-/* Floating islands: the bar window is invisible; each module cluster is its
-   own rounded translucent pill, hovering below the top edge. */
+/* One continuous floating bar — the pill lives on the window itself, not on
+   each module cluster, so there's no visible gap between the workspace
+   buttons and the right-side modules. */
 window#waybar {
-    background: transparent;
+    background: rgba(14, 15, 20, 0.7);
     color: #e8eaf0;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .modules-left,
-.modules-right {
-    padding: 0 8px;
-    background: rgba(21, 24, 32, 0.88);
-    border: 1px solid rgba(72, 78, 94, 0.78);
-    border-radius: 16px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
-}
-
-/* No center island — keep the empty center box invisible. */
+.modules-right,
 .modules-center {
     background: transparent;
-    border: none;
     box-shadow: none;
-    padding: 0;
+    padding: 0 8px;
 }
 
 #custom-workspace-1, #custom-workspace-2, #custom-workspace-3,
@@ -38,10 +32,9 @@ window#waybar {
 #custom-workspace-10 {
     margin: 3px 1px;
     padding: 0 9px;
-    color: #9299ab;
+    color: #74798a;
     background: transparent;
-    border-radius: 10px;
-    box-shadow: none;
+    border-radius: 8px;
     transition: background 150ms ease, color 150ms ease;
 }
 
@@ -49,34 +42,29 @@ window#waybar {
 #custom-workspace-4:hover, #custom-workspace-5:hover, #custom-workspace-6:hover,
 #custom-workspace-7:hover, #custom-workspace-8:hover, #custom-workspace-9:hover,
 #custom-workspace-10:hover {
-    color: #f4f5f8;
-    background: rgba(48, 53, 68, 0.82);
-    box-shadow: none;
+    color: #d9dce5;
+    background: rgba(255, 255, 255, 0.06);
 }
 
+/* Active workspace: solid pastel fill, a different color per slot. */
 #custom-workspace-1.active, #custom-workspace-2.active, #custom-workspace-3.active,
 #custom-workspace-4.active, #custom-workspace-5.active, #custom-workspace-6.active,
 #custom-workspace-7.active, #custom-workspace-8.active, #custom-workspace-9.active,
 #custom-workspace-10.active {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.08);
-    border-bottom: 3px solid #b3cdee;
-    border-radius: 10px 10px 7px 7px;
+    color: #0b0d13;
+    background: #8fb7e8;  /* blue */
     font-weight: 700;
-    box-shadow: none;
-    text-shadow: 0 0 5px rgba(255, 255, 255, 0.65);
 }
 
-/* Pastel underline colors by workspace number. */
-#custom-workspace-2.active  { border-bottom-color: #cdc5ef; }  /* lavender */
-#custom-workspace-3.active  { border-bottom-color: #ebc2d8; }  /* pink */
-#custom-workspace-4.active  { border-bottom-color: #bbe1d3; }  /* mint */
-#custom-workspace-5.active  { border-bottom-color: #d8c4f0; }  /* purple */
-#custom-workspace-6.active  { border-bottom-color: #b1d3f0; }  /* sky */
-#custom-workspace-7.active  { border-bottom-color: #e4becf; }  /* rose */
-#custom-workspace-8.active  { border-bottom-color: #b7e0da; }  /* seafoam */
-#custom-workspace-9.active  { border-bottom-color: #b1c2e1; }  /* periwinkle */
-#custom-workspace-10.active { border-bottom-color: #c2cfec; }  /* soft blue */
+#custom-workspace-2.active  { background: #cdc5ef; }  /* lavender */
+#custom-workspace-3.active  { background: #ebc2d8; }  /* pink */
+#custom-workspace-4.active  { background: #bbe1d3; }  /* mint */
+#custom-workspace-5.active  { background: #d8c4f0; }  /* purple */
+#custom-workspace-6.active  { background: #b1d3f0; }  /* sky */
+#custom-workspace-7.active  { background: #e4becf; }  /* rose */
+#custom-workspace-8.active  { background: #b7e0da; }  /* seafoam */
+#custom-workspace-9.active  { background: #b1c2e1; }  /* periwinkle */
+#custom-workspace-10.active { background: #c2cfec; }  /* soft blue */
 
 /* The custom buttons are on-demand: hide slots for workspaces Hyprland has
    not created yet. */
@@ -97,48 +85,46 @@ window#waybar {
 #cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight,
 #battery, #tray, #custom-weather, #clock {
     padding: 0 8px;
-    color: #d9dce5;
-    border-radius: 10px;
+    color: #aeb2c0;
+    border-radius: 8px;
     transition: background 150ms ease, color 150ms ease;
+}
+
+/* Slightly bigger text to match the bumped icon sizes above. */
+#cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight, #battery {
+    font-size: 20px;
 }
 
 #cpu:hover, #memory:hover, #custom-docker:hover, #network:hover,
 #pulseaudio:hover, #backlight:hover,
 #battery:hover, #custom-weather:hover, #clock:hover {
-    background: rgba(48, 53, 68, 0.82);
-    box-shadow: none;
+    background: rgba(255, 255, 255, 0.06);
 }
 
 #clock {
     padding: 0 10px;
-    color: #f3f4f7;
+    color: #e8eaf0;
     font-weight: 600;
 }
 
-#cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight,
-#custom-weather, #clock, #tray {
-    color: #f4f5f8;
-}
-
 #network.disconnected, #pulseaudio.muted {
-    color: #777e90;
+    color: #52566a;
 }
 
 #battery.critical:not(.charging) {
-    color: #ff6b7a;
+    color: #e0788a;
 }
 
 #battery.charging {
-    color: #65d6ad;
+    color: #8fd6b8;
 }
 
 tooltip {
     padding: 8px 10px;
     color: #e8eaf0;
-    background: rgba(22, 25, 34, 0.94);
-    border: 1px solid rgba(72, 78, 94, 0.82);
-    border-radius: 12px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.30);
+    background: rgba(12, 13, 18, 0.96);
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 tooltip label {

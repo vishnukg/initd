@@ -1,10 +1,10 @@
 #!/bin/sh
 # Clamshell mode: disable the laptop panel while the lid is closed and an
-# external monitor is active; restore it when open. Invoked from hyprland.conf
-# by lid-switch binds and by `exec =` at startup/on config reload.
+# external monitor is active; restore it when open. Invoked from hyprland.lua
+# by lid-switch binds and by the config.reloaded hook.
 
 PANEL=eDP-1
-# Keep in sync with the eDP-1 monitor rule in hyprland.conf.
+# Keep in sync with the eDP-1 monitor rule in hyprland.lua.
 PANEL_RULE="eDP-1, preferred, auto, 1.25"
 
 # Capture focus before reload reapplies the panel rule. Disabling a monitor
