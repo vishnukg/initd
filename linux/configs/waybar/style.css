@@ -12,7 +12,7 @@
    each module cluster, so there's no visible gap between the workspace
    buttons and the right-side modules. */
 window#waybar {
-    background: rgba(14, 15, 20, 0.7);
+    background: rgba(14, 15, 20, 0.5);
     color: #e8eaf0;
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
