@@ -3,7 +3,7 @@
 local lsp_servers = {
 	"lua_ls",
 	"html",
-	"tsgo",
+	"tsc",
 	"pyright",
 	"ruff",
 	"bashls",
