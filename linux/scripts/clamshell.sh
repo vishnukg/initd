@@ -52,6 +52,6 @@ fi
 if [ "${monitor_changed}" = true ] && [ -n "${original_workspace}" ]; then
   current_workspace="$(active_workspace)"
   if [ "${current_workspace}" != "${original_workspace}" ]; then
-    hyprctl dispatch workspace "${original_workspace}" >/dev/null
+    hyprctl dispatch "hl.dsp.focus({workspace = ${original_workspace}})" >/dev/null
   fi
 fi

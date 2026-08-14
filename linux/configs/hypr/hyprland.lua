@@ -148,7 +148,7 @@ hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty"))
 -- this) and dispatches focus directly rather than relying on `&&`/`||`
 -- against hyprctl's exit code, which is always 0 regardless of match success.
 hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd(
-    "bash -c 'hyprctl clients | grep -q \"class: org.mozilla.firefox\" && hyprctl dispatch focuswindow \"class:^(org.mozilla.firefox)\" || firefox'"
+    [[bash -c "hyprctl clients | grep -q 'class: org.mozilla.firefox' && hyprctl dispatch 'hl.dsp.focus({window = \"class:^(org.mozilla.firefox)\"})' || firefox"]]
 ))
 hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
@@ -229,7 +229,7 @@ end
 hl.bind(mod .. " + SHIFT + c", hl.dsp.exec_cmd("hyprctl reload && notify-send \"Hyprland\" \"Config reloaded\""))
 hl.bind(mod .. " + SHIFT + r", hl.dsp.exec_cmd("hyprctl reload && notify-send \"Hyprland\" \"Config reloaded\""))
 hl.bind(mod .. " + SHIFT + e", hl.dsp.exec_cmd(
-    "bash -c '[ \"$(printf \"No\\nYes\" | rofi -dmenu -p \"Exit Hyprland?\")\" = \"Yes\" ] && hyprctl dispatch exit'"
+    "bash -c '[ \"$(printf \"No\\nYes\" | rofi -dmenu -p \"Exit Hyprland?\")\" = \"Yes\" ] && hyprctl dispatch \"hl.dsp.exit()\"'"
 ))
 
 -- ── Resize mode (i3 mode "resize" → Hyprland submap) ─────────────────────────
