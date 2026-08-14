@@ -5,7 +5,7 @@
 
 PANEL=eDP-1
 # Keep in sync with the eDP-1 monitor rule in hyprland.conf.
-PANEL_RULE="eDP-1, preferred, auto, 1.5"
+PANEL_RULE="eDP-1, preferred, auto, 1.25"
 
 # Capture focus before reload reapplies the panel rule. Disabling a monitor
 # migrates its workspaces to another output and can otherwise focus one of
