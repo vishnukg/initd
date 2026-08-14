@@ -1,9 +1,0 @@
-// Allow power-profiles-daemon profile switches without interactive auth.
-// Needed because the udev-triggered switcher runs as root with no active
-// session, which otherwise falls under allow_inactive (auth_admin) and fails.
-polkit.addRule(function(action, subject) {
-    if (action.id == "org.freedesktop.UPower.PowerProfiles.switch-profile" ||
-        action.id == "org.freedesktop.UPower.PowerProfiles.hold-profile") {
-        return polkit.Result.YES;
-    }
-});

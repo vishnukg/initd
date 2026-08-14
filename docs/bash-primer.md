@@ -14,8 +14,8 @@ developer can follow like a checklist.
 |---|---|
 | `bootstrap.sh` | Dispatcher: detects `uname -s` and execs the platform bootstrap. |
 | `macos/bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → links → fish → mise → macOS defaults. |
-| `linux/bootstrap.sh` | Linux setup: apt packages → gh/mise → links → linux/setup.sh → fish → mise → git profile. |
-| `linux/setup.sh` | Linux system fixes (xorg, wifi, picom hook, fonts, polybar patch, firefox, Xresources). |
+| `linux/bootstrap.sh` | Linux setup: dnf packages (+ COPRs) → gh/1Password/Docker/mise → links → linux/setup.sh → fish → mise → git profile. |
+| `linux/setup.sh` | Linux system tweaks (fonts, swappiness, GTK theme, session-script links, Firefox profile glue). |
 | `shared/lib/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files. Takes platform arg. |
 | `shared/lib/cleanup.sh` | Remove only the symlinks that initd created. Takes platform arg. |
 | `shared/lib/git-profile.sh` | Set the Git identity: personal uses the default email; work writes an override to `local.gitconfig`. |
@@ -24,7 +24,7 @@ developer can follow like a checklist.
 | `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` array. Sources `fs.sh`. |
 | `<platform>/managed-links.sh` | Appends platform-specific entries to `MANAGED_LINKS`. |
 | `macos/defaults.sh` | Apply macOS system defaults (key repeat, hushlogin). |
-| `macos/update.sh` / `linux/update.sh` | Upgrade Homebrew/apt packages and mise-managed tools; Linux also self-updates mise. |
+| `macos/update.sh` / `linux/update.sh` | Upgrade Homebrew/dnf packages and mise-managed tools; Linux also self-updates mise. |
 | `shared/lib/logging.sh` | Colored log helpers: `log`, `log_info`, `log_success`, `log_warn`, `log_error`. |
 | `shared/test.sh` | Behavior tests that run against temporary home directories. |
 
@@ -286,7 +286,7 @@ bash -n bootstrap.sh \
    `<platform>/managed-links.sh` for OS-only) and re-run `shared/test.sh`.
 2. **To add a new Homebrew package:** run `macos/brewinstall <package>`. It
    updates `macos/Brewfile` and installs it locally.
-3. **To add a new apt package:** append it to `linux/packages.txt`, then re-run
+3. **To add a new dnf package:** append it to `linux/packages.txt`, then re-run
    `linux/bootstrap.sh`.
 4. **Keep `main` readable as a checklist.** Put filesystem logic in
    `shared/lib/fs.sh` and path knowledge in the `managed-links.sh` files.

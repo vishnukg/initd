@@ -10,12 +10,11 @@ usage() {
   cat <<EOF
 Usage: ${0##*/}
 
-Update apt packages, mise-managed tools, and the active Firefox profile config.
+Update dnf packages, mise-managed tools, and the active Firefox profile config.
 
 Runs:
-  sudo apt-get update
-  sudo apt-get upgrade -y
-  sudo apt-get autoremove -y
+  sudo dnf upgrade --refresh -y
+  sudo dnf autoremove -y
   mise self-update --yes
   mise upgrade --yes
   linux/setup.sh --firefox-only
@@ -33,16 +32,13 @@ main() {
     esac
   fi
 
-  require_command apt-get "to update Debian packages"
+  require_command dnf "to update Fedora packages"
 
-  log "Refreshing apt package lists..."
-  sudo apt-get update
-
-  log "Upgrading apt packages..."
-  sudo apt-get upgrade -y
+  log "Upgrading dnf packages..."
+  sudo dnf upgrade --refresh -y
 
   log "Removing obsolete packages..."
-  sudo apt-get autoremove -y
+  sudo dnf autoremove -y
 
   require_command mise "to update mise and its managed tools"
   log "Updating mise..."

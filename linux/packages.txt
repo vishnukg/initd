@@ -1,70 +1,73 @@
-# apt packages installed by linux/bootstrap.sh.
+# dnf packages installed by linux/bootstrap.sh.
 # One package per line, comments start with #.
-# Targets Ubuntu 26.04 (resolute) — every package below is in the official
-# archive (main/universe), no PPAs or source builds required.
+# Targets Fedora Workstation 44+. hyprland/hyprlock/hypridle/hyprpaper/
+# xdg-desktop-portal-hyprland come from the sdegler/hyprland COPR, nwg-displays
+# from tofik/nwg-shell (the upstream author's own COPR), ghostty from
+# scottames/ghostty — none of these are in Fedora's official repos.
+# install_packages() enables all three COPRs before resolving this list.
 
 # ── Hyprland desktop (Wayland; installed alongside stock GNOME) ──────────────
-# The hyprland package ships /usr/share/wayland-sessions/hyprland.desktop, so
-# GDM offers Hyprland as a session next to Ubuntu's default GNOME.
+# hyprland ships /usr/share/wayland-sessions/hyprland.desktop, so GDM offers
+# Hyprland as a session next to Fedora's default GNOME.
 hyprland
 hyprlock
 hypridle
 hyprpaper
-hyprland-qtutils
+hyprland-guiutils
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
-xwayland
+xorg-x11-server-Xwayland
 waybar
 rofi
 dunst
-libnotify-bin
-policykit-1-gnome
+libnotify
+lxpolkit
 nwg-displays
 grim
 slurp
 wl-clipboard
 gammastep
 gnome-software
+ghostty
 
 # ── System utilities ──────────────────────────────────────────────────────────
 # VA-API driver for Intel iGPU video decode (Firefox media.ffmpeg.vaapi.enabled
-# silently falls back to CPU decoding without it; non-free variant adds HEVC).
-intel-media-va-driver-non-free
+# silently falls back to CPU decoding without it).
+libva-intel-media-driver
 pulseaudio-utils
 brightnessctl
 ca-certificates
 curl
 unzip
-network-manager-gnome
+network-manager-applet
 blueman
 copyq
-power-profiles-daemon
 
 # ── Theming ───────────────────────────────────────────────────────────────────
 arc-theme
+# apply_gsettings_theme sets icon-theme to "Papirus-Dark" specifically; the
+# base papirus-icon-theme package doesn't include those files, only this does.
 papirus-icon-theme
-dmz-cursor-theme
-# Firefox and the desktop use these proportional/serif families explicitly;
-# list them even though a full Ubuntu desktop normally pulls them in already.
-fonts-ubuntu
-fonts-noto-core
-fonts-firacode
+papirus-icon-theme-dark
+adw-gtk3-theme
+google-noto-sans-fonts
 
 # ── Dev tools (cross-platform equivalents of Brewfile entries) ───────────────
 fish
 tmux
 tig
 git
-gnupg
+gnupg2
 
 # ── Build dependencies for mise-managed Python / Node ────────────────────────
-build-essential
-autoconf
-libssl-dev
-libreadline-dev
-libyaml-dev
-libgmp-dev
-zlib1g-dev
-libffi-dev
-libxml2-dev
-libxslt1-dev
+# gcc/make/autoconf/etc come from the c-development group (installed
+# separately by install_packages()); these are the extra -devel headers
+# that group doesn't cover.
+openssl-devel
+readline-devel
+libyaml-devel
+gmp-devel
+zlib-ng-compat-devel
+libffi-devel
+libxml2-devel
+libxslt-devel

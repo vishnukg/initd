@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Linux platform bootstrap. Invoked by the top-level dispatcher when uname=Linux.
-# Targets Ubuntu 26.04+ (everything in packages.txt is in the official archive);
-# other Debian-based distros work if their repos carry the same packages.
+# Targets Fedora Workstation 44+ (dnf5). Several packages (Hyprland ecosystem,
+# nwg-displays, ghostty) aren't in Fedora's official repos and are pulled from
+# COPR; see the ensure_* / install_packages functions below for which.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LINUX_DIR="${ROOT_DIR}/linux"
@@ -23,94 +24,23 @@ ensure_user_context() {
   fi
 }
 
-ensure_debian() {
-  if [[ ! -f /etc/debian_version ]]; then
-    log_error "linux/bootstrap.sh only supports Debian-based distros (Ubuntu, Linux Mint)."
+ensure_fedora() {
+  if [[ ! -f /etc/fedora-release ]]; then
+    log_error "linux/bootstrap.sh only supports Fedora."
     exit 1
   fi
-  require_command apt-get "to install Debian packages"
-}
-
-disable_snap() {
-  if ! command -v snap >/dev/null 2>&1; then
-    log_success "snapd already removed."
-    return
-  fi
-
-  log "Removing snap packages and snapd..."
-  # Remove snaps in dependency order: retry the full list until a pass
-  # removes nothing more (leaf app snaps go first, base/runtime snaps last).
-  local remaining prev_count=-1
-  while true; do
-    remaining=$(snap list 2>/dev/null | tail -n +2 | awk '{print $1}')
-    [[ -z "${remaining}" ]] && break
-    local count
-    count=$(wc -l <<< "${remaining}")
-    [[ "${count}" -eq "${prev_count}" ]] && break
-    prev_count="${count}"
-    while IFS= read -r s; do
-      [[ -z "${s}" ]] && continue
-      sudo snap remove --purge "${s}" 2>/dev/null || true
-    done <<< "${remaining}"
-  done
-
-  sudo apt-get purge -y snapd
-
-  # Pin snapd out so a later `apt upgrade`/meta-package pull never reinstalls it.
-  sudo tee /etc/apt/preferences.d/nosnap.pref > /dev/null << 'EOF'
-Package: snapd
-Pin: release a=*
-Pin-Priority: -10
-EOF
-
-  sudo rm -rf /var/cache/snapd /var/lib/snapd /var/snap /snap
-  rm -rf "${HOME}/snap"
-  log_success "snapd removed and blocked from reinstalling."
-}
-
-ensure_firefox() {
-  # Ubuntu's `firefox` apt package is a transitional stub that installs the
-  # snap. Add Mozilla's official repo, pinned above the Ubuntu archive, so a
-  # plain `apt install firefox` resolves to the real .deb.
-  if [[ ! -f /etc/apt/sources.list.d/mozilla.list ]]; then
-    log "Adding Mozilla's official apt repo for Firefox..."
-    require_command wget "to fetch the Mozilla signing key"
-
-    sudo install -d -m 0755 /etc/apt/keyrings
-    wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- \
-      | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
-    echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" \
-      | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
-    sudo tee /etc/apt/preferences.d/mozilla.pref > /dev/null << 'EOF'
-Package: *
-Pin: origin packages.mozilla.org
-Pin-Priority: 1000
-EOF
-
-    sudo apt-get update -qq
-  fi
-
-  # Do not treat the repository file alone as proof of a completed install: an
-  # interrupted earlier bootstrap can leave the repo configured but no browser.
-  if ! command -v firefox >/dev/null 2>&1 || ! dpkg -s firefox >/dev/null 2>&1; then
-    sudo apt-get install -y firefox
-    log_success "Firefox installed from Mozilla's apt repo."
-  else
-    log_success "Firefox already installed from Mozilla's apt repo."
-  fi
+  require_command dnf "to install Fedora packages"
 }
 
 ensure_docker() {
   local account_name="${USER:-$(id -un)}"
-  local distro codename
-  local docker_key=/etc/apt/keyrings/docker.asc
-  local docker_source=/etc/apt/sources.list.d/docker.sources
+  local docker_repo=/etc/yum.repos.d/docker-ce.repo
 
   # Docker's packages include its own compatible containerd. Do not silently
   # remove a user's existing runtime, containers, or Docker-compatible tools.
   local conflicts=() package
-  for package in docker.io docker-compose docker-compose-v2 docker-doc podman-docker containerd runc; do
-    dpkg -s "${package}" >/dev/null 2>&1 && conflicts+=("${package}")
+  for package in moby-engine podman-docker containerd runc; do
+    rpm -q "${package}" >/dev/null 2>&1 && conflicts+=("${package}")
   done
   if [[ "${#conflicts[@]}" -gt 0 ]]; then
     log_error "Docker's official packages conflict with: ${conflicts[*]}"
@@ -118,48 +48,12 @@ ensure_docker() {
     return 1
   fi
 
-  if ! dpkg -s docker-ce >/dev/null 2>&1; then
-    # Docker provides separate repositories for Ubuntu and Debian. Linux Mint
-    # uses Ubuntu's repository and exposes its base codename as UBUNTU_CODENAME.
-    # shellcheck disable=SC1091
-    source /etc/os-release
-    case "${ID}" in
-      ubuntu)
-        distro=ubuntu
-        codename="${UBUNTU_CODENAME:-${VERSION_CODENAME}}"
-        ;;
-      debian)
-        distro=debian
-        codename="${VERSION_CODENAME}"
-        ;;
-      linuxmint)
-        distro=ubuntu
-        codename="${UBUNTU_CODENAME:-}"
-        ;;
-      *)
-        log_error "Docker Engine setup supports Ubuntu, Linux Mint, and Debian; detected ${ID}."
-        return 1
-        ;;
-    esac
-    if [[ -z "${codename}" ]]; then
-      log_error "Could not determine the base distribution codename for Docker's apt repository."
-      return 1
+  if ! rpm -q docker-ce >/dev/null 2>&1; then
+    log "Installing Docker Engine from Docker's official dnf repo..."
+    if [[ ! -f "${docker_repo}" ]]; then
+      sudo dnf config-manager addrepo --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
     fi
-
-    log "Installing Docker Engine from Docker's official apt repo..."
-    sudo install -d -m 0755 /etc/apt/keyrings
-    sudo curl -fsSL "https://download.docker.com/linux/${distro}/gpg" -o "${docker_key}"
-    sudo chmod a+r "${docker_key}"
-    sudo tee "${docker_source}" >/dev/null <<EOF
-Types: deb
-URIs: https://download.docker.com/linux/${distro}
-Suites: ${codename}
-Components: stable
-Architectures: $(dpkg --print-architecture)
-Signed-By: ${docker_key}
-EOF
-    sudo apt-get update -qq
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     log_success "Docker Engine installed."
   else
     log_success "Docker Engine already installed."
@@ -174,8 +68,26 @@ EOF
   fi
 }
 
+ensure_coprs() {
+  local enabled
+  enabled="$(dnf copr list 2>/dev/null)"
+  local copr
+  for copr in "$@"; do
+    if grep -qF "${copr}" <<< "${enabled}"; then
+      continue
+    fi
+    log "Enabling COPR ${copr}..."
+    sudo dnf copr enable -y "${copr}"
+  done
+}
+
 install_packages() {
   [[ -f "${PACKAGES_FILE}" ]] || { log_error "Missing ${PACKAGES_FILE}"; exit 1; }
+
+  # Fedora's own repos don't carry the Hyprland ecosystem, nwg-displays, or
+  # ghostty (see the research table in the plan/commit for why). Enable their
+  # COPRs before resolving packages.txt.
+  ensure_coprs "sdegler/hyprland" "tofik/nwg-shell" "scottames/ghostty"
 
   local packages=() missing=() pkg
   # Strip comments and blank lines.
@@ -187,18 +99,31 @@ install_packages() {
   done < "${PACKAGES_FILE}"
 
   for pkg in "${packages[@]}"; do
-    dpkg -s "${pkg}" >/dev/null 2>&1 || missing+=("${pkg}")
+    rpm -q "${pkg}" >/dev/null 2>&1 || missing+=("${pkg}")
   done
 
   if [[ "${#missing[@]}" -eq 0 ]]; then
-    log_success "All ${#packages[@]} apt packages already installed."
-    return
+    log_success "All ${#packages[@]} dnf packages already installed."
+  else
+    log "Installing ${#missing[@]} dnf package(s): ${missing[*]}"
+    # --setopt=install_weak_deps=False: this list is meant to be the exact,
+    # curated set of packages installed — not that plus whatever every
+    # package's Recommends happens to pull in transaction-wide (e.g. nwg-bar,
+    # nwg-panel, and kitty have all been observed sneaking in this way).
+    sudo dnf install -y --setopt=install_weak_deps=False "${missing[@]}"
+    log_success "dnf packages installed."
   fi
 
-  log "Installing ${#missing[@]} apt package(s): ${missing[*]}"
-  sudo apt-get update -qq
-  sudo apt-get install -y "${missing[@]}"
-  log_success "apt packages installed."
+  # Fedora's "development-tools" group is VCS/doc tooling (git, doxygen,
+  # subversion); "c-development" is the actual build-essential equivalent
+  # (gcc, gcc-c++, make, binutils, autoconf, automake, ...).
+  if dnf group info c-development 2>/dev/null | grep -qE '^Installed\s*:\s*yes'; then
+    log_success "C Development Tools group already installed."
+  else
+    log "Installing C Development Tools group (build-essential equivalent)..."
+    sudo dnf group install -y c-development
+    log_success "C Development Tools group installed."
+  fi
 }
 
 ensure_mise() {
@@ -220,37 +145,10 @@ ensure_gh() {
   if command -v gh >/dev/null 2>&1; then
     return
   fi
-  log "Installing gh CLI from official apt repo..."
+  log "Installing gh CLI from official dnf repo..."
   # Per https://github.com/cli/cli/blob/trunk/docs/install_linux.md
-  (type -p wget >/dev/null || sudo apt-get install -y wget) \
-    && sudo mkdir -p -m 755 /etc/apt/keyrings \
-    && wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-       | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null \
-    && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-       | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null \
-    && sudo apt-get update -qq \
-    && sudo apt-get install -y gh
-}
-
-ensure_ghostty() {
-  if command -v ghostty >/dev/null 2>&1; then
-    log_success "ghostty already installed."
-    return
-  fi
-
-  # Ubuntu 26.04+ ships ghostty in universe; older releases need the PPA.
-  if apt-cache policy ghostty 2>/dev/null | grep -q 'Candidate: [0-9]'; then
-    log "Installing ghostty from the Ubuntu archive..."
-    sudo apt-get install -y ghostty
-  else
-    log "Installing ghostty from Ubuntu PPA (mkasberg/ghostty-ubuntu)..."
-    sudo apt-get install -y software-properties-common
-    sudo add-apt-repository -y ppa:mkasberg/ghostty-ubuntu
-    sudo apt-get update -qq
-    sudo apt-get install -y ghostty
-  fi
-  log_success "ghostty installed."
+  sudo dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
+  sudo dnf install -y gh
 }
 
 ensure_1password() {
@@ -259,25 +157,23 @@ ensure_1password() {
     return
   fi
 
-  # 1Password is proprietary — not in the Ubuntu archive. Official apt repo per
-  # https://support.1password.com/install-linux/#debian-or-ubuntu
-  log "Installing 1Password from the official apt repo..."
+  # 1Password is proprietary — not in Fedora's repos. Official dnf repo per
+  # https://support.1password.com/install-linux/#rhel-fedora-or-centos
+  log "Installing 1Password from the official dnf repo..."
   require_command curl "to fetch the 1Password signing key"
 
-  curl -sS --max-time 60 https://downloads.1password.com/linux/keys/1password.asc \
-    | sudo gpg --dearmor --yes --output /usr/share/keyrings/1password-archive-keyring.gpg
-  echo "deb [arch=amd64 signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/amd64 stable main" \
-    | sudo tee /etc/apt/sources.list.d/1password.list >/dev/null
+  sudo rpm --import https://downloads.1password.com/linux/keys/1password.asc
+  sudo tee /etc/yum.repos.d/1password.repo >/dev/null <<'EOF'
+[1password]
+name=1Password Stable Channel
+baseurl=https://downloads.1password.com/linux/rpm/stable/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey="https://downloads.1password.com/linux/keys/1password.asc"
+EOF
 
-  # debsig verification policy (1Password's .deb packages are signature-checked).
-  sudo mkdir -p /etc/debsig/policies/AC2D62742012EA22 /usr/share/debsig/keyrings/AC2D62742012EA22
-  curl -sS --max-time 60 https://downloads.1password.com/linux/debian/debsig/1password.pol \
-    | sudo tee /etc/debsig/policies/AC2D62742012EA22/1password.pol >/dev/null
-  curl -sS --max-time 60 https://downloads.1password.com/linux/keys/1password.asc \
-    | sudo gpg --dearmor --yes --output /usr/share/debsig/keyrings/AC2D62742012EA22/debsig.gpg
-
-  sudo apt-get update -qq
-  sudo apt-get install -y 1password
+  sudo dnf install -y 1password
   log_success "1Password installed."
 }
 
@@ -296,7 +192,7 @@ ensure_gh_auth() {
 }
 
 ensure_fish() {
-  require_command fish "after apt install"
+  require_command fish "after dnf install"
 
   local fish_path
   fish_path="$(command -v fish)"
@@ -349,17 +245,14 @@ setup_git_profile() {
 
 main() {
   ensure_user_context
-  ensure_debian
+  ensure_fedora
 
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Starting initd bootstrap for Linux."
 
-  disable_snap
   install_packages
   ensure_gh
-  ensure_ghostty
   ensure_1password
-  ensure_firefox
   ensure_docker
   ensure_mise
 

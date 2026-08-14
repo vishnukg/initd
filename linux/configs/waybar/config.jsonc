@@ -1,5 +1,5 @@
 // Waybar — port of the polybar layout (workspaces left; cpu, memory, wlan,
-// pulseaudio, backlight, power profile, battery, tray, clock right).
+// pulseaudio, backlight, battery, tray, clock right).
 // No hardware patching needed: waybar auto-detects the default network
 // interface, battery and backlight device.
 {
@@ -15,7 +15,7 @@
     "modules-left": ["hyprland/workspaces"],
     "modules-right": [
         "custom/docker", "custom/weather", "cpu", "memory",
-        "pulseaudio", "backlight", "custom/powerprofile", "battery",
+        "pulseaudio", "backlight", "battery",
         "network", "tray", "clock"
     ],
 
@@ -64,13 +64,6 @@
     "backlight": {
         "format": "<span size='17pt'>{icon}</span> {percent}%",
         "format-icons": ["󰃞", "󰃟", "󰃠"]
-    },
-
-    "custom/powerprofile": {
-        "exec": "~/.config/power-profile-status.sh",
-        "interval": 5,
-        "format": "<span size='17pt'>{}</span>",
-        "on-click": "~/.config/power-profile-cycle.sh"
     },
 
     "battery": {
