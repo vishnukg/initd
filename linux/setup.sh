@@ -77,15 +77,16 @@ mask_desktop_user_units() {
   # waybar/hypridle/hyprpaper's upstream systemd user units are enabled at
   # graphical-session.target, so they also launch inside GNOME sessions
   # (where waybar can't work — no layer-shell — and hyprpaper segfaults) and
-  # race the exec-once entries in hyprland.conf under Hyprland. This repo owns
-  # autostart via hyprland.conf, so mask the units at the user level.
+  # race the hl.on("hyprland.start", ...) autostart block in hyprland.lua
+  # under Hyprland. This repo owns autostart via that block, so mask the
+  # units at the user level.
   local unit
   for unit in waybar.service hypridle.service hyprpaper.service; do
     if [[ "$(systemctl --user is-enabled "${unit}" 2>/dev/null)" == "masked" ]]; then
       log_success "${unit} already masked."
     else
       systemctl --user mask "${unit}" >/dev/null 2>&1
-      log_success "Masked ${unit} (autostarted via hyprland.conf exec-once instead)."
+      log_success "Masked ${unit} (autostarted via hyprland.lua instead)."
     fi
   done
 }
@@ -120,7 +121,7 @@ link_icons_default() {
 }
 
 link_session_scripts() {
-  # hyprland.conf/waybar invoke these by absolute ~/.config/ path, so they need
+  # hyprland.lua/waybar invoke these by absolute ~/.config/ path, so they need
   # their own symlinks (they live in linux/scripts/, not under a MANAGED_LINKS dir).
   local name target src
   for name in night-light-toggle.sh clamshell.sh \
@@ -305,8 +306,8 @@ apply_gsettings_theme() {
   # Adwaita is always present, no extra package needed.
   gsettings set org.gnome.desktop.interface cursor-theme "Adwaita"
   # 56 (the old laptop's value) was oversized on this machine's display; 24 is
-  # Fedora/GNOME's own out-of-box default. hyprland.conf's XCURSOR_SIZE env
-  # var is what actually controls the on-screen cursor under Hyprland itself
+  # Fedora/GNOME's own out-of-box default. hyprland.lua's hl.env("XCURSOR_SIZE", ...)
+  # is what actually controls the on-screen cursor under Hyprland itself
   # (this gsetting only affects GTK apps) — keep the two in sync.
   gsettings set org.gnome.desktop.interface cursor-size 24
   # No Fedora package/font for "Ubuntu Sans" either; Adwaita Sans is Fedora/
@@ -323,7 +324,7 @@ apply_gsettings_theme() {
 }
 
 apply_gsettings_keyboard() {
-  # Mirror hyprland.conf input settings in GNOME so both sessions feel the
+  # Mirror hyprland.lua input settings in GNOME so both sessions feel the
   # same: caps lock as ctrl (kb_options = ctrl:nocaps) and key repeat
   # (repeat_delay = 200, repeat_rate = 35/s → interval 1000/35 ≈ 29ms).
   if ! command -v gsettings >/dev/null 2>&1; then

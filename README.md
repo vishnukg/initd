@@ -32,7 +32,7 @@ initd/
     ├── setup.sh                 # fonts/swappiness/theme/Firefox profile glue
     ├── managed-links.sh
     ├── update.sh
-    ├── scripts/                 # session scripts invoked by hyprland.conf/waybar
+    ├── scripts/                 # session scripts invoked by hyprland.lua/waybar
     └── configs/                 # hypr, waybar, rofi, dunst, gtk-3.0, firefox
 ```
 
@@ -130,7 +130,7 @@ Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-com
 `linux/setup.sh` handles things that don't fit the symlink flow:
 - system fixes requiring sudo (swappiness, `video` group membership for backlight keys)
 - GTK theme + font/cursor gsettings (Fedora has no `fonts-ubuntu` or DMZ-cursor package, so this uses `Adwaita Sans` and the `Adwaita` cursor theme instead)
-- session scripts symlinked to absolute `~/.config/` paths that hyprland.conf/waybar invoke directly
+- session scripts symlinked to absolute `~/.config/` paths that hyprland.lua/waybar invoke directly
 - special-case paths outside `~/.config/`: `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox profile files (profile path is dynamic; Firefox itself is unmanaged by bootstrap.sh — install it however you like, this glue configures whatever it finds)
 
 ## Adding a managed config
