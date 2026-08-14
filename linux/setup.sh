@@ -350,6 +350,38 @@ add_user_to_video_group() {
   log_warn "Log out and back in for the video group to take effect."
 }
 
+enable_audio_eq() {
+  # Corrects the XPS 13 cs42l43 speakers' thin/tinny stock output — see
+  # linux/configs/pipewire/filter-chain.conf.d/sink-eq6.conf for the curve
+  # itself. filter-chain.service (a stock PipeWire unit) loads that config
+  # and creates the "Equalizer Sink" node; this just wires it up as the
+  # default output with makeup gain, since removing that much energy from
+  # the upper-mid/treble drops perceived loudness.
+  if ! command -v pactl >/dev/null 2>&1; then
+    log_warn "pactl not found; skipping audio EQ setup."
+    return
+  fi
+
+  systemctl --user enable --now filter-chain.service >/dev/null 2>&1
+
+  local attempt
+  for attempt in $(seq 1 10); do
+    if pactl list short sinks 2>/dev/null | grep -q "effect_input.eq6"; then
+      break
+    fi
+    sleep 0.5
+  done
+
+  if ! pactl list short sinks 2>/dev/null | grep -q "effect_input.eq6"; then
+    log_warn "effect_input.eq6 sink never appeared; skipping default-sink/volume setup."
+    return
+  fi
+
+  pactl set-default-sink effect_input.eq6
+  pactl set-sink-volume effect_input.eq6 105%
+  log_success "Audio EQ enabled (Equalizer Sink set as default, 105% makeup gain)."
+}
+
 # ── Service restarts (apply config changes without a reboot) ─────────────────
 restart_dunst() {
   if pgrep -x dunst >/dev/null 2>&1; then
@@ -419,6 +451,7 @@ main() {
   link_firefox_profile
   set_firefox_default_zoom
   add_user_to_video_group
+  enable_audio_eq
 
   restart_dunst
 
