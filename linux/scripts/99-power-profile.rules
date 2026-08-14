@@ -1,4 +1,0 @@
-# Re-evaluate the power profile whenever AC/battery state changes.
-# Covers boot (add), plug/unplug (change) for adapters and the battery.
-SUBSYSTEM=="power_supply", ACTION=="add", RUN+="/usr/local/bin/power-profile-switch.sh"
-SUBSYSTEM=="power_supply", ACTION=="change", RUN+="/usr/local/bin/power-profile-switch.sh"

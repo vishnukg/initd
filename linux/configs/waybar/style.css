@@ -76,7 +76,7 @@ window#waybar {
 }
 
 #cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight,
-#custom-powerprofile, #battery, #tray, #custom-weather, #clock {
+#battery, #tray, #custom-weather, #clock {
     padding: 0 8px;
     color: #d9dce5;
     border-radius: 10px;
@@ -84,7 +84,7 @@ window#waybar {
 }
 
 #cpu:hover, #memory:hover, #custom-docker:hover, #network:hover,
-#pulseaudio:hover, #backlight:hover, #custom-powerprofile:hover,
+#pulseaudio:hover, #backlight:hover,
 #battery:hover, #custom-weather:hover, #clock:hover {
     background: rgba(48, 53, 68, 0.82);
     box-shadow: none;
@@ -97,7 +97,7 @@ window#waybar {
 }
 
 #cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight,
-#custom-powerprofile, #custom-weather, #clock, #tray {
+#custom-weather, #clock, #tray {
     color: #f4f5f8;
 }
 

@@ -1,11 +1,11 @@
 # initd
 
-`initd` bootstraps a fresh development machine from one repo and one shell script. It supports both **macOS** and **Debian-based Linux** (Ubuntu, Linux Mint) from the same codebase.
+`initd` bootstraps a fresh development machine from one repo and one shell script. It supports both **macOS** and **Fedora Workstation** Linux from the same codebase.
 
 It owns both:
 
-- **machine setup**: Homebrew (mac) / apt (linux), apps, runtimes, OS defaults, i3 desktop
-- **user config**: Neovim, Ghostty, Fish, tmux, Git, i3/polybar/rofi/dunst, and other dotfiles via managed symlinks
+- **machine setup**: Homebrew (mac) / dnf (linux), apps, runtimes, OS defaults, Hyprland desktop
+- **user config**: Neovim, Ghostty, Fish, tmux, Git, Hyprland/waybar/rofi/dunst, and other dotfiles via managed symlinks
 
 ## Layout
 
@@ -27,13 +27,13 @@ initd/
 │   ├── managed-links.sh
 │   └── update.sh
 └── linux/                       # self-contained Linux bootstrap
-    ├── bootstrap.sh
-    ├── packages.txt             # apt package list
-    ├── setup.sh                 # xorg/wifi/picom hook/fonts/polybar patch/firefox/Xresources
+    ├── bootstrap.sh              # targets Fedora Workstation 44+ (dnf5)
+    ├── packages.txt             # dnf package list (some via COPR — see below)
+    ├── setup.sh                 # fonts/swappiness/theme/Firefox glue
     ├── managed-links.sh
     ├── update.sh
-    ├── scripts/                 # systemd-sleep hooks
-    └── configs/                 # i3, polybar, rofi, dunst, picom, gtk-3.0, xsettingsd, firefox
+    ├── scripts/                 # session scripts invoked by hyprland.conf/waybar
+    └── configs/                 # hypr, waybar, rofi, dunst, gtk-3.0, firefox
 ```
 
 ## Usage
@@ -45,8 +45,8 @@ bash ~/.config/initd/bootstrap.sh
 
 The dispatcher runs `macos/bootstrap.sh` on Darwin and `linux/bootstrap.sh` on Linux. Both:
 
-- install required packages (Homebrew or apt)
-- install mise and gh (apt repo on Linux, brew on macOS)
+- install required packages (Homebrew or dnf, enabling COPRs on Linux where Fedora's own repos don't carry a package)
+- install mise and gh (dnf repo on Linux, brew on macOS)
 - link managed configs into `$HOME`, backing up unmanaged files to `~/.config/initd-backups/<timestamp>/`
 - set fish as the login shell (`dscl` on macOS, `chsh` on Linux), then sync fisher plugins
 - run `mise install` for shared runtimes and LSP tooling
@@ -86,14 +86,13 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 
 | Runtime path | Source |
 |---|---|
-| `~/.config/i3` | `linux/configs/i3` |
-| `~/.config/polybar` | `linux/configs/polybar` |
+| `~/.config/hypr` | `linux/configs/hypr` |
+| `~/.config/waybar` | `linux/configs/waybar` |
 | `~/.config/rofi` | `linux/configs/rofi` |
 | `~/.config/dunst` | `linux/configs/dunst` |
-| `~/.config/picom` | `linux/configs/picom` |
-| `~/.config/xsettingsd` | `linux/configs/xsettingsd` |
+| `~/.config/fontconfig` | `linux/configs/fontconfig` |
 | `~/.config/gtk-3.0` | `linux/configs/gtk-3.0` |
-| `~/.Xresources`, `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, Firefox profile glue | linked individually by `linux/setup.sh` (paths are dynamic or outside `~/.config/`) |
+| `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, Firefox profile glue | linked individually by `linux/setup.sh` (paths are dynamic or outside `~/.config/`) |
 
 ## Machine-local secrets
 
@@ -124,15 +123,15 @@ before initd takes ownership. Nothing is deleted.
 
 Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-compose`, and `docker-credential-helper` formulas in the Brewfile, a managed VM template at `shared/configs/colima/`, and an `ensure_docker_config` bootstrap step that points `docker login` at the macOS Keychain and wires the brew-installed compose plugin into the docker CLI. See `docs/colima.md`.
 
-## Linux — apt specifics
+## Linux — dnf specifics
 
-`linux/packages.txt` is one package per line, comments allowed. Add to it and re-run `linux/bootstrap.sh`. The packages list intentionally tracks the brew formulas where equivalents exist (`fish`, `tmux`, `tig`, `git`, `gnupg`, `neovim`) plus Debian build deps for mise-managed Python/Node. Docker Engine is installed separately from Docker's official apt repository, together with Buildx and the Compose v2 plugin; bootstrap adds the login user to the privileged `docker` group, so log out and back in once after its first installation.
+`linux/packages.txt` is one package per line, comments allowed. Add to it and re-run `linux/bootstrap.sh`. The packages list intentionally tracks the brew formulas where equivalents exist (`fish`, `tmux`, `tig`, `git`, `gnupg2`, `neovim`) plus Fedora `-devel` build deps for mise-managed Python/Node. Fedora's own repos don't carry the Hyprland ecosystem, `nwg-displays`, or `ghostty` — `install_packages()` enables the `sdegler/hyprland`, `tofik/nwg-shell`, and `scottames/ghostty` COPRs first. Docker Engine is installed separately from Docker's official dnf repository, together with Buildx and the Compose v2 plugin; bootstrap adds the login user to the privileged `docker` group, so log out and back in once after its first installation. gh CLI and 1Password also come from their own official dnf repos.
 
-`linux/setup.sh` handles four classes of thing that don't fit the symlink flow:
-- system fixes requiring sudo (xorg TearFree, Intel BE200 WiFi d3cold udev rule, NetworkManager power save, swappiness, Chrome apt arch pin, power-profiles-daemon)
-- systemd-sleep hooks (`picom-resume.sh`, `wifi-reconnect.sh`) copied into `/etc/systemd/system-sleep/`
-- hardware-specific patching of `polybar/config.ini` (interface/battery/backlight names sed'd in based on `ip link`, `/sys/class/power_supply/`, `/sys/class/backlight/`)
-- special-case paths outside `~/.config/`: `~/.Xresources`, `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox profile files (profile path is dynamic)
+`linux/setup.sh` handles things that don't fit the symlink flow:
+- system fixes requiring sudo (swappiness, `video` group membership for backlight keys)
+- GTK theme + font/cursor gsettings (Fedora has no `fonts-ubuntu` or DMZ-cursor package, so this uses `Adwaita Sans` and the `Adwaita` cursor theme instead)
+- session scripts symlinked to absolute `~/.config/` paths that hyprland.conf/waybar invoke directly
+- special-case paths outside `~/.config/`: `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox profile files (profile path is dynamic; Firefox itself is currently unmanaged by bootstrap.sh — install it however you like, this glue configures whatever it finds)
 
 ## Adding a managed config
 

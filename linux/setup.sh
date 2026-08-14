@@ -3,8 +3,7 @@ set -euo pipefail
 
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font)
-#   - System fixes that need sudo (WiFi, NetworkManager, swappiness)
-#   - Power-profile auto-switch (udev + polkit; works under any session)
+#   - System fixes that need sudo (swappiness)
 #   - Session scripts linked to absolute ~/.config/ paths (waybar/hyprland use them)
 #   - Firefox profile glue (profile path is dynamic)
 #
@@ -48,184 +47,6 @@ install_firacode_nerd_font() {
 }
 
 # ── System fixes ──────────────────────────────────────────────────────────────
-apply_intel_wifi_d3cold_fix() {
-  # Intel BE200 (vendor 8086, device 272b) wedges firmware when entering PCIe D3cold.
-  # Keep the device in D3hot across suspend.
-  local wifi_udev=/etc/udev/rules.d/10-intel-wifi-d3cold.rules
-  local wifi_udev_rule='ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x8086", ATTR{device}=="0x272b", ATTR{d3cold_allowed}="0"'
-
-  if [[ -f "${wifi_udev}" ]] && grep -qF "${wifi_udev_rule}" "${wifi_udev}"; then
-    log_success "Intel WiFi d3cold udev rule already installed."
-  else
-    echo "${wifi_udev_rule}" | sudo tee "${wifi_udev}" >/dev/null
-    sudo udevadm control --reload
-    log_success "Intel WiFi d3cold udev rule installed."
-  fi
-
-  local wifi_pci
-  wifi_pci="$(lspci -D 2>/dev/null | awk '/Network controller.*Intel/{print $1; exit}' || true)"
-  if [[ -n "${wifi_pci}" ]] && [[ -e "/sys/bus/pci/devices/${wifi_pci}" ]]; then
-    sudo udevadm trigger --action=add "/sys/bus/pci/devices/${wifi_pci}"
-    log "d3cold_allowed=0 applied to ${wifi_pci}"
-  fi
-
-  # Old hooks for the same problem — clean up if they exist.
-  local _old
-  for _old in /etc/systemd/system-sleep/wifi-resume.sh /usr/lib/systemd/system-sleep/wifi-resume.sh /etc/modprobe.d/iwlmvm.conf; do
-    if [[ -f "${_old}" ]]; then
-      sudo rm -f "${_old}"
-      log "Removed stale ${_old}"
-    fi
-  done
-}
-
-apply_intel_bluetooth_wakeup() {
-  # BlueZ can mark individual HID devices as WakeAllowed, but the setting is
-  # ineffective when the USB Bluetooth controller itself is not a kernel wake
-  # source.  Keep wake enabled for this laptop's Intel controller so a paired
-  # keyboard or mouse can resume the machine while the lid remains closed.
-  local bluetooth_udev=/etc/udev/rules.d/10-intel-bluetooth-wakeup.rules
-  local bluetooth_udev_rule='ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="8087", ATTR{idProduct}=="0036", TEST=="power/wakeup", ATTR{power/wakeup}="enabled"'
-
-  if [[ -f "${bluetooth_udev}" ]] && grep -qxF "${bluetooth_udev_rule}" "${bluetooth_udev}"; then
-    log_success "Intel Bluetooth wake udev rule already installed."
-  else
-    echo "${bluetooth_udev_rule}" | sudo tee "${bluetooth_udev}" >/dev/null
-    sudo udevadm control --reload
-    log_success "Intel Bluetooth wake udev rule installed."
-  fi
-
-  local bluetooth_usb
-  for bluetooth_usb in /sys/bus/usb/devices/*; do
-    [[ -f "${bluetooth_usb}/idVendor" && -f "${bluetooth_usb}/idProduct" ]] || continue
-    [[ "$(<"${bluetooth_usb}/idVendor")" == "8087" ]] || continue
-    [[ "$(<"${bluetooth_usb}/idProduct")" == "0036" ]] || continue
-    if [[ -w "${bluetooth_usb}/power/wakeup" ]]; then
-      echo enabled > "${bluetooth_usb}/power/wakeup"
-    else
-      echo enabled | sudo tee "${bluetooth_usb}/power/wakeup" >/dev/null
-    fi
-    log "Bluetooth wake enabled on $(basename "${bluetooth_usb}")"
-  done
-}
-
-apply_wifi_regdomain() {
-  # Without a regulatory domain the kernel sits in the "world" domain
-  # (country 00): the whole 6 GHz band is disabled and TX power is capped,
-  # so the BE200 can never use WiFi 6E/7's fastest band. Persist via the
-  # cfg80211 module option (applies at boot; legacy /etc/default/crda is dead).
-  local regdomain="AU"
-  local conf=/etc/modprobe.d/cfg80211.conf
-  local line="options cfg80211 ieee80211_regdom=${regdomain}"
-
-  if [[ -f "${conf}" ]] && grep -qxF "${line}" "${conf}"; then
-    log_success "WiFi regulatory domain already set (${regdomain})."
-    return
-  fi
-  echo "${line}" | sudo tee "${conf}" >/dev/null
-  # Best-effort immediate apply; fully in effect after reboot/module reload.
-  command -v iw >/dev/null 2>&1 && sudo iw reg set "${regdomain}" 2>/dev/null || true
-  log_success "WiFi regulatory domain set to ${regdomain} (6 GHz enabled after reboot)."
-}
-
-apply_wifi_reconnect_speedup() {
-  # Disable NM's WiFi power save so the card doesn't doze between scans.
-  local nm_powersave=/etc/NetworkManager/conf.d/wifi-powersave.conf
-  if [[ -f "${nm_powersave}" ]] && grep -q 'wifi.powersave = 2' "${nm_powersave}"; then
-    log_success "WiFi power save already disabled."
-  else
-    sudo mkdir -p /etc/NetworkManager/conf.d
-    printf '[connection]\nwifi.powersave = 2\n' | sudo tee "${nm_powersave}" >/dev/null
-    log_success "WiFi power save disabled."
-  fi
-
-  local reconnect_hook=/etc/systemd/system-sleep/wifi-reconnect.sh
-  sudo mkdir -p /etc/systemd/system-sleep
-  if [[ -f "${reconnect_hook}" ]] && diff -q "${SCRIPTS_DIR}/wifi-reconnect.sh" "${reconnect_hook}" >/dev/null 2>&1; then
-    log_success "WiFi reconnect hook already installed."
-  else
-    sudo cp "${SCRIPTS_DIR}/wifi-reconnect.sh" "${reconnect_hook}"
-    sudo chmod +x "${reconnect_hook}"
-    log_success "WiFi reconnect hook installed."
-  fi
-}
-
-apply_chrome_apt_arch() {
-  local chrome_sources=/etc/apt/sources.list.d/google-chrome.sources
-  if [[ ! -f "${chrome_sources}" ]]; then
-    log "google-chrome.sources not present — skipping."
-    return
-  fi
-  if grep -q 'Architectures:' "${chrome_sources}"; then
-    log_success "Chrome apt arch already pinned."
-    return
-  fi
-  sudo sed -i 's/^Types: deb$/Types: deb\nArchitectures: amd64/' "${chrome_sources}"
-  log_success "Chrome apt arch pinned to amd64."
-}
-
-enable_power_profiles_daemon() {
-  local cpu_svc=/etc/systemd/system/cpu-performance.service
-  if [[ -f "${cpu_svc}" ]]; then
-    sudo systemctl disable --now cpu-performance.service 2>/dev/null || true
-    sudo rm -f "${cpu_svc}"
-    log "Removed static performance governor service."
-  fi
-
-  if systemctl is-active --quiet power-profiles-daemon \
-      && systemctl is-enabled --quiet power-profiles-daemon; then
-    log_success "power-profiles-daemon already running and enabled."
-    return
-  fi
-  sudo systemctl unmask power-profiles-daemon 2>/dev/null || true
-  if sudo systemctl enable --now power-profiles-daemon; then
-    log_success "power-profiles-daemon enabled."
-  else
-    log_warn "Could not enable power-profiles-daemon — may conflict with another power manager."
-  fi
-}
-
-install_power_profile_autoswitch() {
-  # Auto-switch the PPD profile on AC vs battery via a udev-triggered script
-  # (Hyprland has no GNOME/KDE-style logic to do this). The udev hook runs as
-  # root with no active session, so a polkit rule is needed or the switch is denied.
-  local switch_bin=/usr/local/bin/power-profile-switch.sh
-  local udev_rule=/etc/udev/rules.d/99-power-profile.rules
-  local polkit_rule=/etc/polkit-1/rules.d/49-power-profiles.rules
-  local udev_changed=0
-
-  if [[ -f "${switch_bin}" ]] && diff -q "${SCRIPTS_DIR}/power-profile-switch.sh" "${switch_bin}" >/dev/null 2>&1; then
-    log_success "Power-profile switcher already installed."
-  else
-    sudo cp "${SCRIPTS_DIR}/power-profile-switch.sh" "${switch_bin}"
-    sudo chmod +x "${switch_bin}"
-    log_success "Power-profile switcher installed."
-  fi
-
-  if [[ -f "${udev_rule}" ]] && diff -q "${SCRIPTS_DIR}/99-power-profile.rules" "${udev_rule}" >/dev/null 2>&1; then
-    log_success "Power-profile udev rule already installed."
-  else
-    sudo cp "${SCRIPTS_DIR}/99-power-profile.rules" "${udev_rule}"
-    udev_changed=1
-    log_success "Power-profile udev rule installed."
-  fi
-
-  sudo mkdir -p /etc/polkit-1/rules.d
-  if [[ -f "${polkit_rule}" ]] && diff -q "${SCRIPTS_DIR}/49-power-profiles.rules" "${polkit_rule}" >/dev/null 2>&1; then
-    log_success "Power-profile polkit rule already installed."
-  else
-    sudo cp "${SCRIPTS_DIR}/49-power-profiles.rules" "${polkit_rule}"
-    log_success "Power-profile polkit rule installed."
-  fi
-
-  if [[ "${udev_changed}" -eq 1 ]]; then
-    sudo udevadm control --reload-rules
-    log "Reloaded udev rules."
-  fi
-  # Sync to the current AC/battery state right away.
-  "${switch_bin}" 2>/dev/null || true
-}
-
 apply_swappiness() {
   local sysctl_conf=/etc/sysctl.d/99-performance.conf
   if [[ -f "${sysctl_conf}" ]] && grep -q 'swappiness=10' "${sysctl_conf}"; then
@@ -249,8 +70,8 @@ check_hyprland_session() {
 }
 
 mask_desktop_user_units() {
-  # Ubuntu's waybar/hypridle/hyprpaper packages ship systemd user units enabled
-  # at graphical-session.target, so they also launch inside GNOME sessions
+  # waybar/hypridle/hyprpaper's upstream systemd user units are enabled at
+  # graphical-session.target, so they also launch inside GNOME sessions
   # (where waybar can't work — no layer-shell — and hyprpaper segfaults) and
   # race the exec-once entries in hyprland.conf under Hyprland. This repo owns
   # autostart via hyprland.conf, so mask the units at the user level.
@@ -263,31 +84,6 @@ mask_desktop_user_units() {
       log_success "Masked ${unit} (autostarted via hyprland.conf exec-once instead)."
     fi
   done
-}
-
-# ── GTK theme (adw-gtk3) ─────────────────────────────────────────────────────
-ADW_GTK3_VERSION="v6.5"
-
-install_adw_gtk3_theme() {
-  # Modern libadwaita-style dark theme for GTK3 apps, referenced by
-  # gtk-3.0/settings.ini and gtkrc-2.0. Not packaged for Ubuntu, so pull the
-  # prebuilt release tarball (no sudo needed).
-  local themes_dir="${HOME}/.local/share/themes"
-  local stamp="${themes_dir}/adw-gtk3-dark/.initd-version"
-
-  if [[ -f "${stamp}" ]] && [[ "$(cat "${stamp}")" == "${ADW_GTK3_VERSION}" ]]; then
-    log_success "adw-gtk3 ${ADW_GTK3_VERSION} already installed."
-    return
-  fi
-
-  require_command curl "to download the adw-gtk3 theme"
-  mkdir -p "${themes_dir}"
-  log "Downloading adw-gtk3 ${ADW_GTK3_VERSION}..."
-  curl -fL --max-time 120 \
-    "https://github.com/lassekongo83/adw-gtk3/releases/download/${ADW_GTK3_VERSION}/adw-gtk3${ADW_GTK3_VERSION}.tar.xz" \
-    | tar -xJ -C "${themes_dir}"
-  echo "${ADW_GTK3_VERSION}" > "${stamp}"
-  log_success "adw-gtk3 ${ADW_GTK3_VERSION} installed to ~/.local/share/themes."
 }
 
 # ── Config glue (special-case paths) ─────────────────────────────────────────
@@ -323,8 +119,7 @@ link_session_scripts() {
   # hyprland.conf/waybar invoke these by absolute ~/.config/ path, so they need
   # their own symlinks (they live in linux/scripts/, not under a MANAGED_LINKS dir).
   local name target src
-  for name in power-profile-cycle.sh power-profile-status.sh \
-              night-light-toggle.sh clamshell.sh \
+  for name in night-light-toggle.sh clamshell.sh \
               weather-popup.sh docker-menu.sh; do
     target="${HOME}/.config/${name}"
     src="${SCRIPTS_DIR}/${name}"
@@ -348,16 +143,13 @@ link_firefox_profile() {
   # Firefox's profile root varies by install/version:
   #   - legacy ~/.mozilla/firefox — used whenever it exists (takes priority)
   #   - XDG ~/.config/mozilla/firefox — Firefox 143+ default when no legacy dir
-  #   - ~/snap/firefox/common/.mozilla/firefox — the snap sandbox (fallback;
-  #     bootstrap removes snap, but a pre-bootstrap profile may live there)
-  # Match Firefox's own resolution order: legacy first, then XDG, then snap.
+  # Match Firefox's own resolution order: legacy first, then XDG.
   local moz_dir=""
   local candidate
   find_firefox_profile_root() {
     for candidate in \
       "${HOME}/.mozilla/firefox" \
-      "${XDG_CONFIG_HOME:-${HOME}/.config}/mozilla/firefox" \
-      "${HOME}/snap/firefox/common/.mozilla/firefox"
+      "${XDG_CONFIG_HOME:-${HOME}/.config}/mozilla/firefox"
     do
       if [[ -f "${candidate}/profiles.ini" ]]; then
         printf '%s\n' "${candidate}"
@@ -481,7 +273,7 @@ PYEOF
 apply_gsettings_theme() {
   # GTK3 apps read gtk-3.0/settings.ini, but GTK4/libadwaita apps on Wayland
   # get their theme through xdg-desktop-portal, which reads gsettings/dconf.
-  # Keep both in sync or modern apps silently fall back to Ubuntu's Yaru.
+  # Keep both in sync or modern apps silently fall back to Fedora's Adwaita.
   if ! command -v gsettings >/dev/null 2>&1; then
     log_warn "gsettings not available — skipping theme sync."
     return
@@ -489,10 +281,18 @@ apply_gsettings_theme() {
   gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark"
   gsettings set org.gnome.desktop.interface icon-theme "Papirus-Dark"
   gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"
-  gsettings set org.gnome.desktop.interface cursor-theme "DMZ-White"
-  gsettings set org.gnome.desktop.interface cursor-size 56
-  gsettings set org.gnome.desktop.interface font-name "Ubuntu Sans 11"
-  gsettings set org.gnome.desktop.interface document-font-name "Ubuntu Sans 12"
+  # No Fedora package ships the DMZ cursors used on the old Ubuntu machine;
+  # Adwaita is always present, no extra package needed.
+  gsettings set org.gnome.desktop.interface cursor-theme "Adwaita"
+  # 56 (the old laptop's value) was oversized on this machine's display; 24 is
+  # Fedora/GNOME's own out-of-box default. hyprland.conf's XCURSOR_SIZE env
+  # var is what actually controls the on-screen cursor under Hyprland itself
+  # (this gsetting only affects GTK apps) — keep the two in sync.
+  gsettings set org.gnome.desktop.interface cursor-size 24
+  # No Fedora package/font for "Ubuntu Sans" either; Adwaita Sans is Fedora/
+  # GNOME's own default, always present.
+  gsettings set org.gnome.desktop.interface font-name "Adwaita Sans 11"
+  gsettings set org.gnome.desktop.interface document-font-name "Adwaita Sans 12"
   gsettings set org.gnome.desktop.interface monospace-font-name "FiraCode Nerd Font Mono 11"
   # Grayscale AA is stable across Wayland fractional scales and monitor
   # orientations; RGB subpixel AA can acquire colored fringes after scaling.
@@ -562,18 +362,6 @@ EOF
   log_success "Firefox policies installed."
 }
 
-configure_copyq() {
-  # CopyQ runs tray-less ($mod+c toggles it — see hyprland.conf); the setting
-  # lives in CopyQ's own config and needs its server up to write. Skip quietly
-  # when no session/server is available (first bootstrap from a TTY).
-  command -v copyq >/dev/null 2>&1 || return 0
-  if copyq config disable_tray true >/dev/null 2>&1; then
-    log_success "CopyQ tray icon disabled."
-  else
-    log_warn "CopyQ server not reachable — tray setting will apply on next setup run."
-  fi
-}
-
 # ── Service restarts (apply config changes without a reboot) ─────────────────
 restart_dunst() {
   if pgrep -x dunst >/dev/null 2>&1; then
@@ -625,18 +413,10 @@ main() {
   log "Applying Linux system tweaks..."
 
   install_firacode_nerd_font
-  apply_intel_wifi_d3cold_fix
-  apply_intel_bluetooth_wakeup
-  apply_wifi_regdomain
-  apply_wifi_reconnect_speedup
-  apply_chrome_apt_arch
-  enable_power_profiles_daemon
-  install_power_profile_autoswitch
   apply_swappiness
   check_hyprland_session
   mask_desktop_user_units
 
-  install_adw_gtk3_theme
   apply_gsettings_theme
   apply_gsettings_keyboard
   link_gtkrc_2
@@ -645,7 +425,6 @@ main() {
   link_firefox_profile
   install_firefox_policies
   add_user_to_video_group
-  configure_copyq
 
   restart_dunst
 
