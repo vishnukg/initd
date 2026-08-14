@@ -262,7 +262,7 @@ print(opts["noremap"])  -- same thing
 -- Mixed / nested
 local config = {
     lsp = {
-        servers = { "gopls", "tsgo" },
+        servers = { "gopls", "tsc" },
     },
 }
 print(config.lsp.servers[1])  -- "gopls"

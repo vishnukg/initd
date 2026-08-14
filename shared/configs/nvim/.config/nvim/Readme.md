@@ -175,7 +175,7 @@ mise tool sources (one committed file, every machine identical):
 
 ~/.config/initd/shared/configs/mise/.config/mise/config.toml
   ├── runtimes                 ← go, node, python, dotnet, terraform
-  ├── LSP servers              ← lua_ls, gopls, pyright, ruff, tsgo, taplo, …
+  ├── LSP servers              ← lua_ls, gopls, pyright, ruff, tsc, taplo, …
   └── linters / formatters     ← stylua, ruff, golangci-lint, prettierd, …
 ```
 
@@ -238,10 +238,10 @@ vim.lsp.buf.format({ id = selected_client })
                 │
                 ├── Python override       → ruff
                 ├── available none-ls     → stylua, goimports, prettierd, …
-                └── native LSP fallback   → tsgo, jsonls, lua_ls, gopls, …
+                └── native LSP fallback   → tsc, jsonls, lua_ls, gopls, …
 ```
 
-Exactly one client formats each save. A matching none-ls source is preferred, while native LSP formatting remains available as a fallback. For example, `prettierd` is used only when the project has a Prettier config; otherwise `tsgo`, `jsonls`, or `html` can format instead of silently doing nothing.
+Exactly one client formats each save. A matching none-ls source is preferred, while native LSP formatting remains available as a fallback. For example, `prettierd` is used only when the project has a Prettier config; otherwise `tsc`, `jsonls`, or `html` can format instead of silently doing nothing.
 
 > **Python is the exception.** Python lint + format + import-sorting all come from ruff's own LSP server, not none-ls. Ruff's hover is suppressed so pyright provides it, and pyright's "organize imports" is disabled so ruff owns it.
 
@@ -288,7 +288,7 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 | **Lua** | lua_ls | stylua | — | — |
 | **Python** | pyright + ruff | ruff | ruff | neotest-python (pytest)³ |
 | **Go** | gopls | goimports | gopls staticcheck + golangci-lint⁵ | neotest-golang |
-| **TypeScript / JavaScript** | tsgo (TS7 built-in LSP) | prettierd⁴ or tsgo fallback | eslint_d¹ | neotest-jest / neotest-vitest² |
+| **TypeScript / JavaScript** | tsc (TS7 built-in LSP) | prettierd⁴ or tsc fallback | eslint_d¹ | neotest-jest / neotest-vitest² |
 | **JSON** | jsonls | prettierd⁴ or jsonls fallback | — | — |
 | **HTML** | html + emmet_ls | prettierd⁴ or html fallback | — | — |
 | **CSS / SCSS** | emmet_ls | prettierd⁴ | stylelint¹ | — |
