@@ -1,7 +1,7 @@
 /* Floating Prompt — minimalist dark */
 configuration {
     modi:               "drun,window,run";
-    font:               "Ubuntu Sans SemiBold 15";
+    font:               "Adwaita Sans SemiBold 15";
     show-icons:         true;
     drun-display-format: "{icon} {name}";
     sidebar-mode:       false;

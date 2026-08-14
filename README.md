@@ -29,7 +29,7 @@ initd/
 └── linux/                       # self-contained Linux bootstrap
     ├── bootstrap.sh              # targets Fedora Workstation 44+ (dnf5)
     ├── packages.txt             # dnf package list (some via COPR — see below)
-    ├── setup.sh                 # fonts/swappiness/theme/Firefox glue
+    ├── setup.sh                 # fonts/swappiness/theme/Firefox profile glue
     ├── managed-links.sh
     ├── update.sh
     ├── scripts/                 # session scripts invoked by hyprland.conf/waybar
@@ -131,7 +131,7 @@ Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-com
 - system fixes requiring sudo (swappiness, `video` group membership for backlight keys)
 - GTK theme + font/cursor gsettings (Fedora has no `fonts-ubuntu` or DMZ-cursor package, so this uses `Adwaita Sans` and the `Adwaita` cursor theme instead)
 - session scripts symlinked to absolute `~/.config/` paths that hyprland.conf/waybar invoke directly
-- special-case paths outside `~/.config/`: `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox profile files (profile path is dynamic; Firefox itself is currently unmanaged by bootstrap.sh — install it however you like, this glue configures whatever it finds)
+- special-case paths outside `~/.config/`: `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox profile files (profile path is dynamic; Firefox itself is unmanaged by bootstrap.sh — install it however you like, this glue configures whatever it finds)
 
 ## Adding a managed config
 
