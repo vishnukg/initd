@@ -19,7 +19,7 @@ Think of the setup as three separate actors:
 | nwg-displays | edits saved monitor rules; it does not need to stay running |
 
 ```
-monitor = eDP-1, preferred, auto, 1.5    # laptop panel, 1.5x scale
+monitor = eDP-1, preferred, auto, 1.25   # laptop panel, 1.25x scale
 monitor = , preferred, auto, 1.25        # catch-all: any external monitor
 ```
 
@@ -43,10 +43,10 @@ monitor = , preferred, auto, 1.25        # catch-all: any external monitor
 
 | What happens | Result |
 |---|---|
-| Start with the laptop by itself | `eDP-1` uses its preferred mode at 1.5x |
+| Start with the laptop by itself | `eDP-1` uses its preferred mode at 1.25x |
 | Plug in an external with the lid open | both screens work; the external uses its preferred mode, 1.25x, auto-positioned to the right |
 | Close the lid after connecting an external | `clamshell.sh` disables `eDP-1`; the external becomes the only screen |
-| Open the lid while still connected | `eDP-1` returns at 1.5x; both screens work |
+| Open the lid while still connected | `eDP-1` returns at 1.25x; both screens work |
 | Unplug the external with the lid open | its workspaces and windows migrate to the laptop panel |
 | Connect an unfamiliar monitor | the catch-all rule gives it preferred mode, 1.25x, and automatic position |
 | Connect multiple external monitors | every unknown output gets the catch-all; Hyprland extends them sequentially to the right |
@@ -132,8 +132,8 @@ for everything else.
 
 1. Connect the external display and **open the laptop lid before pressing
    Apply**.
-2. Use scale `1.5` for the 2880x1800 laptop panel and `1.25` for the 4K
-   external display, then arrange their relative positions.
+2. Use scale `1.25` for the laptop panel and adjust externals to taste based
+   on their actual resolution/DPI, then arrange their relative positions.
 3. Enable **Use monitor description** if a dock sometimes exposes the same
    display under different connector names such as `DP-1` and `DP-2`.
 4. Initially leave workspace assignments unchanged. Explicit assignments pin
@@ -169,7 +169,7 @@ $mod+Shift+m                # re-apply all monitor rules (hyprctl reload)
 
 Wayland scale is per-monitor — there is no global DPI to juggle (the old
 `Xft.dpi`/xsettingsd machinery had exactly one value for all screens). The
-laptop's 2880x1800 panel runs at 1.5x; externals default to 1.25x. Fractional
+laptop's 2560x1600 panel runs at 1.25x; externals default to 1.25x. Fractional
 scales are fine on Wayland-native apps; XWayland apps stay crisp because
 `xwayland { force_zero_scaling = true }` is set — they render at 1x and
 Hyprland doesn't upscale them.
