@@ -18,6 +18,10 @@ LINUX_DIR="${ROOT_DIR}/linux"
 CONFIGS_DIR="${LINUX_DIR}/configs"
 SCRIPTS_DIR="${LINUX_DIR}/scripts"
 
+# setup.sh is also useful on its own, so give special-case links the same
+# recoverable backup behaviour as shared/lib/link.sh.
+export BACKUP_ROOT="${BACKUP_ROOT:-${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S).$$}"
+
 # shellcheck disable=SC1091
 source "${ROOT_DIR}/shared/lib/logging.sh"
 # shellcheck disable=SC1091
@@ -60,7 +64,7 @@ apply_swappiness() {
 
 # ── Hyprland session ──────────────────────────────────────────────────────────
 check_hyprland_session() {
-  # The apt hyprland package ships the GDM session entry; verify it's there so
+  # Fedora's hyprland package ships the GDM session entry; verify it's there so
   # the login screen actually offers Hyprland next to GNOME.
   if [[ -f /usr/share/wayland-sessions/hyprland.desktop ]]; then
     log_success "Hyprland session available at the login screen."
@@ -94,7 +98,7 @@ link_gtkrc_2() {
   if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
     log_success ".gtkrc-2.0 already linked."
   else
-    [[ -e "${target}" || -L "${target}" ]] && rm -f "${target}"
+    [[ -e "${target}" || -L "${target}" ]] && backup_path "${target}"
     ln -s "${src}" "${target}"
     log_success "Linked ~/.gtkrc-2.0 -> ${src}"
   fi
@@ -109,7 +113,7 @@ link_icons_default() {
   if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
     log_success "icons default already linked."
   else
-    [[ -e "${target}" || -L "${target}" ]] && rm -f "${target}"
+    [[ -e "${target}" || -L "${target}" ]] && backup_path "${target}"
     ln -s "${src}" "${target}"
     log_success "Linked default icon theme."
   fi
@@ -127,7 +131,7 @@ link_session_scripts() {
     if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
       log_success "${name} already linked."
     else
-      [[ -e "${target}" || -L "${target}" ]] && rm -f "${target}"
+      [[ -e "${target}" || -L "${target}" ]] && backup_path "${target}"
       ln -s "${src}" "${target}"
       log_success "Linked ~/.config/${name}"
     fi
