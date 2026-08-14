@@ -38,43 +38,43 @@
 
     "custom/workspace-1": {
         "exec": "~/.config/workspace-button.sh 1", "return-type": "json", "signal": 9,
-        "on-click": "hyprctl dispatch workspace 1"
+        "on-click": "hyprctl dispatch 'hl.dsp.focus({workspace = 1})'"
     },
     "custom/workspace-2": {
         "exec": "~/.config/workspace-button.sh 2", "return-type": "json", "signal": 9,
-        "on-click": "hyprctl dispatch workspace 2"
+        "on-click": "hyprctl dispatch 'hl.dsp.focus({workspace = 2})'"
     },
     "custom/workspace-3": {
         "exec": "~/.config/workspace-button.sh 3", "return-type": "json", "signal": 9,
-        "on-click": "hyprctl dispatch workspace 3"
+        "on-click": "hyprctl dispatch 'hl.dsp.focus({workspace = 3})'"
     },
     "custom/workspace-4": {
         "exec": "~/.config/workspace-button.sh 4", "return-type": "json", "signal": 9,
-        "on-click": "hyprctl dispatch workspace 4"
+        "on-click": "hyprctl dispatch 'hl.dsp.focus({workspace = 4})'"
     },
     "custom/workspace-5": {
         "exec": "~/.config/workspace-button.sh 5", "return-type": "json", "signal": 9,
-        "on-click": "hyprctl dispatch workspace 5"
+        "on-click": "hyprctl dispatch 'hl.dsp.focus({workspace = 5})'"
     },
     "custom/workspace-6": {
         "exec": "~/.config/workspace-button.sh 6", "return-type": "json", "signal": 9,
-        "on-click": "hyprctl dispatch workspace 6"
+        "on-click": "hyprctl dispatch 'hl.dsp.focus({workspace = 6})'"
     },
     "custom/workspace-7": {
         "exec": "~/.config/workspace-button.sh 7", "return-type": "json", "signal": 9,
-        "on-click": "hyprctl dispatch workspace 7"
+        "on-click": "hyprctl dispatch 'hl.dsp.focus({workspace = 7})'"
     },
     "custom/workspace-8": {
         "exec": "~/.config/workspace-button.sh 8", "return-type": "json", "signal": 9,
-        "on-click": "hyprctl dispatch workspace 8"
+        "on-click": "hyprctl dispatch 'hl.dsp.focus({workspace = 8})'"
     },
     "custom/workspace-9": {
         "exec": "~/.config/workspace-button.sh 9", "return-type": "json", "signal": 9,
-        "on-click": "hyprctl dispatch workspace 9"
+        "on-click": "hyprctl dispatch 'hl.dsp.focus({workspace = 9})'"
     },
     "custom/workspace-10": {
         "exec": "~/.config/workspace-button.sh 10", "return-type": "json", "signal": 9,
-        "on-click": "hyprctl dispatch workspace 10"
+        "on-click": "hyprctl dispatch 'hl.dsp.focus({workspace = 10})'"
     },
 
     "cpu": {
