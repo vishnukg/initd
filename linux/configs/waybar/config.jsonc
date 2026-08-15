@@ -5,7 +5,7 @@
 {
     "layer": "top",
     "position": "top",
-    "height": 40,
+    "height": 47,
     "spacing": 8,
     // Floating-islands look: gap between the bar and the screen edges.
     "margin-top": 6,
@@ -93,7 +93,7 @@
         // Running container count; docker group membership is set by bootstrap.
         "exec": "docker ps -q 2>/dev/null | wc -l",
         "interval": 15,
-        "format": "<span size='28pt'>󰡨</span> {}",
+        "format": "<span size='28pt'>󰡨</span> <span rise='4000'>{}</span>",
         "on-click": "~/.config/docker-menu.sh",
         "tooltip": false
     },
