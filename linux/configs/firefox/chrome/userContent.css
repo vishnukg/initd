@@ -1,0 +1,18 @@
+/* Neutral black/gray content treatment matching the browser chrome. */
+@-moz-document url-prefix() {
+    * {
+        scrollbar-color: #696775 #24232b !important;
+        scrollbar-width: thin !important;
+    }
+}
+
+@-moz-document url("about:newtab"), url("about:home"), url("about:blank") {
+    body,
+    .outer-wrapper {
+        background-color: #24232b !important;
+    }
+
+    body {
+        color: #e2e2e2 !important;
+    }
+}
