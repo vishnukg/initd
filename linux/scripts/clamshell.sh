@@ -1,7 +1,12 @@
 #!/bin/sh
 # Clamshell mode: disable the laptop panel while the lid is closed and an
-# external monitor is active; restore it when open. Invoked from hyprland.lua
-# by lid-switch binds and by the config.reloaded hook.
+# external monitor is active; restore it when open. Also locks + turns the
+# panel off immediately on lid close (logind's HandleLidSwitch=lock only
+# locks — see linux/configs/systemd/logind.conf.d/10-lid-lock-only.conf for
+# why lid close no longer suspends — it doesn't touch DPMS, so without this
+# the screen would stay lit at full brightness, closed against the keyboard,
+# until hypridle's 10-minute idle timeout). Invoked from hyprland.lua by
+# lid-switch binds and by the config.reloaded hook.
 
 PANEL=eDP-1
 # Keep in sync with the eDP-1 monitor rule in hyprland.lua.
@@ -29,18 +34,30 @@ original_workspace="$(active_workspace)"
 
 # On config reload, Hyprland spawns `exec =` while still applying monitor
 # rules. Lid events do not need this delay and should respond immediately.
-[ "${1:-event}" = "reload" ] && sleep 1
+is_reload=false
+[ "${1:-event}" = "reload" ] && { is_reload=true; sleep 1; }
 
 monitor_changed=false
+lid_closed=false
+grep -q closed /proc/acpi/button/lid/*/state 2>/dev/null && lid_closed=true
 
-if grep -q closed /proc/acpi/button/lid/*/state 2>/dev/null; then
-  # Never remove the only active output. Undocked lid-close suspend remains
-  # systemd-logind's responsibility.
+if [ "${lid_closed}" = true ]; then
+  # Lock + panel off only for a real lid-close event, not a config reload
+  # that happens to run while already closed (e.g. testing a config change
+  # while docked) — that shouldn't re-lock the session every time.
+  if [ "${is_reload}" = false ]; then
+    loginctl lock-session >/dev/null 2>&1
+    hyprctl dispatch "hl.dsp.dpms(\"off\")" >/dev/null
+  fi
+
+  # Never remove the only active output.
   if external_is_active && monitor_is_active "${PANEL}"; then
     hyprctl keyword monitor "${PANEL}, disable" >/dev/null
     monitor_changed=true
   fi
 else
+  [ "${is_reload}" = false ] && hyprctl dispatch "hl.dsp.dpms(\"on\")" >/dev/null
+
   if ! monitor_is_active "${PANEL}"; then
     hyprctl keyword monitor "${PANEL_RULE}" >/dev/null
     monitor_changed=true
