@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font)
-#   - System fixes that need sudo (swappiness)
+#   - System fixes that need sudo (swappiness, deep sleep on resume)
 #   - Session scripts linked to absolute ~/.config/ paths (waybar/hyprland use them)
 #   - Firefox profile glue (profile path is dynamic)
 #
@@ -60,6 +60,26 @@ apply_swappiness() {
   echo 'vm.swappiness=10' | sudo tee "${sysctl_conf}" >/dev/null
   sudo sysctl -p "${sysctl_conf}" >/dev/null
   log_success "swappiness set to 10."
+}
+
+apply_deep_sleep() {
+  # s2idle (the kernel default here) leaves devices in a lighter, partially
+  # initialized state across suspend; on this machine's Intel xe driver that
+  # shows up as an intermittent black screen on lid-open resume (display never
+  # comes back, forcing a hard reboot). Forcing S3 deep sleep fully power-cycles
+  # devices on resume instead, which avoids that whole class of bug. Requires a
+  # reboot to take effect.
+  if ! grep -qw deep /sys/power/mem_sleep 2>/dev/null; then
+    log "This kernel/hardware doesn't advertise deep (S3) sleep support; skipping."
+    return
+  fi
+  if grep -q 'mem_sleep_default=deep' /proc/cmdline; then
+    log_success "Deep sleep already set as the kernel default."
+    return
+  fi
+  require_command grubby "to set the kernel's default sleep mode"
+  sudo grubby --update-kernel=ALL --args="mem_sleep_default=deep"
+  log_success "Kernel default sleep mode set to deep (S3) — takes effect on next reboot."
 }
 
 # ── Hyprland session ──────────────────────────────────────────────────────────
@@ -440,6 +460,7 @@ main() {
 
   install_firacode_nerd_font
   apply_swappiness
+  apply_deep_sleep
   check_hyprland_session
   mask_desktop_user_units
 
