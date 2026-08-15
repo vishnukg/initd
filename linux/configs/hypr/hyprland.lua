@@ -108,9 +108,7 @@ hl.config({
 -- ── Autostart ─────────────────────────────────────────────────────────────────
 hl.on("hyprland.start", function()
     -- Make portals (screenshare, file pickers) see the session environment.
-    hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE")
-    hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
-    hl.exec_cmd("systemctl --user start initd-hyprland-session.service")
+    hl.exec_cmd("sh -c 'dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE && systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP && systemctl --user start initd-hyprland-session.service'")
 
     -- Polkit auth agent (GNOME ships its own inside gnome-shell; Hyprland needs one).
     hl.exec_cmd("lxpolkit")
