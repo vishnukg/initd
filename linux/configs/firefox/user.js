@@ -15,12 +15,28 @@ user_pref("browser.tabs.inTitlebar", 1);
 // decoration.rounding = 12 in hyprland.conf.
 user_pref("widget.gtk.rounded-bottom-corners.enabled", true);
 
-// Compact UI density (less padding — more screen real estate for tiling)
-// and Firefox's own built-in dark theme, matching the rest of the desktop.
-user_pref("browser.uidensity", 1);
+// Use Firefox's normal density so toolbar controls have comfortable spacing.
+user_pref("browser.uidensity", 0);
 user_pref("extensions.activeThemeID", "firefox-compact-dark@mozilla.org");
 
-// Default page zoom (125%) is set separately in content-prefs.sqlite by
+// Ubuntu Sans was supplied by Mint. Fedora does not package it in the enabled
+// repositories, so Adwaita Sans is the installed proportional fallback; the
+// original FiraCode Nerd Font Mono is available locally.
+user_pref("font.default.x-western", "sans-serif");
+user_pref("font.name.sans-serif.x-western", "Adwaita Sans");
+user_pref("font.name.serif.x-western", "Noto Serif");
+user_pref("font.name.monospace.x-western", "FiraCode Nerd Font Mono");
+user_pref("font.size.variable.x-western", 17);
+user_pref("font.size.monospace.x-western", 14);
+user_pref("font.minimum-size.x-western", 0);
+
+user_pref("browser.theme.content-theme", 2);
+user_pref("browser.display.background_color.dark", "#0b0c12");
+user_pref("layout.css.prefers-color-scheme.content-override", 0);
+user_pref("general.smoothScroll", true);
+user_pref("general.smoothScroll.msdPhysics.enabled", true);
+
+// Default page zoom (133%) is set separately in content-prefs.sqlite by
 // linux/setup.sh:set_firefox_default_zoom — that's the mechanism Firefox's
 // own Zoom UI actually reads; a pref here can't drive it.
 
