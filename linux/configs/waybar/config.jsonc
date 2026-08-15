@@ -33,7 +33,7 @@
     "modules-right": [
         "custom/docker", "custom/weather", "cpu", "memory",
         "pulseaudio", "backlight", "battery",
-        "network", "tray", "clock"
+        "tray", "clock"
     ],
 
     "custom/workspace-1": {
@@ -79,13 +79,13 @@
 
     "cpu": {
         "interval": 2,
-        "format": "<span size='19pt'>󰍛</span> {usage}%",
+        "format": "<span size='17pt'>󰍛</span> {usage}%",
         "tooltip-format": "CPU usage: {usage}%"
     },
 
     "memory": {
         "interval": 3,
-        "format": "<span size='19pt'>󰾆</span> {percentage}%",
+        "format": "<span size='17pt'>󰾆</span> {percentage}%",
         "tooltip-format": "Memory used: {used:0.1f} GiB / {total:0.1f} GiB"
     },
 
@@ -98,23 +98,15 @@
         "tooltip": false
     },
 
-    "network": {
-        "interval": 5,
-        "format-wifi": "<span size='19pt'>󰤨</span> {essid}",
-        "format-ethernet": "<span size='19pt'>󰈀</span> wired",
-        "format-disconnected": "<span size='19pt'>󰤭</span> offline",
-        "tooltip-format": "{ifname}: {ipaddr}"
-    },
-
     "pulseaudio": {
-        "format": "<span size='19pt'>{icon}</span> {volume}%",
+        "format": "<span size='17pt'>{icon}</span> {volume}%",
         "format-muted": "󰝟 muted",
         "format-icons": { "default": ["󰕿", "󰖀", "󰕾"] },
         "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle"
     },
 
     "backlight": {
-        "format": "<span size='19pt'>{icon}</span> {percent}%",
+        "format": "<span size='17pt'>{icon}</span> {percent}%",
         "format-icons": ["󰃞", "󰃟", "󰃠"]
     },
 
@@ -123,9 +115,9 @@
         "states": { "critical": 10 },
         // "Plugged" covers the firmware's "Not charging" hold state — the
         // case the old polybar battery-status.sh script existed for.
-        "format": "<span size='16pt'>{icon}</span> {capacity}%",
-        "format-charging": "<span size='16pt'>󰂄</span> {capacity}%",
-        "format-plugged": "<span size='16pt'>󰚥</span> {capacity}%",
+        "format": "<span size='14pt'>{icon}</span> {capacity}%",
+        "format-charging": "<span size='14pt'>󰂄</span> {capacity}%",
+        "format-plugged": "<span size='14pt'>󰚥</span> {capacity}%",
         "format-icons": ["󰂎", "󰁺", "󰁾", "󰂀", "󰁹"]
     },
 

@@ -124,7 +124,10 @@ hl.on("hyprland.start", function()
     -- graphical-session.target (GNOME does, this session doesn't) — start explicitly.
     hl.exec_cmd("blueman-applet")
     -- --silent: start in the background with just the tray icon, no window.
-    hl.exec_cmd("1password --silent")
+    -- Delayed so its tray icon registers after nm-applet/blueman-applet (it's
+    -- an Electron app and tends to win the SNI-registration race otherwise,
+    -- landing between the wifi and bluetooth icons in waybar's tray).
+    hl.exec_cmd("bash -c 'sleep 2 && 1password --silent'")
     -- "hide" keeps the main window closed at launch (tray-less CopyQ otherwise
     -- shows it on every start); the server still runs for $mod+c.
     hl.exec_cmd("copyq --start-server hide")
@@ -153,7 +156,11 @@ hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd(
 hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
 hl.bind(mod .. " + Tab", hl.dsp.exec_cmd("rofi -show window"))
--- Clipboard history (CopyQ runs tray-less: disable_tray=true in its own config)
+-- Keyboard's dedicated "Copilot" key: the kernel has no keycode for it, so
+-- the firmware sends a synthetic Super+Shift+F23 chord instead (confirmed
+-- via `libinput debug-events`). Wired to the same app launcher as mod+d.
+hl.bind(mod .. " + SHIFT + F23", hl.dsp.exec_cmd("rofi -show drun"))
+-- Clipboard history (tray-less: linux/setup.sh:disable_copyq_tray sets disable_tray=true)
 hl.bind(mod .. " + c", hl.dsp.exec_cmd("copyq toggle"))
 
 -- Toggle night light (moderately warm screen, manual only)
