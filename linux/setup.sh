@@ -231,7 +231,8 @@ link_firefox_profile() {
   local pair target src
   for pair in \
     "user.js:${ff_dir}/user.js" \
-    "chrome/userChrome.css:${ff_dir}/chrome/userChrome.css"
+    "chrome/userChrome.css:${ff_dir}/chrome/userChrome.css" \
+    "chrome/userContent.css:${ff_dir}/chrome/userContent.css"
   do
     target="${pair#*:}"
     src="${CONFIGS_DIR}/firefox/${pair%%:*}"
@@ -247,7 +248,7 @@ link_firefox_profile() {
 
 set_firefox_default_zoom() {
   # Firefox's Zoom UI reads per-site full-zoom levels from content-prefs.sqlite,
-  # not from any user.js pref — this sets 125% as the default for any site
+  # not from any user.js pref — this sets 133% as the default for any site
   # that doesn't already have its own saved zoom level.
   local ff_dir
   ff_dir="$(resolve_firefox_profile_dir || true)"
@@ -255,11 +256,11 @@ set_firefox_default_zoom() {
 
   local content_prefs="${ff_dir}/content-prefs.sqlite"
   if pgrep -x firefox >/dev/null 2>&1; then
-    log_warn "Firefox is running — leaving its default zoom unchanged. Close Firefox and re-run setup.sh to set 125%."
+    log_warn "Firefox is running — leaving its default zoom unchanged. Close Firefox and re-run setup.sh to set 133%."
     return
   fi
   if [[ ! -f "${content_prefs}" ]]; then
-    log_warn "Firefox content preferences are not initialized yet — open Firefox once, close it, then re-run setup.sh to set 125% zoom."
+    log_warn "Firefox content preferences are not initialized yet — open Firefox once, close it, then re-run setup.sh to set 133% zoom."
     return
   fi
 
@@ -278,19 +279,19 @@ try:
     db.execute("DELETE FROM prefs WHERE groupID IS NULL AND settingID = ?", (setting_id,))
     db.execute(
         "INSERT INTO prefs (groupID, settingID, value, timestamp) VALUES (NULL, ?, ?, ?)",
-        (setting_id, 1.25, int(time.time() * 1_000_000)),
+        (setting_id, 1.33, int(time.time() * 1_000_000)),
     )
     db.commit()
 finally:
     db.close()
 PYEOF
   then
-    log_success "Set Firefox default zoom to 125%."
+    log_success "Set Firefox default zoom to 133%."
   else
     # Firefox can keep the database locked even when its main process name
     # is not exactly "firefox". A cosmetic preference must not abort the
     # rest of the idempotent system setup.
-    log_warn "Firefox preferences database is busy — leaving default zoom unchanged. Close Firefox and re-run setup.sh to set 125%."
+    log_warn "Firefox preferences database is busy — leaving default zoom unchanged. Close Firefox and re-run setup.sh to set 133%."
   fi
 }
 
