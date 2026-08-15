@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font)
-#   - System fixes that need sudo (swappiness, deep sleep on resume)
+#   - System fixes that need sudo (deep sleep on resume, disabling unused ModemManager)
 #   - Session scripts linked to absolute ~/.config/ paths (waybar/hyprland use them)
 #   - Firefox profile glue (profile path is dynamic)
 #
@@ -51,17 +51,6 @@ install_firacode_nerd_font() {
 }
 
 # ── System fixes ──────────────────────────────────────────────────────────────
-apply_swappiness() {
-  local sysctl_conf=/etc/sysctl.d/99-performance.conf
-  if [[ -f "${sysctl_conf}" ]] && grep -q 'swappiness=10' "${sysctl_conf}"; then
-    log_success "swappiness already set to 10."
-    return
-  fi
-  echo 'vm.swappiness=10' | sudo tee "${sysctl_conf}" >/dev/null
-  sudo sysctl -p "${sysctl_conf}" >/dev/null
-  log_success "swappiness set to 10."
-}
-
 apply_deep_sleep() {
   # s2idle (the kernel default here) leaves devices in a lighter, partially
   # initialized state across suspend; on this machine's Intel xe driver that
@@ -80,6 +69,18 @@ apply_deep_sleep() {
   require_command grubby "to set the kernel's default sleep mode"
   sudo grubby --update-kernel=ALL --args="mem_sleep_default=deep"
   log_success "Kernel default sleep mode set to deep (S3) — takes effect on next reboot."
+}
+
+disable_modemmanager() {
+  # No cellular modem on this hardware (mmcli -L finds none) — ModemManager is
+  # a NetworkManager-optional plugin, so disabling it is safe and just trims
+  # an idle background daemon.
+  if [[ "$(systemctl is-enabled ModemManager.service 2>/dev/null)" == "disabled" ]]; then
+    log_success "ModemManager already disabled."
+    return
+  fi
+  sudo systemctl disable --now ModemManager.service >/dev/null 2>&1
+  log_success "ModemManager disabled (no modem hardware present)."
 }
 
 # ── Hyprland session ──────────────────────────────────────────────────────────
@@ -357,6 +358,23 @@ apply_gsettings_keyboard() {
   log_success "gsettings keyboard synced (ctrl:nocaps, delay 200, interval 29ms)."
 }
 
+disable_copyq_tray() {
+  # hyprland.lua starts CopyQ hidden as a background clipboard-history server
+  # (mod+c toggles its window) — it's not meant to live in the waybar tray.
+  # `copyq config` writes to ~/.config/copyq/copyq.conf directly, so this is
+  # idempotent and safe to re-run.
+  if ! command -v copyq >/dev/null 2>&1; then
+    log_warn "copyq not found; skipping tray icon setting."
+    return
+  fi
+  if [[ "$(copyq config disable_tray 2>/dev/null)" == "true" ]]; then
+    log_success "CopyQ tray icon already disabled."
+    return
+  fi
+  copyq config disable_tray true >/dev/null 2>&1
+  log_success "CopyQ tray icon disabled."
+}
+
 add_user_to_video_group() {
   # /sys/class/backlight/*/brightness is root:video — membership is required
   # for the brightnessctl keybinds (XF86MonBrightness*) to work.
@@ -459,13 +477,14 @@ main() {
   log "Applying Linux system tweaks..."
 
   install_firacode_nerd_font
-  apply_swappiness
   apply_deep_sleep
+  disable_modemmanager
   check_hyprland_session
   mask_desktop_user_units
 
   apply_gsettings_theme
   apply_gsettings_keyboard
+  disable_copyq_tray
   link_gtkrc_2
   link_icons_default
   link_session_scripts

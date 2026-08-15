@@ -31,7 +31,7 @@ window#waybar {
 #custom-workspace-7, #custom-workspace-8, #custom-workspace-9,
 #custom-workspace-10 {
     margin: 3px 1px;
-    padding: 0 9px;
+    padding: 3px 11px;
     color: #74798a;
     background: transparent;
     border-radius: 8px;
