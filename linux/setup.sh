@@ -3,7 +3,8 @@ set -euo pipefail
 
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font)
-#   - System fixes that need sudo (deep sleep on resume, disabling unused ModemManager)
+#   - System fixes that need sudo (disabling unused ModemManager,
+#     lid-close-locks-not-suspends logind override)
 #   - Session scripts linked to absolute ~/.config/ paths (waybar/hyprland use them)
 #   - Firefox profile glue (profile path is dynamic)
 #
@@ -51,24 +52,36 @@ install_firacode_nerd_font() {
 }
 
 # ── System fixes ──────────────────────────────────────────────────────────────
-apply_deep_sleep() {
-  # s2idle (the kernel default here) leaves devices in a lighter, partially
-  # initialized state across suspend; on this machine's Intel xe driver that
-  # shows up as an intermittent black screen on lid-open resume (display never
-  # comes back, forcing a hard reboot). Forcing S3 deep sleep fully power-cycles
-  # devices on resume instead, which avoids that whole class of bug. Requires a
-  # reboot to take effect.
-  if ! grep -qw deep /sys/power/mem_sleep 2>/dev/null; then
-    log "This kernel/hardware doesn't advertise deep (S3) sleep support; skipping."
+# NOTE: do NOT force mem_sleep_default=deep on this machine. The kernel
+# advertises "deep" (S3) as available in /sys/power/mem_sleep, but this
+# hardware's firmware doesn't actually have a working S3 resume path — tried
+# it, and the machine hung completely on lid-open resume (journal showed
+# "PM: suspend entry (deep)" as the literal last line, no resume ever logged),
+# requiring a hard power-off.
+#
+# NOTE: do not reintroduce a systemd-sleep resume-kick hook either — tried
+# that too (DPMS toggle + brightness restore on resume). Root cause turned
+# out to be that the Hyprland compositor's own event loop hangs on s2idle
+# resume (`hyprctl` times out with "Hyprland IPC didn't respond in time"),
+# almost certainly blocked in a DRM ioctl waiting on the xe driver. No
+# userspace script can fix a genuinely hung compositor, and install_lid_lock_only
+# below sidesteps the whole problem by never suspending on lid close in the
+# first place, so there's nothing left for a resume hook to defend against.
+
+install_lid_lock_only() {
+  # See linux/configs/systemd/logind.conf.d/10-lid-lock-only.conf for the
+  # full story — lid close locks instead of suspending, because suspend
+  # currently hangs the compositor on resume (a live xe driver bug on this
+  # hardware). Needs restarting systemd-logind to take effect.
+  local dest=/etc/systemd/logind.conf.d/10-lid-lock-only.conf
+  local source="${CONFIGS_DIR}/systemd/logind.conf.d/10-lid-lock-only.conf"
+  if [[ -f "${dest}" ]] && cmp -s "${source}" "${dest}"; then
+    log_success "Lid-close-locks-only logind override already installed."
     return
   fi
-  if grep -q 'mem_sleep_default=deep' /proc/cmdline; then
-    log_success "Deep sleep already set as the kernel default."
-    return
-  fi
-  require_command grubby "to set the kernel's default sleep mode"
-  sudo grubby --update-kernel=ALL --args="mem_sleep_default=deep"
-  log_success "Kernel default sleep mode set to deep (S3) — takes effect on next reboot."
+  sudo install -D -m 644 "${source}" "${dest}"
+  sudo systemctl restart systemd-logind
+  log_success "Lid close now locks instead of suspending (systemd-logind restarted)."
 }
 
 disable_modemmanager() {
@@ -477,7 +490,7 @@ main() {
   log "Applying Linux system tweaks..."
 
   install_firacode_nerd_font
-  apply_deep_sleep
+  install_lid_lock_only
   disable_modemmanager
   check_hyprland_session
   mask_desktop_user_units
