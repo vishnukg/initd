@@ -74,3 +74,4 @@ yarn      = ["latest", "1.22.22"]
 "pipx:yamllint"                            = "latest"
 "dotnet:csharpier"                         = "latest"
 "taplo"                                    = "latest" # toml formatter
+"github:github/copilot-cli"     = "latest" # GitHub Copilot CLI

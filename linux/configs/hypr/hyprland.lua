@@ -110,6 +110,7 @@ hl.on("hyprland.start", function()
     -- Make portals (screenshare, file pickers) see the session environment.
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE")
     hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
+    hl.exec_cmd("systemctl --user start initd-hyprland-session.service")
 
     -- Polkit auth agent (GNOME ships its own inside gnome-shell; Hyprland needs one).
     hl.exec_cmd("lxpolkit")
@@ -128,9 +129,9 @@ hl.on("hyprland.start", function()
     -- an Electron app and tends to win the SNI-registration race otherwise,
     -- landing between the wifi and bluetooth icons in waybar's tray).
     hl.exec_cmd("bash -c 'sleep 2 && 1password --silent'")
-    -- "hide" keeps the main window closed at launch (tray-less CopyQ otherwise
-    -- shows it on every start); the server still runs for $mod+c.
-    hl.exec_cmd("copyq --start-server hide")
+    -- CopyQ's persisted hide_main_window setting keeps it out of the way at
+    -- startup; the server still runs for $mod+c.
+    hl.exec_cmd("copyq --start-server")
 end)
 
 -- ── Media / hardware keys ─────────────────────────────────────────────────────

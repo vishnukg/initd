@@ -3,8 +3,7 @@ set -euo pipefail
 
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font)
-#   - System fixes that need sudo (disabling unused ModemManager,
-#     lid-close-locks-not-suspends logind override)
+#   - System fixes that need sudo (disabling unused ModemManager)
 #   - Session scripts linked to absolute ~/.config/ paths (waybar/hyprland use them)
 #   - Firefox profile glue (profile path is dynamic)
 #
@@ -52,38 +51,6 @@ install_firacode_nerd_font() {
 }
 
 # ── System fixes ──────────────────────────────────────────────────────────────
-# NOTE: do NOT force mem_sleep_default=deep on this machine. The kernel
-# advertises "deep" (S3) as available in /sys/power/mem_sleep, but this
-# hardware's firmware doesn't actually have a working S3 resume path — tried
-# it, and the machine hung completely on lid-open resume (journal showed
-# "PM: suspend entry (deep)" as the literal last line, no resume ever logged),
-# requiring a hard power-off.
-#
-# NOTE: do not reintroduce a systemd-sleep resume-kick hook either — tried
-# that too (DPMS toggle + brightness restore on resume). Root cause turned
-# out to be that the Hyprland compositor's own event loop hangs on s2idle
-# resume (`hyprctl` times out with "Hyprland IPC didn't respond in time"),
-# almost certainly blocked in a DRM ioctl waiting on the xe driver. No
-# userspace script can fix a genuinely hung compositor, and install_lid_lock_only
-# below sidesteps the whole problem by never suspending on lid close in the
-# first place, so there's nothing left for a resume hook to defend against.
-
-install_lid_lock_only() {
-  # See linux/configs/systemd/logind.conf.d/10-lid-lock-only.conf for the
-  # full story — lid close locks instead of suspending, because suspend
-  # currently hangs the compositor on resume (a live xe driver bug on this
-  # hardware). Needs restarting systemd-logind to take effect.
-  local dest=/etc/systemd/logind.conf.d/10-lid-lock-only.conf
-  local source="${CONFIGS_DIR}/systemd/logind.conf.d/10-lid-lock-only.conf"
-  if [[ -f "${dest}" ]] && cmp -s "${source}" "${dest}"; then
-    log_success "Lid-close-locks-only logind override already installed."
-    return
-  fi
-  sudo install -D -m 644 "${source}" "${dest}"
-  sudo systemctl restart systemd-logind
-  log_success "Lid close now locks instead of suspending (systemd-logind restarted)."
-}
-
 disable_modemmanager() {
   # No cellular modem on this hardware (mmcli -L finds none) — ModemManager is
   # a NetworkManager-optional plugin, so disabling it is safe and just trims
@@ -123,6 +90,8 @@ mask_desktop_user_units() {
       log_success "Masked ${unit} (autostarted via hyprland.lua instead)."
     fi
   done
+
+  systemctl --user daemon-reload
 }
 
 # ── Config glue (special-case paths) ─────────────────────────────────────────
@@ -372,20 +341,22 @@ apply_gsettings_keyboard() {
 }
 
 disable_copyq_tray() {
-  # hyprland.lua starts CopyQ hidden as a background clipboard-history server
-  # (mod+c toggles its window) — it's not meant to live in the waybar tray.
+  # hyprland.lua starts CopyQ as a background clipboard-history server
+  # (mod+c toggles its window) — it is neither a tray app nor a boot window.
   # `copyq config` writes to ~/.config/copyq/copyq.conf directly, so this is
   # idempotent and safe to re-run.
   if ! command -v copyq >/dev/null 2>&1; then
     log_warn "copyq not found; skipping tray icon setting."
     return
   fi
-  if [[ "$(copyq config disable_tray 2>/dev/null)" == "true" ]]; then
-    log_success "CopyQ tray icon already disabled."
+  if [[ "$(copyq config disable_tray 2>/dev/null)" == "true" ]] &&
+     [[ "$(copyq config hide_main_window 2>/dev/null)" == "true" ]]; then
+    log_success "CopyQ is already trayless and hidden at startup."
     return
   fi
   copyq config disable_tray true >/dev/null 2>&1
-  log_success "CopyQ tray icon disabled."
+  copyq config hide_main_window true >/dev/null 2>&1
+  log_success "CopyQ configured without a tray or startup window."
 }
 
 add_user_to_video_group() {
@@ -490,7 +461,6 @@ main() {
   log "Applying Linux system tweaks..."
 
   install_firacode_nerd_font
-  install_lid_lock_only
   disable_modemmanager
   check_hyprland_session
   mask_desktop_user_units

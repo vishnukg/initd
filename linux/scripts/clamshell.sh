@@ -1,12 +1,8 @@
 #!/bin/sh
 # Clamshell mode: disable the laptop panel while the lid is closed and an
-# external monitor is active; restore it when open. Also locks + turns the
-# panel off immediately on lid close (logind's HandleLidSwitch=lock only
-# locks — see linux/configs/systemd/logind.conf.d/10-lid-lock-only.conf for
-# why lid close no longer suspends — it doesn't touch DPMS, so without this
-# the screen would stay lit at full brightness, closed against the keyboard,
-# until hypridle's 10-minute idle timeout). Invoked from hyprland.lua by
-# lid-switch binds and by the config.reloaded hook.
+# external monitor is active; restore it when open. It also locks and turns
+# the panel off immediately on a real lid-close event before logind suspends.
+# Invoked from hyprland.lua by lid-switch binds and by the config.reloaded hook.
 
 PANEL=eDP-1
 # Keep in sync with the eDP-1 monitor rule in hyprland.lua.
