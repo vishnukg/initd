@@ -142,6 +142,8 @@ hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -q set 5%+"),   
 
 -- Screenshot (scrot → grim)
 hl.bind("Print", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && grim \"$HOME/Pictures/screenshot-$(date +%Y-%m-%d-%H-%M-%S).png\"'"))
+-- Screenshot region (select area → save + copy to clipboard)
+hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && f=\"$HOME/Pictures/screenshot-$(date +%Y-%m-%d-%H-%M-%S).png\" && grim -g \"$(slurp)\" \"$f\" && wl-copy < \"$f\"'"))
 
 -- ── Apps ──────────────────────────────────────────────────────────────────────
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty"))
