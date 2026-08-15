@@ -145,13 +145,7 @@ hl.bind("Print", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && grim \
 
 -- ── Apps ──────────────────────────────────────────────────────────────────────
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty"))
--- Focus-or-launch: checks the actual window list (not pgrep — a defunct
--- zombie process with no window still matches by name and silently breaks
--- this) and dispatches focus directly rather than relying on `&&`/`||`
--- against hyprctl's exit code, which is always 0 regardless of match success.
-hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd(
-    [[bash -c "hyprctl clients | grep -q 'class: org.mozilla.firefox' && hyprctl dispatch 'hl.dsp.focus({window = \"class:^(org.mozilla.firefox)\"})' || firefox"]]
-))
+hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("firefox --new-window"))
 hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
 hl.bind(mod .. " + Tab", hl.dsp.exec_cmd("rofi -show window"))
