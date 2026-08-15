@@ -193,6 +193,9 @@ hl.bind(mod .. " + b", hl.dsp.layout("preselect r"))
 hl.bind(mod .. " + v", hl.dsp.layout("preselect d"))
 
 hl.bind(mod .. " + f", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
+-- Preserve all tiled splits while using the full output: Waybar's SIGUSR1
+-- handler toggles its visibility and releases its exclusive screen space.
+hl.bind(mod .. " + SHIFT + f", hl.dsp.exec_cmd("pkill -USR1 -x waybar"))
 
 -- i3 stacking/tabbed layouts → Hyprland groups (a group renders as tabs).
 -- $mod+w and $mod+s both toggle the group (Hyprland has no separate stacked

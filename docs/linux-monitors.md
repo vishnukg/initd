@@ -166,6 +166,7 @@ hyprctl monitors all        # includes disabled outputs (e.g. lid-closed eDP-1)
 nwg-displays                # the GUI
 hyprctl keyword monitor "eDP-1, disable"   # one-off: turn a panel off now
 $mod+Shift+m                # re-apply all monitor rules (hyprctl reload)
+$mod+Shift+f                # hide/show Waybar while preserving tiled splits
 ```
 
 ## Scale notes
