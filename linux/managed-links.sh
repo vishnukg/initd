@@ -14,4 +14,5 @@ MANAGED_LINKS+=(
   "${HOME}/.config/fontconfig:${ROOT_DIR}/linux/configs/fontconfig"
   "${HOME}/.config/gtk-3.0:${ROOT_DIR}/linux/configs/gtk-3.0"
   "${HOME}/.config/pipewire:${ROOT_DIR}/linux/configs/pipewire"
+  "${HOME}/.config/systemd/user/initd-hyprland-session.service:${ROOT_DIR}/linux/configs/systemd/user/initd-hyprland-session.service"
 )
