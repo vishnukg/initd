@@ -4,7 +4,7 @@ set -euo pipefail
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font)
 #   - System fixes that need sudo (disabling unused ModemManager)
-#   - Session scripts linked to absolute ~/.config/ paths (waybar/hyprland use them)
+#   - Session scripts linked to absolute ~/.config/ paths (waybar uses them)
 #   - Firefox profile glue (profile path is dynamic)
 #
 # Wayland/Hyprland only — the old X11 fixes (xorg TearFree, autorandr, picom,
@@ -94,6 +94,16 @@ mask_desktop_user_units() {
   systemctl --user daemon-reload
 }
 
+enable_hyprmoncfg() {
+  if ! command -v hyprmoncfgd >/dev/null 2>&1; then
+    log_warn "hyprmoncfgd not found; skipping monitor profile service."
+    return
+  fi
+  systemctl --user daemon-reload
+  systemctl --user enable --now hyprmoncfgd.service
+  log_success "hyprmoncfg monitor profile service enabled."
+}
+
 # ── Config glue (special-case paths) ─────────────────────────────────────────
 link_gtkrc_2() {
   local target="${HOME}/.gtkrc-2.0"
@@ -127,7 +137,7 @@ link_session_scripts() {
   # hyprland.lua/waybar invoke these by absolute ~/.config/ path, so they need
   # their own symlinks (they live in linux/scripts/, not under a MANAGED_LINKS dir).
   local name target src
-  for name in night-light-toggle.sh clamshell.sh \
+  for name in night-light-toggle.sh \
               weather-popup.sh docker-menu.sh workspace-button.sh \
               workspace-events.py; do
     target="${HOME}/.config/${name}"
@@ -465,6 +475,7 @@ main() {
   disable_modemmanager
   check_hyprland_session
   mask_desktop_user_units
+  enable_hyprmoncfg
 
   apply_gsettings_theme
   apply_gsettings_keyboard

@@ -17,76 +17,10 @@ hl.env("XCURSOR_THEME", "Adwaita")
 hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = "1.25" })
 hl.monitor({ output = "",      mode = "preferred", position = "auto", scale = "1.25" })
 
--- Per-monitor overrides + workspace pinning, managed by the nwg-displays GUI
--- (writes to these files on Apply, in plain hyprlang syntax — it has no Lua
--- awareness). Hyprland's Lua config has no built-in "source a hyprlang file"
--- mechanism (unlike hyprlang's `source =`), so parse the same simple
--- comma-separated syntax ourselves. Named monitor rules here beat the
--- catch-all above. See docs/linux-monitors.md.
-local function read_lines(path)
-    local f = io.open(path, "r")
-    if not f then return {} end
-    local lines = {}
-    for line in f:lines() do
-        table.insert(lines, line)
-    end
-    f:close()
-    return lines
-end
-
-local function trim(s)
-    return s:match("^%s*(.-)%s*$")
-end
-
-local function split_fields(rhs)
-    local fields = {}
-    for field in (rhs .. ","):gmatch("([^,]*),") do
-        table.insert(fields, trim(field))
-    end
-    return fields
-end
-
-local hypr_dir = os.getenv("HOME") .. "/.config/hypr"
-
-for _, line in ipairs(read_lines(hypr_dir .. "/monitors.conf")) do
-    local rhs = line:match("^%s*monitor%s*=%s*(.+)$")
-    if rhs then
-        local f = split_fields(rhs)
-        if f[1] and f[1] ~= "" then
-            hl.monitor({ output = f[1], mode = f[2], position = f[3], scale = f[4] })
-        end
-    end
-end
-
-for _, line in ipairs(read_lines(hypr_dir .. "/workspaces.conf")) do
-    local rhs = line:match("^%s*workspace%s*=%s*(.+)$")
-    if rhs then
-        local f = split_fields(rhs)
-        local rule = { workspace = f[1] }
-        for i = 2, #f do
-            local key, val = f[i]:match("^(%w+):(.+)$")
-            if key == "monitor" then
-                rule.monitor = val
-            end
-        end
-        if rule.workspace and rule.workspace ~= "" then
-            hl.workspace_rule(rule)
-        end
-    end
-end
-
--- Clamshell mode: lid closed with an external monitor → disable the panel
--- (replaces autorandr-lid-listener). One script handles lid events, startup,
--- and config reloads. `bindl` (locked) works even with an input inhibitor
--- active (e.g. the lockscreen). The reload hook below re-asserts the correct
--- panel state after every reload, since a reload re-applies the static eDP-1
--- rule above; physical lid events (these binds) remain immediate either way.
-hl.bind("switch:on:Lid Switch",  hl.dsp.exec_cmd("~/.config/clamshell.sh"), { locked = true })
-hl.bind("switch:off:Lid Switch", hl.dsp.exec_cmd("~/.config/clamshell.sh"), { locked = true })
-
-hl.on("config.reloaded", function()
-    hl.exec_cmd("~/.config/clamshell.sh reload")
-end)
+-- hyprmoncfg owns the generated monitor rules, profiles, hotplug, and lid
+-- handling. Its protected import keeps Hyprland usable before the first
+-- profile is created; the static rules above are the fallback in that state.
+pcall(require, "monitors")
 
 -- ── Input ─────────────────────────────────────────────────────────────────────
 hl.config({

@@ -3,8 +3,8 @@ set -euo pipefail
 
 # Linux platform bootstrap. Invoked by the top-level dispatcher when uname=Linux.
 # Targets Fedora Workstation 44+ (dnf5). Several packages (Hyprland ecosystem,
-# nwg-displays, ghostty) aren't in Fedora's official repos and are pulled from
-# COPR; see the ensure_* / install_packages functions below for which.
+# hyprmoncfg, and Ghostty) aren't in Fedora's official repos and are pulled
+# from COPR; see the ensure_* / install_packages functions below for which.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LINUX_DIR="${ROOT_DIR}/linux"
@@ -84,10 +84,9 @@ ensure_coprs() {
 install_packages() {
   [[ -f "${PACKAGES_FILE}" ]] || { log_error "Missing ${PACKAGES_FILE}"; exit 1; }
 
-  # Fedora's own repos don't carry the Hyprland ecosystem, nwg-displays, or
-  # ghostty (see the research table in the plan/commit for why). Enable their
-  # COPRs before resolving packages.txt.
-  ensure_coprs "sdegler/hyprland" "tofik/nwg-shell" "scottames/ghostty"
+  # Fedora's own repos don't carry the Hyprland ecosystem, hyprmoncfg, or
+  # Ghostty. Enable their COPRs before resolving packages.txt.
+  ensure_coprs "sdegler/hyprland" "paolino/hyprmoncfg" "scottames/ghostty"
 
   local packages=() missing=() pkg
   # Strip comments and blank lines.

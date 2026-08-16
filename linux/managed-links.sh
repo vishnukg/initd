@@ -8,6 +8,7 @@
 
 MANAGED_LINKS+=(
   "${HOME}/.config/hypr:${ROOT_DIR}/linux/configs/hypr"
+  "${HOME}/.config/hyprmoncfg:${ROOT_DIR}/linux/configs/hyprmoncfg"
   "${HOME}/.config/waybar:${ROOT_DIR}/linux/configs/waybar"
   "${HOME}/.config/rofi:${ROOT_DIR}/linux/configs/rofi"
   "${HOME}/.config/dunst:${ROOT_DIR}/linux/configs/dunst"
