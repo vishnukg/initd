@@ -350,15 +350,15 @@ apply_gsettings_theme() {
 apply_gsettings_keyboard() {
   # Mirror hyprland.lua input settings in GNOME so both sessions feel the
   # same: caps lock as ctrl (kb_options = ctrl:nocaps) and key repeat
-  # (repeat_delay = 200, repeat_rate = 35/s → interval 1000/35 ≈ 29ms).
+  # (repeat_delay = 350, repeat_rate = 30/s → interval 1000/30 ≈ 33ms).
   if ! command -v gsettings >/dev/null 2>&1; then
     log_warn "gsettings not available — skipping keyboard sync."
     return
   fi
   gsettings set org.gnome.desktop.input-sources xkb-options "['ctrl:nocaps']"
-  gsettings set org.gnome.desktop.peripherals.keyboard delay 200
-  gsettings set org.gnome.desktop.peripherals.keyboard repeat-interval 29
-  log_success "gsettings keyboard synced (ctrl:nocaps, delay 200, interval 29ms)."
+  gsettings set org.gnome.desktop.peripherals.keyboard delay 350
+  gsettings set org.gnome.desktop.peripherals.keyboard repeat-interval 33
+  log_success "gsettings keyboard synced (ctrl:nocaps, delay 350, interval 33ms)."
 }
 
 disable_copyq_tray() {

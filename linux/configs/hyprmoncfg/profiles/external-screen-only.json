@@ -1,0 +1,67 @@
+{
+  "name": "External screen only",
+  "created_at": "2026-08-16T10:30:43.709150914Z",
+  "updated_at": "2026-08-16T10:30:43.71028455Z",
+  "outputs": [
+    {
+      "key": "bnq|benq rd320u|v9r01600019",
+      "match_key": "bnq|benq rd320u|v9r01600019",
+      "name": "DP-1",
+      "description": "BNQ BenQ RD320U V9R01600019",
+      "make": "BNQ",
+      "model": "BenQ RD320U",
+      "serial": "V9R01600019",
+      "enabled": true,
+      "mode": "3840x2160@60.00Hz",
+      "width": 3840,
+      "height": 2160,
+      "refresh": 60,
+      "x": 0,
+      "y": 0,
+      "scale": 1.06667,
+      "transform": 0,
+      "bitdepth": 8,
+      "cm": "srgb",
+      "sdr_brightness": 1,
+      "sdr_saturation": 1,
+      "sdr_min_luminance": 0.2,
+      "sdr_max_luminance": 80,
+      "min_luminance": 0
+    },
+    {
+      "key": "lg display|0x0804",
+      "match_key": "lg display|0x0804",
+      "name": "eDP-1",
+      "description": "LG Display 0x0804",
+      "make": "LG Display",
+      "model": "0x0804",
+      "enabled": false,
+      "mode": "2560x1600@120.00Hz",
+      "width": 2560,
+      "height": 1600,
+      "refresh": 120,
+      "x": 0,
+      "y": 0,
+      "scale": 1.25,
+      "transform": 0,
+      "bitdepth": 8,
+      "cm": "srgb",
+      "sdr_brightness": 1,
+      "sdr_saturation": 1,
+      "sdr_min_luminance": 0.2,
+      "sdr_max_luminance": 80,
+      "min_luminance": 0
+    }
+  ],
+  "workspaces": {
+    "enabled": false,
+    "strategy": "sequential",
+    "max_workspaces": 9,
+    "group_size": 3,
+    "monitor_order": [
+      "bnq|benq rd320u|v9r01600019",
+      "lg display|0x0804"
+    ]
+  },
+  "exec": ""
+}
