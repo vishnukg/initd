@@ -79,7 +79,7 @@ window#waybar {
     background: #ff6b7a;
 }
 
-#cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight,
+#cpu, #memory, #custom-docker, #custom-power-profile, #network, #pulseaudio, #backlight,
 #battery, #tray, #custom-weather, #clock {
     padding: 0 8px;
     color: #e8eaf0;
@@ -89,7 +89,7 @@ window#waybar {
     transition: background 150ms ease, color 150ms ease;
 }
 
-#cpu:hover, #memory:hover, #custom-docker:hover, #network:hover,
+#cpu:hover, #memory:hover, #custom-docker:hover, #custom-power-profile:hover, #network:hover,
 #pulseaudio:hover, #backlight:hover,
 #battery:hover, #custom-weather:hover, #clock:hover {
     background: rgba(255, 255, 255, 0.06);
@@ -112,6 +112,14 @@ window#waybar {
 
 #battery.charging {
     color: #8fd6b8;
+}
+
+#custom-power-profile.power-saver {
+    color: #8fd6b8;
+}
+
+#custom-power-profile.performance {
+    color: #e8b87a;
 }
 
 tooltip {
