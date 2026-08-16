@@ -24,3 +24,6 @@ shared/configs/nvim/.config/nvim/plugin/
 
 # GTK — bookmarks are written at runtime by file picker dialogs.
 linux/configs/gtk-3.0/bookmarks
+
+# hyprmoncfg generates the active monitor rules from tracked profiles.
+linux/configs/hypr/monitors.lua
