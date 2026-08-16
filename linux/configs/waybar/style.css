@@ -1,9 +1,10 @@
 /* Dark minimalist — flat floating islands, one accent color, no borders. */
 
 * {
-    font-family: "Adwaita Sans", "Noto Sans", "FiraCode Nerd Font Mono";
-    font-weight: 500;
+    font-family: Inter, "Noto Sans", "FiraCode Nerd Font Mono";
+    font-weight: 600;
     font-size: 18px;
+    letter-spacing: 0.01em;
     min-height: 0;
     border: none;
 }
@@ -54,7 +55,7 @@ window#waybar {
 #custom-workspace-7.active, #custom-workspace-8.active, #custom-workspace-9.active,
 #custom-workspace-10.active {
     color: #8fb7e8;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 #custom-workspace-1.occupied, #custom-workspace-2.occupied, #custom-workspace-3.occupied,
@@ -81,14 +82,11 @@ window#waybar {
 #cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight,
 #battery, #tray, #custom-weather, #clock {
     padding: 0 8px;
-    color: #aeb2c0;
+    color: #e8eaf0;
+    font-size: 18px;
+    font-weight: 600;
     border-radius: 8px;
     transition: background 150ms ease, color 150ms ease;
-}
-
-/* Slightly bigger text to match the bumped icon sizes above. */
-#cpu, #memory, #custom-docker, #network, #pulseaudio, #backlight, #battery {
-    font-size: 20px;
 }
 
 #cpu:hover, #memory:hover, #custom-docker:hover, #network:hover,
@@ -100,6 +98,7 @@ window#waybar {
 #clock {
     padding: 0 10px;
     color: #e8eaf0;
+    font-family: Inter, "Noto Sans", sans-serif;
     font-weight: 600;
 }
 
@@ -125,4 +124,6 @@ tooltip {
 
 tooltip label {
     color: #e8eaf0;
+    font-family: Inter, "Noto Sans", sans-serif;
+    font-weight: 600;
 }
