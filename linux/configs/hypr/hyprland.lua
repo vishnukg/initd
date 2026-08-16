@@ -292,13 +292,17 @@ hl.config({
         },
     },
 
-    -- Rounding, blur and animations — replaces picom v13 entirely.
+    -- Subtle glass treatment applies compositor-wide, including clients that
+    -- do not expose their own transparency setting.
     decoration = {
-        rounding = 12,
+        rounding = 14,
+        active_opacity = 0.60,
+        inactive_opacity = 0.48,
+        fullscreen_opacity = 1.0,
         blur = {
             enabled = true,
-            size = 6,
-            passes = 2,
+            size = 8,
+            passes = 3,
             ignore_opacity = true,
             new_optimizations = true,
         },
