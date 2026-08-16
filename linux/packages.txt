@@ -35,6 +35,7 @@ ghostty
 # silently falls back to CPU decoding without it).
 libva-intel-media-driver
 pulseaudio-utils
+pavucontrol
 brightnessctl
 btop
 ca-certificates
