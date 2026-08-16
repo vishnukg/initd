@@ -31,7 +31,7 @@
         "custom/workspace-10"
     ],
     "modules-right": [
-        "custom/docker", "custom/weather", "cpu", "memory",
+        "custom/docker", "custom/weather", "custom/power-profile", "cpu", "memory",
         "pulseaudio", "backlight", "battery",
         "tray", "clock"
     ],
@@ -96,6 +96,14 @@
         "format": "<span size='28pt'>󰡨</span> <span rise='4000'>{}</span>",
         "on-click": "~/.config/docker-menu.sh",
         "tooltip": false
+    },
+
+    "custom/power-profile": {
+        "exec": "~/.config/power-profile.sh show",
+        "return-type": "json",
+        "interval": 5,
+        "format": "<span size='19pt'>{}</span>",
+        "on-click": "~/.config/power-profile.sh toggle"
     },
 
     "pulseaudio": {
