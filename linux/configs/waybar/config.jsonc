@@ -141,17 +141,17 @@
     "clock": {
         "interval": 5,
         "format": "{:%a, %d %b  ·  %H:%M}",
-        "tooltip-format": "<tt><small>{calendar}</small></tt>",
+        "tooltip-format": "{calendar}",
         "calendar": {
             "mode": "month",
             "weeks-pos": "right",
             "on-scroll": 1,
             "format": {
-                "months": "<b><span color='#8fb7e8'>{}</span></b>",
+                "months": "<span color='#8fb7e8'>{}</span>",
                 "days": "<span color='#aeb4c3'>{}</span>",
                 "weeks": "<span color='#6f7688'>W{}</span>",
                 "weekdays": "<span color='#c4b5fd'>{}</span>",
-                "today": "<b><span color='#0b0d13' background='#8fb7e8'> {} </span></b>"
+                "today": "<span color='#0b0d13' background='#8fb7e8'> {} </span>"
             }
         }
     }

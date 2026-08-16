@@ -52,6 +52,7 @@ papirus-icon-theme
 papirus-icon-theme-dark
 adw-gtk3-theme
 google-noto-sans-fonts
+rsms-inter-fonts
 
 # ── Dev tools (cross-platform equivalents of Brewfile entries) ───────────────
 fish
