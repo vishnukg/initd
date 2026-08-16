@@ -226,12 +226,12 @@ hl.config({
         },
     },
 
-    -- Subtle glass treatment applies compositor-wide, including clients that
+    -- Light glass treatment applies compositor-wide, including clients that
     -- do not expose their own transparency setting.
     decoration = {
         rounding = 14,
-        active_opacity = 0.60,
-        inactive_opacity = 0.48,
+        active_opacity = 0.80,
+        inactive_opacity = 0.70,
         fullscreen_opacity = 1.0,
         blur = {
             enabled = true,
