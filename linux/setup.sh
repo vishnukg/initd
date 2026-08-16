@@ -314,10 +314,10 @@ apply_gsettings_theme() {
   # is what actually controls the on-screen cursor under Hyprland itself
   # (this gsetting only affects GTK apps) — keep the two in sync.
   gsettings set org.gnome.desktop.interface cursor-size 24
-  # No Fedora package/font for "Ubuntu Sans" either; Adwaita Sans is Fedora/
-  # GNOME's own default, always present.
-  gsettings set org.gnome.desktop.interface font-name "Adwaita Sans 11"
-  gsettings set org.gnome.desktop.interface document-font-name "Adwaita Sans 12"
+  # rsms-inter-fonts is installed by linux/bootstrap.sh. Keep GTK3, GTK4, and
+  # the fontconfig generic sans-serif alias on the same high-quality UI font.
+  gsettings set org.gnome.desktop.interface font-name "Inter 11"
+  gsettings set org.gnome.desktop.interface document-font-name "Inter 12"
   gsettings set org.gnome.desktop.interface monospace-font-name "FiraCode Nerd Font Mono 11"
   # Grayscale AA is stable across Wayland fractional scales and monitor
   # orientations; RGB subpixel AA can acquire colored fringes after scaling.
