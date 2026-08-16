@@ -29,7 +29,7 @@ initd/
 └── linux/                       # self-contained Linux bootstrap
     ├── bootstrap.sh              # targets Fedora Workstation 44+ (dnf5)
     ├── packages.txt             # dnf package list (some via COPR — see below)
-    ├── setup.sh                 # fonts/swappiness/theme/Firefox profile glue
+    ├── setup.sh                 # fonts/theme/Firefox profile glue
     ├── managed-links.sh
     ├── update.sh
     ├── scripts/                 # session scripts invoked by hyprland.lua/waybar
@@ -128,9 +128,10 @@ Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-com
 `linux/packages.txt` is one package per line, comments allowed. Add to it and re-run `linux/bootstrap.sh`. The packages list intentionally tracks the brew formulas where equivalents exist (`fish`, `tmux`, `tig`, `git`, `gnupg2`, `neovim`) plus Fedora `-devel` build deps for mise-managed Python/Node. Fedora's own repos don't carry the Hyprland ecosystem, `hyprmoncfg`, or `ghostty` — `install_packages()` enables the `sdegler/hyprland`, `paolino/hyprmoncfg`, and `scottames/ghostty` COPRs first. Docker Engine is installed separately from Docker's official dnf repository, together with Buildx and the Compose v2 plugin; bootstrap adds the login user to the privileged `docker` group, so log out and back in once after its first installation. gh CLI and 1Password also come from their own official dnf repos.
 
 `linux/setup.sh` handles things that don't fit the symlink flow:
-- system fixes requiring sudo (swappiness, `video` group membership for backlight keys)
+- system fixes requiring sudo (`video` group membership for backlight keys)
 - GTK theme + font/cursor gsettings (Fedora has no `fonts-ubuntu` or DMZ-cursor package, so this uses `Adwaita Sans` and the `Adwaita` cursor theme instead)
 - session scripts symlinked to absolute `~/.config/` paths that hyprland.lua/waybar invoke directly
+- the `hyprmoncfgd` user service for automatic monitor profile switching
 - special-case paths outside `~/.config/`: `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox profile files (profile path is dynamic; Firefox itself is unmanaged by bootstrap.sh — install it however you like, this glue configures whatever it finds)
 
 ## Adding a managed config

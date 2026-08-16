@@ -15,7 +15,7 @@ developer can follow like a checklist.
 | `bootstrap.sh` | Dispatcher: detects `uname -s` and execs the platform bootstrap. |
 | `macos/bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → links → fish → mise → macOS defaults. |
 | `linux/bootstrap.sh` | Linux setup: dnf packages (+ COPRs) → gh/1Password/Docker/mise → links → linux/setup.sh → fish → mise → git profile. |
-| `linux/setup.sh` | Linux system tweaks (fonts, swappiness, GTK theme, session-script links, Firefox profile glue). |
+| `linux/setup.sh` | Linux system tweaks (fonts, GTK theme, session-script links, Firefox profile glue). |
 | `shared/lib/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files. Takes platform arg. |
 | `shared/lib/cleanup.sh` | Remove only the symlinks that initd created. Takes platform arg. |
 | `shared/lib/git-profile.sh` | Set the Git identity: personal uses the default email; work writes an override to `local.gitconfig`. |

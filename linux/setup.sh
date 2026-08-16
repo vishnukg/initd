@@ -153,6 +153,16 @@ link_session_scripts() {
   done
 }
 
+remove_legacy_clamshell_link() {
+  local target="${HOME}/.config/clamshell.sh"
+  local legacy_source="${SCRIPTS_DIR}/clamshell.sh"
+
+  if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${legacy_source}" ]]; then
+    rm "${target}"
+    log_success "Removed obsolete clamshell script link."
+  fi
+}
+
 # Resolves the active Firefox profile directory, creating a fresh profile
 # non-interactively if none exists yet. Prints the profile dir and returns 0,
 # or prints nothing and returns 1. Shared by link_firefox_profile and
@@ -482,6 +492,7 @@ main() {
   disable_copyq_tray
   link_gtkrc_2
   link_icons_default
+  remove_legacy_clamshell_link
   link_session_scripts
   link_firefox_profile
   set_firefox_default_zoom
