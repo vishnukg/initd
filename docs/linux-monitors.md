@@ -36,6 +36,21 @@ The managed `~/.config/hyprmoncfg/` directory stores the portable profile
 JSON, plus generated per-profile Lua and hyprlang fallbacks. Commit intentional
 profile changes there.
 
+Profiles that share the same connected displays cannot be auto-selected from
+hardware identity alone. The committed `External screen only`, `External
+above`, and `External mirrored` profiles all match the laptop panel plus the
+BenQ RD320U, so explicitly apply the desired external layout:
+
+```bash
+hyprmoncfg apply "External screen only"
+hyprmoncfg apply "External above"
+hyprmoncfg apply "External mirrored"
+```
+
+The BenQ RD320U uses a sharp 1.06667x scale (3600x2025 logical workspace) in
+each external profile. This keeps the display readable while reducing the
+input latency observed at 1.25x fractional scaling.
+
 `hyprmoncfg` generates the active `~/.config/hypr/monitors.lua` itself. Do not
 commit or manually edit that file: `hyprland.lua` imports it with
 `pcall(require, "monitors")`, and the daemon rewrites it as profiles change.

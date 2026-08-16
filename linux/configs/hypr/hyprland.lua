@@ -27,9 +27,9 @@ hl.config({
     input = {
         -- setxkbmap -option ctrl:nocaps
         kb_options = "ctrl:nocaps",
-        -- xset r rate 200 35
-        repeat_delay = 200,
-        repeat_rate = 35,
+        -- xset r rate 350 30
+        repeat_delay = 350,
+        repeat_rate = 30,
 
         follow_mouse = 1,
         touchpad = {
