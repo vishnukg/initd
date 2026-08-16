@@ -1,10 +1,10 @@
 # dnf packages installed by linux/bootstrap.sh.
 # One package per line, comments start with #.
 # Targets Fedora Workstation 44+. hyprland/hyprlock/hypridle/hyprpaper/
-# xdg-desktop-portal-hyprland come from the sdegler/hyprland COPR, nwg-displays
-# from tofik/nwg-shell (the upstream author's own COPR), ghostty from
-# scottames/ghostty — none of these are in Fedora's official repos.
-# install_packages() enables all three COPRs before resolving this list.
+# xdg-desktop-portal-hyprland come from the sdegler/hyprland COPR, hyprmoncfg
+# from paolino/hyprmoncfg, and ghostty from scottames/ghostty — none are in
+# Fedora's official repos. install_packages() enables all three COPRs before
+# resolving this list.
 
 # ── Hyprland desktop (Wayland; installed alongside stock GNOME) ──────────────
 # hyprland ships /usr/share/wayland-sessions/hyprland.desktop, so GDM offers
@@ -22,7 +22,7 @@ rofi
 dunst
 libnotify
 lxpolkit
-nwg-displays
+hyprmoncfg
 grim
 slurp
 wl-clipboard
