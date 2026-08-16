@@ -32,12 +32,13 @@ window#waybar {
 #custom-workspace-7, #custom-workspace-8, #custom-workspace-9,
 #custom-workspace-10 {
     margin: 3px 0;
-    min-width: 20px;
-    padding: 3px 6px;
+    min-width: 22px;
+    padding: 3px 0 3px 14px;
     font-size: 21px;
     color: #9ba1b0;
     background: transparent;
     border-radius: 6px;
+    border-bottom: 3px solid transparent;
     transition: background 150ms ease, color 150ms ease, opacity 150ms ease;
 }
 
@@ -49,13 +50,14 @@ window#waybar {
     background: rgba(255, 255, 255, 0.04);
 }
 
-/* Focused workspace is a small accent glyph; empty slots stay available but quiet. */
+/* Focused workspace uses a bright underline; inactive workspace numbers stay quiet. */
 #custom-workspace-1.active, #custom-workspace-2.active, #custom-workspace-3.active,
 #custom-workspace-4.active, #custom-workspace-5.active, #custom-workspace-6.active,
 #custom-workspace-7.active, #custom-workspace-8.active, #custom-workspace-9.active,
 #custom-workspace-10.active {
     color: #8fb7e8;
-    font-weight: 600;
+    border-bottom-color: #8fb7e8;
+    font-weight: 700;
 }
 
 #custom-workspace-1.occupied, #custom-workspace-2.occupied, #custom-workspace-3.occupied,
