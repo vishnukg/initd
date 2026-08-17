@@ -176,6 +176,29 @@ EOF
   log_success "1Password installed."
 }
 
+ensure_google_chrome() {
+  if command -v google-chrome-stable >/dev/null 2>&1; then
+    log_success "Google Chrome already installed."
+    return
+  fi
+
+  # Proprietary — not in Fedora's repos. Official dnf repo per
+  # https://www.google.com/linuxrepositories/
+  log "Installing Google Chrome from the official dnf repo..."
+  sudo rpm --import https://dl.google.com/linux/linux_signing_key.pub
+  sudo tee /etc/yum.repos.d/google-chrome.repo >/dev/null <<'EOF'
+[google-chrome]
+name=google-chrome
+baseurl=https://dl.google.com/linux/chrome/rpm/stable/$basearch
+enabled=1
+gpgcheck=1
+gpgkey=https://dl.google.com/linux/linux_signing_key.pub
+EOF
+
+  sudo dnf install -y google-chrome-stable
+  log_success "Google Chrome installed."
+}
+
 ensure_gh_auth() {
   if gh auth token >/dev/null 2>&1; then
     log_success "gh auth check done."
@@ -252,6 +275,7 @@ main() {
   install_packages
   ensure_gh
   ensure_1password
+  ensure_google_chrome
   ensure_docker
   ensure_mise
 
