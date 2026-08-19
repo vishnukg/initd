@@ -300,3 +300,6 @@ hl.animation({ leaf = "fade",       enabled = true, speed = 3, bezier = "default
 hl.animation({ leaf = "layersIn",   enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
 hl.animation({ leaf = "layersOut",  enabled = true, speed = 2, bezier = "easeOut", style = "fade" })
 hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "easeOut", style = "slide" })
+
+-- Added by hyprmoncfg: its generated monitor rules load last, so nothing before this can override the applied layout.
+dofile(os.getenv("HOME") .. "/.config/hypr/hyprmoncfg-monitors.lua")
