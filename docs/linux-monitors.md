@@ -51,8 +51,14 @@ The BenQ RD320U uses a sharp 1.06667x scale (3600x2025 logical workspace) in
 each external profile. This keeps the display readable while reducing the
 input latency observed at 1.25x fractional scaling.
 
-`hyprmoncfg` generates the active `~/.config/hypr/monitors.lua` itself. Do not
-commit or manually edit that file: `hyprland.lua` imports it with
-`pcall(require, "monitors")`, and the daemon rewrites it as profiles change.
+`hyprmoncfg` generates the active `~/.config/hypr/hyprmoncfg-monitors.lua`
+itself. Do not commit or manually edit that file: `hyprland.lua` loads it with
+`dofile(os.getenv("HOME") .. "/.config/hypr/hyprmoncfg-monitors.lua")` at the
+end of the file (after everything else, so nothing can override the applied
+layout), and the daemon rewrites it as profiles change. `~/.config/hypr/monitors.lua`
+is a leftover from an older `hyprmoncfg` version that wrote there instead;
+`hyprland.lua` still loads it too, via `pcall(require, "monitors")`, but
+`hyprmoncfg` itself now leaves it alone — anything you put there yourself is
+kept, and loaded before the daemon's own file.
 Keep one profile per real desk, dock, projector, or travel setup; every JSON
 profile is considered when the daemon chooses a match.
