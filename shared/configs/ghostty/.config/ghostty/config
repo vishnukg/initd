@@ -78,6 +78,7 @@ keybind = super+shift+v=new_split:right
 keybind = super+shift+h=new_split:down
 keybind = super+shift+d=close_surface
 keybind = super+enter=new_window
+keybind = ctrl+enter=unbind
 
 # Moving focus between splits
 keybind = super+h=goto_split:left
