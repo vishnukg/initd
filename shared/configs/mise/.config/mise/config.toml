@@ -18,7 +18,7 @@ UV_MANAGED_PYTHON = "1"
 # ── runtimes ───────────────────────────────────────────────────────────
 uv        = "latest"              # required for pipx: backend with pipx.uvx (yamllint)
 dotnet    = ["latest", "8"]
-go        = "1.26"
+go        = "latest"
 node      = "lts"
 npm       = "latest"
 python    = "latest"
