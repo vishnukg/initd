@@ -1,5 +1,5 @@
 #!/bin/sh
-# Docker container menu — on-click handler for waybar's custom/docker module.
+# Docker container menu — on-click handler for the Quickshell Docker item.
 # rofi: pick a running container, then an action on it.
 
 containers="$(docker ps --format '{{.Names}}\t{{.Status}}' 2>/dev/null)"

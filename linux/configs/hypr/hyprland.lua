@@ -47,8 +47,7 @@ hl.on("hyprland.start", function()
     -- Polkit auth agent (GNOME ships its own inside gnome-shell; Hyprland needs one).
     hl.exec_cmd("lxpolkit")
 
-    hl.exec_cmd("waybar")
-    hl.exec_cmd("python3 ~/.config/workspace-events.py")
+    hl.exec_cmd("qs")
     hl.exec_cmd("dunst")
     hl.exec_cmd("hypridle")
     hl.exec_cmd("hyprpaper")
@@ -59,7 +58,7 @@ hl.on("hyprland.start", function()
     -- --silent: start in the background with just the tray icon, no window.
     -- Delayed so its tray icon registers after nm-applet/blueman-applet (it's
     -- an Electron app and tends to win the SNI-registration race otherwise,
-    -- landing between the wifi and bluetooth icons in waybar's tray).
+    -- landing between the wifi and bluetooth icons in the system tray).
     hl.exec_cmd("bash -c 'sleep 2 && 1password --silent'")
     -- CopyQ's persisted hide_main_window setting keeps it out of the way at
     -- startup; the server still runs for $mod+c.
@@ -71,8 +70,8 @@ hl.bind("XF86AudioRaiseVolume",  hl.dsp.exec_cmd("pactl set-sink-volume @DEFAULT
 hl.bind("XF86AudioLowerVolume",  hl.dsp.exec_cmd("pactl set-sink-volume @DEFAULT_SINK@ -5%"),   { locked = true, repeating = true })
 hl.bind("XF86AudioMute",         hl.dsp.exec_cmd("pactl set-sink-mute @DEFAULT_SINK@ toggle"),  { locked = true })
 hl.bind("XF86AudioMicMute",      hl.dsp.exec_cmd("pactl set-source-mute @DEFAULT_SOURCE@ toggle"), { locked = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl --min-val=2 -q set 5%-"),       { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -q set 5%+"),                   { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("bash -c 'brightnessctl --min-val=2 -q set 5%- && qs ipc call bar refreshBrightness'"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("bash -c 'brightnessctl -q set 5%+ && qs ipc call bar refreshBrightness'"),             { locked = true, repeating = true })
 
 -- Screenshot (scrot → grim)
 hl.bind("Print", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && grim \"$HOME/Pictures/screenshot-$(date +%Y-%m-%d-%H-%M-%S).png\"'"))
@@ -129,9 +128,9 @@ hl.bind(mod .. " + b", hl.dsp.layout("preselect r"))
 hl.bind(mod .. " + v", hl.dsp.layout("preselect d"))
 
 hl.bind(mod .. " + f", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
--- Preserve all tiled splits while using the full output: Waybar's SIGUSR1
--- handler toggles its visibility and releases its exclusive screen space.
-hl.bind(mod .. " + SHIFT + f", hl.dsp.exec_cmd("pkill -USR1 -x waybar"))
+-- Preserve all tiled splits while using the full output: hide the bar and
+-- release its exclusive screen space without changing window state.
+hl.bind(mod .. " + SHIFT + f", hl.dsp.exec_cmd("qs ipc call bar toggle"))
 
 -- i3 stacking/tabbed layouts → Hyprland groups (a group renders as tabs).
 -- $mod+w and $mod+s both toggle the group (Hyprland has no separate stacked
@@ -284,11 +283,11 @@ hl.config({
     },
 })
 
--- Blur the wallpaper behind Waybar's translucent islands while ignoring the
+-- Blur the wallpaper behind Quickshell's translucent island while ignoring the
 -- fully transparent remainder of its full-width layer surface.
 hl.layer_rule({
-    name = "waybar-blur",
-    match = { namespace = "waybar" },
+    name = "quickshell-bar-blur",
+    match = { namespace = "quickshell-bar" },
     blur = true,
     ignore_alpha = 0.20,
 })

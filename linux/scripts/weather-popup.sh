@@ -1,5 +1,5 @@
 #!/bin/sh
-# Weather details popup — on-click handler for waybar's custom/weather module.
+# Weather details popup — on-click handler for the Quickshell weather item.
 # One dunst notification with location, conditions, wind, humidity and rain.
 
 # URL-safe format: + for spaces, | as line separator (raw spaces make curl
@@ -16,6 +16,5 @@ details="$(printf '%s\n' "${report}" | tail -n +2)"
 notify-send -t 8000 -h string:x-canonical-private-synchronous:weather \
   "  ${location}" "${details}" 2>/dev/null || true
 
-# Nudge waybar's weather module (config: signal 8) to refetch, keeping the
-# bar temperature in sync with the popup we just showed.
-pkill -RTMIN+8 -x waybar 2>/dev/null || true
+# Keep the bar temperature in sync with the fresh popup result.
+qs ipc call bar refreshWeather >/dev/null 2>&1 || true
