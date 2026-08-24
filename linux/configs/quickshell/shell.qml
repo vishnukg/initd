@@ -1,7 +1,6 @@
 //@ pragma UseQApplication
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
@@ -61,7 +60,11 @@ ShellRoot {
         if (PowerProfiles.profile === PowerProfile.PowerSaver)
             PowerProfiles.profile = PowerProfile.Balanced;
         else if (PowerProfiles.profile === PowerProfile.Balanced)
-            PowerProfiles.profile = PowerProfile.Performance;
+            // Skip a performance step the daemon does not offer, otherwise the
+            // write is dropped and the click looks like it did nothing.
+            PowerProfiles.profile = PowerProfiles.hasPerformanceProfile
+                ? PowerProfile.Performance
+                : PowerProfile.PowerSaver;
         else
             PowerProfiles.profile = PowerProfile.PowerSaver;
     }
@@ -146,6 +149,15 @@ ShellRoot {
         return null;
     }
 
+    function activateWorkspace(id) {
+        // Quickshell's workspace.activate() sends Hyprland's legacy
+        // `dispatch workspace N`, which a Lua config feeds straight to the Lua
+        // parser and rejects with "')' expected near '1'" — the click reaches
+        // QML fine, the payload is what Hyprland refuses. Send the same
+        // dispatcher hyprland.lua's own mod+1..0 binds use instead.
+        Hyprland.dispatch("hl.dsp.focus({ workspace = " + id + " })");
+    }
+
     function workspaceColor(id) {
         const colors = [
             "#8fb7e8",
@@ -191,7 +203,11 @@ ShellRoot {
 
     Process {
         id: metricsProcess
-        command: ["sh", "-c", "LC_ALL=C top -bn1 | awk '/^%Cpu/ { cpu=100-$8 } END { printf \"%.0f|\", cpu }'; free -m | awk '/^Mem:/ { printf \"%.0f|%.1f|%.1f\\n\", $3*100/$2, $3/1024, $2/1024 }'"]
+        // Busy time is everything top does not report as idle *or* iowait: a
+        // plain 100-idle counts disk waits as CPU load and pins the readout
+        // near 40% while the machine is idle. Labels are matched instead of
+        // column positions because top drops columns it has no data for.
+        command: ["sh", "-c", "LC_ALL=C top -bn1 | awk '/^%Cpu/ { idle = 0; for (i = 2; i <= NF; i++) if ($i ~ /^(id|wa),?$/) idle += $(i-1); cpu = 100 - idle } END { printf \"%.0f|\", cpu }'; free -m | awk '/^Mem:/ { printf \"%.0f|%.1f|%.1f\\n\", $3*100/$2, $3/1024, $2/1024 }'"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const fields = text.trim().split("|");
@@ -366,7 +382,7 @@ ShellRoot {
 
                                 TapHandler {
                                     acceptedButtons: Qt.LeftButton
-                                    onTapped: workspaceButton.workspace.activate()
+                                    onTapped: root.activateWorkspace(workspaceButton.workspaceId)
                                 }
                             }
                         }
@@ -377,58 +393,61 @@ ShellRoot {
 
                         BarItem {
                             icon: "󰡨"
-                            iconSize: 25
+                            iconSize: 28
                             text: root.dockerText
                             barWindow: panel
-                            detailsTitle: "Docker"
-                            detailsBody: root.dockerText + " running container"
+                            tooltipTitle: "Docker"
+                            tooltipBody: root.dockerText + " running container"
                                 + (root.dockerText === "1" ? "" : "s")
-                            detailsAction: "Manage containers"
-                            onDetailAction: root.start(dockerMenuProcess)
+                                + "\nClick to manage containers"
+                            clickable: true
+                            onClicked: root.start(dockerMenuProcess)
                         }
 
                         BarItem {
                             text: root.weatherText
                             barWindow: panel
-                            detailsTitle: "Weather"
-                            detailsBody: root.weatherText + "\nWeather data provided by wttr.in."
-                            detailsAction: "Show full weather"
-                            onDetailAction: root.start(weatherPopupProcess)
+                            tooltipTitle: "Weather"
+                            tooltipBody: root.weatherText
+                                + "\nClick for the full report from wttr.in"
+                            clickable: true
+                            onClicked: root.start(weatherPopupProcess)
                         }
 
                         BarItem {
                             icon: root.powerProfileText()
-                            iconSize: 25
+                            iconSize: 27
                             barWindow: panel
                             foreground: root.powerProfileColor()
-                            detailsTitle: "Power profile"
-                            detailsBody: "Current profile: " + root.powerProfileName()
-                            detailsAction: "Switch profile"
-                            onDetailAction: root.togglePowerProfile()
+                            tooltipTitle: "Power profile"
+                            tooltipBody: root.powerProfileName()
+                                + "\nClick to switch"
+                            clickable: true
+                            onClicked: root.togglePowerProfile()
                         }
 
                         BarItem {
                             icon: "󰍛"
                             text: root.cpuText
                             barWindow: panel
-                            detailsTitle: "Processor"
-                            detailsBody: root.cpuTooltip
+                            tooltipTitle: "Processor"
+                            tooltipBody: root.cpuTooltip
                         }
 
                         BarItem {
                             icon: "󰾆"
                             text: root.memoryText
                             barWindow: panel
-                            detailsTitle: "Memory"
-                            detailsBody: root.memoryTooltip
+                            tooltipTitle: "Memory"
+                            tooltipBody: root.memoryTooltip
                         }
 
                         BarItem {
                             icon: "󰃠"
                             text: root.backlightText
                             barWindow: panel
-                            detailsTitle: "Display brightness"
-                            detailsBody: "Current brightness: " + root.backlightText
+                            tooltipTitle: "Display brightness"
+                            tooltipBody: "Current brightness: " + root.backlightText
                         }
 
                         BarItem {
@@ -440,15 +459,14 @@ ShellRoot {
                             foreground: root.sink && root.sink.audio && root.sink.audio.muted
                                 ? "#52566a"
                                 : "#e8eaf0"
-                            detailsTitle: "Audio"
-                            detailsBody: root.sink && root.sink.audio
+                            tooltipTitle: "Audio"
+                            tooltipBody: root.sink && root.sink.audio
                                 ? "Volume: " + Math.round(root.sink.audio.volume * 100) + "%"
                                     + (root.sink.audio.muted ? "\nMuted" : "")
+                                    + "\nClick to " + (root.sink.audio.muted ? "unmute" : "mute")
                                 : "Audio output unavailable"
-                            detailsAction: root.sink && root.sink.audio
-                                ? (root.sink.audio.muted ? "Unmute" : "Mute")
-                                : ""
-                            onDetailAction: {
+                            clickable: !!(root.sink && root.sink.audio)
+                            onClicked: {
                                 if (root.sink && root.sink.audio)
                                     root.sink.audio.muted = !root.sink.audio.muted;
                             }
@@ -534,8 +552,8 @@ ShellRoot {
                             text: root.batteryPercentage() + "%"
                             barWindow: panel
                             foreground: root.batteryColor()
-                            detailsTitle: "Battery"
-                            detailsBody: root.batteryDetails()
+                            tooltipTitle: "Battery"
+                            tooltipBody: root.batteryDetails()
                         }
 
                         BarItem {

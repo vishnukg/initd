@@ -5,7 +5,7 @@
 It owns both:
 
 - **machine setup**: Homebrew (mac) / dnf (linux), apps, runtimes, OS defaults, Hyprland desktop
-- **user config**: Neovim, Ghostty, Fish, tmux, Git, Hyprland/waybar/rofi/dunst, and other dotfiles via managed symlinks
+- **user config**: Neovim, Ghostty, Fish, tmux, Git, Hyprland/Quickshell/rofi/dunst, and other dotfiles via managed symlinks
 
 ## Layout
 
@@ -32,8 +32,8 @@ initd/
     ├── setup.sh                 # fonts/theme/Firefox profile glue
     ├── managed-links.sh
     ├── update.sh
-    ├── scripts/                 # session scripts invoked by hyprland.lua/waybar
-    └── configs/                 # hypr, waybar, rofi, dunst, gtk-3.0, firefox
+    ├── scripts/                 # session scripts invoked by hyprland.lua/Quickshell
+    └── configs/                 # hypr, quickshell, rofi, dunst, gtk-3.0, firefox
 ```
 
 ## Usage
@@ -87,11 +87,14 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 | Runtime path | Source |
 |---|---|
 | `~/.config/hypr` | `linux/configs/hypr` |
-| `~/.config/waybar` | `linux/configs/waybar` |
+| `~/.config/hyprmoncfg` | `linux/configs/hyprmoncfg` |
+| `~/.config/quickshell` | `linux/configs/quickshell` |
 | `~/.config/rofi` | `linux/configs/rofi` |
 | `~/.config/dunst` | `linux/configs/dunst` |
 | `~/.config/fontconfig` | `linux/configs/fontconfig` |
 | `~/.config/gtk-3.0` | `linux/configs/gtk-3.0` |
+| `~/.config/pipewire` | `linux/configs/pipewire` |
+| `~/.config/systemd/user/initd-hyprland-session.service` | `linux/configs/systemd/user/initd-hyprland-session.service` |
 | `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, Firefox profile glue | linked individually by `linux/setup.sh` (paths are dynamic or outside `~/.config/`) |
 
 ## Machine-local secrets
@@ -130,7 +133,7 @@ Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-com
 `linux/setup.sh` handles things that don't fit the symlink flow:
 - system fixes requiring sudo (`video` group membership for backlight keys)
 - GTK theme + font/cursor gsettings (Fedora has no `fonts-ubuntu` or DMZ-cursor package, so this uses `Adwaita Sans` and the `Adwaita` cursor theme instead)
-- session scripts symlinked to absolute `~/.config/` paths that hyprland.lua/waybar invoke directly
+- session scripts symlinked to absolute `~/.config/` paths that hyprland.lua/Quickshell invoke directly
 - the `hyprmoncfgd` user service for automatic monitor profile switching
 - special-case paths outside `~/.config/`: `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox profile files (profile path is dynamic; Firefox itself is unmanaged by bootstrap.sh — install it however you like, this glue configures whatever it finds)
 
