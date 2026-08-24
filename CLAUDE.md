@@ -63,10 +63,10 @@ initd/
     ├── bootstrap.sh          # targets Fedora Workstation 44+ (dnf5); some packages come from COPR
     ├── packages.txt          # dnf package list (one per line) — Wayland/Hyprland stack
     ├── setup.sh              # system fixes (fonts, theme/config glue)
-    ├── managed-links.sh      # appends hypr/waybar/rofi/dunst links
+    ├── managed-links.sh      # appends hypr/quickshell/rofi/dunst links
     ├── update.sh
-    ├── scripts/              # session scripts invoked by hyprland.lua/waybar
-    └── configs/              # hypr, waybar, rofi, dunst, gtk, firefox, …
+    ├── scripts/              # session scripts invoked by Hyprland/Quickshell
+    └── configs/              # hypr, quickshell, rofi, dunst, gtk, firefox, …
 ```
 
 ### Execution flow
@@ -119,7 +119,7 @@ shared/managed-links.sh         ← MANAGED_LINKS (shared); requires ROOT_DIR
 The single array `MANAGED_LINKS` is built in two steps:
 
 1. `shared/managed-links.sh` defines the cross-platform entries (fish, ghostty, mise, nvim, starship, tmux).
-2. `<platform>/managed-links.sh` appends OS-only entries (currently nothing on macOS; hypr/waybar/rofi/dunst/gtk-3.0 on Linux).
+2. `<platform>/managed-links.sh` appends OS-only entries (currently nothing on macOS; hypr/quickshell/rofi/dunst/gtk-3.0 on Linux).
 
 Entry format: `"home path:repo path"`. Scripts split with `home_path="${entry%%:*}"` / `repo_path="${entry#*:}"`.
 
@@ -150,7 +150,7 @@ Each managed package lives in a subdirectory that mirrors `$HOME`:
 shared/configs/fish/.config/fish/    →  symlinked as ~/.config/fish
 shared/configs/tmux/.config/tmux/    →  symlinked as ~/.config/tmux
 linux/configs/hypr/                  →  symlinked as ~/.config/hypr
-linux/configs/waybar/                →  symlinked as ~/.config/waybar
+linux/configs/quickshell/            →  symlinked as ~/.config/quickshell
 ```
 
 For shared/ the path inside the package mirrors `$HOME` exactly. For linux/ the configs live directly under `linux/configs/<name>/` (no `.config` prefix) because the source path is already namespaced by platform.
@@ -170,7 +170,7 @@ Edit files inside this repo, not through the live symlinks.
 The Linux desktop is **Wayland-only**: Hyprland installed alongside Fedora's stock GNOME (both offered at the GDM login screen). Fedora's own repos don't carry the Hyprland ecosystem, `hyprmoncfg`, or `ghostty` — `install_packages()` enables their three COPRs first (`sdegler/hyprland`, `paolino/hyprmoncfg`, `scottames/ghostty`) before resolving `packages.txt`. The old X11 stack (i3, polybar, picom, xsettingsd, autorandr, Xresources) and the previous Ubuntu-specific fixes (Intel WiFi/Bluetooth udev rules, WiFi regdomain, power-profile AC/battery auto-switch, Chrome apt-arch pin) have been removed from the repo; git history has them if ever needed. This machine is different hardware from the old Ubuntu laptop those fixes targeted, and the trimmed-down setup intentionally doesn't try to guess replacements — add back only what a given machine actually needs.
 
 - **Hyprland config** (`linux/configs/hypr/hyprland.lua`): Hyprland's Lua config format (hyprlang `.conf` support is removed entirely in Hyprland 0.57; this repo ported fully rather than keep a config format on a deprecation countdown). Per-monitor scale (laptop panel 1.25x, externals 1.25x) via `hl.monitor({...})`, with generated profile rules loaded from `hyprmoncfg-monitors.lua`; built-in blur/rounding/animations; `kb_options = ctrl:nocaps` and `repeat_delay/rate` for input. The polkit auth agent is `lxpolkit` (Fedora has neither `polkit-gnome` nor a `hyprpolkitagent` package). Hyprland only detects `hyprland.lua` vs `hyprland.conf` at compositor **startup**, not on `hyprctl reload` — use `Hyprland --verify-config --config <path>` to validate changes without restarting.
-- **Companion stack**: waybar (auto-detects network/battery/backlight, so no hardware patching), rofi 2.0 (`config.rasi`), dunst (`dunstrc`), hyprlock + hypridle, hyprpaper (wallpaper committed at `linux/configs/wallpaper/wallpaper.jpg`), grim/slurp, wl-clipboard.
+- **Companion stack**: Quickshell (`shell.qml`) provides the Hyprland bar, Wi-Fi/Bluetooth status, system tray, audio, battery, metrics, weather, and Docker status; rofi 2.0 (`config.rasi`), dunst (`dunstrc`), hyprlock + hypridle, hyprpaper (wallpaper committed at `linux/configs/wallpaper/wallpaper.jpg`), grim/slurp, wl-clipboard.
 - **Current suspend/lid behavior**: systemd-logind uses its default lid-close suspend policy. Hypridle requests a session lock through `loginctl` before sleep, which invokes `hyprlock`, then waits for Hyprland's session-lock confirmation (`inhibit_sleep = 3`) before releasing its delay inhibitor. `hyprmoncfgd` selects and applies monitor profiles for hotplug and lid events.
 - **System fixes** that need sudo: `video` group membership (backlight is `root:video`; required for the XF86MonBrightness keybinds — takes effect after re-login) and disabling unused `ModemManager` (no modem on this hardware). These are applied by `linux/setup.sh`.
 - **Firefox install is unmanaged, its profile is not**: no `ensure_firefox` step and no entry in `packages.txt` — install it however you like. Once present, `linux/setup.sh:link_firefox_profile` symlinks `linux/configs/firefox/user.js`, `chrome/userChrome.css`, and `chrome/userContent.css` into the active profile: native-window integration (titlebar merged into tabs, rounded CSD corners matching `decoration.rounding`), normal density, the built-in dark theme, and VAAPI hardware video decode. No forced extensions/policies. `set_firefox_default_zoom` sets 133% default zoom separately, via `content-prefs.sqlite` (the mechanism Firefox's own Zoom UI actually reads — a `user.js` pref like `layout.css.devPixelsPerPx` changes rendering density but never shows up in the Zoom menu, which is a common point of confusion). Needs Firefox fully closed to write safely; skips with a warning otherwise and retries next run.
