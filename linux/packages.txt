@@ -17,7 +17,7 @@ hyprland-guiutils
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
 xorg-x11-server-Xwayland
-waybar
+quickshell
 rofi
 dunst
 libnotify

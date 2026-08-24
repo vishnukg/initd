@@ -1,0 +1,561 @@
+//@ pragma UseQApplication
+
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Quickshell
+import Quickshell.Hyprland
+import Quickshell.Io
+import Quickshell.Services.Pipewire
+import Quickshell.Services.SystemTray
+import Quickshell.Services.UPower
+import Quickshell.Wayland
+
+ShellRoot {
+    id: root
+
+    property bool barVisible: true
+    property string cpuText: "--%"
+    property string cpuTooltip: "CPU usage unavailable"
+    property string memoryText: "--%"
+    property string memoryTooltip: "Memory usage unavailable"
+    property string dockerText: "0"
+    property string weatherText: "--"
+    property string backlightText: "--%"
+    property var sink: Pipewire.defaultAudioSink
+
+    function start(process) {
+        if (!process.running)
+            process.running = true;
+    }
+
+    function refreshWeather() {
+        start(weatherProcess);
+    }
+
+    function powerProfileText() {
+        if (PowerProfiles.profile === PowerProfile.PowerSaver)
+            return "󰌪";
+        if (PowerProfiles.profile === PowerProfile.Performance)
+            return "󰓅";
+        return "󰾅";
+    }
+
+    function powerProfileName() {
+        if (PowerProfiles.profile === PowerProfile.PowerSaver)
+            return "Power Saver";
+        if (PowerProfiles.profile === PowerProfile.Performance)
+            return "Performance";
+        return "Balanced";
+    }
+
+    function powerProfileColor() {
+        if (PowerProfiles.profile === PowerProfile.PowerSaver)
+            return "#8fd6b8";
+        if (PowerProfiles.profile === PowerProfile.Performance)
+            return "#e8b87a";
+        return "#e8eaf0";
+    }
+
+    function togglePowerProfile() {
+        if (PowerProfiles.profile === PowerProfile.PowerSaver)
+            PowerProfiles.profile = PowerProfile.Balanced;
+        else if (PowerProfiles.profile === PowerProfile.Balanced)
+            PowerProfiles.profile = PowerProfile.Performance;
+        else
+            PowerProfiles.profile = PowerProfile.PowerSaver;
+    }
+
+    function batteryIcon() {
+        const device = UPower.displayDevice;
+        if (device.state === UPowerDeviceState.Charging
+                || device.state === UPowerDeviceState.PendingCharge)
+            return "󰂄";
+        if (batteryPlugged())
+            return "󰚥";
+        const percentage = batteryPercentage();
+        if (percentage <= 10)
+            return "󰂎";
+        if (percentage <= 30)
+            return "󰁺";
+        if (percentage <= 50)
+            return "󰁾";
+        if (percentage <= 70)
+            return "󰂀";
+        return "󰁹";
+    }
+
+    function batteryPlugged() {
+        const state = UPower.displayDevice.state;
+        return state === UPowerDeviceState.Charging
+            || state === UPowerDeviceState.FullyCharged
+            || state === UPowerDeviceState.PendingCharge
+            || state === UPowerDeviceState.PendingDischarge;
+    }
+
+    function batteryColor() {
+        if (batteryPlugged())
+            return "#8fd6b8";
+        return batteryPercentage() <= 10 ? "#e0788a" : "#e8eaf0";
+    }
+
+    function batteryPercentage() {
+        return Math.round(UPower.displayDevice.percentage * 100);
+    }
+
+    function batteryDetails() {
+        const device = UPower.displayDevice;
+        let details = "Charge: " + batteryPercentage() + "%";
+        if (device.timeToEmpty > 0) {
+            const hours = Math.floor(device.timeToEmpty / 3600);
+            const minutes = Math.round((device.timeToEmpty % 3600) / 60);
+            details += "\nEstimated remaining: " + hours + "h " + minutes + "m";
+        } else if (device.timeToFull > 0) {
+            const hours = Math.floor(device.timeToFull / 3600);
+            const minutes = Math.round((device.timeToFull % 3600) / 60);
+            details += "\nEstimated until full: " + hours + "h " + minutes + "m";
+        }
+        if (device.healthSupported)
+            details += "\nBattery health: " + Math.round(device.healthPercentage) + "%";
+        details += "\nState: " + UPowerDeviceState.toString(device.state);
+        return details;
+    }
+
+    function audioIcon() {
+        if (!sink || !sink.audio || sink.audio.muted)
+            return "󰝟";
+        const volume = sink.audio.volume;
+        if (volume < 0.34)
+            return "󰕿";
+        if (volume < 0.67)
+            return "󰖀";
+        return "󰕾";
+    }
+
+    function workspaceForId(id, screen) {
+        const monitor = Hyprland.monitorFor(screen);
+        const workspaces = Hyprland.workspaces.values;
+        for (let index = 0; index < workspaces.length; index++) {
+            const workspace = workspaces[index];
+            if (workspace.id === id
+                    && workspace.monitor
+                    && monitor
+                    && workspace.monitor.name === monitor.name)
+                return workspace;
+        }
+        return null;
+    }
+
+    function workspaceColor(id) {
+        const colors = [
+            "#8fb7e8",
+            "#8fd6b8",
+            "#c4b5fd",
+            "#e8b87a",
+            "#e8a0b5",
+            "#7dd3c7",
+            "#e8d78a",
+            "#b9a3e3",
+            "#e89a8f",
+            "#8fd8e8"
+        ];
+        return colors[(id - 1) % colors.length];
+    }
+
+    settings.watchFiles: true
+
+    IpcHandler {
+        target: "bar"
+
+        function toggle(): void {
+            root.barVisible = !root.barVisible;
+        }
+
+        function refreshWeather(): void {
+            root.refreshWeather();
+        }
+
+        function refreshBrightness(): void {
+            root.start(backlightProcess);
+        }
+    }
+
+    PwObjectTracker {
+        objects: root.sink ? [root.sink] : []
+    }
+
+    SystemClock {
+        id: clock
+        precision: SystemClock.Minutes
+    }
+
+    Process {
+        id: metricsProcess
+        command: ["sh", "-c", "LC_ALL=C top -bn1 | awk '/^%Cpu/ { cpu=100-$8 } END { printf \"%.0f|\", cpu }'; free -m | awk '/^Mem:/ { printf \"%.0f|%.1f|%.1f\\n\", $3*100/$2, $3/1024, $2/1024 }'"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const fields = text.trim().split("|");
+                if (fields.length !== 4)
+                    return;
+                root.cpuText = fields[0] + "%";
+                root.cpuTooltip = "CPU usage: " + fields[0] + "%";
+                root.memoryText = fields[1] + "%";
+                root.memoryTooltip = "Memory used: " + fields[2] + " GiB / " + fields[3] + " GiB";
+            }
+        }
+    }
+
+    Process {
+        id: dockerProcess
+        command: ["sh", "-c", "docker ps -q 2>/dev/null | wc -l"]
+        stdout: StdioCollector {
+            onStreamFinished: root.dockerText = text.trim() || "0"
+        }
+    }
+
+    Process {
+        id: weatherProcess
+        command: ["curl", "-sf", "--max-time", "10", "https://wttr.in/?format=%c%t"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (text.trim() !== "")
+                    root.weatherText = text.trim();
+            }
+        }
+    }
+
+    Process {
+        id: backlightProcess
+        command: ["sh", "-c", "brightnessctl -m 2>/dev/null | awk -F, 'NR == 1 { gsub(/%/, \"\", $4); print $4 }'"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (text.trim() !== "")
+                    root.backlightText = text.trim() + "%";
+            }
+        }
+    }
+
+    Process {
+        id: weatherPopupProcess
+        command: [Quickshell.env("HOME") + "/.config/weather-popup.sh"]
+    }
+
+    Process {
+        id: dockerMenuProcess
+        command: [Quickshell.env("HOME") + "/.config/docker-menu.sh"]
+    }
+
+    Timer {
+        interval: 3000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: root.start(metricsProcess)
+    }
+
+    Timer {
+        interval: 30000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: root.start(backlightProcess)
+    }
+
+    Timer {
+        interval: 15000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: root.start(dockerProcess)
+    }
+
+    Timer {
+        interval: 1800000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: root.refreshWeather()
+    }
+
+    Variants {
+        model: Quickshell.screens
+
+        delegate: Component {
+            PanelWindow {
+                id: panel
+
+                required property var modelData
+                screen: modelData
+                visible: root.barVisible
+                implicitHeight: 39
+                color: "transparent"
+                aboveWindows: true
+                focusable: false
+                exclusionMode: ExclusionMode.Auto
+
+                anchors {
+                    top: true
+                    left: true
+                    right: true
+                }
+
+                margins {
+                    top: 4
+                    left: 8
+                    right: 8
+                }
+
+                WlrLayershell.namespace: "quickshell-bar"
+                WlrLayershell.layer: WlrLayer.Top
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 12
+                    color: "#e60b0c10"
+                    border.width: 1
+                    border.color: "#18ffffff"
+
+                    RowLayout {
+                        anchors {
+                            fill: parent
+                            leftMargin: 8
+                            rightMargin: 8
+                            topMargin: 2
+                            bottomMargin: 2
+                        }
+                        spacing: 4
+
+                        Repeater {
+                            model: 10
+
+                            delegate: Rectangle {
+                                id: workspaceButton
+
+                                required property int index
+                                property int workspaceId: index + 1
+                                property var workspace: root.workspaceForId(workspaceId, panel.screen)
+                                property bool active: workspace && workspace.active
+
+                                visible: workspace !== null
+                                Layout.preferredWidth: visible ? 29 : 0
+                                Layout.fillHeight: true
+                                Layout.leftMargin: index === 0 ? 4 : 0
+                                Layout.rightMargin: index === 9 ? 4 : 0
+                                radius: 8
+                                color: active
+                                    ? root.workspaceColor(workspaceId)
+                                    : workspaceHover.hovered ? "#18ffffff" : "transparent"
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 150 }
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: workspaceButton.workspaceId
+                                    color: workspaceButton.active ? "#0b0c10" : "#a8abb4"
+                                    font.family: "Inter"
+                                    font.pixelSize: 18
+                                    font.weight: workspaceButton.active ? Font.Bold : Font.DemiBold
+                                }
+
+                                HoverHandler {
+                                    id: workspaceHover
+                                    cursorShape: Qt.PointingHandCursor
+                                }
+
+                                TapHandler {
+                                    acceptedButtons: Qt.LeftButton
+                                    onTapped: workspaceButton.workspace.activate()
+                                }
+                            }
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
+
+                        BarItem {
+                            icon: "󰡨"
+                            iconSize: 25
+                            text: root.dockerText
+                            barWindow: panel
+                            detailsTitle: "Docker"
+                            detailsBody: root.dockerText + " running container"
+                                + (root.dockerText === "1" ? "" : "s")
+                            detailsAction: "Manage containers"
+                            onDetailAction: root.start(dockerMenuProcess)
+                        }
+
+                        BarItem {
+                            text: root.weatherText
+                            barWindow: panel
+                            detailsTitle: "Weather"
+                            detailsBody: root.weatherText + "\nWeather data provided by wttr.in."
+                            detailsAction: "Show full weather"
+                            onDetailAction: root.start(weatherPopupProcess)
+                        }
+
+                        BarItem {
+                            icon: root.powerProfileText()
+                            iconSize: 25
+                            barWindow: panel
+                            foreground: root.powerProfileColor()
+                            detailsTitle: "Power profile"
+                            detailsBody: "Current profile: " + root.powerProfileName()
+                            detailsAction: "Switch profile"
+                            onDetailAction: root.togglePowerProfile()
+                        }
+
+                        BarItem {
+                            icon: "󰍛"
+                            text: root.cpuText
+                            barWindow: panel
+                            detailsTitle: "Processor"
+                            detailsBody: root.cpuTooltip
+                        }
+
+                        BarItem {
+                            icon: "󰾆"
+                            text: root.memoryText
+                            barWindow: panel
+                            detailsTitle: "Memory"
+                            detailsBody: root.memoryTooltip
+                        }
+
+                        BarItem {
+                            icon: "󰃠"
+                            text: root.backlightText
+                            barWindow: panel
+                            detailsTitle: "Display brightness"
+                            detailsBody: "Current brightness: " + root.backlightText
+                        }
+
+                        BarItem {
+                            icon: root.audioIcon()
+                            text: root.sink && root.sink.audio
+                                ? Math.round(root.sink.audio.volume * 100) + "%"
+                                : "--%"
+                            barWindow: panel
+                            foreground: root.sink && root.sink.audio && root.sink.audio.muted
+                                ? "#52566a"
+                                : "#e8eaf0"
+                            detailsTitle: "Audio"
+                            detailsBody: root.sink && root.sink.audio
+                                ? "Volume: " + Math.round(root.sink.audio.volume * 100) + "%"
+                                    + (root.sink.audio.muted ? "\nMuted" : "")
+                                : "Audio output unavailable"
+                            detailsAction: root.sink && root.sink.audio
+                                ? (root.sink.audio.muted ? "Unmute" : "Mute")
+                                : ""
+                            onDetailAction: {
+                                if (root.sink && root.sink.audio)
+                                    root.sink.audio.muted = !root.sink.audio.muted;
+                            }
+                        }
+
+                        Repeater {
+                            model: SystemTray.items
+
+                            delegate: Item {
+                                id: trayItem
+
+                                required property var modelData
+                                property string identity: (modelData.id + " " + modelData.title).toLowerCase()
+                                property bool networkApplet: identity.indexOf("networkmanager") !== -1
+                                    || identity.indexOf("nm-applet") !== -1
+                                property bool bluetoothApplet: identity.indexOf("blueman") !== -1
+                                Layout.preferredWidth: 29
+                                Layout.fillHeight: true
+
+                                Image {
+                                    anchors.centerIn: parent
+                                    width: 19
+                                    height: 19
+                                    source: trayItem.networkApplet
+                                        ? "file:///usr/share/icons/Papirus-Dark/16x16/devices/network-wireless.svg"
+                                        : trayItem.bluetoothApplet
+                                            ? "file:///usr/share/icons/Papirus-Dark/16x16/devices/bluetooth.svg"
+                                            : trayItem.modelData.icon
+                                    sourceSize: Qt.size(width, height)
+                                }
+
+                                QsMenuAnchor {
+                                    id: trayMenu
+                                    menu: trayItem.modelData.menu
+                                    anchor.item: trayItem
+                                }
+
+                                TrayMenu {
+                                    id: modernMenu
+                                    anchorItem: trayItem
+                                    barWindow: panel
+                                    menu: trayItem.modelData.menu
+                                }
+
+                                HoverHandler {
+                                    id: trayHover
+                                    cursorShape: Qt.PointingHandCursor
+                                }
+
+                                TapHandler {
+                                    acceptedButtons: Qt.LeftButton
+                                    onTapped: {
+                                        if (trayItem.networkApplet || trayItem.bluetoothApplet) {
+                                            modernMenu.open();
+                                        } else if (trayItem.modelData.hasMenu
+                                                && trayItem.modelData.onlyMenu) {
+                                            trayMenu.open();
+                                        } else {
+                                            trayItem.modelData.activate();
+                                        }
+                                    }
+                                }
+
+                                TapHandler {
+                                    acceptedButtons: Qt.RightButton
+                                    onTapped: {
+                                        if (trayItem.networkApplet || trayItem.bluetoothApplet) {
+                                            modernMenu.open();
+                                        } else if (trayItem.modelData.hasMenu) {
+                                            trayMenu.open();
+                                        } else {
+                                            trayItem.modelData.secondaryActivate();
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+
+                        BarItem {
+                            visible: UPower.displayDevice.ready && UPower.displayDevice.isLaptopBattery
+                            icon: root.batteryIcon()
+                            text: root.batteryPercentage() + "%"
+                            barWindow: panel
+                            foreground: root.batteryColor()
+                            detailsTitle: "Battery"
+                            detailsBody: root.batteryDetails()
+                        }
+
+                        BarItem {
+                            id: dateItem
+                            text: Qt.formatDateTime(clock.date, "ddd, dd MMM  ·  HH:mm")
+                            barWindow: panel
+                            foreground: "#e8eaf0"
+                            background: "#0fffffff"
+                            clickable: true
+                            onClicked: calendar.open()
+
+                            CalendarPopup {
+                                id: calendar
+                                anchorItem: dateItem
+                                barWindow: panel
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

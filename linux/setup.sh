@@ -4,7 +4,7 @@ set -euo pipefail
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font)
 #   - System fixes that need sudo (disabling unused ModemManager)
-#   - Session scripts linked to absolute ~/.config/ paths (waybar uses them)
+#   - Session scripts linked to absolute ~/.config/ paths (the shell uses them)
 #   - Firefox profile glue (profile path is dynamic)
 #
 # Wayland/Hyprland only — the old X11 fixes (xorg TearFree, autorandr, picom,
@@ -75,12 +75,13 @@ check_hyprland_session() {
 }
 
 mask_desktop_user_units() {
-  # waybar/hypridle/hyprpaper's upstream systemd user units are enabled at
+  # waybar/hypridle/hyprpaper's upstream systemd user units may be enabled at
   # graphical-session.target, so they also launch inside GNOME sessions
   # (where waybar can't work — no layer-shell — and hyprpaper segfaults) and
   # race the hl.on("hyprland.start", ...) autostart block in hyprland.lua
-  # under Hyprland. This repo owns autostart via that block, so mask the
-  # units at the user level.
+  # under Hyprland. Waybar is retained here for machines migrating to
+  # Quickshell so an old package cannot start beside the new bar. This repo
+  # owns autostart via that block, so mask the units at the user level.
   local unit
   for unit in waybar.service hypridle.service hyprpaper.service; do
     if [[ "$(systemctl --user is-enabled "${unit}" 2>/dev/null)" == "masked" ]]; then
@@ -162,12 +163,11 @@ link_icons_default() {
 }
 
 link_session_scripts() {
-  # hyprland.lua/waybar invoke these by absolute ~/.config/ path, so they need
+  # hyprland.lua/Quickshell invoke these by absolute ~/.config/ path, so they need
   # their own symlinks (they live in linux/scripts/, not under a MANAGED_LINKS dir).
   local name target src
   for name in night-light-toggle.sh \
-              weather-popup.sh docker-menu.sh power-profile.sh workspace-button.sh \
-              workspace-events.py; do
+              weather-popup.sh docker-menu.sh; do
     target="${HOME}/.config/${name}"
     src="${SCRIPTS_DIR}/${name}"
     chmod +x "${src}" 2>/dev/null || true
@@ -179,6 +179,43 @@ link_session_scripts() {
       log_success "Linked ~/.config/${name}"
     fi
   done
+}
+
+remove_legacy_waybar_links() {
+  local target source
+  target="${HOME}/.config/waybar"
+  source="${CONFIGS_DIR}/waybar"
+  if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${source}" ]]; then
+    rm "${target}"
+    log_success "Removed obsolete Waybar config link."
+  fi
+
+  local name
+  for name in power-profile.sh workspace-button.sh workspace-events.py; do
+    target="${HOME}/.config/${name}"
+    source="${SCRIPTS_DIR}/${name}"
+    if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${source}" ]]; then
+      rm "${target}"
+      log_success "Removed obsolete ${name} link."
+    fi
+  done
+}
+
+migrate_from_waybar() {
+  local waybar_pids=() pid
+  mapfile -t waybar_pids < <(pgrep -u "$(id -u)" -x waybar 2>/dev/null || true)
+  for pid in "${waybar_pids[@]}"; do
+    kill "${pid}" 2>/dev/null || true
+  done
+  if [[ "${#waybar_pids[@]}" -gt 0 ]]; then
+    log_success "Stopped the obsolete Waybar process."
+  fi
+
+  if rpm -q waybar >/dev/null 2>&1; then
+    log "Removing the obsolete Waybar package..."
+    sudo dnf remove -y waybar
+    log_success "Waybar package removed."
+  fi
 }
 
 remove_legacy_clamshell_link() {
@@ -522,6 +559,8 @@ main() {
   link_gtkrc_2
   link_icons_default
   remove_legacy_clamshell_link
+  migrate_from_waybar
+  remove_legacy_waybar_links
   link_session_scripts
   link_firefox_profile
   set_firefox_default_zoom
