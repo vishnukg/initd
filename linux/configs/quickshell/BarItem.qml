@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 
 Rectangle {
     id: root
@@ -12,11 +11,9 @@ Rectangle {
     property int horizontalPadding: 9
     property int iconSize: 21
     property var barWindow: null
-    property string detailsTitle: ""
-    property string detailsBody: ""
-    property string detailsAction: ""
+    property string tooltipTitle: ""
+    property string tooltipBody: ""
     signal clicked()
-    signal detailAction()
 
     implicitWidth: content.implicitWidth + horizontalPadding * 2
     implicitHeight: 31
@@ -59,30 +56,23 @@ Rectangle {
 
     HoverHandler {
         id: hover
-        cursorShape: root.clickable || root.detailsTitle !== ""
-            ? Qt.PointingHandCursor
-            : Qt.ArrowCursor
+        cursorShape: root.clickable ? Qt.PointingHandCursor : Qt.ArrowCursor
     }
 
+    // Reading an item is hover-only; clicking is reserved for items that
+    // actually do something (cycle the power profile, mute, open a menu).
     TapHandler {
-        enabled: root.clickable || root.detailsTitle !== ""
+        enabled: root.clickable
         acceptedButtons: Qt.LeftButton
-        onTapped: {
-            if (root.detailsTitle !== "")
-                details.open();
-            else
-                root.clicked();
-        }
+        onTapped: root.clicked()
     }
 
-    DetailPopup {
-        id: details
+    BarTooltip {
         anchorItem: root
         barWindow: root.barWindow
-        title: root.detailsTitle
-        body: root.detailsBody
-        actionLabel: root.detailsAction
-        onActionTriggered: root.detailAction()
+        title: root.tooltipTitle
+        body: root.tooltipBody
+        active: hover.hovered
     }
 
 }
