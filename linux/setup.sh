@@ -104,6 +104,34 @@ enable_hyprmoncfg() {
   log_success "hyprmoncfg monitor profile service enabled."
 }
 
+seed_hyprmoncfg_monitors() {
+  local target="${HOME}/.config/hypr/hyprmoncfg-monitors.lua"
+
+  if [[ -e "${target}" ]]; then
+    log_success "hyprmoncfg monitor rules already present."
+    return
+  fi
+
+  if [[ ! -d "${HOME}/.config/hypr" ]]; then
+    log_warn "~/.config/hypr missing; skipping hyprmoncfg monitor stub."
+    return
+  fi
+
+  # hyprland.lua ends with a bare dofile() of this path, and hyprmoncfg insists on
+  # that exact unprotected form (it re-appends it whenever its rules fail to load).
+  # The file itself is generated and gitignored, so it does not exist until the
+  # first profile is saved — without a stub, dofile() aborts config parsing on a
+  # fresh bootstrap. An empty stub is valid Lua and leaves the static fallback
+  # rules in hyprland.lua in effect; hyprmoncfg overwrites it on first apply.
+  cat > "${target}" <<'EOF'
+-- Placeholder seeded by linux/setup.sh so hyprland.lua's dofile() has a target
+-- before the first hyprmoncfg profile exists. hyprmoncfg overwrites this file
+-- with the real monitor rules as soon as a profile is applied; until then the
+-- static hl.monitor() fallbacks near the top of hyprland.lua are what apply.
+EOF
+  log_success "Seeded hyprmoncfg monitor stub (no profile saved yet)."
+}
+
 # ── Config glue (special-case paths) ─────────────────────────────────────────
 link_gtkrc_2() {
   local target="${HOME}/.gtkrc-2.0"
@@ -486,6 +514,7 @@ main() {
   check_hyprland_session
   mask_desktop_user_units
   enable_hyprmoncfg
+  seed_hyprmoncfg_monitors
 
   apply_gsettings_theme
   apply_gsettings_keyboard
