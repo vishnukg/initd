@@ -11,11 +11,11 @@ hl.env("XCURSOR_THEME", "Adwaita")
 
 -- ── Monitors ──────────────────────────────────────────────────────────────────
 -- Wayland replaces the whole autorandr/xsettingsd/Xft.dpi machinery with
--- per-monitor scale. 1.25 on the laptop panel (2560x1600, ~224 PPI); adjust
--- per monitor if needed — this was 1.5 (tuned for the old machine's panel)
--- until it looked oversized on this one.
-hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = "1.25" })
-hl.monitor({ output = "",      mode = "preferred", position = "auto", scale = "1.25" })
+-- per-monitor scale. 1.33333 on the laptop panel (2560x1600, ~224 PPI) — a
+-- 1920x1200 logical workspace; adjust per monitor if needed. This was 1.5
+-- (tuned for the old machine's panel), then 1.25, which read a touch small.
+hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = "1.33333" })
+hl.monitor({ output = "",      mode = "preferred", position = "auto", scale = "1.33333" })
 
 -- hyprmoncfg owns the generated monitor rules, profiles, hotplug, and lid
 -- handling. Its protected import keeps Hyprland usable before the first
@@ -302,4 +302,8 @@ hl.animation({ leaf = "layersOut",  enabled = true, speed = 2, bezier = "easeOut
 hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "easeOut", style = "slide" })
 
 -- Added by hyprmoncfg: its generated monitor rules load last, so nothing before this can override the applied layout.
+-- Keep this line verbatim and unprotected: hyprmoncfg checks after every reload that
+-- its rules actually ran and re-appends this exact form if they did not, so a pcall()
+-- wrapper here just earns a duplicate. The target is generated and gitignored, so
+-- linux/setup.sh seeds a stub on fresh bootstraps to keep dofile() from throwing.
 dofile(os.getenv("HOME") .. "/.config/hypr/hyprmoncfg-monitors.lua")
