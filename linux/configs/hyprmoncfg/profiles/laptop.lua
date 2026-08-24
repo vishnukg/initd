@@ -4,7 +4,7 @@ hl.monitor({
   output = "desc:LG Display 0x0804",
   mode = "2560x1600@120.00",
   position = "0x0",
-  scale = 1.25,
+  scale = 1.33333,
   sdr_min_luminance = 0.2,
   sdr_max_luminance = 80,
 })

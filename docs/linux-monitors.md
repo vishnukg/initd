@@ -6,7 +6,7 @@ reverts them unless confirmed.
 
 The static rules at the top of `linux/configs/hypr/hyprland.lua` are only a
 fallback before the first profile exists: the laptop panel and unknown external
-monitors use their preferred modes at 1.25x scale.
+monitors use their preferred modes at 1.33333x scale.
 
 ## Create profiles
 
@@ -60,5 +60,15 @@ is a leftover from an older `hyprmoncfg` version that wrote there instead;
 `hyprland.lua` still loads it too, via `pcall(require, "monitors")`, but
 `hyprmoncfg` itself now leaves it alone — anything you put there yourself is
 kept, and loaded before the daemon's own file.
+
+That `dofile` is deliberately left unprotected. `hyprmoncfg` verifies after every
+reload that its rules actually ran and re-appends that exact line when they did
+not, so wrapping it in `pcall` only earns a duplicate loader on the next apply.
+Because the target is generated and gitignored, it does not exist on a fresh
+bootstrap until the first profile is saved — and a missing target makes `dofile`
+abort config parsing. `linux/setup.sh:seed_hyprmoncfg_monitors` closes that gap by
+writing a comment-only stub when the file is absent, which leaves the static
+fallback rules in `hyprland.lua` in effect until `hyprmoncfg` overwrites it.
+
 Keep one profile per real desk, dock, projector, or travel setup; every JSON
 profile is considered when the daemon chooses a match.
