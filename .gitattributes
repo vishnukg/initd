@@ -11,6 +11,7 @@
 *.gitconfig text eol=lf
 *.toml      text eol=lf
 *.lua       text eol=lf
+*.qml       text eol=lf
 *.md        text eol=lf
 Brewfile    text eol=lf
 packages.txt text eol=lf
