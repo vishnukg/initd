@@ -300,9 +300,10 @@ hl.animation({ leaf = "layersIn",   enabled = true, speed = 2, bezier = "easeOut
 hl.animation({ leaf = "layersOut",  enabled = true, speed = 2, bezier = "easeOut", style = "fade" })
 hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "easeOut", style = "slide" })
 
--- Added by hyprmoncfg: its generated monitor rules load last, so nothing before this can override the applied layout.
 -- Keep this line verbatim and unprotected: hyprmoncfg checks after every reload that
 -- its rules actually ran and re-appends this exact form if they did not, so a pcall()
 -- wrapper here just earns a duplicate. The target is generated and gitignored, so
 -- linux/setup.sh seeds a stub on fresh bootstraps to keep dofile() from throwing.
+
+-- Added by hyprmoncfg: its generated monitor rules load last, so nothing before this can override the applied layout.
 dofile(os.getenv("HOME") .. "/.config/hypr/hyprmoncfg-monitors.lua")
