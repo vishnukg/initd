@@ -19,7 +19,10 @@ ShellRoot {
     property string memoryText: "--%"
     property string memoryTooltip: "Memory usage unavailable"
     property string dockerText: "0"
-    property string weatherText: "--"
+    property string weatherTemp: "--"
+    property string weatherCondition: "Unavailable"
+    property string weatherSunrise: ""
+    property string weatherSunset: ""
     property string backlightText: "--%"
     property var sink: Pipewire.defaultAudioSink
 
@@ -30,6 +33,122 @@ ShellRoot {
 
     function refreshWeather() {
         start(weatherProcess);
+    }
+
+    // wttr.in hands back "HH:MM:SS" (and sometimes "HH:MM:SS AM"); both reduce
+    // to minutes-since-midnight so day/night is a plain numeric compare.
+    function clockMinutes(value) {
+        const match = /(\d{1,2}):(\d{2})/.exec(value);
+        if (!match)
+            return -1;
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        if (/PM/i.test(value) && hours < 12)
+            hours += 12;
+        if (/AM/i.test(value) && hours === 12)
+            hours = 0;
+        return hours * 60 + minutes;
+    }
+
+    function weatherIsNight() {
+        const sunrise = clockMinutes(weatherSunrise);
+        const sunset = clockMinutes(weatherSunset);
+        if (sunrise < 0 || sunset < 0)
+            return false;
+        const now = new Date();
+        const minutes = now.getHours() * 60 + now.getMinutes();
+        return minutes < sunrise || minutes >= sunset;
+    }
+
+    // WWO condition names are a fixed vocabulary ("Patchy light rain with
+    // thunder", "Moderate or heavy sleet showers", ...), so keyword tests in
+    // severity order cover the whole set without a 48-entry lookup table.
+    function weatherIcon() {
+        const condition = weatherCondition.toLowerCase();
+        const night = weatherIsNight();
+        if (condition.indexOf("thunder") >= 0)
+            return condition.indexOf("rain") >= 0 || condition.indexOf("snow") >= 0
+                ? "󰙾"
+                : "󰖓";
+        if (condition.indexOf("ice pellets") >= 0 || condition.indexOf("hail") >= 0)
+            return "󰖒";
+        if (condition.indexOf("fog") >= 0)
+            return "󰖑";
+        if (condition.indexOf("mist") >= 0 || condition.indexOf("haze") >= 0)
+            return "󰼰";
+        if (condition.indexOf("sleet") >= 0 || condition.indexOf("freezing") >= 0)
+            return "󰙿";
+        if (condition.indexOf("blizzard") >= 0 || condition.indexOf("heavy snow") >= 0)
+            return "󰼶";
+        if (condition.indexOf("snow") >= 0)
+            return condition.indexOf("patchy") >= 0 ? "󰼵" : "󰖘";
+        if (condition.indexOf("torrential") >= 0 || condition.indexOf("heavy rain") >= 0)
+            return "󰖖";
+        if (condition.indexOf("rain") >= 0 || condition.indexOf("drizzle") >= 0
+                || condition.indexOf("shower") >= 0)
+            return condition.indexOf("patchy") >= 0 ? "󰼳" : "󰖗";
+        if (condition.indexOf("partly") >= 0)
+            return night ? "󰼱" : "󰖕";
+        if (condition.indexOf("cloud") >= 0 || condition.indexOf("overcast") >= 0)
+            return "󰖐";
+        if (condition.indexOf("sunny") >= 0)
+            return "󰖙";
+        if (condition.indexOf("clear") >= 0)
+            return night ? "󰖔" : "󰖙";
+        return "󰼯";
+    }
+
+    // wttr.in reports whatever unit the request resolved to, so read the unit
+    // off the string rather than assuming Celsius.
+    function weatherCelsius() {
+        const match = /(-?\d+(?:\.\d+)?)/.exec(weatherTemp);
+        if (!match)
+            return NaN;
+        const value = parseFloat(match[1]);
+        return /F/i.test(weatherTemp) ? (value - 32) * 5 / 9 : value;
+    }
+
+    // Mild weather says nothing, so it stays flat: colour only appears once the
+    // reading is cold enough or hot enough to be worth noticing, deepening as
+    // it gets further from comfortable.
+    function weatherColor() {
+        const celsius = weatherCelsius();
+        if (isNaN(celsius))
+            return "#e8eaf0";
+        if (celsius <= 0)
+            return "#6fa8e0";
+        if (celsius < 6)
+            return "#8fb7e8";
+        if (celsius < 12)
+            return "#8fd8e8";
+        if (celsius <= 25)
+            return "#e8eaf0";
+        if (celsius < 30)
+            return "#e8b87a";
+        if (celsius < 35)
+            return "#e89a8f";
+        return "#e0788a";
+    }
+
+    function weatherTooltip() {
+        let body = weatherCondition;
+        if (weatherSunrise !== "" && weatherSunset !== "")
+            body += "\nSunrise " + weatherSunrise.substring(0, 5)
+                + " · Sunset " + weatherSunset.substring(0, 5);
+        return body + "\nClick for the full report from wttr.in";
+    }
+
+    // CPU and memory share one ramp: neutral until the machine is working,
+    // amber under load, red when it is saturated.
+    function loadColor(reading) {
+        const percent = parseInt(reading, 10);
+        if (isNaN(percent))
+            return "#e8eaf0";
+        if (percent >= 90)
+            return "#e0788a";
+        if (percent >= 70)
+            return "#e8b87a";
+        return "#e8eaf0";
     }
 
     function powerProfileText() {
@@ -231,11 +350,19 @@ ShellRoot {
 
     Process {
         id: weatherProcess
-        command: ["curl", "-sf", "--max-time", "10", "https://wttr.in/?format=%c%t"]
+        // %C is the condition name rather than %c's colour emoji, so the bar can
+        // draw a Nerd Font glyph that matches every other icon; %S/%s decide
+        // whether the clear-sky glyph is a sun or a moon.
+        command: ["curl", "-sf", "--max-time", "10", "https://wttr.in/?format=%C|%t|%S|%s"]
         stdout: StdioCollector {
             onStreamFinished: {
-                if (text.trim() !== "")
-                    root.weatherText = text.trim();
+                const fields = text.trim().split("|");
+                if (fields.length < 2 || fields[0] === "")
+                    return;
+                root.weatherCondition = fields[0].trim();
+                root.weatherTemp = fields[1].trim();
+                root.weatherSunrise = fields.length > 2 ? fields[2].trim() : "";
+                root.weatherSunset = fields.length > 3 ? fields[3].trim() : "";
             }
         }
     }
@@ -405,11 +532,13 @@ ShellRoot {
                         }
 
                         BarItem {
-                            text: root.weatherText
+                            icon: root.weatherIcon()
+                            iconSize: 26
+                            text: root.weatherTemp
+                            foreground: root.weatherColor()
                             barWindow: panel
                             tooltipTitle: "Weather"
-                            tooltipBody: root.weatherText
-                                + "\nClick for the full report from wttr.in"
+                            tooltipBody: root.weatherTooltip()
                             clickable: true
                             onClicked: root.start(weatherPopupProcess)
                         }
@@ -429,6 +558,7 @@ ShellRoot {
                         BarItem {
                             icon: "󰍛"
                             text: root.cpuText
+                            foreground: root.loadColor(root.cpuText)
                             barWindow: panel
                             tooltipTitle: "Processor"
                             tooltipBody: root.cpuTooltip
@@ -437,6 +567,7 @@ ShellRoot {
                         BarItem {
                             icon: "󰾆"
                             text: root.memoryText
+                            foreground: root.loadColor(root.memoryText)
                             barWindow: panel
                             tooltipTitle: "Memory"
                             tooltipBody: root.memoryTooltip
