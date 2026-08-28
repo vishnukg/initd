@@ -240,7 +240,12 @@ hl.config({
         blur = {
             enabled = true,
             size = 8,
-            passes = 3,
+            -- Each pass is a full-screen sample of a 2560x1600 buffer, and this
+            -- is a Wildcat Lake iGPU sharing system memory. The third pass costs
+            -- a full pass worth of bandwidth to widen an already 8px radius by an
+            -- amount that is not visible at this size; two passes look the same
+            -- and leave more headroom for everything compositing on top.
+            passes = 2,
             ignore_opacity = true,
             new_optimizations = true,
         },
@@ -251,10 +256,12 @@ hl.config({
         shadow = {
             enabled = true,
         },
-        -- Subtle blur trail on moving/resizing windows. Leave samples at Hyprland's
-        -- conservative default; increase only if the effect looks too subtle.
+        -- Off: it samples the framebuffer again on every frame of a move or
+        -- resize, which is exactly when the compositor is already busiest, and
+        -- the trail it buys is barely visible on an iGPU that cannot keep the
+        -- frame rate up while drawing it.
         motion_blur = {
-            enabled = true,
+            enabled = false,
         },
     },
 
@@ -307,8 +314,11 @@ hl.layer_rule({
 })
 
 hl.curve("easeOut", { type = "bezier", points = { { 0.16, 1 }, { 0.3, 1 } } })
-hl.animation({ leaf = "windows",    enabled = true, speed = 3, bezier = "easeOut", style = "popin 90%" })
-hl.animation({ leaf = "windowsOut", enabled = true, speed = 3, bezier = "easeOut", style = "popin 90%" })
+-- speed is in deciseconds, so 3 was 300ms added to every window open on top of
+-- the ~670ms Ghostty itself takes to start. 2 still reads as a deliberate popin
+-- rather than a jump, and returns 100ms of that.
+hl.animation({ leaf = "windows",    enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
+hl.animation({ leaf = "windowsOut", enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
 hl.animation({ leaf = "fade",       enabled = true, speed = 3, bezier = "default" })
 hl.animation({ leaf = "layersIn",   enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
 hl.animation({ leaf = "layersOut",  enabled = true, speed = 2, bezier = "easeOut", style = "fade" })
