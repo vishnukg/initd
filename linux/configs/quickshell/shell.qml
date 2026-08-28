@@ -454,12 +454,12 @@ ShellRoot {
                 Rectangle {
                     anchors.fill: parent
                     radius: 12
-                    // ARGB. Alpha 0x99 (60%) rather than the old 0xe6 (90%), so the
+                    // ARGB. Alpha 0xb3 (70%) rather than the old 0xe6 (90%), so the
                     // wallpaper reads through the island. Glyphs stay legible on the
                     // quickshell-bar-blur layer rule in hyprland.lua alone: blurring
                     // the backdrop kills the local contrast that would otherwise fight
                     // the text, so the island does not have to be near-opaque.
-                    color: "#990b0c10"
+                    color: "#b30b0c10"
                     border.width: 1
                     // Lifted with the alpha: at 60% the old 0x18 edge disappeared
                     // against light wallpaper regions and the island lost its shape.
