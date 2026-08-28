@@ -79,7 +79,12 @@ hl.bind("Print", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && grim \
 hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && f=\"$HOME/Pictures/screenshot-$(date +%Y-%m-%d-%H-%M-%S).png\" && grim -g \"$(slurp)\" \"$f\" && wl-copy < \"$f\"'"))
 
 -- ── Apps ──────────────────────────────────────────────────────────────────────
-hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty"))
+-- background-opacity is overridden on the command line rather than in
+-- shared/configs/ghostty/config, which is shared with macOS: there the 0.58
+-- default sits over a dim desktop and reads fine, while here it sits over a
+-- bright painting. Ghostty accepts any config key as a CLI flag, and applies
+-- it per-window even when an instance is already running.
+hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty --background-opacity=0.92"))
 hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("firefox --new-window"))
 hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
@@ -281,6 +286,15 @@ hl.config({
     binds = {
         workspace_back_and_forth = true,
     },
+})
+
+-- decoration.active_opacity multiplies the client's own alpha, so the 0.80
+-- glass that suits every other window would drag Ghostty's 0.92 down to 0.74
+-- and let the wallpaper back in. Exempt it; its own alpha is the only one.
+hl.window_rule({
+    name = "ghostty-opacity",
+    match = { class = "com.mitchellh.ghostty" },
+    opacity = "1.0 1.0",
 })
 
 -- Blur the wallpaper behind Quickshell's translucent island while ignoring the
