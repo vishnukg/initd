@@ -461,8 +461,9 @@ ShellRoot {
                     // the text, so the island does not have to be near-opaque.
                     color: "#b30b0c10"
                     border.width: 1
-                    // Lifted with the alpha: at 60% the old 0x18 edge disappeared
-                    // against light wallpaper regions and the island lost its shape.
+                    // Lifted with the alpha: once the fill stopped being near-opaque
+                    // the old 0x18 edge disappeared against light regions of the
+                    // wallpaper and the island lost its shape.
                     border.color: "#2effffff"
 
                     RowLayout {
