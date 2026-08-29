@@ -1,11 +1,21 @@
 -- ruff language server: python linting + formatting + import sorting.
--- Type-checking stays with pyright (see settings/pyright.lua). ruff defers
--- hover to pyright via hover_disabled in lsp/handlers.lua, and pyright defers
--- import organizing to ruff via disableOrganizeImports.
+-- Type-checking is ty's, and ruff defers hover to it via hover_disabled in
+-- lsp/handlers.lua. ty needs no counterpart settings file: it discovers the
+-- project's .venv and pyproject.toml itself, and advertises only a `quickfix`
+-- code action, so there is no competing "organize imports" to switch off.
 --
 -- settings must encode as a JSON object: an empty Lua table {} becomes a JSON
 -- array [], which ruff rejects ("invalid client settings"). vim.empty_dict()
 -- forces {}.
+
+-- Checks ty also reports, so ruff stands down and each issue is raised once.
+-- The delegation runs this way round because ty cannot be configured from the
+-- editor at all — its rules live only in ty.toml / [tool.ty.rules], and
+-- settings sent over LSP are ignored — whereas ruff's are set right here.
+--   F821 undefined name  → ty `unresolved-reference` (error)
+--   F841 unused variable → ty's unused hint
+-- F401 deliberately stays with ruff: ty does not flag unused imports at all.
+local ty_owned = { "F821", "F841" }
 
 -- ruff's own default select is only E4/E7/E9/F — correctness, nothing else. A
 -- mutable default argument (`def f(tags=[])`), a redundant `if` that could be a
@@ -54,19 +64,21 @@ end
 
 return {
 	before_init = function(params, config)
-		if has_ruff_config(config.root_dir) then
-			return
+		-- Deduplicating against ty is an editor-integration concern, not a lint
+		-- policy, so it applies even to a project that states its own rules.
+		local lint = { ignore = ty_owned }
+
+		-- Widening the rule set is a policy call, so it defers to the project.
+		if not has_ruff_config(config.root_dir) then
+			lint.extendSelect = default_rules
 		end
 
 		-- init_options is sent as-is in the initialize request, so this reassign
-		-- is safe (unlike settings — see the note in settings/pyright.lua).
-		params.initializationOptions = {
-			settings = { lint = { extendSelect = default_rules } },
-		}
+		-- is safe (client.settings aliasing only affects `settings`).
+		params.initializationOptions = { settings = { lint = lint } }
 	end,
 
-	-- Fallback for a project that does carry its own ruff config: hand the
-	-- server an empty object and let it resolve the files itself.
+	-- Only reached if before_init is somehow skipped; ruff rejects a bare {}.
 	init_options = {
 		settings = vim.empty_dict(),
 	},

@@ -175,7 +175,7 @@ mise tool sources (one committed file, every machine identical):
 
 ~/.config/initd/shared/configs/mise/.config/mise/config.toml
   ├── runtimes                 ← go, node, python, dotnet, terraform
-  ├── LSP servers              ← lua_ls, gopls, pyright, ruff, tsc, taplo, …
+  ├── LSP servers              ← lua_ls, gopls, ty, ruff, tsc, taplo, …
   └── linters / formatters     ← stylua, ruff, golangci-lint, prettierd, …
 ```
 
@@ -243,7 +243,9 @@ vim.lsp.buf.format({ id = selected_client })
 
 Exactly one client formats each save. A matching none-ls source is preferred, while native LSP formatting remains available as a fallback. For example, `prettierd` is used only when the project has a Prettier config; otherwise `tsc`, `jsonls`, or `html` can format instead of silently doing nothing.
 
-> **Python is the exception.** Python lint + format + import-sorting all come from ruff's own LSP server, not none-ls. Ruff's hover is suppressed so pyright provides it, and pyright's "organize imports" is disabled so ruff owns it.
+> **Python is the exception.** Python lint + format + import-sorting all come from ruff's own LSP server, not none-ls, while types and completion come from ty. Ruff's hover is suppressed so ty provides it; ty offers only a `quickfix` code action, so there is no competing "organize imports" to switch off.
+>
+> The two overlap on undefined names and unused variables, and **ruff is the side that yields** — `lint.ignore = { "F821", "F841" }` in `settings/ruff.lua`. It runs that way round because ty takes no configuration from the editor at all: its rules live only in `ty.toml` / `[tool.ty.rules]`, and settings sent over LSP are ignored. F401 stays with ruff, which is the only one of the two that reports unused imports.
 
 ---
 
@@ -286,7 +288,7 @@ All listed LSPs, formatters, and linters are installed by `mise install` during 
 | Language | LSP | Formatter | Linter | Test Runner |
 |----------|-----|-----------|--------|-------------|
 | **Lua** | lua_ls | stylua | — | — |
-| **Python** | pyright + ruff | ruff | ruff | neotest-python (pytest)³ |
+| **Python** | ty + ruff | ruff | ruff | neotest-python (pytest)³ |
 | **Go** | gopls | goimports | gopls staticcheck + golangci-lint⁵ | neotest-golang |
 | **TypeScript / JavaScript** | tsc (TS7 built-in LSP) | prettierd⁴ or tsc fallback | eslint_d¹ | neotest-jest / neotest-vitest² |
 | **JSON** | jsonls | prettierd⁴ or jsonls fallback | — | — |
@@ -434,7 +436,7 @@ Coverage and Gopher are command-loaded on first use. Gopher's helper binaries ar
 
 Adding a language usually touches two layers: install the tool in `mise/.config/mise/config.toml`, then register the corresponding LSP, formatter, or linter in Neovim.
 
-1. **Tool binary (mise)** — add the LSP server or lint/format CLI to `mise/.config/mise/config.toml`. Tools live in mise's core registry where possible (`gopls`, `pyright`, `stylua`, …) and otherwise use a backend prefix:
+1. **Tool binary (mise)** — add the LSP server or lint/format CLI to `mise/.config/mise/config.toml`. Tools live in mise's core registry where possible (`gopls`, `ty`, `stylua`, …) and otherwise use a backend prefix:
 
    | Backend | Use for | Example |
    |---------|---------|---------|
