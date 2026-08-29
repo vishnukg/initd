@@ -8,12 +8,14 @@ Rectangle {
     property color foreground: "#e8eaf0"
     property color background: "transparent"
     property bool clickable: false
+    property bool secondaryClickable: false
     property int horizontalPadding: 9
     property int iconSize: 21
     property var barWindow: null
     property string tooltipTitle: ""
     property string tooltipBody: ""
     signal clicked()
+    signal secondaryClicked()
 
     implicitWidth: content.implicitWidth + horizontalPadding * 2
     implicitHeight: 31
@@ -65,6 +67,14 @@ Rectangle {
         enabled: root.clickable
         acceptedButtons: Qt.LeftButton
         onTapped: root.clicked()
+    }
+
+    // Right-click is the escape hatch for an item whose left-click had to be
+    // handed over to a dropdown: audio keeps one-click mute here.
+    TapHandler {
+        enabled: root.secondaryClickable
+        acceptedButtons: Qt.RightButton
+        onTapped: root.secondaryClicked()
     }
 
     BarTooltip {
