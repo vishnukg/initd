@@ -1,17 +1,19 @@
 import QtQuick
 import QtQuick.Layouts
 
-// One selectable endpoint in AudioMenu. Kept as its own file because both the
-// output and the input Repeater instantiate it and QML delegates cannot be
-// shared inline.
+// One row in a bar dropdown: icon · label · dim tag · checkmark. Shared by
+// AudioMenu and DisplayMenu, which want identical chrome over different data.
+// Rows that are a readout rather than a choice set `interactive: false`, which
+// drops the hover highlight and the pointer cursor with it.
 Item {
     id: root
 
-    required property var node
-    required property bool isOutput
-    required property var menu
-
-    readonly property bool current: menu.isDefault(node, isOutput)
+    property string icon: ""
+    property string label: ""
+    property string tag: ""
+    property bool checked: false
+    property bool interactive: true
+    signal activated()
 
     height: 34
 
@@ -36,26 +38,25 @@ Item {
         Text {
             Layout.preferredWidth: 18
             horizontalAlignment: Text.AlignHCenter
-            text: root.menu.deviceIcon(root.node, root.isOutput)
-            color: root.current ? "#8fb7e8" : "#aeb4c3"
+            text: root.icon
+            color: root.checked ? "#8fb7e8" : "#aeb4c3"
             font.family: "FiraCode Nerd Font Mono"
             font.pixelSize: 16
         }
 
         Text {
             Layout.fillWidth: true
-            text: root.menu.deviceLabel(root.node)
-            color: root.current ? "#e8eaf0" : "#aeb4c3"
+            text: root.label
+            color: root.checked ? "#e8eaf0" : "#aeb4c3"
             elide: Text.ElideRight
             font.family: "Inter"
             font.pixelSize: 14
-            font.weight: root.current ? Font.DemiBold : Font.Medium
+            font.weight: root.checked ? Font.DemiBold : Font.Medium
         }
 
-        // The internal/external answer in one word -- the icon alone cannot
-        // separate a built-in speaker from a USB one.
         Text {
-            text: root.menu.deviceKind(root.node)
+            visible: root.tag !== ""
+            text: root.tag
             color: "#656a78"
             font.family: "Inter"
             font.pixelSize: 11
@@ -65,7 +66,7 @@ Item {
         Text {
             Layout.preferredWidth: 14
             horizontalAlignment: Text.AlignHCenter
-            text: root.current ? "󰄬" : ""
+            text: root.checked ? "󰄬" : ""
             color: "#8fb7e8"
             font.family: "FiraCode Nerd Font Mono"
             font.pixelSize: 14
@@ -74,10 +75,12 @@ Item {
 
     HoverHandler {
         id: rowHover
+        enabled: root.interactive
         cursorShape: Qt.PointingHandCursor
     }
 
     TapHandler {
-        onTapped: root.menu.selectDevice(root.node, root.isOutput)
+        enabled: root.interactive
+        onTapped: root.activated()
     }
 }

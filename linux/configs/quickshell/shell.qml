@@ -309,6 +309,7 @@ ShellRoot {
         function refreshBrightness(): void {
             root.start(backlightProcess);
         }
+
     }
 
     PwObjectTracker {
@@ -591,11 +592,43 @@ ShellRoot {
                         }
 
                         BarItem {
-                            icon: "󰃠"
+                            icon: "󰃟"
+                            // Same reason as the monitor glyph next to it:
+                            // nf-md-brightness-6 draws small at the shared
+                            // 21px and needs a couple of pixels back.
+                            iconSize: 24
                             text: root.backlightText
                             barWindow: panel
                             tooltipTitle: "Display brightness"
                             tooltipBody: "Current brightness: " + root.backlightText
+                        }
+
+                        BarItem {
+                            id: displayItem
+
+                            icon: "󰍹"
+                            // nf-md-monitor sits visually smaller than the
+                            // other glyphs at the shared 21px, so it gets a
+                            // couple of pixels back to match them.
+                            iconSize: 24
+                            text: displayMenu.enabledCount > 0
+                                ? String(displayMenu.enabledCount)
+                                : "--"
+                            barWindow: panel
+                            tooltipTitle: "Displays"
+                            tooltipBody: (displayMenu.activeProfile !== ""
+                                    ? "Profile: " + displayMenu.activeProfile
+                                    : "No profile applied")
+                                + displayMenu.monitorSummary()
+                                + "\nClick to switch profile"
+                            clickable: true
+                            onClicked: displayMenu.open()
+
+                            DisplayMenu {
+                                id: displayMenu
+                                anchorItem: displayItem
+                                barWindow: panel
+                            }
                         }
 
                         Repeater {

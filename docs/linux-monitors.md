@@ -30,6 +30,30 @@ hyprmoncfg apply desk         # apply a saved profile
 systemctl --user status hyprmoncfgd
 ```
 
+## Switching profiles from the bar
+
+The Quickshell bar's monitor icon opens a profile switcher: a read-only list of
+the connected displays with their current mode and scale, over the saved
+profiles with the active one checked. Clicking a profile runs
+`hyprmoncfg apply <name> --confirm-timeout 0`.
+
+The switcher only *picks* between profiles that already exist. Creating and
+arranging one is still a `hyprmoncfg` TUI job — the CLI's `save` only snapshots
+whatever layout is applied right now, and there is no command to set an
+individual monitor's mode.
+
+`--confirm-timeout 0` is not optional. Interactively, `apply` asks
+`Keep this configuration? [y/N] (auto-revert in 10s)`; with no terminal on the
+other end it reads EOF, reverts the profile and exits 1, so a bar click would
+appear to do nothing. Disabling the prompt gives up the auto-revert safety net,
+which is acceptable only because every profile offered was saved from a layout
+that already worked.
+
+An apply can still be refused — hyprmoncfg validates before it commits, and a
+profile saved against a different external monitor usually fails with
+`layout overlaps: DP-1 intersects eDP-1`. The popup has already closed by then,
+so the first line of stderr is raised as a notification rather than swallowed.
+
 ## Configuration ownership
 
 The managed `~/.config/hyprmoncfg/` directory stores the portable profile
