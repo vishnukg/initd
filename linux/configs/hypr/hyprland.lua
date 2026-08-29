@@ -79,12 +79,14 @@ hl.bind("Print", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && grim \
 hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && f=\"$HOME/Pictures/screenshot-$(date +%Y-%m-%d-%H-%M-%S).png\" && grim -g \"$(slurp)\" \"$f\" && wl-copy < \"$f\"'"))
 
 -- ── Apps ──────────────────────────────────────────────────────────────────────
--- background-opacity is overridden on the command line rather than in
--- shared/configs/ghostty/config, which is shared with macOS: there the 0.58
--- default sits over a dim desktop and reads fine, while here it sits over a
--- bright painting. Ghostty accepts any config key as a CLI flag, and applies
--- it per-window even when an instance is already running.
-hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty --background-opacity=0.92"))
+-- Hand the window to the Ghostty server (app-com.mitchellh.ghostty.service,
+-- enabled by linux/setup.sh) rather than start a terminal from scratch: 574ms
+-- cold, ~250ms this way. --gtk-single-instance=true is what reaches the server
+-- at all; the config default, `detect`, resolves to false outside a .desktop
+-- launch. --background-opacity is dropped when the server answers (it keeps its
+-- own, see the drop-in) and applies only when no server is running, so this
+-- keybind still yields a readable terminal by itself.
+hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty --gtk-single-instance=true --background-opacity=0.92"))
 hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("firefox --new-window"))
 hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
@@ -296,8 +298,9 @@ hl.config({
 })
 
 -- decoration.active_opacity multiplies the client's own alpha, so the 0.80
--- glass that suits every other window would drag Ghostty's 0.92 down to 0.74
--- and let the wallpaper back in. Exempt it; its own alpha is the only one.
+-- glass that suits every other window would drag Ghostty's 0.92 (set on the
+-- server, see the Apps section) down to 0.74 and let the wallpaper back in.
+-- Exempt it; its own alpha is the only one.
 hl.window_rule({
     name = "ghostty-opacity",
     match = { class = "com.mitchellh.ghostty" },

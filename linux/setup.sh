@@ -105,6 +105,29 @@ enable_hyprmoncfg() {
   log_success "hyprmoncfg monitor profile service enabled."
 }
 
+enable_ghostty_server() {
+  # Fedora ships app-com.mitchellh.ghostty.service disabled. Enabling it keeps
+  # one Ghostty process running that owns every window, so $mod+Return asks it
+  # for one (~250ms) instead of starting a terminal cold (574ms). The flags come
+  # from linux/configs/systemd/user/app-com.mitchellh.ghostty.service.d/, linked
+  # in by MANAGED_LINKS -- hence the daemon-reload before enabling.
+  #
+  # Not masked alongside waybar/hyprpaper above: those break or duplicate inside
+  # a GNOME session, whereas a spare terminal server there is harmless.
+  systemctl --user daemon-reload
+  if ! systemctl --user enable app-com.mitchellh.ghostty.service >/dev/null 2>&1; then
+    log_warn "Could not enable Ghostty terminal server (is ghostty installed?); terminals still open normally."
+    return
+  fi
+
+  # Starting is best-effort and deliberately not part of the verdict: bootstrap
+  # may run from a TTY, or from GNOME before the first Hyprland login, where
+  # Ghostty has no display to open. The enable above is what matters -- the
+  # server comes up with the next graphical session either way.
+  systemctl --user start app-com.mitchellh.ghostty.service >/dev/null 2>&1 || true
+  log_success "Ghostty terminal server enabled (faster window opening)."
+}
+
 seed_hyprmoncfg_monitors() {
   local target="${HOME}/.config/hypr/hyprmoncfg-monitors.lua"
 
@@ -551,6 +574,7 @@ main() {
   check_hyprland_session
   mask_desktop_user_units
   enable_hyprmoncfg
+  enable_ghostty_server
   seed_hyprmoncfg_monitors
 
   apply_gsettings_theme

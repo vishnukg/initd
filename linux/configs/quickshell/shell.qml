@@ -444,8 +444,13 @@ ShellRoot {
 
                 margins {
                     top: 4
-                    left: 8
-                    right: 8
+                    // Must equal general.gaps_out in hyprland.lua, so the island's
+                    // edges line up with the tiled windows below it. A window's
+                    // reported `at` is gaps_out + border_size because the 1px border
+                    // is drawn outside the client area, so its visible edge -- the one
+                    // the eye compares against -- lands exactly on gaps_out.
+                    left: 14
+                    right: 14
                 }
 
                 WlrLayershell.namespace: "quickshell-bar"
@@ -573,7 +578,11 @@ ShellRoot {
                         }
 
                         BarItem {
-                            icon: "󰾆"
+                            // nf-md-chip, a DIMM module. Not nf-md-speedometer-slow:
+                            // that sits one codepoint away from the balanced power
+                            // profile's speedometer and the two were indistinguishable
+                            // in the bar. Also not nf-md-memory -- the CPU has that one.
+                            icon: "󰘚"
                             text: root.memoryText
                             foreground: root.loadColor(root.memoryText)
                             barWindow: panel
