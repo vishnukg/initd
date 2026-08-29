@@ -8,7 +8,7 @@ M.capabilities = require("cmp_nvim_lsp").default_capabilities()
 local preferred_formatter = { python = "ruff" }
 
 -- Servers whose hover we suppress so another client provides it instead.
--- ruff defers hover to pyright (which has richer type info).
+-- ruff defers hover to ty (which has the type information).
 local hover_disabled = { ruff = true }
 
 local fmt_augroup = vim.api.nvim_create_augroup("LspFormatting", { clear = true })
@@ -172,7 +172,7 @@ M.setup = function()
 				vim.notify(("attached %s"):format(client.name), vim.log.levels.INFO, { group = "lsp" })
 			end
 
-			-- Suppress hover where another client owns it (ruff → pyright).
+			-- Suppress hover where another client owns it (ruff → ty).
 			if hover_disabled[client.name] then
 				client.server_capabilities.hoverProvider = false
 			end

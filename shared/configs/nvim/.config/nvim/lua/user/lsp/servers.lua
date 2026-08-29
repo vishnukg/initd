@@ -4,7 +4,7 @@ local lsp_servers = {
 	"lua_ls",
 	"html",
 	"tsc",
-	"pyright",
+	"ty",
 	"ruff",
 	"bashls",
 	"jsonls",
