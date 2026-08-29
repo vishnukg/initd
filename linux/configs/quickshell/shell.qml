@@ -598,28 +598,6 @@ ShellRoot {
                             tooltipBody: "Current brightness: " + root.backlightText
                         }
 
-                        BarItem {
-                            icon: root.audioIcon()
-                            text: root.sink && root.sink.audio
-                                ? Math.round(root.sink.audio.volume * 100) + "%"
-                                : "--%"
-                            barWindow: panel
-                            foreground: root.sink && root.sink.audio && root.sink.audio.muted
-                                ? "#52566a"
-                                : "#e8eaf0"
-                            tooltipTitle: "Audio"
-                            tooltipBody: root.sink && root.sink.audio
-                                ? "Volume: " + Math.round(root.sink.audio.volume * 100) + "%"
-                                    + (root.sink.audio.muted ? "\nMuted" : "")
-                                    + "\nClick to " + (root.sink.audio.muted ? "unmute" : "mute")
-                                : "Audio output unavailable"
-                            clickable: !!(root.sink && root.sink.audio)
-                            onClicked: {
-                                if (root.sink && root.sink.audio)
-                                    root.sink.audio.muted = !root.sink.audio.muted;
-                            }
-                        }
-
                         Repeater {
                             model: SystemTray.items
 
@@ -702,6 +680,48 @@ ShellRoot {
                             foreground: root.batteryColor()
                             tooltipTitle: "Battery"
                             tooltipBody: root.batteryDetails()
+                        }
+
+                        BarItem {
+                            id: audioItem
+
+                            icon: root.audioIcon()
+                            text: root.sink && root.sink.audio
+                                ? Math.round(root.sink.audio.volume * 100) + "%"
+                                : "--%"
+                            barWindow: panel
+                            foreground: root.sink && root.sink.audio && root.sink.audio.muted
+                                ? "#52566a"
+                                : "#e8eaf0"
+                            tooltipTitle: "Audio"
+                            // Deliberately audioMenu's own labeller, so the
+                            // tooltip and the picker never disagree about what
+                            // the current output is called.
+                            tooltipBody: (root.sink
+                                    ? "Output: " + audioMenu.deviceLabel(root.sink)
+                                    : "No audio output")
+                                + (root.sink && root.sink.audio
+                                    ? "\nVolume: " + Math.round(root.sink.audio.volume * 100) + "%"
+                                        + (root.sink.audio.muted ? "\nMuted" : "")
+                                    : "")
+                                + "\nClick to pick a device"
+                                + (root.sink && root.sink.audio
+                                    ? "\nRight-click to " + (root.sink.audio.muted ? "unmute" : "mute")
+                                    : "")
+                            clickable: true
+                            onClicked: audioMenu.open()
+                            secondaryClickable: !!(root.sink && root.sink.audio)
+                            onSecondaryClicked: {
+                                if (root.sink && root.sink.audio)
+                                    root.sink.audio.muted = !root.sink.audio.muted;
+                            }
+
+                            AudioMenu {
+                                id: audioMenu
+                                anchorItem: audioItem
+                                barWindow: panel
+                                sink: root.sink
+                            }
                         }
 
                         BarItem {
