@@ -305,12 +305,14 @@ Scope {
                     Repeater {
                         model: root.outputs
 
-                        delegate: DeviceRow {
+                        delegate: MenuRow {
                             required property var modelData
                             width: menuColumn.width
-                            node: modelData
-                            isOutput: true
-                            menu: root
+                            icon: root.deviceIcon(modelData, true)
+                            label: root.deviceLabel(modelData)
+                            tag: root.deviceKind(modelData)
+                            checked: root.isDefault(modelData, true)
+                            onActivated: root.selectDevice(modelData, true)
                         }
                     }
 
@@ -347,12 +349,14 @@ Scope {
                     Repeater {
                         model: root.inputs
 
-                        delegate: DeviceRow {
+                        delegate: MenuRow {
                             required property var modelData
                             width: menuColumn.width
-                            node: modelData
-                            isOutput: false
-                            menu: root
+                            icon: root.deviceIcon(modelData, false)
+                            label: root.deviceLabel(modelData)
+                            tag: root.deviceKind(modelData)
+                            checked: root.isDefault(modelData, false)
+                            onActivated: root.selectDevice(modelData, false)
                         }
                     }
 
