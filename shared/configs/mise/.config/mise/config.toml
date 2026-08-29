@@ -31,7 +31,9 @@ yarn      = ["latest", "1.22.22"]
 # replacing tsserver + typescript-language-server. nvim's settings/tsgo.lua
 # points at this install's bin/tsc.
 "npm:typescript"                        = "latest" # tsgo
-"npm:pyright"                           = "latest"
+# ty — Astral's Rust type checker + LSP (replaced pyright). Pre-1.0: the
+# 0.0.x line still makes breaking changes, so expect churn on `mise upgrade`.
+"ty"                                    = "latest" # ty — python type checking + completion
 "ruff"                                  = "latest" # ruff LSP — python lint + format + imports
 "go:golang.org/x/tools/gopls"           = "latest"
 "terraform-ls"                          = "latest" # terraformls
