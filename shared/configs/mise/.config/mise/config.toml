@@ -6,6 +6,7 @@ minimum_release_age       = "8h"            # wait eight hours before accepting 
 # its own managed pythons (~/.local/share/uv), which mise upgrades never
 # delete — so python patch bumps can't orphan the yamllint venv again.
 pipx.uvx                  = true
+auto_update = true
 
 [env]
 # Make uv build pipx: tool venvs against its own downloaded pythons

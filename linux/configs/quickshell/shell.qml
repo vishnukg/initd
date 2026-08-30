@@ -343,7 +343,12 @@ ShellRoot {
 
     Process {
         id: dockerProcess
-        command: ["sh", "-c", "docker ps -q 2>/dev/null | wc -l"]
+        // Guarded on docker.service being up, because docker.service is
+        // socket-activated: an unguarded `docker ps` touches /run/docker.sock,
+        // which wakes dockerd + containerd (~128 MB) every 15 s and defeats the
+        // point of socket activation entirely. "–" means the daemon is asleep,
+        // which is distinct from the "--" the other items use for "unknown".
+        command: ["sh", "-c", "systemctl is-active --quiet docker.service && docker ps -q 2>/dev/null | wc -l || echo -"]
         stdout: StdioCollector {
             onStreamFinished: root.dockerText = text.trim() || "0"
         }
@@ -538,8 +543,10 @@ ShellRoot {
                             text: root.dockerText
                             barWindow: panel
                             tooltipTitle: "Docker"
-                            tooltipBody: root.dockerText + " running container"
-                                + (root.dockerText === "1" ? "" : "s")
+                            tooltipBody: (root.dockerText === "–"
+                                ? "Daemon asleep (socket-activated)"
+                                : root.dockerText + " running container"
+                                    + (root.dockerText === "1" ? "" : "s"))
                                 + "\nClick to manage containers"
                             clickable: true
                             onClicked: root.start(dockerMenuProcess)

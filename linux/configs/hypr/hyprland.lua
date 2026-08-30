@@ -55,11 +55,14 @@ hl.on("hyprland.start", function()
     -- blueman's XDG autostart only fires in sessions that reach the systemd
     -- graphical-session.target (GNOME does, this session doesn't) — start explicitly.
     hl.exec_cmd("blueman-applet")
-    -- --silent: start in the background with just the tray icon, no window.
-    -- Delayed so its tray icon registers after nm-applet/blueman-applet (it's
-    -- an Electron app and tends to win the SNI-registration race otherwise,
-    -- landing between the wifi and bluetooth icons in the system tray).
-    hl.exec_cmd("bash -c 'sleep 2 && 1password --silent'")
+    -- 1Password is NOT autostarted: the Electron app idles at ~645 MB across
+    -- three processes on a 16 GB machine, and nothing here depends on it being
+    -- resident (no SSH agent in ~/.ssh/config, no git signing key). Launch it
+    -- from rofi when needed. To restore, un-comment below — the sleep 2 is
+    -- load-bearing: it lets its tray icon register after nm-applet and
+    -- blueman-applet, which otherwise loses the SNI race and lands the icon
+    -- between the wifi and bluetooth ones.
+    -- hl.exec_cmd("bash -c 'sleep 2 && 1password --silent'")
     -- CopyQ's persisted hide_main_window setting keeps it out of the way at
     -- startup; the server still runs for $mod+c.
     hl.exec_cmd("copyq --start-server")
@@ -79,14 +82,21 @@ hl.bind("Print", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && grim \
 hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && f=\"$HOME/Pictures/screenshot-$(date +%Y-%m-%d-%H-%M-%S).png\" && grim -g \"$(slurp)\" \"$f\" && wl-copy < \"$f\"'"))
 
 -- ── Apps ──────────────────────────────────────────────────────────────────────
--- Hand the window to the Ghostty server (app-com.mitchellh.ghostty.service,
--- enabled by linux/setup.sh) rather than start a terminal from scratch: 574ms
--- cold, ~250ms this way. --gtk-single-instance=true is what reaches the server
--- at all; the config default, `detect`, resolves to false outside a .desktop
--- launch. --background-opacity is dropped when the server answers (it keeps its
--- own, see the drop-in) and applies only when no server is running, so this
--- keybind still yields a readable terminal by itself.
-hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty --gtk-single-instance=true --background-opacity=0.92"))
+-- kitty is the default terminal; Ghostty stays installed and reachable via
+-- SUPER+SHIFT+ALT+Return below. The switch is a memory decision, not a taste
+-- one: Ghostty 1.3.1 leaks unboundedly under heavy terminal output (~1 GB/day
+-- here, upstream discussions #9786 / #10244 / #10269), and restarting the
+-- server to reclaim it closes every window at once.
+--
+-- Deliberately NOT --single-instance. The Ghostty server shaved cold start from
+-- 574ms to ~250ms, but one process owning every window is exactly what turned
+-- that leak into a session-wide problem. Separate processes give the memory
+-- back when a window closes. Revisit if cold start proves annoying.
+--
+-- No -o flag: Linux's 0.92 lives in kitty's gitignored local.conf (written by
+-- linux/setup.sh), so every launcher agrees — this bind, rofi, docker-menu.sh.
+hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
+hl.bind(mod .. " + SHIFT + ALT + Return", hl.dsp.exec_cmd("ghostty --gtk-single-instance=true --background-opacity=0.92"))
 hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("firefox --new-window"))
 hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
@@ -304,6 +314,13 @@ hl.config({
 hl.window_rule({
     name = "ghostty-opacity",
     match = { class = "com.mitchellh.ghostty" },
+    opacity = "1.0 1.0",
+})
+
+-- Same exemption for kitty, which carries its own 0.92 from the launch flag.
+hl.window_rule({
+    name = "kitty-opacity",
+    match = { class = "kitty" },
     opacity = "1.0 1.0",
 })
 

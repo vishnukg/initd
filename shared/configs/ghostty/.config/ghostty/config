@@ -29,7 +29,12 @@ background-opacity = 0.58
 background-blur = false
 
 # --- Fonts ---
-font-family = "Fira Code"
+# The installed family is the Nerd Font build — there is no plain "Fira Code"
+# on either machine, and naming it that silently fell back to Noto Sans Mono for
+# as long as this config has existed (`ghostty +show-face --string=Ag` shows the
+# real face). Mono keeps the icon glyphs single-width so starship and tmux line
+# up; the Propo and non-Mono builds draw them double-width.
+font-family = "FiraCode Nerd Font Mono"
 font-style = Medium
 font-style-italic = Medium
 font-size = 15
@@ -59,76 +64,27 @@ palette = 13=#bc3fbc
 palette = 14=#11a8cd
 palette = 15=#e5e5e5
 
-# --- Tabs & Splits ---
-window-show-tab-bar = auto
-window-new-tab-position = current
+# --- Windows ---
+# No split or tab bindings by design. tmux owns that layer — C-a b/v to split,
+# C-a h/j/k/l to move, C-a e to resize, C-a z to zoom, C-a c and Tab for windows
+# — and tmux panes survive the terminal dying, which terminal-native splits do
+# not. Kept in sync with shared/configs/kitty/kitty.conf.
 window-inherit-working-directory = true
-tab-inherit-working-directory = true
-split-inherit-working-directory = true
-unfocused-split-opacity = 0.7
-split-divider-color = #414140
 
 # --- Keyboard Shortcuts ---
+# Only what tmux cannot do. Note SUPER is claimed by Hyprland on Linux, so these
+# fire on macOS (super = Cmd) and are inert on Linux.
 
 # Opacity preset
 keybind = super+shift+o=toggle_background_opacity
 
-# Splitting terminals
-keybind = super+shift+v=new_split:right
-keybind = super+shift+h=new_split:down
-keybind = super+shift+d=close_surface
+# New window — the compositor's and macOS's job, not tmux's.
 keybind = super+enter=new_window
 keybind = ctrl+enter=unbind
 
-# Moving focus between splits
-keybind = super+h=goto_split:left
-keybind = super+l=goto_split:right
-keybind = super+k=goto_split:up
-keybind = super+j=goto_split:down
-
-# Resizing splits
-keybind = ctrl+super+arrow_left=resize_split:left,2
-keybind = ctrl+super+arrow_right=resize_split:right,2
-keybind = ctrl+super+arrow_up=resize_split:up,2
-keybind = ctrl+super+arrow_down=resize_split:down,2
-keybind = ctrl+super+r=equalize_splits
-
-# Tab management
-keybind = super+t=new_tab
-keybind = alt+t=new_tab
-keybind = alt+n=next_tab
-keybind = alt+p=previous_tab
+# Closing a window is deliberate-only; tmux holds the session either way.
 keybind = super+w=ignore
-keybind = super+alt+arrow_left=move_tab:-1
-keybind = super+alt+arrow_right=move_tab:1
 
-# Jump to specific tabs
-keybind = super+1=goto_tab:1
-keybind = super+2=goto_tab:2
-keybind = super+3=goto_tab:3
-keybind = super+4=goto_tab:4
-keybind = super+5=goto_tab:5
-keybind = super+6=goto_tab:6
-keybind = super+7=goto_tab:7
-keybind = super+8=goto_tab:8
-keybind = super+9=goto_tab:9
-keybind = super+0=goto_tab:10
-keybind = alt+1=goto_tab:1
-keybind = alt+2=goto_tab:2
-keybind = alt+3=goto_tab:3
-keybind = alt+4=goto_tab:4
-keybind = alt+5=goto_tab:5
-keybind = alt+6=goto_tab:6
-keybind = alt+7=goto_tab:7
-keybind = alt+8=goto_tab:8
-keybind = alt+9=goto_tab:9
-keybind = alt+0=goto_tab:10
-
-# Window controls
-keybind = super+n=goto_window:next
-keybind = super+p=goto_window:previous
-
-# Home/End navigation (macOS style)
 # Home/End escape sequences, not ^A/^E: ^A is the tmux prefix, which would
 # swallow the keypress instead of moving the cursor.
 keybind = super+arrow_left=text:\x1b[H
