@@ -29,17 +29,17 @@ background-opacity = 0.58
 background-blur = false
 
 # --- Fonts ---
-# Berkeley Mono — licensed, machine-local (shared/fonts/berkeley-mono/,
-# gitignored; installed by macos/bootstrap.sh:ensure_local_fonts on macOS and
-# a managed link into ~/.local/share/fonts on Linux). Kept in step with
-# kitty.conf. Unlike the patched-Nerd-Font era there's a real Oblique face, so
-# italic is no longer faked with the upright style. Nerd Font icon glyphs
-# aren't in this family; Ghostty's own font fallback finds them in the
-# installed Symbols Nerd Font / FiraCode Nerd Font. Verify the resolved face
-# with `ghostty +show-face --string=Ag` — a missing family falls back silently.
-font-family = "Berkeley Mono"
-font-style = Regular
-font-style-italic = Oblique
+# FiraCode Nerd Font, Retina weight (450, between Regular and Medium) — kept
+# in step with kitty.conf. The patched build works fine as Ghostty's text font
+# on both platforms (unlike kitty's CoreText backend, which rejects it) and
+# brings its own icon glyphs at natural width. There is no plain "Fira Code"
+# on Linux, and naming it that silently fell back to Noto Sans Mono; Fira Code
+# has no italic face, so italic reuses the upright style. Verify the resolved
+# face with `ghostty +show-face --string=Ag` — a missing family falls back
+# silently.
+font-family = "FiraCode Nerd Font"
+font-style = Retina
+font-style-italic = Retina
 font-size = 16
 font-feature = -calt
 font-feature = -liga
