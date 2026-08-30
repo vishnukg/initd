@@ -40,7 +40,7 @@ Rectangle {
             verticalAlignment: Text.AlignVCenter
             text: root.icon
             color: root.foreground
-            font.family: "FiraCode Nerd Font Mono"
+            font.family: "FiraCode Nerd Font"
             font.pixelSize: root.iconSize
             font.weight: Font.Medium
         }

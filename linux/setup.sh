@@ -429,7 +429,7 @@ apply_gsettings_theme() {
   # the fontconfig generic sans-serif alias on the same high-quality UI font.
   gsettings set org.gnome.desktop.interface font-name "Inter 11"
   gsettings set org.gnome.desktop.interface document-font-name "Inter 12"
-  gsettings set org.gnome.desktop.interface monospace-font-name "FiraCode Nerd Font Mono 11"
+  gsettings set org.gnome.desktop.interface monospace-font-name "FiraCode Nerd Font 11"
   # Grayscale AA is stable across Wayland fractional scales and monitor
   # orientations; RGB subpixel AA can acquire colored fringes after scaling.
   gsettings set org.gnome.desktop.interface font-antialiasing "grayscale"
