@@ -432,15 +432,15 @@ apply_gsettings_theme() {
   # keys drive GTK/GNOME chrome, while that alias is the fallback for apps and
   # web content that ask for generic sans, where a monospace face reads badly.
   # rsms-inter-fonts is still installed by linux/bootstrap.sh for that fallback.
-  # Sizes are one point up from the Inter/FiraCode values they replaced.
-  # Berkeley Mono's x-height is 51.8% of its em against Inter's 54.6% (cap
-  # height 68.0% vs 72.8%), so at an equal point size it renders visibly
-  # smaller. Both ratios put the match at ~11.6-11.8pt, hence 12. This
-  # matters most for surfaces with no explicit size of their own: Firefox
-  # draws its menus in the GTK font, so 11 here made them shrink.
-  gsettings set org.gnome.desktop.interface font-name "Berkeley Mono 12"
-  gsettings set org.gnome.desktop.interface document-font-name "Berkeley Mono 13"
-  gsettings set org.gnome.desktop.interface monospace-font-name "Berkeley Mono 12"
+  # rsms-inter-fonts is installed by linux/bootstrap.sh. GTK chrome stays on
+  # Inter deliberately: Firefox draws its menus and context menus in the GTK
+  # font (userChrome.css only pins a size on #navigator-toolbox and the
+  # urlbar), so a monospace face here turns those menus monospace. Berkeley
+  # Mono is the UI font for the surfaces this repo styles directly -- see the
+  # Linux quirks section of CLAUDE.md.
+  gsettings set org.gnome.desktop.interface font-name "Inter 11"
+  gsettings set org.gnome.desktop.interface document-font-name "Inter 12"
+  gsettings set org.gnome.desktop.interface monospace-font-name "FiraCode Nerd Font 11"
   # Grayscale AA is stable across Wayland fractional scales and monitor
   # orientations; RGB subpixel AA can acquire colored fringes after scaling.
   gsettings set org.gnome.desktop.interface font-antialiasing "grayscale"
