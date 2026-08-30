@@ -16,7 +16,8 @@ ShellRoot {
     property bool barVisible: true
     property string cpuText: "--%"
     property string cpuTooltip: "CPU usage unavailable"
-    property string memoryText: "--%"
+    property string memoryText: "--G"
+    property string memoryPercent: "--%"
     property string memoryTooltip: "Memory usage unavailable"
     property string dockerText: "0"
     property string weatherTemp: "--"
@@ -335,8 +336,10 @@ ShellRoot {
                     return;
                 root.cpuText = fields[0] + "%";
                 root.cpuTooltip = "CPU usage: " + fields[0] + "%";
-                root.memoryText = fields[1] + "%";
-                root.memoryTooltip = "Memory used: " + fields[2] + " GiB / " + fields[3] + " GiB";
+                root.memoryText = fields[2] + "G";
+                root.memoryPercent = fields[1] + "%";
+                root.memoryTooltip = "Memory used: " + fields[2] + " GiB / " + fields[3]
+                    + " GiB (" + fields[1] + "%)";
             }
         }
     }
@@ -592,7 +595,10 @@ ShellRoot {
                             // in the bar. Also not nf-md-memory -- the CPU has that one.
                             icon: "󰘚"
                             text: root.memoryText
-                            foreground: root.loadColor(root.memoryText)
+                            // The bar shows GiB used, but the ramp still keys off
+                            // the percentage -- 9 GiB means nothing without knowing
+                            // how much the machine has.
+                            foreground: root.loadColor(root.memoryPercent)
                             barWindow: panel
                             tooltipTitle: "Memory"
                             tooltipBody: root.memoryTooltip
