@@ -138,11 +138,13 @@ test_backup_unmanaged_configs() {
 
   mkdir -p \
     "${home}/.config/mise" "${home}/.config/nvim" \
-    "${home}/.config/fish" "${home}/.config/ghostty"
+    "${home}/.config/fish" "${home}/.config/ghostty" \
+    "${home}/.config/kitty"
   printf 'user mise config\n'    > "${home}/.config/mise/config.toml"
   printf 'user nvim config\n'    > "${home}/.config/nvim/init.lua"
   printf 'user fish config\n'    > "${home}/.config/fish/config.fish"
   printf 'user ghostty config\n' > "${home}/.config/ghostty/config"
+  printf 'user kitty config\n'   > "${home}/.config/kitty/kitty.conf"
   printf 'user git config\n'     > "${home}/.gitconfig"
 
   run_link "${home}" "${output}"
@@ -151,11 +153,12 @@ test_backup_unmanaged_configs() {
   assert_symlink "${home}/.config/nvim"
   assert_symlink "${home}/.config/fish"
   assert_symlink "${home}/.config/ghostty"
+  assert_symlink "${home}/.config/kitty"
   assert_symlink "${home}/.gitconfig"
   assert_path_exists "${home}/.config/initd-backups"
 
   backup_count="$(find "${home}/.config/initd-backups" -type f | wc -l | tr -d ' ')"
-  [[ "${backup_count}" -ge 5 ]] || fail "Expected at least 5 backed-up files, found ${backup_count}"
+  [[ "${backup_count}" -ge 6 ]] || fail "Expected at least 6 backed-up files, found ${backup_count}"
   assert_output_contains "${output}" "Backing up unmanaged"
 
   log_success "unmanaged config backup"
