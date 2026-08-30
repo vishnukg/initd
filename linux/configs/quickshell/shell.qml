@@ -772,7 +772,7 @@ ShellRoot {
 
                         BarItem {
                             id: dateItem
-                            text: Qt.formatDateTime(clock.date, "ddd, dd MMM  ·  HH:mm")
+                            text: Qt.formatDateTime(clock.date, "ddd, dd MMM · HH:mm")
                             barWindow: panel
                             foreground: "#e8eaf0"
                             background: "#0fffffff"
