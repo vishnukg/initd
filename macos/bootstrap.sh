@@ -159,15 +159,26 @@ if os.path.exists(path):
 
 wanted = {
     "credsStore": "osxkeychain",
-    "cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"],
 }
-if all(config.get(k) == v for k, v in wanted.items()):
-    sys.exit(0)
+plugin_dir = "/opt/homebrew/lib/docker/cli-plugins"
+plugin_dirs = config.get("cliPluginsExtraDirs", [])
+if not isinstance(plugin_dirs, list):
+    plugin_dirs = []
+if plugin_dir not in plugin_dirs:
+    plugin_dirs.append(plugin_dir)
 
-config.update(wanted)
-with open(path, "w") as f:
-    json.dump(config, f, indent=2)
-    f.write("\n")
+wanted["cliPluginsExtraDirs"] = plugin_dirs
+changed = any(config.get(k) != v for k, v in wanted.items())
+
+if changed:
+    config.update(wanted)
+    with open(path, "w") as f:
+        json.dump(config, f, indent=2)
+        f.write("\n")
+
+# The file can contain registry auth material even when osxkeychain is the
+# configured default, so keep it private whether or not its JSON changed.
+os.chmod(path, 0o600)
 PY
 
   log_success "Docker config OK (osxkeychain credsStore, brew CLI plugins dir)."
@@ -176,7 +187,10 @@ PY
 ensure_colima_service() {
   require_command colima "after brew bundle"
 
-  if brew services info colima --json 2>/dev/null | grep -q '"running": true'; then
+  # Homebrew refuses to manage services when it inherits TMUX, even though
+  # launchd itself is independent of the terminal session. Strip only that
+  # marker so bootstrap is safe to run from an existing tmux shell.
+  if env -u TMUX brew services info colima --json 2>/dev/null | grep -q '"running": true'; then
     log_success "colima login service already running."
     return
   fi
@@ -190,7 +204,7 @@ ensure_colima_service() {
   fi
 
   log "Enabling colima as a login service (brew services)."
-  brew services start colima \
+  env -u TMUX brew services start colima \
     || { log_error "Failed to start colima via brew services — check /opt/homebrew/var/log/colima.log"; exit 1; }
 }
 
@@ -209,6 +223,8 @@ ensure_local_fonts() {
     log "No machine-local fonts to install (${src_dir} absent) — skipping."
     return
   fi
+
+  mkdir -p "${dst_dir}"
 
   for src in "${src_dir}"/*.otf; do
     [[ -e "${src}" ]] || continue
