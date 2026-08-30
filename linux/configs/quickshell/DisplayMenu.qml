@@ -191,7 +191,7 @@ Scope {
         visible: false
         color: "transparent"
         grabFocus: true
-        implicitWidth: 340
+        implicitWidth: 380
         implicitHeight: Math.min(menuColumn.implicitHeight + 28, 620)
 
         anchor {
