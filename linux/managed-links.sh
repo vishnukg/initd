@@ -19,3 +19,10 @@ MANAGED_LINKS+=(
   # Drop-in dir, not a unit: it customises Fedora's packaged Ghostty unit
   # rather than replacing it. See the file for what the flags buy.
 )
+
+# Berkeley Mono — licensed font, gitignored (see .gitignore), so it exists only
+# on machines where the OTFs were copied in by hand. Skipped when absent.
+# fontconfig scans ~/.local/share/fonts recursively.
+if [[ -d "${ROOT_DIR}/shared/fonts/berkeley-mono" ]]; then
+  MANAGED_LINKS+=( "${HOME}/.local/share/fonts/berkeley-mono:${ROOT_DIR}/shared/fonts/berkeley-mono" )
+fi

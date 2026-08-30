@@ -7,6 +7,13 @@ bin/
 # Machine-local git identity (email) — never commit this.
 shared/configs/git/local.gitconfig
 
+# Licensed fonts (Berkeley Mono). This repo is public: committing the files
+# would redistribute paid fonts. The directory is a clone of the PRIVATE repo
+# github.com/vishnukg/fonts, synced by shared/lib/fonts.sh during bootstrap;
+# platform steps then install from it (macOS copies, Linux links). Absent on
+# machines without access — everything downstream skips gracefully.
+shared/fonts/
+
 # Fish — files managed by fisher or fish itself, not by this repo.
 shared/configs/fish/.config/fish/fish_variables
 shared/configs/fish/.config/fish/local.fish

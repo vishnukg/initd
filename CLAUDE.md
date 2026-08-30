@@ -11,7 +11,7 @@ shared/test.sh
 # Syntax-check every script
 bash -n bootstrap.sh \
   shared/lib/logging.sh shared/lib/fs.sh \
-  shared/lib/link.sh shared/lib/cleanup.sh shared/lib/git-profile.sh \
+  shared/lib/link.sh shared/lib/cleanup.sh shared/lib/git-profile.sh shared/lib/fonts.sh \
   shared/managed-links.sh shared/test.sh \
   macos/bootstrap.sh macos/defaults.sh macos/brewinstall.sh macos/update.sh macos/managed-links.sh \
   linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh
@@ -21,6 +21,10 @@ bash bootstrap.sh
 
 # Re-apply managed symlinks only
 shared/lib/link.sh macos    # or: linux
+
+# Sync licensed fonts from the private vishnukg/fonts repo into shared/fonts/
+# (needs gh auth; warns and skips otherwise — safe to re-run any time)
+shared/lib/fonts.sh
 
 # Set the Git identity (personal = default email; work = write override to local.gitconfig)
 shared/lib/git-profile.sh personal
@@ -48,9 +52,10 @@ Three top-level buckets, intentionally decoupled. The contract: `shared/` must n
 initd/
 ├── bootstrap.sh              # ~20-line dispatcher: uname -s → macos|linux
 ├── shared/                   # cross-platform — sourced by both bootstraps
-│   ├── lib/                  # logging.sh, fs.sh, link.sh, cleanup.sh, git-profile.sh
+│   ├── lib/                  # logging.sh, fs.sh, link.sh, cleanup.sh, git-profile.sh, fonts.sh
 │   ├── managed-links.sh      # MANAGED_LINKS for shared configs + git helpers
 │   ├── configs/              # fish, git, ghostty, kitty, mise, nvim, starship, tmux
+│   ├── fonts/                # gitignored clone of the PRIVATE vishnukg/fonts repo (Berkeley Mono)
 │   └── test.sh
 ├── macos/                    # self-contained — `rm -rf macos/` and Linux still works
 │   ├── bootstrap.sh
@@ -80,8 +85,11 @@ macos/bootstrap.sh
   ├─ ensure_xcode_clt
   ├─ ensure_homebrew
   ├─ brew bundle --file macos/Brewfile
+  ├─ ensure_gh_auth                           # before the fonts sync, so a fresh machine gets fonts in one run
+  ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ shared/lib/link.sh macos                 # symlinks
-  ├─ ensure_gh_auth, ensure_fish (dscl)
+  ├─ ensure_local_fonts                       # COPIES OTFs → ~/Library/Fonts (macOS won't register symlinked fonts)
+  ├─ ensure_fish (dscl)
   ├─ mise install
   ├─ macos/defaults.sh
   ├─ setup_git_profile (uses shared/lib/git-profile.sh)
@@ -96,9 +104,11 @@ linux/bootstrap.sh
   │                                               packages.txt + the C Development Tools group
   ├─ ensure_gh (official dnf repo), ensure_1password (official dnf repo),
   │  ensure_docker (Docker's official dnf repo), ensure_mise (curl mise.run)
-  ├─ shared/lib/link.sh linux                 # symlinks
+  ├─ ensure_gh_auth                           # before the fonts sync, so a fresh machine gets fonts in one run
+  ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
+  ├─ shared/lib/link.sh linux                 # symlinks (incl. shared/fonts/berkeley-mono → ~/.local/share/fonts)
   ├─ linux/setup.sh                           # fonts/theme + config glue
-  ├─ ensure_gh_auth, ensure_fish (chsh)
+  ├─ ensure_fish (chsh)
   ├─ mise install
   └─ setup_git_profile
 ```
@@ -119,7 +129,7 @@ shared/managed-links.sh         ← MANAGED_LINKS (shared); requires ROOT_DIR
 The single array `MANAGED_LINKS` is built in two steps:
 
 1. `shared/managed-links.sh` defines the cross-platform entries (fish, ghostty, mise, nvim, starship, tmux).
-2. `<platform>/managed-links.sh` appends OS-only entries (currently nothing on macOS; hypr/quickshell/rofi/dunst/gtk-3.0 on Linux).
+2. `<platform>/managed-links.sh` appends OS-only entries (currently nothing on macOS; hypr/quickshell/rofi/dunst/gtk-3.0 — plus, conditionally, `shared/fonts/berkeley-mono` when present — on Linux). Fonts are deliberately NOT linked on macOS: CoreText refuses to register a font reached through a symlink, so `macos/bootstrap.sh:ensure_local_fonts` copies them instead.
 
 Entry format: `"home path:repo path"`. Scripts split with `home_path="${entry%%:*}"` / `repo_path="${entry#*:}"`.
 
@@ -133,14 +143,15 @@ Then add a corresponding assertion in `shared/test.sh` (or rely on the generic `
 
 ### Machine-local secrets
 
-Two files are gitignored and never committed:
+These paths are gitignored and never committed:
 
-| File | Purpose |
+| Path | Purpose |
 |---|---|
 | `shared/configs/git/local.gitconfig` | Work (or other) Git email override; absent on personal machines |
 | `shared/configs/fish/.config/fish/local.fish` | Machine-specific env vars and overrides |
+| `shared/fonts/` | Clone of the PRIVATE `vishnukg/fonts` repo (Berkeley Mono — paid, per-user licensed; this repo is public, so committing the OTFs would redistribute them). Synced by `shared/lib/fonts.sh`, which warns-and-skips without `gh` auth |
 
-Both follow the same pattern: sourced/included at startup if present, silently skipped if absent.
+All follow the same pattern: used at startup/bootstrap if present, silently skipped if absent.
 
 ### Dotfile layout convention
 
@@ -171,7 +182,7 @@ The Linux desktop is **Wayland-only**: Hyprland installed alongside Fedora's sto
 
 - **Hyprland config** (`linux/configs/hypr/hyprland.lua`): Hyprland's Lua config format (hyprlang `.conf` support is removed entirely in Hyprland 0.57; this repo ported fully rather than keep a config format on a deprecation countdown). Per-monitor scale (laptop panel 1.25x, externals 1.25x) via `hl.monitor({...})`, with generated profile rules loaded from `hyprmoncfg-monitors.lua`; built-in blur/rounding/animations; `kb_options = ctrl:nocaps` and `repeat_delay/rate` for input. The polkit auth agent is `lxpolkit` (Fedora has neither `polkit-gnome` nor a `hyprpolkitagent` package). Hyprland only detects `hyprland.lua` vs `hyprland.conf` at compositor **startup**, not on `hyprctl reload` — use `Hyprland --verify-config --config <path>` to validate changes without restarting. **Every dispatch payload is Lua too**, over `hyprctl` and over the IPC socket alike: `hyprctl dispatch 'hl.dsp.focus({ workspace = 2 })'`, not `hyprctl dispatch workspace 2`. Quickshell's convenience wrappers (`HyprlandWorkspace.activate()`) still emit the legacy syntax and fail with a log warning rather than an error, so the bar sends Lua strings through `Hyprland.dispatch()` instead.
 - **There is no Ghostty terminal server, and no systemd setup for Ghostty at all.** It used to run one — Fedora's `app-com.mitchellh.ghostty.service` plus a drop-in carrying `--gtk-single-instance --quit-after-last-window-closed=false --background-opacity=0.92` — so `$mod+Return` asked a resident process for a window (~250ms) instead of cold-starting one (574ms). Two measurements retired it. kitty opens a fresh process in **0.24s**, beating the server's **0.62s** with no daemon at all; and the server was where Ghostty's leak compounded, going 69 → 204 MB across ~5 window open/close cycles and holding that with **zero windows open**. The unit is Fedora's, ships disabled, and nothing in this repo enables it, so a fresh bootstrap needs no action — the drop-in, its `MANAGED_LINKS` entry and the `enable_ghostty_server`/`disable_ghostty_server` step are all gone. One thing worth remembering if a server is ever wanted again: **a single-instance client forwards only the request, so config flags passed to it are silently dropped** (`--background-opacity`, `--title`, `--class` all no-op) — which is why that opacity had to live on the *server* command line. The `$mod+SHIFT+ALT+Return` Ghostty fallback deliberately omits `--gtk-single-instance` for the same reason the server is gone: that flag would make the first window the instance owner for every later one, reinstating the shared-process accumulation.
-- **kitty is the default terminal; Ghostty is kept installed.** `$mod+Return` opens kitty, `$mod+SHIFT+ALT+Return` opens Ghostty. The switch was a memory decision that a benchmark then justified twice over. Ghostty 1.3.1 leaks on **window lifecycle**, not throughput: a synthetic 120k-line unicode burst (the trigger in upstream #10244) moved it 204 → 204 MB, while opening and closing ~5 windows took it 69 → 204 MB and it held that with zero windows open — matching #9433 rather than #10244. Over a day of real use it reached 1068 MB with 964 MB of private dirty heap against a 10 MB `scrollback-limit`, so scrollback never explained it. Upstream also tracks #9786 (Ghostty + Claude Code specifically) and #10269 (still leaking on 1.3.0-main after a PageList fix). kitty's fresh window peaked at 162 MB on the same payload and returned all of it on exit. **kitty is launched WITHOUT `--single-instance`**: one process owning every window is exactly what makes that leak permanent, and separate processes hand memory back on close — the same reasoning that retired the Ghostty server above. `shared/configs/kitty/kitty.conf` mirrors the Ghostty config (VSCode Dark palette, FiraCode Nerd Font Medium 15, ligatures off via `features="-liga -calt"`), and **neither config has split or tab bindings** — tmux owns that layer and its panes survive the terminal dying, which terminal-native splits do not. The Linux-only 0.92 opacity lives in a gitignored `local.conf` pulled in by `globinclude` (written by `linux/setup.sh:write_kitty_local_conf`), *not* a `-o` launch flag: a flag only reaches windows opened by that one keybind, leaving rofi, `docker-menu.sh` and `.desktop` launches at macOS's 0.58. **The font family must be the Nerd Font build's exact name** — there is no plain `"Fira Code"` installed, and naming it that silently fell back to Noto Sans Mono in Ghostty and Inter in kitty for as long as the config existed; verify with `ghostty +show-face --string=Ag` and `kitty --debug-font-fallback`. **Note the SUPER binds in both terminal configs are macOS-only in practice** — Hyprland claims `SUPER+h/j/k/l`, `SUPER+1..9` and `SUPER+Return` first, so they never reach the terminal on Linux.
+- **kitty is the default terminal; Ghostty is kept installed.** `$mod+Return` opens kitty, `$mod+SHIFT+ALT+Return` opens Ghostty. The switch was a memory decision that a benchmark then justified twice over. Ghostty 1.3.1 leaks on **window lifecycle**, not throughput: a synthetic 120k-line unicode burst (the trigger in upstream #10244) moved it 204 → 204 MB, while opening and closing ~5 windows took it 69 → 204 MB and it held that with zero windows open — matching #9433 rather than #10244. Over a day of real use it reached 1068 MB with 964 MB of private dirty heap against a 10 MB `scrollback-limit`, so scrollback never explained it. Upstream also tracks #9786 (Ghostty + Claude Code specifically) and #10269 (still leaking on 1.3.0-main after a PageList fix). kitty's fresh window peaked at 162 MB on the same payload and returned all of it on exit. **kitty is launched WITHOUT `--single-instance`**: one process owning every window is exactly what makes that leak permanent, and separate processes hand memory back on close — the same reasoning that retired the Ghostty server above. `shared/configs/kitty/kitty.conf` mirrors the Ghostty config (VSCode Dark palette, Berkeley Mono Regular 16, ligatures off via `features="-liga -calt"`), and **neither config has split or tab bindings** — tmux owns that layer and its panes survive the terminal dying, which terminal-native splits do not. The Linux-only 0.92 opacity lives in a gitignored `local.conf` pulled in by `globinclude` (written by `linux/setup.sh:write_kitty_local_conf`), *not* a `-o` launch flag: a flag only reaches windows opened by that one keybind, leaving rofi, `docker-menu.sh` and `.desktop` launches at macOS's 0.72. **The terminal font is Berkeley Mono** (paid, per-user licensed — lives in the PRIVATE `vishnukg/fonts` repo, synced into gitignored `shared/fonts/` by `shared/lib/fonts.sh`; macOS copies the OTFs into `~/Library/Fonts` via `ensure_local_fonts`, Linux links them into `~/.local/share/fonts`). It carries no Nerd Font icon glyphs, so both terminal configs map the Private Use Area to the standalone Symbols Nerd Font (`symbol_map` in kitty; Ghostty finds it through its own fallback). **Never set a patched Nerd Font build as kitty's text font on macOS** — kitty's CoreText backend silently rejects the non-Mono builds (their double-width icon glyphs fail its monospace validation) and falls back to Menlo with no warning; kitty's `family=`/`style=` matching against Fira Code's non-RIBBI weights was also broken (every style resolved to the Light face). Verify the resolved faces with `ghostty +show-face --string=Ag` and `kitty --debug-font-fallback`. On a machine without the private-repo access, both terminals fall back to the platform default until `gh auth login` + re-bootstrap. **Note the SUPER binds in both terminal configs are macOS-only in practice** — Hyprland claims `SUPER+h/j/k/l`, `SUPER+1..9` and `SUPER+Return` first, so they never reach the terminal on Linux.
 - **Companion stack**: Quickshell (`shell.qml`) provides the Hyprland bar, Wi-Fi/Bluetooth status, system tray, audio, battery, metrics, weather, and Docker status; rofi 2.0 (`config.rasi`), dunst (`dunstrc`), hyprlock + hypridle, hyprpaper (wallpapers committed at `shared/wallpaper/`, linked to `~/.local/share/wallpapers`), grim/slurp, wl-clipboard.
 - **Weather icons**: the bar asks wttr.in for `%C|%t|%S|%s` — condition *name*, not `%c`'s colour emoji — and `weatherIcon()` maps that name to a Nerd Font `nf-md-weather-*` glyph, so weather looks like every other bar icon. The keyword tests run in severity order (thunder → ice → fog → sleet/freezing → snow → rain → cloud → clear); order matters, e.g. fog is checked before "freezing" so "Freezing fog" isn't drawn as sleet. `%S`/`%s` (sunrise/sunset) pick the sun-vs-moon variant for clear and partly-cloudy skies.
 - **Bar colour**: `BarItem` has a single `foreground`, so colour is per item, not per glyph — icon and number always match. Colour means *state*, never decoration: `weatherColor()` is a temperature ramp that stays flat through the mild band (12–25 °C), deepens through blue below 12 °C and through amber to red above 25 °C, reading the unit off the string so a °F reading converts first, `loadColor()` ramps CPU and memory neutral → amber at 70% → red at 90%, and battery, power profile and audio-mute keep their own. Docker, brightness and the clock are deliberately flat `#e8eaf0` — a count and a backlight level have no severity to signal.
