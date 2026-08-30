@@ -9,7 +9,7 @@ Rectangle {
     property color background: "transparent"
     property bool clickable: false
     property bool secondaryClickable: false
-    property int horizontalPadding: 9
+    property int horizontalPadding: 7
     property int iconSize: 21
     property var barWindow: null
     property string tooltipTitle: ""
