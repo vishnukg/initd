@@ -191,7 +191,7 @@ Scope {
         visible: false
         color: "transparent"
         grabFocus: true
-        implicitWidth: 380
+        implicitWidth: 340
         implicitHeight: Math.min(menuColumn.implicitHeight + 28, 620)
 
         anchor {
@@ -234,7 +234,7 @@ Scope {
                             }
                             text: "Displays"
                             color: "#656a78"
-                            font.family: "Berkeley Mono"
+                            font.family: "Inter"
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
                         }
@@ -279,7 +279,7 @@ Scope {
                             }
                             text: "Profiles"
                             color: "#656a78"
-                            font.family: "Berkeley Mono"
+                            font.family: "Inter"
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
                         }
@@ -293,7 +293,7 @@ Scope {
                             visible: !root.daemonRunning
                             text: "daemon stopped"
                             color: "#e8b87a"
-                            font.family: "Berkeley Mono"
+                            font.family: "Inter"
                             font.pixelSize: 11
                             font.weight: Font.DemiBold
                         }
@@ -321,7 +321,7 @@ Scope {
                         verticalAlignment: Text.AlignVCenter
                         text: "No saved profiles — run hyprmoncfg tui"
                         color: "#656a78"
-                        font.family: "Berkeley Mono"
+                        font.family: "Inter"
                         font.pixelSize: 13
                     }
                 }

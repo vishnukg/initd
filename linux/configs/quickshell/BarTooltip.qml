@@ -73,7 +73,7 @@ Scope {
                     visible: root.title !== ""
                     text: root.title
                     color: "#7f8493"
-                    font.family: "Berkeley Mono"
+                    font.family: "Inter"
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                 }
@@ -82,7 +82,7 @@ Scope {
                     visible: root.body !== ""
                     text: root.body
                     color: "#e8eaf0"
-                    font.family: "Berkeley Mono"
+                    font.family: "Inter"
                     font.pixelSize: 14
                     font.weight: Font.Medium
                     lineHeight: 1.25
