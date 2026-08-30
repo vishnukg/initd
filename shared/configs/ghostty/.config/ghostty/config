@@ -29,11 +29,11 @@ background-opacity = 0.58
 background-blur = false
 
 # --- Fonts ---
-# The installed family is the Nerd Font build — there is no plain "Fira Code"
-# on either machine, and naming it that silently fell back to Noto Sans Mono for
-# as long as this config has existed (`ghostty +show-face --string=Ag` shows the
-# real face). The plain (non-Mono) build is deliberate: it draws Nerd Font icons
-# at their natural width rather than squeezing them into one cell, which is the
+# Request the patched family explicitly. On Linux there is no plain "Fira Code";
+# on macOS it is installed for kitty's CoreText workaround, but Ghostty should
+# still use the non-Mono Nerd Font build. `ghostty +show-face --string=Ag` shows
+# the real face. The non-Mono build is deliberate: it draws Nerd Font icons at
+# their natural width rather than squeezing them into one cell, which is the
 # better-looking choice for starship's prompt glyphs.
 font-family = "FiraCode Nerd Font"
 font-style = Retina
