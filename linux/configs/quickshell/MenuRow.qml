@@ -40,7 +40,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             text: root.icon
             color: root.checked ? "#8fb7e8" : "#aeb4c3"
-            font.family: "FiraCode Nerd Font Mono"
+            font.family: "FiraCode Nerd Font"
             font.pixelSize: 16
         }
 
@@ -68,7 +68,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             text: root.checked ? "󰄬" : ""
             color: "#8fb7e8"
-            font.family: "FiraCode Nerd Font Mono"
+            font.family: "FiraCode Nerd Font"
             font.pixelSize: 14
         }
     }

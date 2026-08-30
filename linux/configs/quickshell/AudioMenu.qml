@@ -270,7 +270,7 @@ Scope {
                                     color: root.sink && root.sink.audio && root.sink.audio.muted
                                         ? "#52566a"
                                         : "#e8eaf0"
-                                    font.family: "FiraCode Nerd Font Mono"
+                                    font.family: "FiraCode Nerd Font"
                                     font.pixelSize: 17
                                 }
 

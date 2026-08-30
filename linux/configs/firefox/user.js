@@ -21,11 +21,11 @@ user_pref("extensions.activeThemeID", "firefox-compact-dark@mozilla.org");
 
 // Ubuntu Sans was supplied by Mint. Fedora does not package it in the enabled
 // repositories, so Adwaita Sans is the installed proportional fallback; the
-// original FiraCode Nerd Font Mono is available locally.
+// original FiraCode Nerd Font is available locally.
 user_pref("font.default.x-western", "sans-serif");
 user_pref("font.name.sans-serif.x-western", "Adwaita Sans");
 user_pref("font.name.serif.x-western", "Noto Serif");
-user_pref("font.name.monospace.x-western", "FiraCode Nerd Font Mono");
+user_pref("font.name.monospace.x-western", "FiraCode Nerd Font");
 user_pref("font.size.variable.x-western", 17);
 user_pref("font.size.monospace.x-western", 14);
 user_pref("font.minimum-size.x-western", 0);
