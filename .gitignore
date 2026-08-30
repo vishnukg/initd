@@ -23,7 +23,8 @@ shared/configs/fish/.config/fish/completions/
 shared/configs/fish/.config/fish/conf.d/*
 !shared/configs/fish/.config/fish/conf.d/00-initd-env.fish
 
-# kitty — machine-local overrides (Linux opacity), written by linux/setup.sh.
+# Terminals — machine-local overrides (Linux opacity), written by linux/setup.sh.
+shared/configs/ghostty/.config/ghostty/local.conf
 shared/configs/kitty/.config/kitty/local.conf
 
 # Neovim — generated plugin directory.

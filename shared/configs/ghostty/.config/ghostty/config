@@ -90,3 +90,10 @@ keybind = super+w=ignore
 # swallow the keypress instead of moving the cursor.
 keybind = super+arrow_left=text:\x1b[H
 keybind = super+arrow_right=text:\x1b[F
+
+# --- Machine-local Overrides ---
+# `?` marks the include optional, so this is a no-op on macOS where the file
+# does not exist. Linux's linux/setup.sh writes one carrying background-opacity
+# 0.92; the path is relative to this file, and it must stay last because later
+# values win. Gitignored — see .gitignore.
+config-file = ?local.conf

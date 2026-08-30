@@ -14,8 +14,8 @@ container="$(printf '%s\n' "${containers}" | rofi -dmenu -i -p "docker" | cut -f
 
 action="$(printf 'logs\nshell\nrestart\nstop' | rofi -dmenu -i -p "${container}")"
 case "${action}" in
-  logs)    kitty sh -c "docker logs -f --tail 200 '${container}'" & ;;
-  shell)   kitty docker exec -it "${container}" sh & ;;
+  logs)    ghostty -e sh -c "docker logs -f --tail 200 '${container}'" & ;;
+  shell)   ghostty -e docker exec -it "${container}" sh & ;;
   restart) docker restart "${container}" >/dev/null \
              && notify-send -t 2500 "󰡨  Docker" "Restarted ${container}" 2>/dev/null ;;
   stop)    docker stop "${container}" >/dev/null \
