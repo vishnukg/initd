@@ -235,7 +235,7 @@ hl.config({
             border_inactive = "rgba(30344299)",
         },
         groupbar = {
-            font_family = "Inter",
+            font_family = "Berkeley Mono",
             font_size = 11,
             col = {
                 active = "rgb(7fb99a)",
@@ -285,7 +285,7 @@ hl.config({
     },
 
     misc = {
-        font_family = "Inter",
+        font_family = "Berkeley Mono",
         disable_hyprland_logo = true,
         disable_splash_rendering = true,
     },

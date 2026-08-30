@@ -50,7 +50,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: root.text
             color: root.foreground
-            font.family: "Inter"
+            font.family: "Berkeley Mono"
             font.pixelSize: 17
             font.weight: Font.DemiBold
         }
