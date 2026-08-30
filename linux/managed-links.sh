@@ -18,5 +18,4 @@ MANAGED_LINKS+=(
   "${HOME}/.config/systemd/user/initd-hyprland-session.service:${ROOT_DIR}/linux/configs/systemd/user/initd-hyprland-session.service"
   # Drop-in dir, not a unit: it customises Fedora's packaged Ghostty unit
   # rather than replacing it. See the file for what the flags buy.
-  "${HOME}/.config/systemd/user/app-com.mitchellh.ghostty.service.d:${ROOT_DIR}/linux/configs/systemd/user/app-com.mitchellh.ghostty.service.d"
 )
