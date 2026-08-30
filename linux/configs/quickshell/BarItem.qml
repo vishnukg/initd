@@ -51,7 +51,7 @@ Rectangle {
             text: root.text
             color: root.foreground
             font.family: "Berkeley Mono"
-            font.pixelSize: 17
+            font.pixelSize: 16
             font.weight: Font.DemiBold
         }
     }
