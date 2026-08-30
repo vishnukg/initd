@@ -197,7 +197,7 @@ Scope {
         visible: false
         color: "transparent"
         grabFocus: true
-        implicitWidth: 380
+        implicitWidth: 340
         implicitHeight: Math.min(menuColumn.implicitHeight + 28, 620)
 
         anchor {
@@ -240,7 +240,7 @@ Scope {
                             }
                             text: "Output"
                             color: "#656a78"
-                            font.family: "Berkeley Mono"
+                            font.family: "Inter"
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
                         }
@@ -282,7 +282,7 @@ Scope {
                                     color: root.sink && root.sink.audio && root.sink.audio.muted
                                         ? "#52566a"
                                         : "#e8eaf0"
-                                    font.family: "Berkeley Mono"
+                                    font.family: "Inter"
                                     font.pixelSize: 13
                                     font.weight: Font.DemiBold
                                 }
@@ -340,7 +340,7 @@ Scope {
                             }
                             text: "Input"
                             color: "#656a78"
-                            font.family: "Berkeley Mono"
+                            font.family: "Inter"
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
                         }
@@ -368,7 +368,7 @@ Scope {
                         verticalAlignment: Text.AlignVCenter
                         text: "No input devices"
                         color: "#656a78"
-                        font.family: "Berkeley Mono"
+                        font.family: "Inter"
                         font.pixelSize: 13
                     }
                 }

@@ -9,7 +9,7 @@ Rectangle {
     property color background: "transparent"
     property bool clickable: false
     property bool secondaryClickable: false
-    property int horizontalPadding: 7
+    property int horizontalPadding: 9
     property int iconSize: 21
     property var barWindow: null
     property string tooltipTitle: ""
@@ -50,8 +50,8 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: root.text
             color: root.foreground
-            font.family: "Berkeley Mono"
-            font.pixelSize: 16
+            font.family: "Inter"
+            font.pixelSize: 17
             font.weight: Font.DemiBold
         }
     }
