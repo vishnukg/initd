@@ -194,6 +194,38 @@ ensure_colima_service() {
     || { log_error "Failed to start colima via brew services — check /opt/homebrew/var/log/colima.log"; exit 1; }
 }
 
+# Fonts that live in the repo (gitignored, machine-local — currently Berkeley
+# Mono, see .gitignore) must be COPIED into ~/Library/Fonts: macOS silently
+# refuses to register fonts reached through a symlink, whether the link is the
+# directory or the file itself (verified — CoreText resolves the family to
+# Helvetica until the real bytes are in place). So this is a copy step, not a
+# MANAGED_LINKS entry. Idempotent: only copies files that are missing or stale.
+ensure_local_fonts() {
+  local src_dir="${SHARED_DIR}/fonts/berkeley-mono"
+  local dst_dir="${HOME}/Library/Fonts"
+  local src dst copied=0
+
+  if [[ ! -d "${src_dir}" ]]; then
+    log "No machine-local fonts to install (${src_dir} absent) — skipping."
+    return
+  fi
+
+  for src in "${src_dir}"/*.otf; do
+    [[ -e "${src}" ]] || continue
+    dst="${dst_dir}/$(basename "${src}")"
+    if [[ ! -f "${dst}" ]] || ! cmp -s "${src}" "${dst}"; then
+      cp "${src}" "${dst}"
+      copied=$((copied + 1))
+    fi
+  done
+
+  if (( copied > 0 )); then
+    log_success "Installed ${copied} font file(s) into ${dst_dir}."
+  else
+    log_success "Machine-local fonts already installed."
+  fi
+}
+
 setup_git_profile() {
   local local_gitconfig="${SHARED_DIR}/configs/git/local.gitconfig"
   local existing_email
@@ -241,11 +273,21 @@ main() {
 
   require_command mise "after brew bundle"
 
+  # gh auth comes BEFORE the fonts sync so a fresh interactive bootstrap gets
+  # the licensed fonts in this same run. Both steps degrade gracefully when
+  # auth is impossible (non-interactive: ensure_gh_auth warns and returns,
+  # fonts.sh then warns and skips — re-run bootstrap after gh auth login).
+  log "Checking gh CLI authentication..."
+  ensure_gh_auth
+
+  log "Syncing licensed fonts from private repo..."
+  "${SHARED_DIR}/lib/fonts.sh"
+
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" macos
 
-  log "Checking gh CLI authentication..."
-  ensure_gh_auth
+  log "Installing licensed fonts into ~/Library/Fonts..."
+  ensure_local_fonts
 
   log "Ensuring fish shell is configured..."
   ensure_fish

@@ -289,14 +289,23 @@ main() {
   ensure_docker
   ensure_mise
 
+  # gh auth comes BEFORE the fonts sync, which comes BEFORE link.sh:
+  # linux/managed-links.sh only appends the font link when
+  # shared/fonts/berkeley-mono exists, and a fresh interactive bootstrap should
+  # get the fonts (and their link) in this same run. Both steps degrade
+  # gracefully when auth is impossible (non-interactive: ensure_gh_auth warns
+  # and returns, fonts.sh then warns and skips — re-run after gh auth login).
+  log "Checking gh CLI authentication..."
+  ensure_gh_auth
+
+  log "Syncing licensed fonts from private repo..."
+  "${SHARED_DIR}/lib/fonts.sh"
+
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" linux
 
   log "Running Linux system tweaks..."
   "${LINUX_DIR}/setup.sh"
-
-  log "Checking gh CLI authentication..."
-  ensure_gh_auth
 
   log "Ensuring fish shell is configured..."
   ensure_fish

@@ -23,6 +23,9 @@ cask "font-fira-code-nerd-font"
 cask "font-hack-nerd-font"
 cask "font-jetbrains-mono-nerd-font"
 cask "font-meslo-lg-nerd-font"
+# Icon glyphs for kitty's symbol_map — the terminal font itself (Berkeley Mono)
+# is licensed, machine-local, and installed by ensure_local_fonts, not brew.
+cask "font-symbols-only-nerd-font"
 cask "font-victor-mono-nerd-font"
 cask "ghostty"
 cask "kitty"
