@@ -425,11 +425,16 @@ apply_gsettings_theme() {
   # is what actually controls the on-screen cursor under Hyprland itself
   # (this gsetting only affects GTK apps) — keep the two in sync.
   gsettings set org.gnome.desktop.interface cursor-size 24
-  # rsms-inter-fonts is installed by linux/bootstrap.sh. Keep GTK3, GTK4, and
-  # the fontconfig generic sans-serif alias on the same high-quality UI font.
-  gsettings set org.gnome.desktop.interface font-name "Inter 11"
-  gsettings set org.gnome.desktop.interface document-font-name "Inter 12"
-  gsettings set org.gnome.desktop.interface monospace-font-name "FiraCode Nerd Font 11"
+  # Berkeley Mono is the desktop UI font, matching the terminals — see the
+  # Linux quirks section of CLAUDE.md for the full list of surfaces it covers.
+  # This deliberately DIVERGES from the fontconfig generic sans-serif alias in
+  # linux/configs/fontconfig/fonts.conf, which stays on Inter: these gsettings
+  # keys drive GTK/GNOME chrome, while that alias is the fallback for apps and
+  # web content that ask for generic sans, where a monospace face reads badly.
+  # rsms-inter-fonts is still installed by linux/bootstrap.sh for that fallback.
+  gsettings set org.gnome.desktop.interface font-name "Berkeley Mono 11"
+  gsettings set org.gnome.desktop.interface document-font-name "Berkeley Mono 12"
+  gsettings set org.gnome.desktop.interface monospace-font-name "Berkeley Mono 11"
   # Grayscale AA is stable across Wayland fractional scales and monitor
   # orientations; RGB subpixel AA can acquire colored fringes after scaling.
   gsettings set org.gnome.desktop.interface font-antialiasing "grayscale"
