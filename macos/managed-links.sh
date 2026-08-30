@@ -8,3 +8,7 @@
 
 # Example future entry:
 #   MANAGED_LINKS+=( "${HOME}/Library/Application Support/Foo:${ROOT_DIR}/macos/configs/foo" )
+
+# NOTE: fonts (shared/fonts/) are deliberately NOT managed links on macOS —
+# CoreText refuses to register a font reached through a symlink (directory or
+# file; verified). macos/bootstrap.sh:ensure_local_fonts copies them instead.
