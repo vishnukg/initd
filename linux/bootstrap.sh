@@ -59,7 +59,17 @@ ensure_docker() {
     log_success "Docker Engine already installed."
   fi
 
-  sudo systemctl enable --now docker
+  # docker.socket, not docker.service: the daemon is socket-activated so it
+  # starts on the first docker command instead of idling at ~130 MB (dockerd
+  # plus containerd) through every session. `enable --now docker` would resolve
+  # to docker.service and pin it running, undoing that. containerd is
+  # WantedBy=docker.service, so it follows on activation with no entry here.
+  #
+  # Quickshell's bar polls `docker ps` every 15s and would defeat this by
+  # waking the daemon each tick, so shell.qml guards that poll behind
+  # `systemctl is-active docker.service` — see linux/configs/quickshell/shell.qml.
+  sudo systemctl disable --now docker.service >/dev/null 2>&1 || true
+  sudo systemctl enable --now docker.socket
   if id -nG "${account_name}" | grep -qw docker; then
     log_success "${account_name} already belongs to the docker group."
   else
