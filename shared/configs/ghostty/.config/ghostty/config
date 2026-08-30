@@ -20,6 +20,21 @@ macos-titlebar-style = transparent
 macos-option-as-alt = true
 # Disable GTK titlebar on Linux (macOS uses its own titlebar system)
 gtk-titlebar = false
+# One process per window for any launch that does not say otherwise. Ghostty's
+# default is `detect`, which coalesces on desktop/D-Bus launches; pinning false
+# means a flagless launch — the $mod+Return bind, docker-menu.sh, any script —
+# always gets its own process, so its memory comes back when the window closes.
+#
+# This does NOT reach the launcher path. Fedora's packaged
+# com.mitchellh.ghostty.desktop carries `Exec=ghostty --gtk-single-instance=true`
+# (and DBusActivatable=true), and an explicit CLI flag beats the config file —
+# measured, two launches share one pid with the flag and get separate pids
+# without it. So rofi and .desktop launches still join one long-lived server that
+# nothing reaps, at ~10 MB per window open/close. Fixing that means shadowing the
+# desktop entry in ~/.local/share/applications, which is deliberately not done
+# here: it would cost those launches ~270ms -> ~680ms and has to be re-checked
+# whenever the package updates.
+gtk-single-instance = false
 window-colorspace = display-p3
 resize-overlay = never
 

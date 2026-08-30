@@ -337,10 +337,12 @@ hl.layer_rule({
 })
 
 hl.curve("easeOut", { type = "bezier", points = { { 0.16, 1 }, { 0.3, 1 } } })
--- speed is in deciseconds, so 3 was 300ms added to every window open on top of
--- the ~670ms Ghostty itself takes to start. 2 still reads as a deliberate popin
--- rather than a jump, and returns 100ms of that.
-hl.animation({ leaf = "windows",    enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
+-- speed is in deciseconds, and this one is pure perceived latency: it is painted
+-- on top of the ~680ms Ghostty takes to map a window (measured; no Ghostty
+-- config knob moves that number, so the animation is the part that is actually
+-- ours to spend). 3 cost 300ms, 2 cost 200ms, 1 costs 100ms and still reads as a
+-- popin rather than a jump. windowsOut stays at 2 — closing is not a wait.
+hl.animation({ leaf = "windows",    enabled = true, speed = 1, bezier = "easeOut", style = "popin 90%" })
 hl.animation({ leaf = "windowsOut", enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
 hl.animation({ leaf = "fade",       enabled = true, speed = 3, bezier = "default" })
 hl.animation({ leaf = "layersIn",   enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
