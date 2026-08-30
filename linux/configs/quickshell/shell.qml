@@ -519,7 +519,7 @@ ShellRoot {
                                     anchors.centerIn: parent
                                     text: workspaceButton.workspaceId
                                     color: workspaceButton.active ? "#0b0c10" : "#a8abb4"
-                                    font.family: "Inter"
+                                    font.family: "Berkeley Mono"
                                     font.pixelSize: 18
                                     font.weight: workspaceButton.active ? Font.Bold : Font.DemiBold
                                 }

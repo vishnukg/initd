@@ -84,7 +84,7 @@ Scope {
                             anchors.centerIn: parent
                             text: "‹"
                             color: "#aeb4c3"
-                            font.family: "Inter"
+                            font.family: "Berkeley Mono"
                             font.pixelSize: 24
                         }
 
@@ -102,7 +102,7 @@ Scope {
                         anchors.centerIn: parent
                         text: Qt.formatDate(new Date(root.shownYear, root.shownMonth, 1), "MMMM yyyy")
                         color: "#e8eaf0"
-                        font.family: "Inter"
+                        font.family: "Berkeley Mono"
                         font.pixelSize: 17
                         font.weight: Font.Bold
                     }
@@ -121,7 +121,7 @@ Scope {
                             anchors.centerIn: parent
                             text: "›"
                             color: "#aeb4c3"
-                            font.family: "Inter"
+                            font.family: "Berkeley Mono"
                             font.pixelSize: 24
                         }
 
@@ -153,7 +153,7 @@ Scope {
                             color: "#656a78"
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
-                            font.family: "Inter"
+                            font.family: "Berkeley Mono"
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
                         }
@@ -180,7 +180,7 @@ Scope {
                                 color: parent.todayCell
                                     ? "#0b0c10"
                                     : parent.currentMonth ? "#e8eaf0" : "#4d515d"
-                                font.family: "Inter"
+                                font.family: "Berkeley Mono"
                                 font.pixelSize: 14
                                 font.weight: parent.todayCell ? Font.Bold : Font.Medium
                             }

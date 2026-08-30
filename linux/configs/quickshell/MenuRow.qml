@@ -49,7 +49,7 @@ Item {
             text: root.label
             color: root.checked ? "#e8eaf0" : "#aeb4c3"
             elide: Text.ElideRight
-            font.family: "Inter"
+            font.family: "Berkeley Mono"
             font.pixelSize: 14
             font.weight: root.checked ? Font.DemiBold : Font.Medium
         }
@@ -58,7 +58,7 @@ Item {
             visible: root.tag !== ""
             text: root.tag
             color: "#656a78"
-            font.family: "Inter"
+            font.family: "Berkeley Mono"
             font.pixelSize: 11
             font.weight: Font.DemiBold
         }

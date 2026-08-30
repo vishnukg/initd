@@ -103,7 +103,7 @@ Scope {
                             Text {
                                 text: "‹"
                                 color: "#8fb7e8"
-                                font.family: "Inter"
+                                font.family: "Berkeley Mono"
                                 font.pixelSize: 22
                             }
 
@@ -111,7 +111,7 @@ Scope {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: "Back"
                                 color: "#e8eaf0"
-                                font.family: "Inter"
+                                font.family: "Berkeley Mono"
                                 font.pixelSize: 14
                                 font.weight: Font.DemiBold
                             }
@@ -197,7 +197,7 @@ Scope {
                                     text: root.cleanLabel(entry.modelData.text)
                                     color: entry.modelData.enabled ? "#e8eaf0" : "#656a78"
                                     elide: Text.ElideRight
-                                    font.family: "Inter"
+                                    font.family: "Berkeley Mono"
                                     font.pixelSize: 14
                                     font.weight: Font.Medium
                                 }
@@ -206,7 +206,7 @@ Scope {
                                     visible: entry.modelData.hasChildren
                                     text: "›"
                                     color: "#8fb7e8"
-                                    font.family: "Inter"
+                                    font.family: "Berkeley Mono"
                                     font.pixelSize: 21
                                 }
                             }
