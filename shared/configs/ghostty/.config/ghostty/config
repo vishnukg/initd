@@ -32,9 +32,10 @@ background-blur = false
 # The installed family is the Nerd Font build — there is no plain "Fira Code"
 # on either machine, and naming it that silently fell back to Noto Sans Mono for
 # as long as this config has existed (`ghostty +show-face --string=Ag` shows the
-# real face). Mono keeps the icon glyphs single-width so starship and tmux line
-# up; the Propo and non-Mono builds draw them double-width.
-font-family = "FiraCode Nerd Font Mono"
+# real face). The plain (non-Mono) build is deliberate: it draws Nerd Font icons
+# at their natural width rather than squeezing them into one cell, which is the
+# better-looking choice for starship's prompt glyphs.
+font-family = "FiraCode Nerd Font"
 font-style = Medium
 font-style-italic = Medium
 font-size = 15
