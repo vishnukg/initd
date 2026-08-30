@@ -69,11 +69,14 @@ git):
 - `"credsStore": "osxkeychain"` — `docker login` stores registry
   credentials in the macOS Keychain instead of writing them to that JSON
   file in plaintext.
-- `"cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"]` — the
-  brew `docker` formula doesn't look in brew's plugin dir by default, so
-  without this `docker compose …` fails with `unknown flag: --rm`-style
-  errors (the CLI treats `compose` as an unknown command). Docker Desktop
-  used to wire this up; with Colima it's this config key.
+- `"cliPluginsExtraDirs"` includes
+  `"/opt/homebrew/lib/docker/cli-plugins"` — the brew `docker` formula doesn't
+  look in brew's plugin dir by default, so without this `docker compose …`
+  fails with `unknown flag: --rm`-style errors (the CLI treats `compose` as an
+  unknown command). Docker Desktop used to wire this up; with Colima it's this
+  config key. Existing additional plugin directories are preserved.
+
+The config is kept at mode `0600` because it can contain registry auth data.
 
 It's idempotent — safe to re-run bootstrap any time — and requires no
 manual step, on this machine or a new one.

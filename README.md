@@ -17,7 +17,7 @@ initd/
 ├── shared/                      # cross-platform
 │   ├── lib/                     # logging, fs, link, cleanup, git-profile
 │   ├── managed-links.sh         # MANAGED_LINKS for shared configs + git helpers
-│   ├── configs/                 # fish, git, ghostty, mise, nvim, starship, tmux
+│   ├── configs/                 # colima, fish, git, ghostty, kitty, mise, nvim, starship, tmux
 │   └── test.sh                  # behavior tests (auto-detects host OS)
 ├── macos/                       # self-contained macOS bootstrap
 │   ├── bootstrap.sh
@@ -74,13 +74,16 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 
 | Runtime path | Source |
 |---|---|
+| `~/.colima/_templates/default.yaml` | `shared/configs/colima/.colima/_templates/default.yaml` |
 | `~/.config/fish` | `shared/configs/fish/.config/fish` |
 | `~/.config/ghostty` | `shared/configs/ghostty/.config/ghostty` |
+| `~/.config/kitty` | `shared/configs/kitty/.config/kitty` |
 | `~/.config/mise` | `shared/configs/mise/.config/mise` |
 | `~/.config/nvim` | `shared/configs/nvim/.config/nvim` |
 | `~/.config/starship.toml` | `shared/configs/starship/.config/starship.toml` |
 | `~/.config/tmux` | `shared/configs/tmux/.config/tmux` |
 | `~/.gitconfig` | `shared/configs/git/gitconfig` (work email override via `local.gitconfig`) |
+| `~/.local/share/wallpapers` | `shared/wallpaper` |
 
 ### Linux-only
 

@@ -76,18 +76,23 @@ open the helper function whose name matches the step you care about.
 
 ```bash
 MANAGED_LINKS=(
+  "${HOME}/.gitconfig:${ROOT_DIR}/shared/configs/git/gitconfig"
+  "${HOME}/.colima/_templates/default.yaml:${ROOT_DIR}/shared/configs/colima/.colima/_templates/default.yaml"
   "${HOME}/.config/fish:${ROOT_DIR}/shared/configs/fish/.config/fish"
   "${HOME}/.config/ghostty:${ROOT_DIR}/shared/configs/ghostty/.config/ghostty"
+  "${HOME}/.config/kitty:${ROOT_DIR}/shared/configs/kitty/.config/kitty"
   "${HOME}/.config/mise:${ROOT_DIR}/shared/configs/mise/.config/mise"
   "${HOME}/.config/nvim:${ROOT_DIR}/shared/configs/nvim/.config/nvim"
   "${HOME}/.config/starship.toml:${ROOT_DIR}/shared/configs/starship/.config/starship.toml"
   "${HOME}/.config/tmux:${ROOT_DIR}/shared/configs/tmux/.config/tmux"
+  "${HOME}/.local/share/wallpapers:${ROOT_DIR}/shared/wallpaper"
 )
 ```
 
-`linux/managed-links.sh` appends OS-only entries to the same array (i3, polybar,
-rofi, dunst, picom, xsettingsd, gtk-3.0). `macos/managed-links.sh` is currently
-empty — every macOS dotfile lives in `shared/configs/`.
+`linux/managed-links.sh` appends OS-only entries to the same array (Hyprland,
+Quickshell, rofi, dunst, fontconfig, PipeWire, GTK, and session services).
+`macos/managed-links.sh` is currently empty — every macOS dotfile lives in
+`shared/configs/`.
 
 Each entry is `home path:repo path`. Scripts split
 the pair like this:
