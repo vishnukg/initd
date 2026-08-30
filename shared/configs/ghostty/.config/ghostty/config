@@ -29,18 +29,16 @@ background-opacity = 0.58
 background-blur = false
 
 # --- Fonts ---
-# FiraCode Nerd Font, Retina weight (450, between Regular and Medium) — kept
-# in step with kitty.conf. The patched build works fine as Ghostty's text font
-# on both platforms (unlike kitty's CoreText backend, which rejects it) and
-# brings its own icon glyphs at natural width. There is no plain "Fira Code"
-# on Linux, and naming it that silently fell back to Noto Sans Mono; Fira Code
-# has no italic face, so italic reuses the upright style. Verify the resolved
-# face with `ghostty +show-face --string=Ag` — a missing family falls back
-# silently.
+# The installed family is the Nerd Font build — there is no plain "Fira Code"
+# on either machine, and naming it that silently fell back to Noto Sans Mono for
+# as long as this config has existed (`ghostty +show-face --string=Ag` shows the
+# real face). The plain (non-Mono) build is deliberate: it draws Nerd Font icons
+# at their natural width rather than squeezing them into one cell, which is the
+# better-looking choice for starship's prompt glyphs.
 font-family = "FiraCode Nerd Font"
-font-style = Retina
-font-style-italic = Retina
-font-size = 16
+font-style = Medium
+font-style-italic = Medium
+font-size = 15
 font-feature = -calt
 font-feature = -liga
 font-thicken = false
