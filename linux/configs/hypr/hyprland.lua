@@ -82,24 +82,24 @@ hl.bind("Print", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && grim \
 hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && f=\"$HOME/Pictures/screenshot-$(date +%Y-%m-%d-%H-%M-%S).png\" && grim -g \"$(slurp)\" \"$f\" && wl-copy < \"$f\"'"))
 
 -- ── Apps ──────────────────────────────────────────────────────────────────────
--- kitty is the default terminal; Ghostty stays installed and reachable via
--- SUPER+SHIFT+ALT+Return below. The switch is a memory decision, not a taste
--- one: Ghostty 1.3.1 leaks unboundedly under heavy terminal output (~1 GB/day
--- here, upstream discussions #9786 / #10244 / #10269), and restarting the
--- server to reclaim it closes every window at once.
+-- Ghostty is the default terminal; kitty stays installed and reachable via
+-- SUPER+SHIFT+ALT+Return below.
 --
--- Deliberately NOT --single-instance. The Ghostty server shaved cold start from
--- 574ms to ~250ms, but one process owning every window is exactly what turned
--- that leak into a session-wide problem. Separate processes give the memory
--- back when a window closes. Revisit if cold start proves annoying.
+-- Deliberately NOT --gtk-single-instance, and no Ghostty server. The server
+-- shaved cold start from 574ms to ~250ms, but one process owning every window
+-- is exactly what turns Ghostty 1.3.1's window-lifecycle leak (upstream #9433 /
+-- #9786 / #10244 / #10269) into a session-wide problem — it went 69 → 204 MB
+-- across ~5 open/close cycles and held that with zero windows open. Separate
+-- processes hand the memory back when a window closes.
 --
--- No -o flag: Linux's 0.92 lives in kitty's gitignored local.conf (written by
--- linux/setup.sh), so every launcher agrees — this bind, rofi, docker-menu.sh.
-hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
--- No --gtk-single-instance: with the server disabled that flag would make the
--- first Ghostty window the instance owner for every later one, reinstating the
--- exact shared-process accumulation the switch to kitty was meant to escape.
-hl.bind(mod .. " + SHIFT + ALT + Return", hl.dsp.exec_cmd("ghostty --background-opacity=0.92"))
+-- No --background-opacity flag: Linux's 0.92 lives in Ghostty's gitignored
+-- local.conf (written by linux/setup.sh), so every launcher agrees — this bind,
+-- rofi, docker-menu.sh. A flag would only reach windows opened by this keybind
+-- and leave the rest at the shared config's macOS 0.58.
+hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty"))
+-- Same reasoning for the kitty fallback: no --single-instance, and its own 0.92
+-- comes from kitty's local.conf rather than a -o flag.
+hl.bind(mod .. " + SHIFT + ALT + Return", hl.dsp.exec_cmd("kitty"))
 hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("firefox --new-window"))
 hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
@@ -311,8 +311,8 @@ hl.config({
 })
 
 -- decoration.active_opacity multiplies the client's own alpha, so the 0.80
--- glass that suits every other window would drag Ghostty's 0.92 (set on the
--- server, see the Apps section) down to 0.74 and let the wallpaper back in.
+-- glass that suits every other window would drag Ghostty's 0.92 (set in its
+-- local.conf, see the Apps section) down to 0.74 and let the wallpaper back in.
 -- Exempt it; its own alpha is the only one.
 hl.window_rule({
     name = "ghostty-opacity",
@@ -320,7 +320,7 @@ hl.window_rule({
     opacity = "1.0 1.0",
 })
 
--- Same exemption for kitty, which carries its own 0.92 from the launch flag.
+-- Same exemption for kitty, which carries its own 0.92 from its local.conf.
 hl.window_rule({
     name = "kitty-opacity",
     match = { class = "kitty" },
