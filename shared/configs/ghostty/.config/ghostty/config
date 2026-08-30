@@ -36,8 +36,8 @@ background-blur = false
 # at their natural width rather than squeezing them into one cell, which is the
 # better-looking choice for starship's prompt glyphs.
 font-family = "FiraCode Nerd Font"
-font-style = Medium
-font-style-italic = Medium
+font-style = Retina
+font-style-italic = Retina
 font-size = 15
 font-feature = -calt
 font-feature = -liga
