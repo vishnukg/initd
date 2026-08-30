@@ -542,7 +542,6 @@ ShellRoot {
 
                         BarItem {
                             icon: "󰡨"
-                            iconSize: 28
                             text: root.dockerText
                             barWindow: panel
                             tooltipTitle: "Docker"
@@ -557,8 +556,7 @@ ShellRoot {
 
                         BarItem {
                             icon: root.weatherIcon()
-                            iconSize: 26
-                            text: root.weatherTemp
+                            text: root.weatherTemp.replace(/°[CF]/, "°")
                             foreground: root.weatherColor()
                             barWindow: panel
                             tooltipTitle: "Weather"
@@ -569,7 +567,6 @@ ShellRoot {
 
                         BarItem {
                             icon: root.powerProfileText()
-                            iconSize: 27
                             barWindow: panel
                             foreground: root.powerProfileColor()
                             tooltipTitle: "Power profile"
@@ -609,7 +606,6 @@ ShellRoot {
                             // Same reason as the monitor glyph next to it:
                             // nf-md-brightness-6 draws small at the shared
                             // 21px and needs a couple of pixels back.
-                            iconSize: 24
                             text: root.backlightText
                             barWindow: panel
                             tooltipTitle: "Display brightness"
@@ -623,7 +619,6 @@ ShellRoot {
                             // nf-md-monitor sits visually smaller than the
                             // other glyphs at the shared 21px, so it gets a
                             // couple of pixels back to match them.
-                            iconSize: 24
                             text: displayMenu.enabledCount > 0
                                 ? String(displayMenu.enabledCount)
                                 : "--"
