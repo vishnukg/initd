@@ -44,3 +44,27 @@ user_pref("general.smoothScroll.msdPhysics.enabled", true);
 // packages.txt. force-enabled bypasses Mozilla's hardware allowlist, which
 // is unlikely to already recognize this machine's iGPU.
 user_pref("media.hardware-video-decoding.force-enabled", true);
+
+// ── Memory ───────────────────────────────────────────────────────────────────
+// This machine has 16 GB soldered and Firefox is its largest consumer (~2.3 GB
+// across the parent, content, WebExtensions and RDD processes). Both prefs
+// trade a little responsiveness for resident memory.
+
+// Content process cap, left at Firefox's default of 8 — set explicitly rather
+// than omitted, because removing a line from user.js does NOT reset the pref:
+// prefs.js keeps the last value written, so a stale override would survive.
+//
+// Dropping this to 4 was tried and reverted. Two reasons it wasn't worth it:
+// Fission (site isolation, default-on) splits content across two pools, and
+// this pref only caps the shared non-isolated one — per-site processes are
+// governed by dom.ipc.processCount.webIsolated instead — so it reached maybe
+// 100 MB. And the smaller pool cost noticeable startup parallelism, since
+// restoring tabs queues them through fewer slots. The parent process (~530 MB)
+// and the WebExtensions process (~327 MB) are the real consumers here, and
+// neither is affected by this setting at all.
+user_pref("dom.ipc.processCount", 8);
+
+// Back/forward cache — pages held fully alive in memory for instant Back.
+// Default scales with RAM (up to 8). Three keeps Back snappy for recent pages
+// while dropping the long tail that only costs memory.
+user_pref("browser.sessionhistory.max_total_viewers", 3);
