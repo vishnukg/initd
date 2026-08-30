@@ -96,7 +96,10 @@ hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictur
 -- No -o flag: Linux's 0.92 lives in kitty's gitignored local.conf (written by
 -- linux/setup.sh), so every launcher agrees — this bind, rofi, docker-menu.sh.
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
-hl.bind(mod .. " + SHIFT + ALT + Return", hl.dsp.exec_cmd("ghostty --gtk-single-instance=true --background-opacity=0.92"))
+-- No --gtk-single-instance: with the server disabled that flag would make the
+-- first Ghostty window the instance owner for every later one, reinstating the
+-- exact shared-process accumulation the switch to kitty was meant to escape.
+hl.bind(mod .. " + SHIFT + ALT + Return", hl.dsp.exec_cmd("ghostty --background-opacity=0.92"))
 hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("firefox --new-window"))
 hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
