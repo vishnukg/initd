@@ -6,7 +6,12 @@ minimum_release_age       = "8h"            # wait eight hours before accepting 
 # its own managed pythons (~/.local/share/uv), which mise upgrades never
 # delete — so python patch bumps can't orphan the yamllint venv again.
 pipx.uvx                  = true
-auto_update = true
+# Let mise update itself before eligible commands, checking daily rather than
+# the default 7d. Linux-only in effect: macOS installs mise from Homebrew,
+# whose build has no self_update (which is why macos/update.sh runs only
+# `mise upgrade` while linux/update.sh also runs `mise self-update`).
+auto_update                = true
+auto_update_check_duration = "1d"
 
 [env]
 # Make uv build pipx: tool venvs against its own downloaded pythons
