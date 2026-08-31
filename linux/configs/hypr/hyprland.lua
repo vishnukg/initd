@@ -323,7 +323,7 @@ hl.window_rule({
     opacity = "1.0 1.0",
 })
 
--- Same exemption for kitty, which carries its own 0.92 from its local.conf.
+-- Same exemption for kitty, which carries its own 0.92 from linux.conf.
 hl.window_rule({
     name = "kitty-opacity",
     match = { class = "kitty" },

@@ -110,9 +110,17 @@ keybind = super+w=ignore
 keybind = super+arrow_left=text:\x1b[H
 keybind = super+arrow_right=text:\x1b[F
 
-# --- Machine-local Overrides ---
-# `?` marks the include optional, so this is a no-op on macOS where the file
-# does not exist. Linux's linux/setup.sh writes one carrying background-opacity
-# 0.92; the path is relative to this file, and it must stay last because later
+# --- Linux-only Overrides ---
+# `?` marks the include optional, so this is a no-op on macOS, where nothing
+# creates the file. On Linux, linux/setup.sh symlinks linux/configs/ghostty/
+# linux.conf into place beside this file; it carries background-opacity 0.92.
+#
+# Ghostty has no equivalent of kitty's `include ${KITTY_OS}.conf` — config-file
+# does no variable expansion — so the platform script places the file rather
+# than this line selecting it. Most OS-specific settings need none of that:
+# macos-* and gtk-* options are silently inert on the wrong platform and live
+# above. Only a value that differs per platform has to be split out.
+#
+# The path is relative to this file, and this must stay LAST because later
 # values win. Gitignored — see .gitignore.
-config-file = ?local.conf
+config-file = ?linux.conf
