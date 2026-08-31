@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
-#   - Fonts (FiraCode Nerd Font)
+#   - Fonts (FiraCode Nerd Font, Symbols Nerd Font)
 #   - System fixes that need sudo (disabling unused ModemManager)
 #   - Session scripts linked to absolute ~/.config/ paths (the shell uses them)
 #   - Firefox profile glue (profile path is dynamic)
@@ -48,6 +48,34 @@ install_firacode_nerd_font() {
   rm -f /tmp/FiraCode-nerd.zip
   fc-cache -f "${font_dir}" >/dev/null
   log_success "FiraCode Nerd Font installed."
+}
+
+install_symbols_nerd_font() {
+  # Berkeley Mono (the terminal font) carries no Nerd Font icon glyphs, so
+  # kitty's symbol_map and Ghostty's fallback both point at this family. Fedora
+  # packages no equivalent; macOS gets it from the font-symbols-only-nerd-font
+  # cask in macos/Brewfile. Both builds are installed: the non-Mono one is what
+  # the configs name (natural-width icons), the Mono one is on hand for
+  # single-cell glyphs like powerline separators.
+  local font_dir="${HOME}/.local/share/fonts/SymbolsNerdFont"
+
+  if ls "${font_dir}"/*.ttf >/dev/null 2>&1; then
+    log_success "Symbols Nerd Font already installed."
+    return
+  fi
+
+  require_command curl "to download Nerd Fonts"
+  require_command unzip "to extract Nerd Fonts"
+
+  mkdir -p "${font_dir}"
+  log "Downloading Symbols Nerd Font..."
+  curl -fL --progress-bar --max-time 300 \
+    "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/NerdFontsSymbolsOnly.zip" \
+    -o /tmp/SymbolsNerd.zip
+  unzip -q -o /tmp/SymbolsNerd.zip "*.ttf" -d "${font_dir}"
+  rm -f /tmp/SymbolsNerd.zip
+  fc-cache -f "${font_dir}" >/dev/null
+  log_success "Symbols Nerd Font installed."
 }
 
 # ── System fixes ──────────────────────────────────────────────────────────────
@@ -597,6 +625,7 @@ main() {
   log "Applying Linux system tweaks..."
 
   install_firacode_nerd_font
+  install_symbols_nerd_font
   disable_modemmanager
   check_hyprland_session
   mask_desktop_user_units
