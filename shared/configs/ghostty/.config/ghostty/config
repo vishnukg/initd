@@ -44,20 +44,55 @@ background-opacity = 0.58
 background-blur = false
 
 # --- Fonts ---
-# Berkeley Mono — licensed, machine-local (shared/fonts/berkeley-mono/,
-# gitignored; installed by macos/bootstrap.sh:ensure_local_fonts on macOS and
-# a managed link into ~/.local/share/fonts on Linux). Kept in step with
-# kitty.conf. Unlike the patched-Nerd-Font era there's a real Oblique face, so
-# italic is no longer faked with the upright style. Nerd Font icon glyphs
-# aren't in this family; Ghostty's own font fallback finds them in the
-# installed Symbols Nerd Font (macOS: font-symbols-only-nerd-font cask; Linux:
-# linux/setup.sh:install_symbols_nerd_font) or FiraCode Nerd Font. Verify the
-# resolved face with `ghostty +show-face --string=Ag` — a missing family falls
-# back silently.
-font-family = "Berkeley Mono"
-font-style = Regular
-font-style-italic = Oblique
-font-size = 16
+# FiraCode Nerd Font — the patched build. Installed by the
+# font-fira-code-nerd-font cask on macOS (macos/Brewfile) and, on Linux, by
+# linux/setup.sh:install_firacode_nerd_font, which downloads FiraCode.zip from
+# the nerd-fonts GitHub release — Fedora packages no Nerd Font build. This is
+# DELIBERATELY NOT the same font kitty uses: kitty stays on Berkeley Mono
+# (shared/configs/kitty/.config/kitty/kitty.conf), so the two configs no longer
+# agree on the font block. That divergence is not drift — kitty's CoreText
+# backend silently REJECTS patched Nerd Font builds as text fonts, because
+# their double-width icon glyphs fail its monospace validation, and falls back
+# to Menlo without warning. Ghostty's font stack has no such restriction, so it
+# can use the patched build directly. Do not "resync" these two blocks.
+#
+# The patched build carries the Nerd Font icon glyphs in-family, so unlike the
+# Berkeley setup this needs no Symbols Nerd Font fallback for the starship
+# prompt (verified: U+E7C5 resolves to FiraCode Nerd Font). Powerline
+# separators U+E0B0-U+E0D4 are drawn by Ghostty's internal sprites either way.
+#
+# Retina is Fira Code's 450 weight, between Regular (400) and Medium (500) —
+# the weight last settled on in fe0e372, kept here. Size is 15, which is what
+# the pre-Berkeley config used; kitty is on 16. The two terminals no longer
+# match on family, weight OR size, and all three are deliberate.
+#
+# Fira Code has NO true italic face, so font-style-italic is pinned to the same
+# upright style rather than left to default: that is what stops Ghostty
+# synthesizing a slant. (The Berkeley era could drop this because Berkeley
+# ships a real Oblique.)
+#
+# UNCONFIRMED, and deliberately recorded as such: whether `font-style = Retina`
+# actually resolves. Fira Code's weights are NOT RIBBI-paired —
+# FiraCodeNerdFont-Retina.ttf sets name ID 1 to "FiraCode Nerd Font Ret" with
+# subfamily "Regular", and only the typographic names (16/17) say "FiraCode
+# Nerd Font" / "Retina". CoreText keys off ID1/ID2, so on macOS the "FiraCode
+# Nerd Font" family holds only Regular and Bold, and `ghostty +list-fonts`
+# reports the styles ABBREVIATED (Reg / Ret / Med / SemBd). So "Retina" may be
+# falling back to Regular (400) with no warning. This is the same non-RIBBI
+# trap Berkeley Mono's obliques hit in kitty.conf.
+#
+# It cannot be settled from the CLI. `ghostty +show-face` prints the
+# TYPOGRAPHIC family (ID16), which is "FiraCode Nerd Font" for EVERY weight, so
+# it confirms the family resolved but never which face. Ghostty has no
+# postscript_name escape hatch either: font-family = "FiraCodeNF-Ret" falls
+# back exactly like a nonexistent family (measured). Judge it by eye; if the
+# text looks too light, try `font-style = Ret`, or move to family "Fira Code"
+# (the unpatched build, which +list-fonts does expose with a real "Retina"
+# style) and let Symbols Nerd Font supply the icons again.
+font-family = "FiraCode Nerd Font"
+font-style = Retina
+font-style-italic = Retina
+font-size = 15
 font-feature = -calt
 font-feature = -liga
 font-thicken = false
