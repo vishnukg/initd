@@ -100,7 +100,7 @@ hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictur
 -- local.conf (written by linux/setup.sh), so every launcher agrees — these
 -- binds, rofi, .desktop entries, docker-menu.sh. A flag would only reach
 -- windows opened by that one keybind and leave the rest at the shared config's
--- macOS value (kitty 0.72, Ghostty 0.58).
+-- macOS value (0.58 for both terminals).
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
 hl.bind(mod .. " + SHIFT + ALT + Return", hl.dsp.exec_cmd("ghostty"))
 hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("firefox --new-window"))
