@@ -82,24 +82,27 @@ hl.bind("Print", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && grim \
 hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && f=\"$HOME/Pictures/screenshot-$(date +%Y-%m-%d-%H-%M-%S).png\" && grim -g \"$(slurp)\" \"$f\" && wl-copy < \"$f\"'"))
 
 -- ── Apps ──────────────────────────────────────────────────────────────────────
--- Ghostty is the default terminal; kitty stays installed and reachable via
--- SUPER+SHIFT+ALT+Return below.
+-- kitty is the default terminal; Ghostty stays installed and reachable via
+-- SUPER+SHIFT+ALT+Return below. The switch is a memory decision, not a taste
+-- one: Ghostty 1.3.1 leaks on window *lifecycle* (upstream #9433 / #9786 /
+-- #10244 / #10269) — 69 → 204 MB across ~5 open/close cycles, held with zero
+-- windows open, ~1 GB over a day of real use. kitty's fresh window peaked at
+-- 162 MB on the same payload and gave all of it back on exit. Cold start
+-- agrees: kitty ~223ms against Ghostty's ~680ms, which no Ghostty config knob
+-- moves.
 --
--- Deliberately NOT --gtk-single-instance, and no Ghostty server. The server
--- shaved cold start from 574ms to ~250ms, but one process owning every window
--- is exactly what turns Ghostty 1.3.1's window-lifecycle leak (upstream #9433 /
--- #9786 / #10244 / #10269) into a session-wide problem — it went 69 → 204 MB
--- across ~5 open/close cycles and held that with zero windows open. Separate
--- processes hand the memory back when a window closes.
+-- NEITHER is launched single-instance (`kitty --single-instance` /
+-- `ghostty --gtk-single-instance`), and no Ghostty server is enabled. One
+-- process owning every window is exactly what turns that leak into a
+-- session-wide problem; separate processes hand the memory back on close.
 --
--- No --background-opacity flag: Linux's 0.92 lives in Ghostty's gitignored
--- local.conf (written by linux/setup.sh), so every launcher agrees — this bind,
--- rofi, docker-menu.sh. A flag would only reach windows opened by this keybind
--- and leave the rest at the shared config's macOS 0.58.
-hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty"))
--- Same reasoning for the kitty fallback: no --single-instance, and its own 0.92
--- comes from kitty's local.conf rather than a -o flag.
-hl.bind(mod .. " + SHIFT + ALT + Return", hl.dsp.exec_cmd("kitty"))
+-- No opacity flags on either: Linux's 0.92 lives in each terminal's gitignored
+-- local.conf (written by linux/setup.sh), so every launcher agrees — these
+-- binds, rofi, .desktop entries, docker-menu.sh. A flag would only reach
+-- windows opened by that one keybind and leave the rest at the shared config's
+-- macOS value (kitty 0.72, Ghostty 0.58).
+hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
+hl.bind(mod .. " + SHIFT + ALT + Return", hl.dsp.exec_cmd("ghostty"))
 hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("firefox --new-window"))
 hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
@@ -338,10 +341,11 @@ hl.layer_rule({
 
 hl.curve("easeOut", { type = "bezier", points = { { 0.16, 1 }, { 0.3, 1 } } })
 -- speed is in deciseconds, and this one is pure perceived latency: it is painted
--- on top of the ~680ms Ghostty takes to map a window (measured; no Ghostty
--- config knob moves that number, so the animation is the part that is actually
--- ours to spend). 3 cost 300ms, 2 cost 200ms, 1 costs 100ms and still reads as a
--- popin rather than a jump. windowsOut stays at 2 — closing is not a wait.
+-- on top of the time the terminal takes to map a window (~223ms for kitty, the
+-- default; ~680ms for Ghostty, and no Ghostty config knob moves that number).
+-- The animation is the part that is actually ours to spend. 3 cost 300ms, 2 cost
+-- 200ms, 1 costs 100ms and still reads as a popin rather than a jump. windowsOut
+-- stays at 2 — closing is not a wait.
 hl.animation({ leaf = "windows",    enabled = true, speed = 1, bezier = "easeOut", style = "popin 90%" })
 hl.animation({ leaf = "windowsOut", enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
 hl.animation({ leaf = "fade",       enabled = true, speed = 3, bezier = "default" })
