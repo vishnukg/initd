@@ -51,10 +51,12 @@ install_firacode_nerd_font() {
 }
 
 install_symbols_nerd_font() {
-  # Berkeley Mono (the terminal font) carries no Nerd Font icon glyphs, so
-  # kitty's symbol_map and Ghostty's fallback both point at this family. Fedora
-  # packages no equivalent; macOS gets it from the font-symbols-only-nerd-font
-  # cask in macos/Brewfile. Both builds are installed: the non-Mono one is what
+  # Berkeley Mono (kitty's font) carries no Nerd Font icon glyphs, so kitty's
+  # symbol_map points at this family. Ghostty no longer needs it — it runs the
+  # patched FiraCode Nerd Font build, which carries the icons in-family — but
+  # this stays installed because kitty still depends on it. Fedora packages no
+  # equivalent; macOS gets it from the font-symbols-only-nerd-font cask in
+  # macos/Brewfile. Both builds are installed: the non-Mono one is what
   # the configs name (natural-width icons), the Mono one is on hand for
   # single-cell glyphs like powerline separators.
   local font_dir="${HOME}/.local/share/fonts/SymbolsNerdFont"
