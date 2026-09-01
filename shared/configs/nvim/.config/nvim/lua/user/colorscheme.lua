@@ -1,4 +1,3 @@
--- vscode color settings
 vim.o.background = "dark"
 
 local ok, vscode = pcall(require, "vscode")

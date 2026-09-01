@@ -164,7 +164,6 @@ hl.bind(mod .. " + e", hl.dsp.layout("togglesplit"))
 -- Cycle tabs inside a group with focus keys crossing group edges.
 hl.bind(mod .. " + g", hl.dsp.group.next())
 
--- Toggle tiling / floating
 hl.bind(mod .. " + SHIFT + space", hl.dsp.window.float({ action = "toggle" }))
 -- i3's "focus mode_toggle" (jump between tiling and floating layers) has no
 -- exact Hyprland dispatcher; cyclenext floating focuses the floating layer,
