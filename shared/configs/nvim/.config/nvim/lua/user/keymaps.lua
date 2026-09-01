@@ -90,13 +90,11 @@ map("n", "<leader>hcv", "<cmd>CoverageHide<CR>",    d("Coverage: hide"))
 map("n", "<leader>ccv", "<cmd>CoverageClear<CR>",   d("Coverage: clear"))
 
 -- ── Go (gopher.nvim) ──────────────────────────────────────────────────────────
--- Add struct tags
 map("n", "<leader>gaj", "<cmd>GoTagAdd json<CR>", d("Go: add json tag"))
 map("n", "<leader>gay", "<cmd>GoTagAdd yaml<CR>", d("Go: add yaml tag"))
 map("n", "<leader>gax", "<cmd>GoTagAdd xml<CR>",  d("Go: add xml tag"))
 map("n", "<leader>gae", "<cmd>GoTagAdd env<CR>",  d("Go: add env tag"))
 map("n", "<leader>gad", "<cmd>GoTagAdd db<CR>",   d("Go: add db tag"))
--- Remove struct tags
 map("n", "<leader>grj", "<cmd>GoTagRm json<CR>",  d("Go: remove json tag"))
 map("n", "<leader>gry", "<cmd>GoTagRm yaml<CR>",  d("Go: remove yaml tag"))
 map("n", "<leader>grx", "<cmd>GoTagRm xml<CR>",   d("Go: remove xml tag"))

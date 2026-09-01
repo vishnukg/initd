@@ -27,7 +27,6 @@ require("gitsigns").setup({
 	current_line_blame_formatter = "<author>, <author_time:%R> - <summary>",
 	max_file_length = 40000,
 	preview_config = {
-		-- Options passed to nvim_open_win
 		border = "single",
 		style = "minimal",
 		relative = "cursor",
