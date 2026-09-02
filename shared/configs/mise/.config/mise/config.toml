@@ -86,4 +86,14 @@ yarn      = ["latest", "1.22.22"]
 "pipx:yamllint"                            = "latest"
 "dotnet:csharpier"                         = "latest"
 "taplo"                                    = "latest" # toml formatter
+
+# ── Go codegen helpers (consumed by nvim/.../user/gopher.lua) ──────────
+# gopher.nvim can `go install` these itself (:GoInstallDeps), but that drops
+# them into the mise-managed Go's own bin dir, which a Go version bump wipes.
+# Owning them here keeps them on PATH across Go upgrades like every other tool.
+"go:github.com/fatih/gomodifytags"         = "latest"
+"go:github.com/josharian/impl"             = "latest"
+"go:github.com/koron/iferr"                = "latest"
+"go:github.com/cweill/gotests/gotests"     = "latest"
+"go:olexsmir.xyz/json2go/cmd/json2go"      = "latest"
 "github:github/copilot-cli"     = "latest" # GitHub Copilot CLI
