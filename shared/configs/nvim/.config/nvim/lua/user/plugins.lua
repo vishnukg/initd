@@ -197,7 +197,8 @@ return require("lazy").setup({
 			"GoJson", "GoTestAdd", "GoTestsAll", "GoTestsExp", "GoMod",
 			"GoGet", "GoWork", "GoGenerate",
 		},
-		build = ":GoInstallDepsSync",
+		-- Its helper binaries (gomodifytags, impl, iferr, gotests, json2go) are
+		-- mise tools, like every other nvim dependency — no :GoInstallDeps build step.
 		config = function() require("user.gopher") end,
 	},
 
