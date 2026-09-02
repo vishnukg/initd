@@ -18,6 +18,7 @@ Runs:
   brew cleanup
   mise upgrade --yes
   fisher update (if installed)
+  brew bundle cleanup (report only — lists installs the Brewfile doesn't own)
 
 Options:
   -h, --help     Show this help.
@@ -63,6 +64,11 @@ main() {
     log "Updating fish plugins..."
     fish -c "fisher update"
   fi
+
+  # Report only: surfaces packages installed outside the Brewfile so the machine
+  # and the curated list don't silently drift. Apply with `--force` by hand.
+  log "Checking for packages the Brewfile doesn't own..."
+  brew bundle cleanup --file "${ROOT_DIR}/macos/Brewfile" || true
 
   log_success "Machine update complete."
 }

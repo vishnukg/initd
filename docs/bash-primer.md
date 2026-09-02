@@ -19,7 +19,7 @@ developer can follow like a checklist.
 | `shared/lib/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files. Takes platform arg. |
 | `shared/lib/cleanup.sh` | Remove only the symlinks that initd created. Takes platform arg. |
 | `shared/lib/git-profile.sh` | Set the Git identity: personal uses the default email; work writes an override to `local.gitconfig`. |
-| `macos/brewinstall.sh` | Add a formula or cask to the curated Brewfile and apply it locally. |
+| `macos/brewinstall` | Add a formula or cask to the curated Brewfile and apply it locally. |
 | `shared/lib/fs.sh` | Shared filesystem helpers: `path_exists`, `symlink_points_to`, `verify_symlink_target`, `backup_path`. |
 | `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` array. Sources `fs.sh`. |
 | `<platform>/managed-links.sh` | Appends platform-specific entries to `MANAGED_LINKS`. |
@@ -280,7 +280,7 @@ bash -n bootstrap.sh \
   shared/lib/logging.sh shared/lib/fs.sh \
   shared/lib/link.sh shared/lib/cleanup.sh shared/lib/git-profile.sh \
   shared/managed-links.sh shared/test.sh \
-  macos/bootstrap.sh macos/defaults.sh macos/brewinstall.sh macos/update.sh macos/managed-links.sh \
+  macos/bootstrap.sh macos/defaults.sh macos/brewinstall macos/update.sh macos/managed-links.sh \
   linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh
 ```
 

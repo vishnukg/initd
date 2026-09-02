@@ -1,34 +1,37 @@
-brew "autoconf"
-brew "colima"
-brew "docker"
-brew "docker-compose"
-brew "docker-credential-helper"
-brew "gh"
+# Curated by hand; `macos/brewinstall <name>` appends here. Formulae are only
+# what this repo's configs and bootstrap steps actually invoke — build libraries
+# arrive as dependencies of these and don't need listing. Machine drift shows up
+# in `brew bundle cleanup --file macos/Brewfile` (dry-run; add --force to apply).
+
+# Shell, editor plumbing, version control
 brew "fish"
 brew "git"
-brew "gmp"
-brew "gnu-sed"
-brew "gnupg"
-brew "libyaml"
-brew "mise"
-brew "openssl@3"
-brew "presenterm"
-brew "readline"
+brew "gh"
 brew "tig"
-brew "tmux"
+brew "tmux"       # depends on ncurses, whose terminfo ensure_tmux_terminfo compiles
+brew "mise"       # every runtime, LSP and CLI tool beyond this file
 
+# Docker via Colima (no Docker Desktop) — see docs/colima.md
+brew "colima"
+brew "docker"
+brew "docker-buildx"
+brew "docker-compose"
+brew "docker-credential-helper"
+
+brew "presenterm"
+
+# Apps
 cask "1password"
 cask "betterdisplay"
+cask "google-chrome" # bootstrap skips this cask when Chrome already exists outside brew
+cask "ghostty"       # fallback terminal
+cask "kitty"         # default terminal
+cask "iterm2"
+
+# Fonts. FiraCode Nerd Font is Ghostty's text font and the GTK monospace on
+# Linux; Symbols carries the non-Mono icon glyphs kitty's symbol_map needs.
+# Berkeley Mono (kitty's font) is licensed and comes from the private fonts
+# repo via ensure_local_fonts, not from a cask.
 cask "font-fira-code"
 cask "font-fira-code-nerd-font"
-cask "font-hack-nerd-font"
-cask "font-jetbrains-mono-nerd-font"
-cask "font-meslo-lg-nerd-font"
-# Non-Mono icon glyphs used by kitty's symbol_map.
 cask "font-symbols-only-nerd-font"
-cask "font-victor-mono-nerd-font"
-cask "ghostty"
-cask "kitty"
-cask "iterm2"
-cask "google-chrome"
-brew "docker-buildx"
