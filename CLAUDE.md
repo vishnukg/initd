@@ -90,6 +90,7 @@ macos/bootstrap.sh
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ shared/lib/link.sh macos                 # symlinks
   ├─ ensure_local_fonts                       # COPIES OTFs → ~/Library/Fonts (macOS won't register symlinked fonts)
+  ├─ ensure_tmux_terminfo                     # compiles Homebrew ncurses's tmux-256color into ~/.terminfo (system entry lacks Smulx → no nvim undercurl inside tmux)
   ├─ ensure_fish (dscl)
   ├─ mise trust + mise install
   ├─ macos/defaults.sh
