@@ -123,7 +123,7 @@ palette = 15=#e5e5e5
 # No split or tab bindings by design. tmux owns that layer — C-a b/v to split,
 # C-a h/j/k/l to move, C-a e to resize, C-a z to zoom, C-a c and Tab for windows
 # — and tmux panes survive the terminal dying, which terminal-native splits do
-# not. Kept in sync with shared/configs/kitty/kitty.conf.
+# not. Kept in sync with shared/configs/kitty/.config/kitty/kitty.conf.
 window-inherit-working-directory = true
 
 # --- Keyboard Shortcuts ---

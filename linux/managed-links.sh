@@ -15,13 +15,16 @@ MANAGED_LINKS+=(
   "${HOME}/.config/fontconfig:${ROOT_DIR}/linux/configs/fontconfig"
   "${HOME}/.config/gtk-3.0:${ROOT_DIR}/linux/configs/gtk-3.0"
   "${HOME}/.config/pipewire:${ROOT_DIR}/linux/configs/pipewire"
+  # A real unit, not a drop-in: a oneshot no-op that hyprland.lua starts from
+  # its autostart block so graphical-session.target is reached under Hyprland
+  # the way it is under GNOME. Nothing enables it; hyprland.lua starts it.
   "${HOME}/.config/systemd/user/initd-hyprland-session.service:${ROOT_DIR}/linux/configs/systemd/user/initd-hyprland-session.service"
-  # Drop-in dir, not a unit: it customises Fedora's packaged Ghostty unit
-  # rather than replacing it. See the file for what the flags buy.
 )
 
-# Berkeley Mono — licensed font, gitignored (see .gitignore), so it exists only
-# on machines where the OTFs were copied in by hand. Skipped when absent.
+# Berkeley Mono — licensed font, gitignored (see .gitignore). shared/fonts/ is
+# a clone of the PRIVATE vishnukg/fonts repo, synced by shared/lib/fonts.sh
+# earlier in bootstrap; the link is skipped on machines where that sync could
+# not run (no gh auth, no access to the repo).
 # fontconfig scans ~/.local/share/fonts recursively.
 if [[ -d "${ROOT_DIR}/shared/fonts/berkeley-mono" ]]; then
   MANAGED_LINKS+=( "${HOME}/.local/share/fonts/berkeley-mono:${ROOT_DIR}/shared/fonts/berkeley-mono" )
