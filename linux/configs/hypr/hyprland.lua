@@ -1,7 +1,11 @@
--- Hyprland config — direct port of the old i3 config (linux/configs/i3/config),
--- later ported from hyprlang (hyprland.conf) to Lua ahead of hyprlang's planned
--- removal in Hyprland 0.57. Keybindings are kept 1:1 with i3; comments note the
--- few places where a concept has no exact Hyprland equivalent.
+-- Hyprland config — originally a direct port of this repo's old i3 config
+-- (linux/configs/i3/, removed with the rest of the X11 stack; git history has
+-- it), then ported from hyprlang (hyprland.conf) to Lua ahead of hyprlang's
+-- removal in Hyprland 0.57. Keybindings are still 1:1 with that i3 config;
+-- comments note the few places where a concept has no exact Hyprland
+-- equivalent. Hyprland picks .lua vs .conf at STARTUP only, never on
+-- `hyprctl reload` — validate edits with
+-- `Hyprland --verify-config --config <path>` instead of restarting.
 -- Reference: https://wiki.hypr.land/Configuring/
 
 local mod = "SUPER"
@@ -16,11 +20,6 @@ hl.env("XCURSOR_THEME", "Adwaita")
 -- (tuned for the old machine's panel), then 1.25, which read a touch small.
 hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = "1.33333" })
 hl.monitor({ output = "",      mode = "preferred", position = "auto", scale = "1.33333" })
-
--- hyprmoncfg owns the generated monitor rules, profiles, hotplug, and lid
--- handling. Its protected import keeps Hyprland usable before the first
--- profile is created; the static rules above are the fallback in that state.
-pcall(require, "monitors")
 
 -- ── Input ─────────────────────────────────────────────────────────────────────
 hl.config({

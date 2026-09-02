@@ -15,7 +15,7 @@ Three top-level buckets. The platform directories are decoupled — `rm -rf maco
 initd/
 ├── bootstrap.sh                 # dispatcher: detects uname -s and execs the platform bootstrap
 ├── shared/                      # cross-platform
-│   ├── lib/                     # logging, fs, link, cleanup, git-profile
+│   ├── lib/                     # logging, fs, link, cleanup, git-profile, fonts
 │   ├── managed-links.sh         # MANAGED_LINKS for shared configs + git helpers
 │   ├── configs/                 # colima, fish, git, ghostty, kitty, mise, nvim, starship, tmux
 │   └── test.sh                  # behavior tests (auto-detects host OS)
@@ -29,11 +29,12 @@ initd/
 └── linux/                       # self-contained Linux bootstrap
     ├── bootstrap.sh              # targets Fedora Workstation 44+ (dnf5)
     ├── packages.txt             # dnf package list (some via COPR — see below)
-    ├── setup.sh                 # fonts/theme/Firefox profile glue
+    ├── setup.sh                 # fonts/theme/Firefox profile glue, system fixes
     ├── managed-links.sh
     ├── update.sh
     ├── scripts/                 # session scripts invoked by hyprland.lua/Quickshell
-    └── configs/                 # hypr, quickshell, rofi, dunst, gtk-3.0, firefox
+    └── configs/                 # hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig,
+                                 #   pipewire, systemd, gtk-3.0, ghostty, firefox
 ```
 
 ## Usage
@@ -102,12 +103,13 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 
 ## Machine-local secrets
 
-Two gitignored files — sourced/included if present, silently skipped if absent.
+Gitignored paths — used if present, silently skipped if absent.
 
-| File | Purpose |
+| Path | Purpose |
 |---|---|
 | `shared/configs/git/local.gitconfig` | Work (or other) Git email override — absent on personal machines |
 | `shared/configs/fish/.config/fish/local.fish` | Machine-specific env vars and overrides |
+| `shared/fonts/` | Clone of the PRIVATE `vishnukg/fonts` repo (Berkeley Mono — paid, per-user licensed, so a public repo can't carry the OTFs). Synced by `shared/lib/fonts.sh`, which warns and skips without `gh` auth |
 
 ## Backups
 
@@ -131,11 +133,12 @@ Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-com
 
 ## Linux — dnf specifics
 
-`linux/packages.txt` is one package per line, comments allowed. Add to it and re-run `linux/bootstrap.sh`. The packages list intentionally tracks the brew formulas where equivalents exist (`fish`, `tmux`, `tig`, `git`, `gnupg2`, `neovim`) plus Fedora `-devel` build deps for mise-managed Python/Node. Fedora's own repos don't carry the Hyprland ecosystem, `hyprmoncfg`, or `ghostty` — `install_packages()` enables the `sdegler/hyprland`, `paolino/hyprmoncfg`, and `scottames/ghostty` COPRs first. Docker Engine is installed separately from Docker's official dnf repository, together with Buildx and the Compose v2 plugin; bootstrap adds the login user to the privileged `docker` group, so log out and back in once after its first installation. gh CLI and 1Password also come from their own official dnf repos.
+`linux/packages.txt` is one package per line, comments allowed. Add to it and re-run `linux/bootstrap.sh`. The packages list intentionally tracks the brew formulas where equivalents exist (`fish`, `tmux`, `tig`, `git`, `gnupg2`) plus Fedora `-devel` build deps for mise-managed Python/Node. Neovim is deliberately not among them — it is installed and pinned by mise, so the distro package would only shadow it. Fedora's own repos don't carry the Hyprland ecosystem, `hyprmoncfg`, or `ghostty` — `install_packages()` enables the `sdegler/hyprland`, `paolino/hyprmoncfg`, and `scottames/ghostty` COPRs first. Docker Engine is installed separately from Docker's official dnf repository, together with Buildx and the Compose v2 plugin; bootstrap adds the login user to the privileged `docker` group, so log out and back in once after its first installation. gh CLI and 1Password also come from their own official dnf repos.
 
 `linux/setup.sh` handles things that don't fit the symlink flow:
-- system fixes requiring sudo (`video` group membership for backlight keys)
-- GTK theme + font/cursor gsettings (Fedora has no `fonts-ubuntu` or DMZ-cursor package, so this uses `Adwaita Sans` and the `Adwaita` cursor theme instead)
+- system fixes requiring sudo (`video` group membership for backlight keys, disabling the unused `ModemManager`)
+- a 6-band PipeWire EQ for the laptop speakers, set as the default sink with makeup gain (`linux/configs/pipewire/`)
+- GTK theme + font/cursor gsettings (Fedora has no `fonts-ubuntu` or DMZ-cursor package, so this uses Inter from `rsms-inter-fonts` and the `Adwaita` cursor theme instead), plus matching keyboard gsettings so GNOME gets the same `ctrl:nocaps` and repeat rate as Hyprland
 - session scripts symlinked to absolute `~/.config/` paths that hyprland.lua/Quickshell invoke directly
 - the `hyprmoncfgd` user service for automatic monitor profile switching
 - special-case paths outside `~/.config/`: `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox profile files (profile path is dynamic; Firefox itself is unmanaged by bootstrap.sh — install it however you like, this glue configures whatever it finds)
@@ -154,6 +157,8 @@ Then re-run `shared/test.sh`.
 - `docs/fish.md` — fish/bash/zsh syntax comparison
 - `docs/nvim.md` — Neovim setup with Lazy.nvim
 - `docs/mise.md` — mise tool management
+- `docs/colima.md` — Colima (Docker without Docker Desktop) setup and daily use
+- `docs/linux-monitors.md` — monitor hotplug/lid switching, per-monitor scale and overrides
 - `docs/git-branching-conflicts.md` — Git branching and conflict resolution
 - `docs/tmux-nvim.md` — tmux and Neovim workspace concepts
 - `docs/tmux-sessions.md` — tmux session/window/pane workflow and keybindings

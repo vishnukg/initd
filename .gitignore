@@ -23,7 +23,11 @@ shared/configs/fish/.config/fish/completions/
 shared/configs/fish/.config/fish/conf.d/*
 !shared/configs/fish/.config/fish/conf.d/00-initd-env.fish
 
-# Terminals — machine-local overrides (Linux opacity), written by linux/setup.sh.
+# Terminals — the SYMLINK only. Ghostty has no per-OS include, so
+# linux/setup.sh:link_ghostty_linux_conf drops this link next to the shared
+# config, pointing at the tracked linux/configs/ghostty/linux.conf. The content
+# is committed (it is a Linux value, not a per-machine one); only the generated
+# link is ignored. kitty needs no equivalent — it expands ${KITTY_OS}.
 shared/configs/ghostty/.config/ghostty/linux.conf
 
 # Neovim — generated plugin directory.
@@ -35,6 +39,5 @@ shared/configs/nvim/.config/nvim/plugin/
 # GTK — bookmarks are written at runtime by file picker dialogs.
 linux/configs/gtk-3.0/bookmarks
 
-# hyprmoncfg generates the active monitor rules from tracked profiles.
-linux/configs/hypr/monitors.lua
+# hyprmoncfg generates the active monitor rules from the tracked profiles.
 linux/configs/hypr/hyprmoncfg-monitors.lua

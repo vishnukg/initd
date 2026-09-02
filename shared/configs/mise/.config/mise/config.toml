@@ -34,8 +34,8 @@ yarn      = ["latest", "1.22.22"]
 # ── LSP servers (consumed by nvim/.../user/lsp/servers.lua) ────────────
 "lua-language-server"                   = "latest" # lua_ls
 # TypeScript 7 (native Go rewrite) ships its own LSP server (`tsc --lsp`),
-# replacing tsserver + typescript-language-server. nvim's settings/tsgo.lua
-# points at this install's bin/tsc.
+# replacing tsserver + typescript-language-server. nvim enables it as the
+# "tsc" server; settings/tsc.lua invokes the `tsc` this package puts on PATH.
 "npm:typescript"                        = "latest" # tsgo
 # ty — Astral's Rust type checker + LSP (replaced pyright). Pre-1.0: the
 # 0.0.x line still makes breaking changes, so expect churn on `mise upgrade`.
