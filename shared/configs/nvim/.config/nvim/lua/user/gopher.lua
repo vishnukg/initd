@@ -1,5 +1,5 @@
 -- Go: struct tags, if-err, impl — not an LSP tool, so it does not overlap gopls.
--- lazy.nvim runs :GoInstallDepsSync after installing/updating the plugin.
+-- Helper binaries come from mise (see mise/config.toml), not :GoInstallDeps.
 require("gopher").setup({
 	commands = { gotests = "gotests" },
 	gotag = {

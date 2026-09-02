@@ -92,7 +92,7 @@ end
 --   grr      → show references
 --   gri      → go to implementation
 --   grt      → go to type definition
---   grl      → run codelens
+--   grx      → run codelens (grl below is a second binding for it)
 --   gO       → list document symbols
 --   <C-S>    → signature help (insert + select mode)
 local function lsp_keymaps(bufnr)
@@ -111,9 +111,11 @@ local function lsp_keymaps(bufnr)
 	-- :LspInfo was removed: nvim 0.12 ships a native :lsp command, and
 	-- nvim-lspconfig's plugin file skips defining Lsp* commands when it exists.
 	vim.keymap.set("n", "<leader>li", "<cmd>checkhealth vim.lsp<CR>", vim.tbl_extend("force", opts, { desc = "LSP: info (checkhealth)" }))
-	vim.keymap.set("n", "<leader>lj", function() vim.diagnostic.jump({ count =  1, float = true }) end,
+	-- `float = true` is deprecated in 0.12 (|deprecated-0.12|); on_jump replaces it.
+	local function show_float(_, buf) vim.diagnostic.open_float({ bufnr = buf }) end
+	vim.keymap.set("n", "<leader>lj", function() vim.diagnostic.jump({ count =  1, on_jump = show_float }) end,
 		vim.tbl_extend("force", opts, { desc = "LSP: next diagnostic" }))
-	vim.keymap.set("n", "<leader>lk", function() vim.diagnostic.jump({ count = -1, float = true }) end,
+	vim.keymap.set("n", "<leader>lk", function() vim.diagnostic.jump({ count = -1, on_jump = show_float }) end,
 		vim.tbl_extend("force", opts, { desc = "LSP: prev diagnostic" }))
 	vim.keymap.set("n", "<leader>ls", vim.lsp.buf.signature_help,
 		vim.tbl_extend("force", opts, { desc = "LSP: signature help" }))
