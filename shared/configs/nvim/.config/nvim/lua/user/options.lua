@@ -61,7 +61,6 @@ vim.opt.foldenable = false
 vim.opt.foldlevel = 99
 vim.opt.iskeyword:append("-")
 vim.opt.formatoptions:remove({ "c", "r", "o" })
-vim.opt.runtimepath:remove("/usr/share/vim/vimfiles")
 vim.opt.fillchars:append({ eob = " " })
 vim.o.winborder = "rounded"
 
