@@ -1,6 +1,5 @@
 -- Configure nvim-treesitter (main branch rewrite, Neovim 0.12+)
 local treesitter = require("nvim-treesitter")
-local treesitter_attached = {}
 local available_parsers = treesitter.get_available()
 
 treesitter.setup({
@@ -39,7 +38,6 @@ local function try_attach(buf, language, retried)
 	end
 
 	vim.treesitter.start(buf, language)
-	treesitter_attached[buf] = true
 
 	-- Apply to the windows actually showing this buffer — after an async parser
 	-- install the current window may no longer be the one that triggered attach.
@@ -53,31 +51,6 @@ local function try_attach(buf, language, retried)
 		vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
 	end
 end
-
--- Suspend fold recomputation during insert mode to avoid per-keystroke treesitter parse lag
-local fold_insert_group = vim.api.nvim_create_augroup("FoldInsertMode", { clear = true })
-vim.api.nvim_create_autocmd("InsertEnter", {
-	group = fold_insert_group,
-	callback = function(args)
-		if treesitter_attached[args.buf] then
-			vim.opt_local.foldmethod = "manual"
-		end
-	end,
-})
-vim.api.nvim_create_autocmd("InsertLeave", {
-	group = fold_insert_group,
-	callback = function(args)
-		if treesitter_attached[args.buf] then
-			vim.opt_local.foldmethod = "expr"
-		end
-	end,
-})
-vim.api.nvim_create_autocmd("BufWipeout", {
-	group = fold_insert_group,
-	callback = function(args)
-		treesitter_attached[args.buf] = nil
-	end,
-})
 
 vim.api.nvim_create_autocmd("FileType", {
 	group = vim.api.nvim_create_augroup("TreesitterAttach", { clear = true }),

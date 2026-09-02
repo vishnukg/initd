@@ -166,7 +166,9 @@ return require("lazy").setup({
 		"MeanderingProgrammer/render-markdown.nvim",
 		dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
 		ft = { "markdown" },
-		opts = { enabled = true },
+		-- latex off: no LaTeX parser/renderer (utftex, latex2text) is installed,
+		-- and render-markdown's healthcheck warns for as long as it is enabled.
+		opts = { enabled = true, latex = { enabled = false } },
 	},
 
 	-- ── Language-specific ─────────────────────────────────────────────────────
