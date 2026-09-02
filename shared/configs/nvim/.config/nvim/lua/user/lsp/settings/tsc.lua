@@ -1,12 +1,7 @@
 -- TypeScript 7's built-in LSP (the native Go rewrite — no more tsserver).
--- lspconfig's old "tsgo" server expected a `tsgo` binary from
--- @typescript/native-preview, but that package is phased out and the server
--- itself is deprecated as of nvim-lspconfig (removal planned for 3.0.0) in
--- favor of this "tsc" server — typescript@7 ships the same binary as `tsc`,
--- which enters LSP mode with --lsp. Use the mise-provided `tsc` executable
--- from PATH so the same config works across macOS/Linux and custom mise
--- data dirs, rather than lspconfig's own default cmd (which also checks
--- node_modules/.bin first).
+-- lspconfig's "tsc" server picks the binary itself: a project-local
+-- node_modules/.bin/tsc if it is 7.0+ (supports --lsp), else the mise-provided
+-- `tsc` on PATH, so no cmd override is needed here. Only settings differ.
 local inlay_hints = {
 	parameterNames = {
 		enabled = "literals",
@@ -30,11 +25,6 @@ local code_lens = {
 }
 
 return {
-	cmd = {
-		"tsc",
-		"--lsp",
-		"--stdio",
-	},
 	settings = {
 		typescript = vim.tbl_extend("force", { inlayHints = inlay_hints }, code_lens),
 		javascript = vim.tbl_extend("force", { inlayHints = inlay_hints }, code_lens),
