@@ -242,6 +242,37 @@ ensure_local_fonts() {
   fi
 }
 
+# macOS ships a 2009-era tmux-256color terminfo in /usr/share/terminfo that
+# predates the Smulx capability. tmux itself is unaffected — it reads the
+# OUTER terminal's terminfo, and kitty/Ghostty both carry Smulx — but every
+# program inside tmux resolves TERM=tmux-256color against that stale entry, so
+# Neovim degrades undercurl to plain underline (measured: \e[4m against the
+# system entry, \e[4:3m + \e[58;2;… against Homebrew ncurses's). Compile the
+# modern entry into ~/.terminfo, which ncurses and unibilium both search ahead
+# of /usr/share. Fedora's ncurses-base is current, so Linux needs no equivalent.
+ensure_tmux_terminfo() {
+  local ncurses_prefix infocmp tic
+  ncurses_prefix="$(brew --prefix ncurses 2>/dev/null)" || ncurses_prefix=""
+  infocmp="${ncurses_prefix}/bin/infocmp"
+  tic="${ncurses_prefix}/bin/tic"
+
+  if [[ ! -x "${infocmp}" || ! -x "${tic}" ]]; then
+    log_warn "Homebrew ncurses not found; tmux-256color terminfo not updated (Neovim undercurl inside tmux will render as underline)."
+    return
+  fi
+
+  if "${infocmp}" -x -A "${HOME}/.terminfo" tmux-256color 2>/dev/null | grep -q 'Smulx='; then
+    log_success "tmux-256color terminfo already carries Smulx."
+    return
+  fi
+
+  if "${infocmp}" -x tmux-256color | "${tic}" -x -o "${HOME}/.terminfo" - 2>/dev/null; then
+    log_success "Compiled Homebrew ncurses's tmux-256color terminfo into ~/.terminfo."
+  else
+    log_warn "Failed to compile tmux-256color terminfo into ~/.terminfo."
+  fi
+}
+
 setup_git_profile() {
   local local_gitconfig="${SHARED_DIR}/configs/git/local.gitconfig"
   local existing_email
@@ -304,6 +335,9 @@ main() {
 
   log "Installing licensed fonts into ~/Library/Fonts..."
   ensure_local_fonts
+
+  log "Ensuring tmux-256color terminfo supports undercurl..."
+  ensure_tmux_terminfo
 
   log "Ensuring fish shell is configured..."
   ensure_fish
