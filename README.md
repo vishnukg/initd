@@ -22,7 +22,7 @@ initd/
 ├── macos/                       # self-contained macOS bootstrap
 │   ├── bootstrap.sh
 │   ├── Brewfile
-│   ├── brewinstall / brewinstall.sh
+│   ├── brewinstall              # add a formula/cask to the Brewfile and install it
 │   ├── defaults.sh              # macOS defaults write …
 │   ├── managed-links.sh
 │   └── update.sh
@@ -133,7 +133,7 @@ Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-com
 
 ## Linux — dnf specifics
 
-`linux/packages.txt` is one package per line, comments allowed. Add to it and re-run `linux/bootstrap.sh`. The packages list intentionally tracks the brew formulas where equivalents exist (`fish`, `tmux`, `tig`, `git`, `gnupg2`) plus Fedora `-devel` build deps for mise-managed Python/Node. Neovim is deliberately not among them — it is installed and pinned by mise, so the distro package would only shadow it. Fedora's own repos don't carry the Hyprland ecosystem, `hyprmoncfg`, or `ghostty` — `install_packages()` enables the `sdegler/hyprland`, `paolino/hyprmoncfg`, and `scottames/ghostty` COPRs first. Docker Engine is installed separately from Docker's official dnf repository, together with Buildx and the Compose v2 plugin; bootstrap adds the login user to the privileged `docker` group, so log out and back in once after its first installation. gh CLI and 1Password also come from their own official dnf repos.
+`linux/packages.txt` is one package per line, comments allowed. Add to it and re-run `linux/bootstrap.sh`. The packages list intentionally tracks the brew formulas where equivalents exist (`fish`, `tmux`, `tig`, `git`) plus Fedora `-devel` build deps for mise-managed Python/Node. Neovim is deliberately not among them — it is installed and pinned by mise, so the distro package would only shadow it. Fedora's own repos don't carry the Hyprland ecosystem, `hyprmoncfg`, or `ghostty` — `install_packages()` enables the `sdegler/hyprland`, `paolino/hyprmoncfg`, and `scottames/ghostty` COPRs first. Docker Engine is installed separately from Docker's official dnf repository, together with Buildx and the Compose v2 plugin; bootstrap adds the login user to the privileged `docker` group, so log out and back in once after its first installation. gh CLI and 1Password also come from their own official dnf repos.
 
 `linux/setup.sh` handles things that don't fit the symlink flow:
 - system fixes requiring sudo (`video` group membership for backlight keys, disabling the unused `ModemManager`)

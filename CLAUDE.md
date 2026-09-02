@@ -13,7 +13,7 @@ bash -n bootstrap.sh \
   shared/lib/logging.sh shared/lib/fs.sh \
   shared/lib/link.sh shared/lib/cleanup.sh shared/lib/git-profile.sh shared/lib/fonts.sh \
   shared/managed-links.sh shared/test.sh \
-  macos/bootstrap.sh macos/defaults.sh macos/brewinstall.sh macos/update.sh macos/managed-links.sh \
+  macos/bootstrap.sh macos/defaults.sh macos/brewinstall macos/update.sh macos/managed-links.sh \
   linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh
 
 # Full bootstrap (dispatches by uname)
@@ -60,7 +60,7 @@ initd/
 ├── macos/                    # self-contained — `rm -rf macos/` and Linux still works
 │   ├── bootstrap.sh
 │   ├── Brewfile
-│   ├── brewinstall, brewinstall.sh
+│   ├── brewinstall
 │   ├── defaults.sh           # macOS defaults write …
 │   ├── managed-links.sh      # appends macOS-only links to MANAGED_LINKS
 │   └── update.sh
