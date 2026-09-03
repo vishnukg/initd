@@ -3,8 +3,8 @@ set -euo pipefail
 
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font, Symbols Nerd Font)
-#   - System fixes that need sudo (unused ModemManager off, `video` group for
-#     the backlight keys)
+#   - System fixes that need sudo (unused ModemManager/abrt/rsyslog off,
+#     `video` group for the backlight keys)
 #   - Session/user-unit state: masking the hypridle/hyprpaper units this repo
 #     autostarts from hyprland.lua instead, enabling hyprmoncfgd and the
 #     night-light schedule timer
@@ -91,16 +91,31 @@ install_symbols_nerd_font() {
 }
 
 # ── System fixes ──────────────────────────────────────────────────────────────
-disable_modemmanager() {
-  # No cellular modem on this hardware (mmcli -L finds none) — ModemManager is
-  # a NetworkManager-optional plugin, so disabling it is safe and just trims
-  # an idle background daemon.
-  if [[ "$(systemctl is-enabled ModemManager.service 2>/dev/null)" == "disabled" ]]; then
-    log_success "ModemManager already disabled."
+disable_unused_daemons() {
+  # Idle background daemons this machine gets nothing from. Each is checked
+  # first so sudo is only invoked when something actually needs disabling.
+  #   ModemManager — no cellular modem on this hardware (mmcli -L finds none);
+  #                  it is a NetworkManager-optional plugin, safe to drop.
+  #   abrt*        — Fedora's crash reporter: abrtd plus three journal/oops
+  #                  watchers (~57 MB resident). Only useful for filing Fedora
+  #                  bug reports, which this machine does not do.
+  #   rsyslog      — duplicates the journal into /var/log/messages (~28 MB);
+  #                  journalctl is the log here.
+  local unit to_disable=()
+  for unit in ModemManager.service \
+              abrtd.service abrt-journal-core.service abrt-oops.service \
+              abrt-xorg.service abrt-vmcore.service \
+              rsyslog.service; do
+    [[ "$(systemctl is-enabled "${unit}" 2>/dev/null)" =~ ^(disabled|masked|not-found)$ ]] || to_disable+=("${unit}")
+  done
+
+  if [[ "${#to_disable[@]}" -eq 0 ]]; then
+    log_success "Unused daemons already disabled (ModemManager, abrt, rsyslog)."
     return
   fi
-  sudo systemctl disable --now ModemManager.service >/dev/null 2>&1
-  log_success "ModemManager disabled (no modem hardware present)."
+  log "Disabling unused daemons: ${to_disable[*]}"
+  sudo systemctl disable --now "${to_disable[@]}" >/dev/null 2>&1
+  log_success "Disabled ${#to_disable[@]} unused daemon(s)."
 }
 
 enable_xps13_sidecar_amps() {
@@ -612,7 +627,7 @@ main() {
 
   install_firacode_nerd_font
   install_symbols_nerd_font
-  disable_modemmanager
+  disable_unused_daemons
   enable_xps13_sidecar_amps
   disable_speaker_drc
   check_hyprland_session
