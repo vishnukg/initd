@@ -74,12 +74,23 @@ This repo uses **both**, each where it is strongest:
   caching used for zoxide and starship:
 
   ```fish
-  __source_cached_init mise activate
+  function __initd_mise_activate --on-event fish_preexec
+      functions -e __initd_mise_activate
+      __source_cached_init mise activate
+  end
   ```
 
   That registers a prompt hook which prepends the *real* tool `bin/`
   directories to PATH, ahead of the shims. Interactive launches therefore
   exec the actual binary directly.
+
+  It is deferred to the first command on purpose. Activation's initial
+  `mise hook-env` costs ~65 ms — two thirds of a new tab's shell startup —
+  and buys nothing until a command runs, since the shims already resolve
+  every tool for the prompt itself. `fish_preexec` fires before the first
+  typed command executes, so that command and every prompt after it see the
+  activated environment; only the empty first prompt is drawn without it.
+  Measured: shell startup 100 ms → 40 ms.
 
 Fish also sets `MISE_FISH_AUTO_ACTIVATE=0` in
 `~/.config/fish/conf.d/00-initd-env.fish`. mise's Homebrew formula ships a
