@@ -25,6 +25,7 @@ ShellRoot {
     property string weatherSunrise: ""
     property string weatherSunset: ""
     property string backlightText: "--%"
+    property bool nightLightOn: false
     property var sink: Pipewire.defaultAudioSink
 
     function start(process) {
@@ -311,6 +312,10 @@ ShellRoot {
             root.start(backlightProcess);
         }
 
+        function refreshNightLight(): void {
+            root.start(nightLightStateProcess);
+        }
+
     }
 
     PwObjectTracker {
@@ -387,6 +392,25 @@ ShellRoot {
         }
     }
 
+    // Night light state is the gammastep process itself (see
+    // linux/scripts/night-light-toggle.sh): on Wayland the gamma table resets
+    // when the client exits, so "warm" means "gammastep is running". The
+    // toggle script pings `qs ipc call bar refreshNightLight` after every
+    // switch, so the keybind and the bar item never disagree; the 30s timer
+    // only covers gammastep dying on its own.
+    Process {
+        id: nightLightStateProcess
+        command: ["sh", "-c", "pgrep -x gammastep >/dev/null && echo on || echo off"]
+        stdout: StdioCollector {
+            onStreamFinished: root.nightLightOn = text.trim() === "on"
+        }
+    }
+
+    Process {
+        id: nightLightToggleProcess
+        command: [Quickshell.env("HOME") + "/.config/night-light-toggle.sh"]
+    }
+
     Process {
         id: weatherPopupProcess
         command: [Quickshell.env("HOME") + "/.config/weather-popup.sh"]
@@ -410,7 +434,10 @@ ShellRoot {
         repeat: true
         running: true
         triggeredOnStart: true
-        onTriggered: root.start(backlightProcess)
+        onTriggered: {
+            root.start(backlightProcess);
+            root.start(nightLightStateProcess);
+        }
     }
 
     Timer {
@@ -614,6 +641,24 @@ ShellRoot {
                             barWindow: panel
                             tooltipTitle: "Display brightness"
                             tooltipBody: "Current brightness: " + root.backlightText
+                        }
+
+                        BarItem {
+                            // nf-md-lightbulb-outline when off, nf-md-lightbulb-on
+                            // (with rays) when warm: the glyph carries the state
+                            // as well as the colour. A moon glyph would collide
+                            // with the weather item's night variant.
+                            icon: root.nightLightOn ? "󰛨" : "󰌶"
+                            iconSize: 24
+                            barWindow: panel
+                            // Amber = warm gamma active. Same "colour is
+                            // state" rule as the power profile beside it.
+                            foreground: root.nightLightOn ? "#e8b87a" : "#e8eaf0"
+                            tooltipTitle: "Night light"
+                            tooltipBody: (root.nightLightOn ? "On (4500 K)" : "Off")
+                                + "\nClick to toggle"
+                            clickable: true
+                            onClicked: root.start(nightLightToggleProcess)
                         }
 
                         BarItem {
