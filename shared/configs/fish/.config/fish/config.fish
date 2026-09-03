@@ -7,24 +7,26 @@ if test -x /opt/homebrew/bin/brew
 end
 
 # ── PATH ──────────────────────────────────────────────────────────────────────
-fish_add_path ~/.local/bin
-if test -d ~/.dotnet/tools
-    fish_add_path ~/.dotnet/tools
+# One fish_add_path call, not one per directory: it is a function with
+# argparse and dedupe logic (~0.6 ms per call), so five calls were ~3 ms of
+# a ~50 ms startup. The list is in final PATH order, front first.
+#
+# Mise: hybrid setup (see docs/mise.md). Shims are the baseline PATH for
+# every context (scripts, editors, non-interactive shells); interactive
+# shells additionally run `mise activate` (cached, deferred - see below),
+# which puts the real binaries first so launches skip the shim hop and
+# tools keep their own process name (e.g. tmux tabs show nvim, not mise).
+# starship and zoxide get their install dirs directly so the prompt never
+# goes through a shim.
+set -l initd_paths
+for dir in ~/.local/share/mise/installs/zoxide/latest \
+           ~/.local/share/mise/installs/starship/latest \
+           ~/.local/share/mise/shims \
+           ~/.dotnet/tools \
+           ~/.local/bin
+    test -d $dir; and set -a initd_paths $dir
 end
-
-# ── Mise ──────────────────────────────────────────────────────────────────────
-# Hybrid setup (see docs/mise.md): shims are the baseline PATH for every
-# context (scripts, editors, non-interactive shells); interactive shells
-# additionally run `mise activate` (cached, below) which puts the real
-# binaries first so launches skip the shim hop and tools keep their own
-# process name (e.g. tmux tabs show nvim, not mise).
-fish_add_path ~/.local/share/mise/shims
-if test -d ~/.local/share/mise/installs/starship/latest
-    fish_add_path ~/.local/share/mise/installs/starship/latest
-end
-if test -d ~/.local/share/mise/installs/zoxide/latest
-    fish_add_path ~/.local/share/mise/installs/zoxide/latest
-end
+fish_add_path $initd_paths
 
 # ── Interactive-only config ────────────────────────────────────────────────────
 if not status is-interactive
@@ -104,10 +106,13 @@ bind -M insert \ca beginning-of-line
 bind -M insert \ce end-of-line
 
 # ── Aliases ───────────────────────────────────────────────────────────────────
-alias vi nvim
-alias vim nvim
-alias l 'ls -la'
-alias ssh 'TERM=xterm-256color command ssh'
+# Plain functions rather than `alias`: alias is itself a function that parses
+# its argument and builds the same thing, at about twice the cost. --wraps
+# keeps the target's completions.
+function vi --wraps nvim; nvim $argv; end
+function vim --wraps nvim; nvim $argv; end
+function l --wraps ls; ls -la $argv; end
+function ssh --wraps ssh; TERM=xterm-256color command ssh $argv; end
 
 # ── Git abbreviations ────────────────────────────────────────────────────────
 abbr -a g    git
@@ -149,19 +154,24 @@ abbr -a gsw  'git switch'
 abbr -a gswc 'git switch --create'
 
 # ── Cached tool init (zoxide, starship, mise) ─────────────────────────────────
-# Regenerate the cached init script only when the binary is newer than the cache.
+# Regenerate the cached init script only when the binary is newer than the
+# cache. Extra arguments are passed through to the init command.
 function __source_cached_init --argument-names tool subcmd
     set -q subcmd[1]; or set subcmd init
     command -q $tool; or return
     set -l cache ~/.cache/fish/{$tool}_{$subcmd}.fish
     if not test -f $cache; or test (command -v $tool) -nt $cache
         mkdir -p (dirname $cache)
-        command $tool $subcmd fish >$cache
+        command $tool $subcmd fish $argv[3..] >$cache
     end
     source $cache
 end
 __source_cached_init zoxide
-__source_cached_init starship
+# --print-full-init: plain `starship init fish` emits a one-line stub that
+# runs `starship init fish --print-full-init | psub` at every startup, so
+# the "cache" was still spawning starship, mktemp, cat and rm on each new
+# shell (~7 ms). The full init is the ~90-line script the stub would fetch.
+__source_cached_init starship init --print-full-init
 # Interactive-only mise activation: prepends real tool bins to PATH via a
 # prompt hook so shims are only the non-interactive fallback.
 #
