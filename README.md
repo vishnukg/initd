@@ -138,6 +138,7 @@ Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-com
 `linux/setup.sh` handles things that don't fit the symlink flow:
 - system fixes requiring sudo (`video` group membership for backlight keys, disabling the unused `ModemManager`)
 - the XPS 13's CS35L56 sidecar speaker amplifiers on kernels before 7.2 (a `snd_soc_sof_sdw quirk=65536` modprobe override, gated on the DMI SKU and removed by itself once the kernel carries the quirk)
+- switching off SOF's default speaker compressor and storing that in the ALSA state file so it survives reboots
 - GTK theme + font/cursor gsettings (Fedora has no `fonts-ubuntu` or DMZ-cursor package, so this uses Inter from `rsms-inter-fonts` and the `Adwaita` cursor theme instead), plus matching keyboard gsettings so GNOME gets the same `ctrl:nocaps` and repeat rate as Hyprland
 - session scripts symlinked to absolute `~/.config/` paths that hyprland.lua/Quickshell invoke directly
 - the `hyprmoncfgd` user service for automatic monitor profile switching
