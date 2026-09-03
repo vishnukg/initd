@@ -392,12 +392,13 @@ ShellRoot {
         }
     }
 
-    // Night light state is the gammastep process itself (see
-    // linux/scripts/night-light-toggle.sh): on Wayland the gamma table resets
-    // when the client exits, so "warm" means "gammastep is running". The
-    // toggle script pings `qs ipc call bar refreshNightLight` after every
-    // switch, so the keybind and the bar item never disagree; the 30s timer
-    // only covers gammastep dying on its own.
+    // Night light state is the gammastep process itself, run as the
+    // night-light.service user unit (see linux/scripts/night-light-toggle.sh):
+    // on Wayland the gamma table resets when the client exits, so "warm" means
+    // "gammastep is running". The toggle script pings `qs ipc call bar
+    // refreshNightLight` after every switch — keybind, bulb click or the
+    // 07:00/19:00 schedule timer — so the item never lags; the 30s timer only
+    // covers gammastep dying on its own.
     Process {
         id: nightLightStateProcess
         command: ["sh", "-c", "pgrep -x gammastep >/dev/null && echo on || echo off"]
@@ -656,6 +657,7 @@ ShellRoot {
                             foreground: root.nightLightOn ? "#e8b87a" : "#e8eaf0"
                             tooltipTitle: "Night light"
                             tooltipBody: (root.nightLightOn ? "On (4500 K)" : "Off")
+                                + "\nSchedule: 19:00 – 07:00"
                                 + "\nClick to toggle"
                             clickable: true
                             onClicked: root.start(nightLightToggleProcess)

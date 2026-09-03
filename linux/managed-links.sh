@@ -18,6 +18,11 @@ MANAGED_LINKS+=(
   # its autostart block so graphical-session.target is reached under Hyprland
   # the way it is under GNOME. Nothing enables it; hyprland.lua starts it.
   "${HOME}/.config/systemd/user/initd-hyprland-session.service:${ROOT_DIR}/linux/configs/systemd/user/initd-hyprland-session.service"
+  # Night light: gammastep as a unit, plus the 07:00/19:00 schedule that starts
+  # and stops it. setup.sh enables the schedule timer and oneshot.
+  "${HOME}/.config/systemd/user/night-light.service:${ROOT_DIR}/linux/configs/systemd/user/night-light.service"
+  "${HOME}/.config/systemd/user/night-light-schedule.service:${ROOT_DIR}/linux/configs/systemd/user/night-light-schedule.service"
+  "${HOME}/.config/systemd/user/night-light-schedule.timer:${ROOT_DIR}/linux/configs/systemd/user/night-light-schedule.timer"
 )
 
 # Berkeley Mono — licensed font, gitignored (see .gitignore). shared/fonts/ is

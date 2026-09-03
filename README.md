@@ -98,6 +98,7 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 | `~/.config/fontconfig` | `linux/configs/fontconfig` |
 | `~/.config/gtk-3.0` | `linux/configs/gtk-3.0` |
 | `~/.config/systemd/user/initd-hyprland-session.service` | `linux/configs/systemd/user/initd-hyprland-session.service` |
+| `~/.config/systemd/user/night-light.service`, `night-light-schedule.service`, `night-light-schedule.timer` | `linux/configs/systemd/user/` (gammastep as a unit; warm 19:00–07:00) |
 | `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, Firefox profile glue | linked individually by `linux/setup.sh` (paths are dynamic or outside `~/.config/`) |
 
 ## Machine-local secrets
