@@ -95,11 +95,12 @@ hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictur
 -- process owning every window is exactly what turns that leak into a
 -- session-wide problem; separate processes hand the memory back on close.
 --
--- No opacity flags on either: Linux's 0.92 lives in each terminal's gitignored
--- local.conf (written by linux/setup.sh), so every launcher agrees — these
--- binds, rofi, .desktop entries, docker-menu.sh. A flag would only reach
--- windows opened by that one keybind and leave the rest at the shared config's
--- macOS value (0.58 for both terminals).
+-- No opacity flags on either: Linux's 0.92 is a tracked per-OS config file
+-- (kitty's linux.conf via `include ${KITTY_OS}.conf`; Ghostty's via the
+-- linux.conf link linux/setup.sh places next to the shared config), so every
+-- launcher agrees — these binds, rofi, .desktop entries, docker-menu.sh. A
+-- flag would only reach windows opened by that one keybind and leave the rest
+-- at the shared config's macOS value (0.58 for both terminals).
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
 hl.bind(mod .. " + SHIFT + ALT + Return", hl.dsp.exec_cmd("ghostty"))
 hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("firefox --new-window"))
@@ -113,7 +114,8 @@ hl.bind(mod .. " + SHIFT + F23", hl.dsp.exec_cmd("rofi -show drun"))
 -- Clipboard history (tray-less: linux/setup.sh:disable_copyq_tray sets disable_tray=true)
 hl.bind(mod .. " + c", hl.dsp.exec_cmd("copyq toggle"))
 
--- Toggle night light (moderately warm screen, manual only)
+-- Toggle night light (4500 K via night-light.service; a schedule keeps it on
+-- 19:00–07:00, and this manual toggle stands until the next boundary)
 hl.bind(mod .. " + SHIFT + n", hl.dsp.exec_cmd("~/.config/night-light-toggle.sh"))
 
 -- Lock now / lock-session (hypridle runs hyprlock on loginctl lock-session)
@@ -121,8 +123,9 @@ hl.bind(mod .. " + SHIFT + n", hl.dsp.exec_cmd("~/.config/night-light-toggle.sh"
 hl.bind(mod .. " + CTRL + q",  hl.dsp.exec_cmd("loginctl lock-session"))
 hl.bind(mod .. " + SHIFT + x", hl.dsp.exec_cmd("loginctl lock-session"))
 
--- Re-apply monitor layout for the current hardware state
--- (autorandr --change → hyprctl reload re-evaluates the monitor rules above).
+-- Re-evaluate the config, monitor rules included. hyprmoncfgd already handles
+-- hotplug and lid events on its own; this is the manual nudge (i3's old
+-- "re-apply layout" key).
 hl.bind(mod .. " + SHIFT + m", hl.dsp.exec_cmd("hyprctl reload"))
 
 -- ── Focus / move (i3 vim keys + arrows) ──────────────────────────────────────
