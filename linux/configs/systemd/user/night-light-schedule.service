@@ -1,0 +1,14 @@
+[Unit]
+Description=Apply the night-light schedule (warm 19:00-07:00)
+# Pulled in by graphical-session.target (see [Install]) so a login inside the
+# warm window comes up warm, and fired by night-light-schedule.timer at the two
+# boundaries. The script is idempotent and a manual toggle in between stands
+# until the next boundary.
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/night-light-toggle.sh auto
+
+[Install]
+WantedBy=graphical-session.target

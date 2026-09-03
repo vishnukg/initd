@@ -1,0 +1,12 @@
+[Unit]
+Description=Night light (gammastep at a constant 4500 K)
+# gammastep needs wlr-gamma-control, which GNOME's Mutter does not offer. Both
+# variables are imported into the user manager by hyprland.lua's autostart
+# block, so this unit is simply skipped in any other session.
+ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+# Constant temperature day and night; -l 0:0 skips the location lookup. On stop
+# gammastep fades the gamma back (~4s) before exiting, which systemd waits for.
+ExecStart=/usr/bin/gammastep -P -m wayland -l 0:0 -t 4500:4500
