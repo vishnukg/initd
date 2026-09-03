@@ -6,13 +6,13 @@ set -euo pipefail
 #   - System fixes that need sudo (unused ModemManager off, `video` group for
 #     the backlight keys)
 #   - Session/user-unit state: masking the hypridle/hyprpaper units this repo
-#     autostarts from hyprland.lua instead, enabling hyprmoncfgd, seeding the
-#     hyprmoncfg monitor stub
+#     autostarts from hyprland.lua instead, enabling hyprmoncfgd
 #   - gsettings that GTK/portal apps read (theme, fonts, cursor, keyboard),
 #     kept in sync with hyprland.lua so GNOME and Hyprland feel the same
 #   - Session scripts linked to absolute ~/.config/ paths (the shell uses them)
 #   - Firefox profile glue (profile path is dynamic)
-#   - Speaker EQ: enables PipeWire's filter-chain sink and makes it the default
+#   - Speaker amps: sof_sdw quirk override for the XPS 13's CS35L56 sidecar
+#     amplifiers on kernels older than 7.2 (self-retiring)
 #
 # Wayland/Hyprland only — the old X11 fixes (xorg TearFree, autorandr, picom,
 # xsettingsd, Xresources) are gone; Hyprland handles compositing, monitors and
@@ -100,6 +100,66 @@ disable_modemmanager() {
   log_success "ModemManager disabled (no modem hardware present)."
 }
 
+enable_xps13_sidecar_amps() {
+  # Dell XPS 13 DX13260 (DMI SKU 0E53) has two Cirrus CS35L56 "sidecar" speaker
+  # amplifiers on SPI next to the cs42l43 codec. sof_sdw only wires them into
+  # the sound card when the board quirk SOC_SDW_SIDECAR_AMPS (BIT(16) = 65536)
+  # is set; upstream adds this SKU to the quirk table in commit efd80de2de9d,
+  # which first ships in Linux 7.2-rc5. On older kernels the amps bind to their
+  # driver but never join the card (no cs35l56 mixer controls, firmware
+  # "patched=0") and the codec's tiny built-in amp drives the speakers alone —
+  # thin and harsh. This is the same workaround Omarchy ships as its
+  # dell-xps13-sidecar-amps package: a module option override. The module is
+  # not in Fedora's initramfs, so /etc/modprobe.d is enough; it takes effect on
+  # the next boot. Self-retiring: once the running kernel's module carries the
+  # quirk entry itself, the drop-in is removed.
+  local conf=/etc/modprobe.d/dell-xps13-sidecar-amps.conf
+  local want='options snd_soc_sof_sdw quirk=65536'
+
+  local sku
+  sku="$(cat /sys/class/dmi/id/product_sku 2>/dev/null || true)"
+  if [[ "${sku^^}" != "0E53" ]] || ! grep -qi "DX13260" /sys/class/dmi/id/product_name 2>/dev/null; then
+    return
+  fi
+
+  local module
+  module="$(modinfo -n snd_soc_sof_sdw 2>/dev/null || true)"
+  if [[ -n "${module}" ]] && sof_sdw_module_has_dell_quirk "${module}"; then
+    if [[ -f "${conf}" ]]; then
+      sudo rm -f "${conf}"
+      log_success "Kernel carries the XPS 13 sidecar amp quirk itself; removed ${conf}."
+    else
+      log_success "Kernel carries the XPS 13 sidecar amp quirk itself; no override needed."
+    fi
+    return
+  fi
+
+  if [[ -f "${conf}" ]] && grep -qxF "${want}" "${conf}"; then
+    log_success "XPS 13 sidecar amp override already in place."
+    return
+  fi
+
+  log "Enabling the XPS 13 CS35L56 sidecar speaker amplifiers (sof_sdw quirk override)..."
+  sudo tee "${conf}" >/dev/null <<EOF
+# Dell XPS 13 DX13260 (1028:0e53): enable the CS35L56 sidecar speaker amps.
+# Managed by initd linux/setup.sh; removed automatically once the kernel's
+# sof_sdw carries this quirk itself (Linux 7.2+, commit efd80de2de9d).
+${want}
+EOF
+  log_warn "Reboot to enable the XPS 13 sidecar speaker amplifiers."
+}
+
+# True when the running kernel's snd_soc_sof_sdw already lists the Dell XPS
+# WCL/PTL SKUs in its quirk table (the strings the upstream entry carries).
+sof_sdw_module_has_dell_quirk() {
+  local module="$1"
+  case "${module}" in
+    *.xz)  xz -dc "${module}" ;;
+    *.zst) zstd -dc "${module}" ;;
+    *)     cat "${module}" ;;
+  esac 2>/dev/null | grep -aq 'Dell XPS WCL'
+}
+
 # ── Hyprland session ──────────────────────────────────────────────────────────
 check_hyprland_session() {
   # Fedora's hyprland package ships the GDM session entry; verify it's there so
@@ -126,8 +186,6 @@ mask_desktop_user_units() {
       log_success "Masked ${unit} (autostarted via hyprland.lua instead)."
     fi
   done
-
-  systemctl --user daemon-reload
 }
 
 enable_hyprmoncfg() {
@@ -160,34 +218,6 @@ link_ghostty_linux_conf() {
     ln -s "${src}" "${target}"
     log_success "Linked Ghostty linux.conf -> ${src}"
   fi
-}
-
-seed_hyprmoncfg_monitors() {
-  local target="${HOME}/.config/hypr/hyprmoncfg-monitors.lua"
-
-  if [[ -e "${target}" ]]; then
-    log_success "hyprmoncfg monitor rules already present."
-    return
-  fi
-
-  if [[ ! -d "${HOME}/.config/hypr" ]]; then
-    log_warn "~/.config/hypr missing; skipping hyprmoncfg monitor stub."
-    return
-  fi
-
-  # hyprland.lua ends with a bare dofile() of this path, and hyprmoncfg insists on
-  # that exact unprotected form (it re-appends it whenever its rules fail to load).
-  # The file itself is generated and gitignored, so it does not exist until the
-  # first profile is saved — without a stub, dofile() aborts config parsing on a
-  # fresh bootstrap. An empty stub is valid Lua and leaves the static fallback
-  # rules in hyprland.lua in effect; hyprmoncfg overwrites it on first apply.
-  cat > "${target}" <<'EOF'
--- Placeholder seeded by linux/setup.sh so hyprland.lua's dofile() has a target
--- before the first hyprmoncfg profile exists. hyprmoncfg overwrites this file
--- with the real monitor rules as soon as a profile is applied; until then the
--- static hl.monitor() fallbacks near the top of hyprland.lua are what apply.
-EOF
-  log_success "Seeded hyprmoncfg monitor stub (no profile saved yet)."
 }
 
 # ── Config glue (special-case paths) ─────────────────────────────────────────
@@ -238,35 +268,46 @@ link_session_scripts() {
   done
 }
 
-# Resolves the active Firefox profile directory, creating a fresh profile
-# non-interactively if none exists yet. Prints the profile dir and returns 0,
-# or prints nothing and returns 1. Shared by link_firefox_profile and
-# set_firefox_default_zoom.
+# Firefox's profile root varies by install/version:
+#   - legacy ~/.mozilla/firefox — used whenever it exists (takes priority)
+#   - XDG ~/.config/mozilla/firefox — Firefox 143+ default when no legacy dir
+# Match Firefox's own resolution order: legacy first, then XDG.
+find_firefox_profile_root() {
+  local candidate
+  for candidate in \
+    "${HOME}/.mozilla/firefox" \
+    "${XDG_CONFIG_HOME:-${HOME}/.config}/mozilla/firefox"
+  do
+    if [[ -f "${candidate}/profiles.ini" ]]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Resolves the active Firefox profile directory into FIREFOX_PROFILE_DIR
+# (empty when there is none), creating a fresh profile non-interactively if
+# Firefox is installed but has never run. Shared by link_firefox_profile and
+# set_firefox_default_zoom; the lookup runs once per setup.sh invocation, so
+# profiles.ini is parsed (and any profile created) a single time. Sets a
+# global rather than printing because a `$(...)` caller would run in a
+# subshell and lose the cache.
+FIREFOX_PROFILE_DIR=""
+FIREFOX_PROFILE_RESOLVED=0
 resolve_firefox_profile_dir() {
+  [[ "${FIREFOX_PROFILE_RESOLVED}" == "1" ]] && return
+  FIREFOX_PROFILE_RESOLVED=1
+  FIREFOX_PROFILE_DIR="$(find_firefox_profile_dir || true)"
+}
+
+find_firefox_profile_dir() {
   if ! command -v python3 >/dev/null 2>&1; then
     log_warn "python3 not available — skipping firefox profile detection."
     return 1
   fi
 
-  # Firefox's profile root varies by install/version:
-  #   - legacy ~/.mozilla/firefox — used whenever it exists (takes priority)
-  #   - XDG ~/.config/mozilla/firefox — Firefox 143+ default when no legacy dir
-  # Match Firefox's own resolution order: legacy first, then XDG.
-  local moz_dir=""
-  local candidate
-  find_firefox_profile_root() {
-    for candidate in \
-      "${HOME}/.mozilla/firefox" \
-      "${XDG_CONFIG_HOME:-${HOME}/.config}/mozilla/firefox"
-    do
-      if [[ -f "${candidate}/profiles.ini" ]]; then
-        printf '%s\n' "${candidate}"
-        return 0
-      fi
-    done
-    return 1
-  }
-
+  local moz_dir
   moz_dir="$(find_firefox_profile_root || true)"
 
   # A freshly installed Firefox has no profiles.ini until its first launch.
@@ -315,8 +356,8 @@ PYEOF
 }
 
 link_firefox_profile() {
-  local ff_dir
-  ff_dir="$(resolve_firefox_profile_dir || true)"
+  resolve_firefox_profile_dir
+  local ff_dir="${FIREFOX_PROFILE_DIR}"
   if [[ -z "${ff_dir}" ]]; then
     log "No firefox profile present — skipping."
     return
@@ -345,8 +386,8 @@ set_firefox_default_zoom() {
   # Firefox's Zoom UI reads per-site full-zoom levels from content-prefs.sqlite,
   # not from any user.js pref — this sets 133% as the default for any site
   # that doesn't already have its own saved zoom level.
-  local ff_dir
-  ff_dir="$(resolve_firefox_profile_dir || true)"
+  resolve_firefox_profile_dir
+  local ff_dir="${FIREFOX_PROFILE_DIR}"
   [[ -z "${ff_dir}" ]] && return
 
   local content_prefs="${ff_dir}/content-prefs.sqlite"
@@ -468,38 +509,6 @@ add_user_to_video_group() {
   log_warn "Log out and back in for the video group to take effect."
 }
 
-enable_audio_eq() {
-  # Corrects the XPS 13 cs42l43 speakers' thin/tinny stock output — see
-  # linux/configs/pipewire/filter-chain.conf.d/sink-eq6.conf for the curve
-  # itself. filter-chain.service (a stock PipeWire unit) loads that config
-  # and creates the "Equalizer Sink" node; this just wires it up as the
-  # default output with makeup gain, since removing that much energy from
-  # the upper-mid/treble drops perceived loudness.
-  if ! command -v pactl >/dev/null 2>&1; then
-    log_warn "pactl not found; skipping audio EQ setup."
-    return
-  fi
-
-  systemctl --user enable --now filter-chain.service >/dev/null 2>&1
-
-  local attempt
-  for attempt in $(seq 1 10); do
-    if pactl list short sinks 2>/dev/null | grep -q "effect_input.eq6"; then
-      break
-    fi
-    sleep 0.5
-  done
-
-  if ! pactl list short sinks 2>/dev/null | grep -q "effect_input.eq6"; then
-    log_warn "effect_input.eq6 sink never appeared; skipping default-sink/volume setup."
-    return
-  fi
-
-  pactl set-default-sink effect_input.eq6
-  pactl set-sink-volume effect_input.eq6 105%
-  log_success "Audio EQ enabled (Equalizer Sink set as default, 105% makeup gain)."
-}
-
 # ── Service restarts (apply config changes without a reboot) ─────────────────
 restart_dunst() {
   if pgrep -x dunst >/dev/null 2>&1; then
@@ -559,11 +568,11 @@ main() {
   install_firacode_nerd_font
   install_symbols_nerd_font
   disable_modemmanager
+  enable_xps13_sidecar_amps
   check_hyprland_session
   mask_desktop_user_units
   enable_hyprmoncfg
   link_ghostty_linux_conf
-  seed_hyprmoncfg_monitors
 
   apply_gsettings_theme
   apply_gsettings_keyboard
@@ -574,7 +583,6 @@ main() {
   link_firefox_profile
   set_firefox_default_zoom
   add_user_to_video_group
-  enable_audio_eq
 
   restart_dunst
 
