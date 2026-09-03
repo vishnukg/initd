@@ -18,7 +18,23 @@ UNIT=night-light.service
 ON_HOUR=19
 OFF_HOUR=7
 
-is_on() { systemctl --user is-active --quiet "${UNIT}"; }
+# "On" means the unit is active OR a gammastep is running outside it (a stray
+# from a crash or an older version of this script). Strays matter: Hyprland
+# refuses a second gamma controller for an output and then (0.56.2) leaks the
+# refused entry, locking gamma control for the rest of the session — so they
+# are always killed, never coexisted with.
+is_on() { systemctl --user is-active --quiet "${UNIT}" || pgrep -x gammastep >/dev/null 2>&1; }
+
+kill_strays() {
+  systemctl --user is-active --quiet "${UNIT}" && return 0
+  pgrep -x gammastep >/dev/null 2>&1 || return 0
+  pkill -x gammastep
+  # gammastep fades the gamma back (~4s) before exiting; bounded wait.
+  i=0
+  while pgrep -x gammastep >/dev/null 2>&1 && [ "${i}" -lt 80 ]; do
+    sleep 0.1; i=$((i + 1))
+  done
+}
 
 notify() {
   notify-send -t 1500 -h string:x-canonical-private-synchronous:nightlight \
@@ -47,7 +63,8 @@ case "${1:-toggle}" in
 esac
 
 if [ "${want}" = on ]; then
-  if ! is_on; then
+  if ! systemctl --user is-active --quiet "${UNIT}"; then
+    kill_strays
     # A failed ConditionEnvironment (e.g. under GNOME) is not an error, so check
     # the result rather than the exit status before announcing anything.
     systemctl --user start "${UNIT}" 2>/dev/null
@@ -57,6 +74,7 @@ else
   if is_on; then
     # stop waits for gammastep's fade-out, so the bar refresh below sees it gone.
     systemctl --user stop "${UNIT}" 2>/dev/null
+    kill_strays
     notify "" "Off"
   fi
 fi
