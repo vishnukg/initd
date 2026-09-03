@@ -184,6 +184,16 @@ __source_cached_init starship init --print-full-init
 # without it.
 function __initd_mise_activate --on-event fish_preexec
     functions -e __initd_mise_activate
+    # No PWD hook. mise's activate script otherwise re-evaluates the whole
+    # toolset on every directory change AND again at the next prompt, and the
+    # prompt hook alone is enough: fish_prompt handlers run before the prompt
+    # is drawn, so the environment is current by the time anything can be
+    # typed. Measured on 56 tools: cd + prompt 147 ms -> 99 ms, with node
+    # switching versions identically on entering and leaving a project. The
+    # remaining ~88 ms is mise walking every tool (mostly npm dependency
+    # trees, ~8,700 stats) even when it then emits nothing - mise's own cost,
+    # unaffected by hook_env.cache_ttl, hook_env.chpwd_only or env_cache.
+    set -g mise_fish_mode disable_arrow
     __source_cached_init mise activate
 end
 

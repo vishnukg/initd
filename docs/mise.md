@@ -92,6 +92,13 @@ This repo uses **both**, each where it is strongest:
   activated environment; only the empty first prompt is drawn without it.
   Measured: shell startup 100 ms → 40 ms.
 
+  It also sets `mise_fish_mode disable_arrow` before sourcing. mise's script
+  otherwise installs a PWD hook that re-evaluates the toolset on every `cd`
+  and then again at the next prompt; the prompt hook alone suffices, since
+  fish_prompt handlers run before the prompt is drawn. cd + prompt: 147 ms →
+  99 ms. The remainder is mise re-walking all 56 tools on a directory change
+  even when nothing changed, which none of its caching settings avoid.
+
 Fish also sets `MISE_FISH_AUTO_ACTIVATE=0` in
 `~/.config/fish/conf.d/00-initd-env.fish`. mise's Homebrew formula ships a
 vendor conf.d hook that would run `mise activate fish | source` (uncached) on
