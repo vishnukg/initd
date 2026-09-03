@@ -7,6 +7,11 @@ ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland
 ConditionEnvironment=WAYLAND_DISPLAY
 
 [Service]
+# Never let two gammasteps coexist. Hyprland (0.56.2) refuses a second gamma
+# controller for an output — correct — but then leaks the refused entry, so
+# every later controller for that output is refused until the compositor
+# restarts. Killing any stray first is what keeps that path unreachable.
+ExecStartPre=-/usr/bin/pkill -x gammastep
 # Constant temperature day and night; -l 0:0 skips the location lookup. On stop
 # gammastep fades the gamma back (~4s) before exiting, which systemd waits for.
 ExecStart=/usr/bin/gammastep -P -m wayland -l 0:0 -t 4500:4500
