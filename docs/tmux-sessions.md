@@ -19,7 +19,9 @@ tmux server (one per machine, invisible)
 - **Window** — a tab inside a session.
 - **Pane** — a split inside a window.
 
-The session name shows in the bottom-left of your status bar in green.
+The session name shows in the bottom-left of your status bar in green. The
+bottom-right shows the active pane's git branch (only inside a repository),
+battery, and the clock.
 
 ---
 

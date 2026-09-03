@@ -163,8 +163,19 @@ end
 __source_cached_init zoxide
 __source_cached_init starship
 # Interactive-only mise activation: prepends real tool bins to PATH via a
-# prompt hook (~20ms/prompt) so shims are only the non-interactive fallback.
-__source_cached_init mise activate
+# prompt hook so shims are only the non-interactive fallback.
+#
+# Deferred to the first command rather than run at startup: activation's
+# initial `mise hook-env` is ~65 ms, two thirds of a new tab's startup, and
+# it buys nothing until a command runs - the shims above already resolve
+# every tool for the prompt itself. fish_preexec fires before the first
+# typed command executes, so that command (and every prompt after it) sees
+# the fully activated environment; only the empty first prompt is drawn
+# without it.
+function __initd_mise_activate --on-event fish_preexec
+    functions -e __initd_mise_activate
+    __source_cached_init mise activate
+end
 
 # ── Local overrides (machine-specific, not committed) ─────────────────────────
 if test -f ~/.config/fish/local.fish
