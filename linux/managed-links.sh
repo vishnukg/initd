@@ -18,6 +18,9 @@ MANAGED_LINKS+=(
   # its autostart block so graphical-session.target is reached under Hyprland
   # the way it is under GNOME. Nothing enables it; hyprland.lua starts it.
   "${HOME}/.config/systemd/user/initd-hyprland-session.service:${ROOT_DIR}/linux/configs/systemd/user/initd-hyprland-session.service"
+  # Drop-in that makes the packaged hyprmoncfgd unit Hyprland-only; the
+  # start ordering itself is done by setup.sh (add-wants graphical-session).
+  "${HOME}/.config/systemd/user/hyprmoncfgd.service.d:${ROOT_DIR}/linux/configs/systemd/user/hyprmoncfgd.service.d"
   # Night light: gammastep as a unit, plus the 07:00/19:00 schedule that starts
   # and stops it. setup.sh enables the schedule timer and oneshot.
   "${HOME}/.config/systemd/user/night-light.service:${ROOT_DIR}/linux/configs/systemd/user/night-light.service"

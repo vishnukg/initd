@@ -189,13 +189,17 @@ disable_speaker_drc() {
   # every boot, so the live change has to be stored there too or it reverts.
   local control='Post Mixer Speaker Playback DRC switch'
   local state=/var/lib/alsa/asound.state
+  # By card name, not index: with pipewire-alsa installed `amixer -c 0`
+  # resolves to PipeWire's "sysdefault" plug device, which cannot find the
+  # hardware controls by name, so the step would silently skip.
+  local dev=hw:sofsoundwire
 
-  if ! amixer -c 0 cget name="${control}" >/dev/null 2>&1; then
+  if ! amixer -D "${dev}" cget name="${control}" >/dev/null 2>&1; then
     return   # not this sound card / topology
   fi
 
   local live stored
-  live="$(amixer -c 0 cget name="${control}" | grep -oE 'values=(on|off)' | cut -d= -f2)"
+  live="$(amixer -D "${dev}" cget name="${control}" | grep -oE 'values=(on|off)' | cut -d= -f2)"
   stored="$(grep -A1 -F "name '${control}'" "${state}" 2>/dev/null | grep -oE 'value (true|false)' | cut -d' ' -f2)"
 
   if [[ "${live}" == "off" && "${stored}" == "false" ]]; then
@@ -203,7 +207,7 @@ disable_speaker_drc() {
     return
   fi
 
-  [[ "${live}" == "off" ]] || amixer -c 0 cset name="${control}" off >/dev/null
+  [[ "${live}" == "off" ]] || amixer -D "${dev}" cset name="${control}" off >/dev/null
   sudo alsactl store
   log_success "Speaker DRC switched off and stored in ${state}."
 }
@@ -241,9 +245,23 @@ enable_hyprmoncfg() {
     log_warn "hyprmoncfgd not found; skipping monitor profile service."
     return
   fi
+  # Start it from graphical-session.target, not the packaged default.target:
+  # that target is reached (via initd-hyprland-session.service) only once
+  # Hyprland is up and the session env is imported, so the daemon's first
+  # apply succeeds instead of failing and waiting for a poll. The managed
+  # drop-in adds ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland so GNOME
+  # sessions, which also reach that target, never start it.
+  local wants="${HOME}/.config/systemd/user/graphical-session.target.wants/hyprmoncfgd.service"
+  local default_want="${HOME}/.config/systemd/user/default.target.wants/hyprmoncfgd.service"
   systemctl --user daemon-reload
-  systemctl --user enable --now hyprmoncfgd.service
-  log_success "hyprmoncfg monitor profile service enabled."
+  if [[ -L "${wants}" && ! -e "${default_want}" ]]; then
+    log_success "hyprmoncfgd already wired to graphical-session.target."
+  else
+    [[ -e "${default_want}" ]] && systemctl --user disable hyprmoncfgd.service >/dev/null 2>&1
+    systemctl --user add-wants graphical-session.target hyprmoncfgd.service >/dev/null 2>&1
+    log_success "hyprmoncfgd wired to graphical-session.target (Hyprland-only)."
+  fi
+  systemctl --user start hyprmoncfgd.service >/dev/null 2>&1 || true
 }
 
 enable_night_light_schedule() {
