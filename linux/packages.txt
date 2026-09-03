@@ -52,6 +52,17 @@ network-manager-applet
 blueman
 copyq
 
+# ── Audio tuning ──────────────────────────────────────────────────────────────
+# EasyEffects sits between apps and the speakers with a live-tunable EQ /
+# compressor / limiter. Its effects are LV2 plugins it only *recommends*, and
+# bootstrap installs with weak deps off, so the ones it actually loads are
+# listed here: LSP (equalizer, compressor, limiter), Calf (bass enhancer,
+# exciter), Zam (a few dynamics). mdala and the Breeze theme are skipped.
+easyeffects
+lsp-plugins-lv2
+lv2-calf-plugins
+lv2-zam-plugins
+
 # ── Theming ───────────────────────────────────────────────────────────────────
 # apply_gsettings_theme sets icon-theme to "Papirus-Dark" specifically; the
 # base papirus-icon-theme package doesn't include those files, only this does.
