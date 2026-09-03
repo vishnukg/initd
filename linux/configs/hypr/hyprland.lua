@@ -212,7 +212,8 @@ end)
 
 -- ── Look & feel ───────────────────────────────────────────────────────────────
 hl.config({
-    -- Gaps match i3 (inner 10, outer 4 → Hyprland gaps_in is per-side).
+    -- gaps_in is per-side, so 5 gives i3's 10px between windows; the outer gap
+    -- grew from i3's 4 to 14 to let the rounded corners and blur breathe.
     general = {
         gaps_in = 5,
         gaps_out = 14,
