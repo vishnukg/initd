@@ -79,20 +79,16 @@ input latency observed at 1.25x fractional scaling.
 itself. Do not commit or manually edit that file: `hyprland.lua` loads it with
 `dofile(os.getenv("HOME") .. "/.config/hypr/hyprmoncfg-monitors.lua")` at the
 end of the file (after everything else, so nothing can override the applied
-layout), and the daemon rewrites it as profiles change. `~/.config/hypr/monitors.lua`
-is a leftover from an older `hyprmoncfg` version that wrote there instead;
-`hyprland.lua` still loads it too, via `pcall(require, "monitors")`, but
-`hyprmoncfg` itself now leaves it alone — anything you put there yourself is
-kept, and loaded before the daemon's own file.
+layout), and the daemon rewrites it as profiles change. (Older `hyprmoncfg`
+versions wrote `~/.config/hypr/monitors.lua` instead; that file is no longer
+generated or loaded, so it can be deleted if one is still lying around.)
 
-That `dofile` is deliberately left unprotected. `hyprmoncfg` verifies after every
-reload that its rules actually ran and re-appends that exact line when they did
-not, so wrapping it in `pcall` only earns a duplicate loader on the next apply.
-Because the target is generated and gitignored, it does not exist on a fresh
-bootstrap until the first profile is saved — and a missing target makes `dofile`
-abort config parsing. `linux/setup.sh:seed_hyprmoncfg_monitors` closes that gap by
-writing a comment-only stub when the file is absent, which leaves the static
-fallback rules in `hyprland.lua` in effect until `hyprmoncfg` overwrites it.
+`hyprmoncfg` owns that loader line. Since 1.17 it writes a guarded form — open the
+file, `dofile` it only if it exists — and verifies after every reload that its
+rules ran, rewriting the line at the end of `hyprland.lua` if not. Keep it verbatim:
+editing it only earns a rewrite on the next apply. Because the target is generated
+and gitignored it is absent on a fresh bootstrap, and the guard makes that a no-op,
+so the static fallback rules in `hyprland.lua` apply until the first profile does.
 
 Keep one profile per real desk, dock, projector, or travel setup; every JSON
 profile is considered when the daemon chooses a match.

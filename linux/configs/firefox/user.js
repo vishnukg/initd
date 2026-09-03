@@ -12,7 +12,7 @@ user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
 user_pref("browser.tabs.inTitlebar", 1);
 
 // Round the GTK CSD window corners on Wayland, matching Hyprland's
-// decoration.rounding = 12 in hyprland.conf.
+// decoration.rounding = 12 in hyprland.lua.
 user_pref("widget.gtk.rounded-bottom-corners.enabled", true);
 
 // Use Firefox's normal density so toolbar controls have comfortable spacing.

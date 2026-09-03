@@ -79,11 +79,14 @@ ensure_docker() {
 }
 
 ensure_coprs() {
+  # `dnf copr list` prints every repo it knows about, including ones that were
+  # later disabled ("…/owner/name (disabled)"). Only an enabled line counts,
+  # otherwise a disabled COPR is skipped here and its packages fail to resolve.
   local enabled
-  enabled="$(dnf copr list 2>/dev/null)"
+  enabled="$(dnf copr list 2>/dev/null | grep -v '(disabled)' || true)"
   local copr
   for copr in "$@"; do
-    if grep -qF "${copr}" <<< "${enabled}"; then
+    if grep -qF "/${copr}" <<< "${enabled}"; then
       continue
     fi
     log "Enabling COPR ${copr}..."
@@ -117,8 +120,8 @@ install_packages() {
     log "Installing ${#missing[@]} dnf package(s): ${missing[*]}"
     # --setopt=install_weak_deps=False: this list is meant to be the exact,
     # curated set of packages installed — not that plus whatever every
-    # package's Recommends happens to pull in transaction-wide (e.g. nwg-bar,
-    # nwg-panel, and kitty have all been observed sneaking in this way).
+    # package's Recommends happens to pull in transaction-wide (nwg-bar and
+    # nwg-panel have been observed sneaking in this way).
     sudo dnf install -y --setopt=install_weak_deps=False "${missing[@]}"
     log_success "dnf packages installed."
   fi
@@ -152,12 +155,14 @@ ensure_mise() {
 
 ensure_gh() {
   if command -v gh >/dev/null 2>&1; then
+    log_success "gh CLI already installed."
     return
   fi
   log "Installing gh CLI from official dnf repo..."
   # Per https://github.com/cli/cli/blob/trunk/docs/install_linux.md
   sudo dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
   sudo dnf install -y gh
+  log_success "gh CLI installed."
 }
 
 ensure_1password() {
