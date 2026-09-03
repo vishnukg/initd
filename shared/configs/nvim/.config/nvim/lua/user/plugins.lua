@@ -165,10 +165,26 @@ return require("lazy").setup({
 	{
 		"MeanderingProgrammer/render-markdown.nvim",
 		dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
-		ft = { "markdown" },
-		-- latex off: no LaTeX parser/renderer (utftex, latex2text) is installed,
-		-- and render-markdown's healthcheck warns for as long as it is enabled.
-		opts = { enabled = true, latex = { enabled = false } },
+		-- BufReadPre on *.md rather than ft = "markdown": lazy.nvim re-fires the
+		-- FileType event after an ft-triggered load, which re-ran the markdown
+		-- ftplugin and, on that second pass, sourced Neovim's legacy markdown
+		-- syntax plus the html/css/xml/javascript/yaml syntax files it pulls in
+		-- (~16 ms) even though treesitter was already highlighting. Loading
+		-- before FileType is set means it fires once and legacy syntax is
+		-- skipped, as Neovim does when treesitter is active.
+		event = { "BufReadPre *.md", "BufNewFile *.md" },
+		opts = {
+			enabled = true,
+			-- latex off: no LaTeX parser/renderer (utftex, latex2text) is
+			-- installed, and the healthcheck warns for as long as it is enabled.
+			latex = { enabled = false },
+			-- Its default completion integration is nvim-cmp, which it requires
+			-- on attach — and lazy.nvim then loads nvim-cmp, LuaSnip, the
+			-- snippet collection and every source (~45 ms) on every markdown
+			-- open, not on InsertEnter. The in-process LSP source needs none of
+			-- that; nvim-cmp still gets it through cmp-nvim-lsp when it loads.
+			completions = { lsp = { enabled = true } },
+		},
 	},
 
 	-- ── Language-specific ─────────────────────────────────────────────────────
