@@ -34,7 +34,7 @@ initd/
     ├── update.sh
     ├── scripts/                 # session scripts invoked by hyprland.lua/Quickshell
     └── configs/                 # hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig,
-                                 #   pipewire, systemd, gtk-3.0, ghostty, firefox
+                                 #   systemd, gtk-3.0, ghostty, firefox
 ```
 
 ## Usage
@@ -97,7 +97,6 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 | `~/.config/dunst` | `linux/configs/dunst` |
 | `~/.config/fontconfig` | `linux/configs/fontconfig` |
 | `~/.config/gtk-3.0` | `linux/configs/gtk-3.0` |
-| `~/.config/pipewire` | `linux/configs/pipewire` |
 | `~/.config/systemd/user/initd-hyprland-session.service` | `linux/configs/systemd/user/initd-hyprland-session.service` |
 | `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, Firefox profile glue | linked individually by `linux/setup.sh` (paths are dynamic or outside `~/.config/`) |
 
@@ -137,7 +136,7 @@ Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-com
 
 `linux/setup.sh` handles things that don't fit the symlink flow:
 - system fixes requiring sudo (`video` group membership for backlight keys, disabling the unused `ModemManager`)
-- a 6-band PipeWire EQ for the laptop speakers, set as the default sink with makeup gain (`linux/configs/pipewire/`)
+- the XPS 13's CS35L56 sidecar speaker amplifiers on kernels before 7.2 (a `snd_soc_sof_sdw quirk=65536` modprobe override, gated on the DMI SKU and removed by itself once the kernel carries the quirk)
 - GTK theme + font/cursor gsettings (Fedora has no `fonts-ubuntu` or DMZ-cursor package, so this uses Inter from `rsms-inter-fonts` and the `Adwaita` cursor theme instead), plus matching keyboard gsettings so GNOME gets the same `ctrl:nocaps` and repeat rate as Hyprland
 - session scripts symlinked to absolute `~/.config/` paths that hyprland.lua/Quickshell invoke directly
 - the `hyprmoncfgd` user service for automatic monitor profile switching

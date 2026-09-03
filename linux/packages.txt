@@ -53,7 +53,6 @@ blueman
 copyq
 
 # ── Theming ───────────────────────────────────────────────────────────────────
-arc-theme
 # apply_gsettings_theme sets icon-theme to "Papirus-Dark" specifically; the
 # base papirus-icon-theme package doesn't include those files, only this does.
 papirus-icon-theme
