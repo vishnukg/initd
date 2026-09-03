@@ -14,8 +14,8 @@
 # escapes also work in macOS's bash 3.2 printf, where \u does not.
 #   \356\202\266  U+E0B6  nf-ple-left_half_circle_thick   (pill left cap)
 #   \356\202\264  U+E0B4  nf-ple-right_half_circle_thick  (pill right cap)
-#   \363\260\230\254  U+F062C  nf-md-source_branch         (branch icon; #3d9ee0 is a deeper
-#                     electric blue, distinct from the clock pill's #7aa2f7)
+#   \363\260\230\254  U+F062C  nf-md-source_branch         (branch icon; #4ec994 is the active-tab
+#                     green; the name stays bold like the date pill's text)
 dir="$1"
 [[ -d "$dir" ]] || exit 0
 
@@ -27,4 +27,4 @@ branch="$(git -C "$dir" symbolic-ref --short -q HEAD 2>/dev/null)" ||
 max=28
 (( ${#branch} > max )) && branch="${branch:0:max-1}…"
 
-printf '#[fg=#111116,bg=default]\356\202\266#[fg=#3d9ee0,bg=#111116,bold]\363\260\230\254 #[fg=#9aa5ce,nobold]%s #[fg=#111116,bg=default]\356\202\264 ' "$branch"
+printf '#[fg=#111116,bg=default]\356\202\266#[fg=#4ec994,bg=#111116,bold]\363\260\230\254 #[fg=#9aa5ce]%s #[fg=#111116,bg=default]\356\202\264 ' "$branch"
