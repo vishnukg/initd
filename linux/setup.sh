@@ -6,7 +6,8 @@ set -euo pipefail
 #   - System fixes that need sudo (unused ModemManager off, `video` group for
 #     the backlight keys)
 #   - Session/user-unit state: masking the hypridle/hyprpaper units this repo
-#     autostarts from hyprland.lua instead, enabling hyprmoncfgd
+#     autostarts from hyprland.lua instead, enabling hyprmoncfgd and the
+#     night-light schedule timer
 #   - gsettings that GTK/portal apps read (theme, fonts, cursor, keyboard),
 #     kept in sync with hyprland.lua so GNOME and Hyprland feel the same
 #   - Session scripts linked to absolute ~/.config/ paths (the shell uses them)
@@ -196,6 +197,18 @@ enable_hyprmoncfg() {
   systemctl --user daemon-reload
   systemctl --user enable --now hyprmoncfgd.service
   log_success "hyprmoncfg monitor profile service enabled."
+}
+
+enable_night_light_schedule() {
+  # Units are managed links (linux/managed-links.sh). The timer fires `auto`
+  # at 07:00 and 19:00; the oneshot is also wanted by graphical-session.target
+  # so a login inside the warm window comes up warm. Start the oneshot now so
+  # the current schedule applies without waiting for a boundary.
+  systemctl --user daemon-reload
+  systemctl --user enable --now night-light-schedule.timer >/dev/null 2>&1
+  systemctl --user enable night-light-schedule.service >/dev/null 2>&1
+  systemctl --user start night-light-schedule.service >/dev/null 2>&1 || true
+  log_success "Night-light schedule enabled (warm 19:00-07:00)."
 }
 
 link_ghostty_linux_conf() {
@@ -572,6 +585,7 @@ main() {
   check_hyprland_session
   mask_desktop_user_units
   enable_hyprmoncfg
+  enable_night_light_schedule
   link_ghostty_linux_conf
 
   apply_gsettings_theme
