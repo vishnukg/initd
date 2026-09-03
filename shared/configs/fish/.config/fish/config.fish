@@ -160,7 +160,12 @@ function __source_cached_init --argument-names tool subcmd
     set -q subcmd[1]; or set subcmd init
     command -q $tool; or return
     set -l cache ~/.cache/fish/{$tool}_{$subcmd}.fish
-    if not test -f $cache; or test (command -v $tool) -nt $cache
+    # Also regenerate when this config is newer than the cache: the arguments
+    # baked into a cache (starship's --print-full-init) change here, not in
+    # the binary, and a machine with an existing cache would otherwise keep
+    # sourcing the old output for as long as the binary stays the same.
+    if not test -f $cache; or test (command -v $tool) -nt $cache; \
+            or test $__fish_config_dir/config.fish -nt $cache
         mkdir -p (dirname $cache)
         command $tool $subcmd fish $argv[3..] >$cache
     end
