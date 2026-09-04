@@ -105,18 +105,16 @@ vendor conf.d hook that would run `mise activate fish | source` (uncached) on
 every shell; disabling it keeps the cached call in `config.fish` as the single
 activation path on both macOS and Linux.
 
-For startup speed, `config.fish` also adds the direct install directories for a
-couple of prompt-time tools when they exist (these run during shell init,
-before the first prompt hook has fired):
-
-```fish
-if test -d ~/.local/share/mise/installs/starship/latest
-    fish_add_path ~/.local/share/mise/installs/starship/latest
-end
-if test -d ~/.local/share/mise/installs/zoxide/latest
-    fish_add_path ~/.local/share/mise/installs/zoxide/latest
-end
-```
+`config.fish` deliberately does **not** put any `~/.local/share/mise/installs/…`
+directory on PATH itself. It used to add starship's and zoxide's so the prompt
+would skip the shim, but mise's `hook-env` treats install dirs it finds in the
+inherited PATH as already covered: it leaves them out of the tool list it
+prepends and moves them to the very end of PATH, behind the shims. The result
+was the opposite of the intent — in every activated shell `zoxide` resolved to
+the shim, so its PWD hook cost ~26 ms per `cd` instead of ~2.5 ms (measured
+2026-09-04). Left to mise, both dirs land at the front of PATH on activation.
+starship never needed the entry: its cached init embeds the absolute binary
+path, so the prompt does not consult PATH at all.
 
 ## Why the hybrid
 
