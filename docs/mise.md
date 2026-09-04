@@ -85,19 +85,22 @@ This repo uses **both**, each where it is strongest:
   exec the actual binary directly.
 
   It is deferred to the first command on purpose. Activation's initial
-  `mise hook-env` costs ~65 ms — two thirds of a new tab's shell startup —
-  and buys nothing until a command runs, since the shims already resolve
-  every tool for the prompt itself. `fish_preexec` fires before the first
-  typed command executes, so that command and every prompt after it see the
-  activated environment; only the empty first prompt is drawn without it.
-  Measured: shell startup 100 ms → 40 ms.
+  `mise hook-env` costs ~23 ms — more than a new tab's entire ~16 ms shell
+  startup — and buys nothing until a command runs, since the shims already
+  resolve every tool for the prompt itself. `fish_preexec` fires before the
+  first typed command executes, so that command and every prompt after it see
+  the activated environment; only the empty first prompt is drawn without it.
+  Interactive shell startup measures ~16 ms (non-interactive ~6 ms).
 
   It also sets `mise_fish_mode disable_arrow` before sourcing. mise's script
   otherwise installs a PWD hook that re-evaluates the toolset on every `cd`
   and then again at the next prompt; the prompt hook alone suffices, since
-  fish_prompt handlers run before the prompt is drawn. cd + prompt: 147 ms →
-  99 ms. The remainder is mise re-walking all 56 tools on a directory change
-  even when nothing changed, which none of its caching settings avoid.
+  fish_prompt handlers run before the prompt is drawn. cd + prompt is ~30 ms
+  on 54 tools, ~23 ms of it the `hook-env` run: mise does a full
+  re-evaluation on every directory change (it schedules its enter/leave hooks
+  there), so `hook_env.cache_ttl` and `hook_env.chpwd_only` cannot skip it —
+  both measure the same ~23 ms. A prompt in the same directory takes the
+  early-exit path at ~7 ms.
 
 Fish also sets `MISE_FISH_AUTO_ACTIVATE=0` in
 `~/.config/fish/conf.d/00-initd-env.fish`. mise's Homebrew formula ships a
@@ -133,9 +136,9 @@ The hybrid costs and gains:
 - **Per interactive shell startup:** sourcing the cached activation script
   (~1ms). The script itself is regenerated only when the mise binary's mtime
   changes (i.e. after an upgrade) — same invalidation as zoxide/starship.
-- **Per prompt:** one `mise hook-env` call (~20ms), which short-circuits
-  unless a mise config file changed. This replaces the ~25ms previously paid
-  on *every tool launch*.
+- **Per prompt:** one `mise hook-env` call — ~7 ms when the directory and
+  config files are unchanged (early exit), ~23 ms after a `cd`. This replaces
+  the ~25ms previously paid on *every tool launch*.
 - **Non-interactive contexts** are unchanged: shims stay on PATH as the
   fallback and keep working everywhere.
 

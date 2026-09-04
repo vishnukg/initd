@@ -5,8 +5,9 @@
 #
 # Branch only, deliberately: a dirty/ahead indicator needs `git status`, which
 # walks the tree and can take hundreds of ms in a big repo — too much for a
-# one-second status interval. symbolic-ref is a single file read (~1 ms) and
-# handles worktrees and submodules; detached HEAD falls back to the short sha.
+# one-second status interval. symbolic-ref is a single file read (~4 ms with
+# Homebrew git; the whole script is ~7 ms with bash startup) and handles
+# worktrees and submodules; detached HEAD falls back to the short sha.
 #
 # Glyphs are written as UTF-8 octal escapes rather than literal characters:
 # they are Private Use Area code points that editors and terminals happily
