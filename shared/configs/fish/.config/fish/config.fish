@@ -1,7 +1,7 @@
 # ── Homebrew (Apple Silicon) ──────────────────────────────────────────────────
 if test -x /opt/homebrew/bin/brew
     set -gx HOMEBREW_PREFIX /opt/homebrew
-    fish_add_path /opt/homebrew/bin /opt/homebrew/sbin
+    fish_add_path -g /opt/homebrew/bin /opt/homebrew/sbin
     # Trailing '' exports as a trailing colon, telling man to also search default paths.
     set -gx MANPATH /opt/homebrew/share/man $MANPATH ''
 end
@@ -10,6 +10,11 @@ end
 # One fish_add_path call, not one per directory: it is a function with
 # argparse and dedupe logic (~0.6 ms per call), so five calls were ~3 ms of
 # a ~50 ms startup. The list is in final PATH order, front first.
+#
+# -g: keep fish_user_paths per-session instead of the default universal
+# variable. Without it every shell re-adds these to a list persisted in
+# fish_variables, and a directory removed from this file lingers there until
+# erased by hand. This file is the only source of truth for PATH.
 #
 # Mise: hybrid setup (see docs/mise.md). Shims are the baseline PATH for
 # every context (scripts, editors, non-interactive shells); interactive
@@ -26,7 +31,7 @@ for dir in ~/.local/share/mise/installs/zoxide/latest \
            ~/.local/bin
     test -d $dir; and set -a initd_paths $dir
 end
-fish_add_path $initd_paths
+fish_add_path -g $initd_paths
 
 # ── Interactive-only config ────────────────────────────────────────────────────
 if not status is-interactive
@@ -167,7 +172,28 @@ function __source_cached_init --argument-names tool subcmd
     if not test -f $cache; or test (command -v $tool) -nt $cache; \
             or test $__fish_config_dir/config.fish -nt $cache
         mkdir -p (dirname $cache)
-        command $tool $subcmd fish $argv[3..] >$cache
+        switch $tool
+            case mise
+                # Not cacheable as-is: `mise activate fish` opens with two
+                # lines that bake the PATH of the shell that generated it,
+                #   set -gx __MISE_ORIG_PATH '<literal PATH>'
+                #   set -gx PATH <shims first, then that literal PATH>
+                # and sourced later from a shell whose PATH differs (a
+                # local.fish addition, a Neovim terminal, anything set before
+                # the first command) they replace the live PATH with the stale
+                # one. Both are redundant here: shims are already on PATH from
+                # the block above, and the script's own fallback sets
+                # __MISE_ORIG_PATH from the live PATH when unset. The rest is
+                # static, so it stays cached. The filter is inline because
+                # `string` only reads stdin when it is the pipe's direct
+                # target, not from inside a helper function. If mise renames
+                # those lines the pattern stops matching; the mise caller
+                # checks for a leftover and warns.
+                command $tool $subcmd fish $argv[3..] |
+                    string match -rv '^set -gx (PATH|__MISE_ORIG_PATH) ' >$cache
+            case '*'
+                command $tool $subcmd fish $argv[3..] >$cache
+        end
     end
     source $cache
 end
@@ -200,6 +226,9 @@ function __initd_mise_activate --on-event fish_preexec
     # unaffected by hook_env.cache_ttl, hook_env.chpwd_only or env_cache.
     set -g mise_fish_mode disable_arrow
     __source_cached_init mise activate
+    if string match -q 'set -gx PATH *' <~/.cache/fish/mise_activate.fish
+        echo 'initd: mise activate cache still bakes PATH; check the filter in __source_cached_init' >&2
+    end
 end
 
 # ── Local overrides (machine-specific, not committed) ─────────────────────────
