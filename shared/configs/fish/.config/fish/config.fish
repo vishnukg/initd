@@ -8,8 +8,9 @@ end
 
 # ── PATH ──────────────────────────────────────────────────────────────────────
 # One fish_add_path call, not one per directory: it is a function with
-# argparse and dedupe logic (~0.6 ms per call), so five calls were ~3 ms of
-# a ~50 ms startup. The list is in final PATH order, front first.
+# argparse and dedupe logic (~0.6 ms per call), so one call per directory
+# was ~3 ms - a fifth of today's ~16 ms startup. The list is in final PATH
+# order, front first.
 #
 # -g: keep fish_user_paths per-session instead of the default universal
 # variable. Without it every shell re-adds these to a list persisted in
@@ -212,23 +213,25 @@ __source_cached_init starship init --print-full-init
 # prompt hook so shims are only the non-interactive fallback.
 #
 # Deferred to the first command rather than run at startup: activation's
-# initial `mise hook-env` is ~65 ms, two thirds of a new tab's startup, and
-# it buys nothing until a command runs - the shims above already resolve
-# every tool for the prompt itself. fish_preexec fires before the first
-# typed command executes, so that command (and every prompt after it) sees
-# the fully activated environment; only the empty first prompt is drawn
-# without it.
+# initial `mise hook-env` is ~23 ms, more than the whole ~16 ms startup of
+# a new tab, and it buys nothing until a command runs - the shims above
+# already resolve every tool for the prompt itself. fish_preexec fires
+# before the first typed command executes, so that command (and every
+# prompt after it) sees the fully activated environment; only the empty
+# first prompt is drawn without it.
 function __initd_mise_activate --on-event fish_preexec
     functions -e __initd_mise_activate
     # No PWD hook. mise's activate script otherwise re-evaluates the whole
     # toolset on every directory change AND again at the next prompt, and the
     # prompt hook alone is enough: fish_prompt handlers run before the prompt
     # is drawn, so the environment is current by the time anything can be
-    # typed. Measured on 56 tools: cd + prompt 147 ms -> 99 ms, with node
-    # switching versions identically on entering and leaving a project. The
-    # remaining ~88 ms is mise walking every tool (mostly npm dependency
-    # trees, ~8,700 stats) even when it then emits nothing - mise's own cost,
-    # unaffected by hook_env.cache_ttl, hook_env.chpwd_only or env_cache.
+    # typed. Node still switches versions identically on entering and
+    # leaving a project. cd + prompt is ~30 ms on 54 tools, of which ~23 ms
+    # is the hook-env run itself: mise does a full re-evaluation on every
+    # directory change (it has to schedule its enter/leave hooks there), so
+    # hook_env.cache_ttl and hook_env.chpwd_only cannot skip it - both were
+    # measured at the same ~23 ms. A prompt in the same directory takes the
+    # early-exit path, ~7 ms.
     set -g mise_fish_mode disable_arrow
     __source_cached_init mise activate
     if string match -q 'set -gx PATH *' <~/.cache/fish/mise_activate.fish
