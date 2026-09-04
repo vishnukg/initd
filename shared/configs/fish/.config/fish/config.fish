@@ -21,12 +21,17 @@ end
 # shells additionally run `mise activate` (cached, deferred - see below),
 # which puts the real binaries first so launches skip the shim hop and
 # tools keep their own process name (e.g. tmux tabs show nvim, not mise).
-# starship and zoxide get their install dirs directly so the prompt never
-# goes through a shim.
+#
+# Do not add mise install dirs here (starship/zoxide used to be listed so
+# the prompt would skip the shim). mise's hook-env treats install dirs it
+# finds in the inherited PATH as already covered, leaves them out of the
+# tool list it prepends, and moves them to the very END of PATH - behind
+# the shims - so in every activated shell `zoxide` resolved to the shim
+# and zoxide's PWD hook cost ~26 ms per cd instead of ~2.5 ms. Left to
+# mise, both dirs land at the front of PATH on activation. starship never
+# needed the entry: its cached init embeds the absolute binary path.
 set -l initd_paths
-for dir in ~/.local/share/mise/installs/zoxide/latest \
-           ~/.local/share/mise/installs/starship/latest \
-           ~/.local/share/mise/shims \
+for dir in ~/.local/share/mise/shims \
            ~/.dotnet/tools \
            ~/.local/bin
     test -d $dir; and set -a initd_paths $dir
