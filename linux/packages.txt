@@ -50,7 +50,6 @@ curl
 unzip
 network-manager-applet
 blueman
-copyq
 
 # ── Audio tuning ──────────────────────────────────────────────────────────────
 # EasyEffects sits between apps and the speakers with a live-tunable EQ /
