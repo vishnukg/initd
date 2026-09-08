@@ -8,13 +8,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Run the behavior test suite (auto-detects host OS; uses temporary home directories)
 shared/test.sh
 
-# Syntax-check every script
-bash -n bootstrap.sh \
+# Syntax-check every script. One `bash -n` call per file, not
+# `bash -n file1 file2 ...` - bash -n only ever checks its FIRST argument;
+# every filename after that becomes a positional parameter ($1, $2, ...) to
+# that first script, never opened at all, so a multi-arg call silently
+# "passes" without checking anything past the first file.
+for f in bootstrap.sh \
   shared/lib/logging.sh shared/lib/fs.sh \
   shared/lib/link.sh shared/lib/cleanup.sh shared/lib/git-profile.sh shared/lib/fonts.sh \
+  shared/lib/claude-statusline.sh \
   shared/managed-links.sh shared/test.sh \
   macos/bootstrap.sh macos/defaults.sh macos/brewinstall macos/update.sh macos/managed-links.sh \
-  linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh
+  linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh \
+  shared/configs/tmux/.config/tmux/git-branch.sh shared/configs/tmux/.config/tmux/battery.sh \
+  shared/configs/tmux/.config/tmux/random-emoji.sh shared/configs/tmux/.config/tmux/agent-usage.sh \
+  shared/configs/tmux/.config/tmux/claude-statusline-hook.sh shared/configs/tmux/.config/tmux/copilot-usage-daemon.sh \
+  shared/configs/tmux/.config/tmux/codex-usage-daemon.sh; do
+  bash -n "$f" && echo "OK   $f" || echo "FAIL $f"
+done
 
 # Full bootstrap (dispatches by uname)
 bash bootstrap.sh
@@ -52,7 +63,7 @@ Three top-level buckets, intentionally decoupled. The contract: `shared/` must n
 initd/
 ├── bootstrap.sh              # ~20-line dispatcher: uname -s → macos|linux
 ├── shared/                   # cross-platform — sourced by both bootstraps
-│   ├── lib/                  # logging.sh, fs.sh, link.sh, cleanup.sh, git-profile.sh, fonts.sh
+│   ├── lib/                  # logging.sh, fs.sh, link.sh, cleanup.sh, git-profile.sh, fonts.sh, claude-statusline.sh
 │   ├── managed-links.sh      # MANAGED_LINKS for shared configs + git helpers
 │   ├── configs/              # colima, fish, git, ghostty, kitty, mise, nvim, starship, tmux
 │   ├── fonts/                # gitignored clone of the PRIVATE vishnukg/fonts repo (Berkeley Mono)
@@ -89,6 +100,7 @@ macos/bootstrap.sh
   ├─ ensure_gh_auth                           # before the fonts sync, so a fresh machine gets fonts in one run
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ shared/lib/link.sh macos                 # symlinks
+  ├─ shared/lib/claude-statusline.sh          # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ ensure_local_fonts                       # COPIES OTFs → ~/Library/Fonts (macOS won't register symlinked fonts)
   ├─ ensure_tmux_terminfo                     # compiles Homebrew ncurses's tmux-256color into ~/.terminfo (system entry lacks Smulx → no nvim undercurl inside tmux)
   ├─ ensure_fish (dscl)
@@ -110,6 +122,7 @@ linux/bootstrap.sh
   ├─ ensure_gh_auth                           # before the fonts sync, so a fresh machine gets fonts in one run
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ shared/lib/link.sh linux                 # symlinks (incl. shared/fonts/berkeley-mono → ~/.local/share/fonts)
+  ├─ shared/lib/claude-statusline.sh          # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ linux/setup.sh                           # fonts/theme + config glue
   ├─ ensure_fish (chsh)
   ├─ mise trust + mise install

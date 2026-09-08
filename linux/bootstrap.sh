@@ -309,6 +309,9 @@ main() {
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" linux
 
+  log "Configuring Claude Code's statusLine hook for the tmux usage pill..."
+  "${SHARED_DIR}/lib/claude-statusline.sh"
+
   log "Running Linux system tweaks..."
   "${LINUX_DIR}/setup.sh"
 
