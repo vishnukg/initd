@@ -72,6 +72,12 @@ yarn      = ["latest", "1.22.22"]
 "tree-sitter"         = "latest" # required by nvim treesitter parser compilation
 "claude-code"            = "latest" # native binary via mise registry; the npm package needs a postinstall step mise doesn't run
 "aqua:openai/codex"      = "latest" # prebuilt binary from GitHub releases, not the npm wrapper
+# Reads local session transcripts to report usage/cost; shared/configs/tmux's
+# status line shells out to it directly (no npx) from copilot-usage-daemon.sh
+# and codex-usage-daemon.sh. Not used for the Claude pill - that one reads
+# Claude Code's own statusLine hook instead (server-authoritative rate
+# limits, no local-log parsing needed) - see claude-statusline-hook.sh.
+"npm:ccusage"            = "latest"
 
 # ── linters / formatters (consumed by nvim/.../user/lsp/null-ls.lua) ───
 "stylua"                                   = "latest"
