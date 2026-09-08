@@ -111,11 +111,24 @@ disable_unused_daemons() {
 
   if [[ "${#to_disable[@]}" -eq 0 ]]; then
     log_success "Unused daemons already disabled (ModemManager, abrt, rsyslog)."
-    return
+  else
+    log "Disabling unused daemons: ${to_disable[*]}"
+    sudo systemctl disable --now "${to_disable[@]}" >/dev/null 2>&1
+    log_success "Disabled ${#to_disable[@]} unused daemon(s)."
   fi
-  log "Disabling unused daemons: ${to_disable[*]}"
-  sudo systemctl disable --now "${to_disable[@]}" >/dev/null 2>&1
-  log_success "Disabled ${#to_disable[@]} unused daemon(s)."
+
+  # packagekit — D-Bus system-activated (static unit, no [Install] section, so
+  # `disable` alone doesn't stop it respawning). Backs gnome-software/Discover
+  # and the codec/font auto-install prompts, neither used here since packages
+  # are managed directly via dnf5/COPR; idles at 140-170 MB once activated.
+  # `mask` (not `disable`) is required to actually block D-Bus activation.
+  if [[ "$(systemctl is-enabled packagekit.service 2>/dev/null)" == masked ]]; then
+    log_success "packagekit already masked."
+  else
+    log "Masking packagekit (unused, D-Bus-activated at ~150 MB)."
+    sudo systemctl mask --now packagekit.service >/dev/null 2>&1
+    log_success "Masked packagekit."
+  fi
 }
 
 enable_xps13_sidecar_amps() {
