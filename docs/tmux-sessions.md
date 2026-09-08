@@ -21,7 +21,7 @@ tmux server (one per machine, invisible)
 
 The session name shows in the bottom-left of your status bar in green. The
 bottom-right shows the active pane's git branch (only inside a repository),
-battery, and the clock.
+battery, and the active agent's model/usage pill.
 
 ---
 
@@ -201,3 +201,42 @@ tmux copy mode lets you scroll and copy from the terminal buffer — works every
 4. Rename: `C-a $`, type `work`, Enter. Watch the status bar update.
 5. Detach: `C-a d`. Open a new terminal — you're back in `main`.
 6. Clean up: `tmux kill-session -t work`.
+
+## Agent status
+
+The right-hand pill follows the focused pane's agent process. A background
+watcher resolves process ancestry and open transcript files every three seconds.
+When no agent pane is active it only checks tmux's pane list. Transcript reads
+resume at the last complete newline; partial records are retried, and truncation
+or file replacement resets the reader. The unchanged watcher command is a single
+tmux status job; after code changes it exits so tmux starts the updated version.
+It requires `node`, `ps`, and `lsof` (included on macOS; managed in Linux's package
+list). If the process or session cannot be identified unambiguously, it shows
+only the agent's icon, never another session's model. Icons are an amber robot
+for Claude, a blue Copilot face for Copilot, and a coral Hubot for Codex. Agent
+names are omitted from the pill. Claude and Codex both use
+`model · percentage% · time until reset` (percentage is quota used); Copilot shows
+its model, since this integration has no Copilot quota source.
+
+Codex displays the latest `turn_context.model` in that process's open rollout.
+This is the latest recorded turn model: a selection made while idle may not
+appear until the next turn records it.
+Codex also shows the latest recorded primary quota percentage used and
+time until reset from its `token_count.rate_limits` data. This is account usage,
+not context-window usage. The countdown updates between turns; an expired
+snapshot is hidden until fresh data arrives.
+
+Copilot uses `session.model_change` in its open session events file; auxiliary
+model calls do not change the label.
+If its events file is closed between writes, the watcher reads that process's
+open `process-<timestamp>-<pid>.log` and follows its latest foreground-session
+registration to the events file. This lookup is incremental and needs no
+telemetry export. A model selection of `auto` appears as `auto`.
+When a CLI does not keep its transcript open, the pill falls back to its agent
+icon. Claude's status-line hook records its model and rate limits against the
+owning process and its start time, with unique atomic cache writes. After
+upgrading, Claude's model appears on its next hook invocation.
+
+There are no cost estimates, usage-report subprocesses, or telemetry exports
+needed for the pill. Pane caches expire after ten seconds if the watcher stops
+updating them.

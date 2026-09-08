@@ -8,6 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Run the behavior test suite (auto-detects host OS; uses temporary home directories)
 shared/test.sh
 
+# Agent status: process/session isolation, model switches, concurrent writes
+node --test shared/agent-status.test.cjs
+
 # Syntax-check every script. One `bash -n` call per file, not
 # `bash -n file1 file2 ...` - bash -n only ever checks its FIRST argument;
 # every filename after that becomes a positional parameter ($1, $2, ...) to
@@ -22,8 +25,7 @@ for f in bootstrap.sh \
   linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh \
   shared/configs/tmux/.config/tmux/git-branch.sh shared/configs/tmux/.config/tmux/battery.sh \
   shared/configs/tmux/.config/tmux/random-emoji.sh shared/configs/tmux/.config/tmux/agent-usage.sh \
-  shared/configs/tmux/.config/tmux/claude-statusline-hook.sh shared/configs/tmux/.config/tmux/copilot-usage-daemon.sh \
-  shared/configs/tmux/.config/tmux/codex-usage-daemon.sh; do
+  shared/configs/tmux/.config/tmux/claude-statusline-hook.sh; do
   bash -n "$f" && echo "OK   $f" || echo "FAIL $f"
 done
 
