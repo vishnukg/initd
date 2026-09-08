@@ -62,9 +62,6 @@ hl.on("hyprland.start", function()
     -- blueman-applet, which otherwise loses the SNI race and lands the icon
     -- between the wifi and bluetooth ones.
     -- hl.exec_cmd("bash -c 'sleep 2 && 1password --silent'")
-    -- CopyQ's persisted hide_main_window setting keeps it out of the way at
-    -- startup; the server still runs for $mod+c.
-    hl.exec_cmd("copyq --start-server")
 end)
 
 -- ── Media / hardware keys ─────────────────────────────────────────────────────
@@ -111,9 +108,6 @@ hl.bind(mod .. " + Tab", hl.dsp.exec_cmd("rofi -show window"))
 -- the firmware sends a synthetic Super+Shift+F23 chord instead (confirmed
 -- via `libinput debug-events`). Wired to the same app launcher as mod+d.
 hl.bind(mod .. " + SHIFT + F23", hl.dsp.exec_cmd("rofi -show drun"))
--- Clipboard history (tray-less: linux/setup.sh:disable_copyq_tray sets disable_tray=true)
-hl.bind(mod .. " + c", hl.dsp.exec_cmd("copyq toggle"))
-
 -- Toggle night light (4500 K via night-light.service; a schedule keeps it on
 -- 19:00–07:00, and this manual toggle stands until the next boundary)
 hl.bind(mod .. " + SHIFT + n", hl.dsp.exec_cmd("~/.config/night-light-toggle.sh"))

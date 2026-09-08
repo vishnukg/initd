@@ -568,25 +568,6 @@ apply_gsettings_keyboard() {
   log_success "gsettings keyboard synced (ctrl:nocaps, delay 350, interval 33ms)."
 }
 
-disable_copyq_tray() {
-  # hyprland.lua starts CopyQ as a background clipboard-history server
-  # (mod+c toggles its window) — it is neither a tray app nor a boot window.
-  # `copyq config` writes to ~/.config/copyq/copyq.conf directly, so this is
-  # idempotent and safe to re-run.
-  if ! command -v copyq >/dev/null 2>&1; then
-    log_warn "copyq not found; skipping tray icon setting."
-    return
-  fi
-  if [[ "$(copyq config disable_tray 2>/dev/null)" == "true" ]] &&
-     [[ "$(copyq config hide_main_window 2>/dev/null)" == "true" ]]; then
-    log_success "CopyQ is already trayless and hidden at startup."
-    return
-  fi
-  copyq config disable_tray true >/dev/null 2>&1
-  copyq config hide_main_window true >/dev/null 2>&1
-  log_success "CopyQ configured without a tray or startup window."
-}
-
 add_user_to_video_group() {
   # /sys/class/backlight/*/brightness is root:video — membership is required
   # for the brightnessctl keybinds (XF86MonBrightness*) to work.
@@ -669,7 +650,6 @@ main() {
 
   apply_gsettings_theme
   apply_gsettings_keyboard
-  disable_copyq_tray
   link_gtkrc_2
   link_icons_default
   link_session_scripts
