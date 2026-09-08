@@ -1,51 +1,25 @@
 #!/usr/bin/env bash
-# Agent usage pill for the tmux status line. One-shot dispatcher, like
-# git-branch.sh: tmux substitutes the focused pane's foreground command
-# into the argument fresh on every 1s redraw, so switching panes updates
-# the pill immediately, and it vanishes for any pane not actively running
-# `claude`, `copilot`, or `codex` - usage info for whatever else is running
-# there wouldn't mean anything.
-#
-# Computing the usage data itself is too expensive to do here every 1s
-# (ccusage parses local session transcripts) - copilot-usage-daemon.sh and
-# codex-usage-daemon.sh, silent persistent background jobs started once via
-# status-right exactly like battery.sh, each refresh their own cache file
-# every 60s. The Claude cache file has a different writer entirely -
-# claude-statusline-hook.sh, invoked by Claude Code itself as its
-# statusLine hook, event-driven rather than polled. This script only reads
-# whichever file applies; nothing here spawns ccusage or knows which
-# mechanism filled which file.
-#
-# Glyph is a UTF-8 octal escape, matching git-branch.sh's reasoning: raw
-# Private Use Area characters are dropped by some editors/terminals. Same
-# icon for all three agents - color is what distinguishes them (amber/
-# blue/coral), matching how the rest of this bar treats color as state,
-# never decoration.
-#   \363\260\232\251  U+F06A9  nf-md-robot
+# Cheap formatter: caches are scoped to the tmux server and pane process.
 cmd="$1"
-icon='\363\260\232\251'
-
-cache_dir="$HOME/.cache/initd-tmux"
-
 case "$cmd" in
-    claude)
-        cache="$cache_dir/claude-usage"
-        color='#e0af68'
-        ;;
-    copilot)
-        cache="$cache_dir/copilot-usage"
-        color='#7aa2f7'
-        ;;
-    codex)
-        cache="$cache_dir/codex-usage"
-        color='#f7768e'
-        ;;
-    *)
-        exit 0
-        ;;
+    claude) color='#e0af68'; icon='\363\260\232\251' ;; # nf-md-robot, F06A9
+    copilot) color='#7aa2f7'; icon='\357\222\270' ;;     # nf-oct-copilot, F4B8
+    codex) color='#f7768e'; icon='\357\221\267' ;;       # nf-oct-hubot, F477
+    *) exit 0 ;;
 esac
-
-value="$(cat "$cache" 2>/dev/null)"
-[[ -n "$value" ]] || exit 0
-
-printf "#[fg=#111116,bg=default]\356\202\266#[fg=${color},bg=#111116,bold] ${icon} #[fg=#9aa5ce]%s #[fg=#111116,bg=default]\356\202\264 " "$value"
+value="$cmd"
+if [[ "$2" =~ ^[0-9]+$ && "$3" =~ ^[0-9]+$ ]]; then
+    cache="$HOME/.cache/initd-tmux/pane-$2-$3"
+    if [[ -r "$cache" ]]; then
+        { read -r updated; read -r agent; read -r cached; } < "$cache"
+        now=$(date +%s)
+        if [[ "$updated" =~ ^[0-9]+$ && "$agent" == "$cmd" ]] && (( now >= updated && now - updated < 10 )); then
+            value="${cached:-$cmd}"
+        fi
+    fi
+fi
+# The icon identifies the agent, including when session metadata is unavailable.
+[[ "$value" == "$cmd" ]] && value=''
+value="${value#"$cmd: "}"
+value="${value#"$cmd · "}"
+printf "#[fg=#111116,bg=default]\356\202\266#[fg=${color},bg=#111116,bold] %b #[fg=#9aa5ce]%s #[fg=#111116,bg=default]\356\202\264 " "$icon" "$value"

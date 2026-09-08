@@ -45,6 +45,7 @@ pulseaudio-utils
 pavucontrol
 brightnessctl
 btop
+lsof
 ca-certificates
 curl
 unzip
