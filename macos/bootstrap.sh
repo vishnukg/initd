@@ -333,6 +333,9 @@ main() {
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" macos
 
+  log "Configuring Claude Code's statusLine hook for the tmux usage pill..."
+  "${SHARED_DIR}/lib/claude-statusline.sh"
+
   log "Installing licensed fonts into ~/Library/Fonts..."
   ensure_local_fonts
 

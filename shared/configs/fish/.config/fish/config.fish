@@ -125,6 +125,23 @@ function vim --wraps nvim; nvim $argv; end
 function l --wraps ls; ls -la $argv; end
 function ssh --wraps ssh; TERM=xterm-256color command ssh $argv; end
 
+# Copilot CLI (mise: github:github/copilot-cli) only writes session-state
+# files by default, which carry no token/cost data - `ccusage copilot` needs
+# its OpenTelemetry file export to report anything, and that's what feeds
+# shared/configs/tmux's status pill (copilot-usage-daemon.sh). Timestamped
+# per-invocation, matching ccusage's documented setup
+# (https://ccusage.com/guide/copilot/#data-source): exporting a fixed path
+# once at shell startup would make every session in this shell append to the
+# same file indefinitely instead of one file per run.
+function copilot --wraps copilot
+    set -l otel_dir "$HOME/.copilot/otel"
+    mkdir -p "$otel_dir"
+    set -lx COPILOT_OTEL_ENABLED true
+    set -lx COPILOT_OTEL_EXPORTER_TYPE file
+    set -lx COPILOT_OTEL_FILE_EXPORTER_PATH "$otel_dir/copilot-otel-"(date +%Y%m%d-%H%M%S)".jsonl"
+    command copilot $argv
+end
+
 # ── Git abbreviations ────────────────────────────────────────────────────────
 abbr -a g    git
 abbr -a ga   'git add'
