@@ -8,10 +8,10 @@ import { agentPill, battery, clean, gitPill, pill, readAgentCache } from './stat
 
 // The shapes below are reverse-engineered from three agents' logs; none are
 // documented and all can change without notice.
-//   proc         one `ps -axo pid=,ppid=,lstart=,comm=` row:
-//                { pid, parent, start, agent }
+//   proc         one `ps -axo pid=,ppid=,lstart=,comm=,args=` row:
+//                { pid, parent, start, agent, command }
 //   state        accumulated while replaying an append-only transcript:
-//                { model, id, rateLimits?, quota?, sessionId? }
+//                { model, id, rateLimits?, limit?, quota?, sessionId? }
 //   rateLimits   Codex token_count payload:
 //                { limit_id, primary: { used_percent, resets_at } }
 //   quota        Copilot model.model_call_success payload, i.e. event.data:
@@ -68,19 +68,33 @@ function atomic(file, value) {
     try { fs.writeFileSync(tmp, value, { mode: 0o600 }); fs.renameSync(tmp, file); }
     finally { try { fs.unlinkSync(tmp); } catch {} }
 }
-function processes(output = run('ps', ['-axo', 'pid=,ppid=,lstart=,comm='])) {
+// Two names per row, because neither alone identifies every agent, and the two
+// platforms disagree on which one tmux itself reports. `comm` is the kernel's
+// process name, which a runtime may overwrite: Copilot CLI 1.0.83 renames its
+// main thread to "MainThread", so comm stops saying "copilot" entirely. `args`
+// carries argv[0], which stays "copilot" - and is what tmux reads on Linux, so
+// matching it is matching what pane_current_command already told us. macOS tmux
+// reports comm instead, hence keeping both rather than picking one.
+const PS_FORMAT = 'pid=,ppid=,lstart=,comm=,args=';
+function processes(output = run('ps', ['-axo', PS_FORMAT])) {
     return output.trim().split('\n').flatMap(line => {
-        const m = line.trim().match(/^(\d+)\s+(\d+)\s+(\S+\s+\S+\s+\d+\s+\S+\s+\d+)\s+(.+)$/);
-        return m ? [{ pid: Number(m[1]), parent: Number(m[2]), start: m[3], agent: path.basename(m[4]) }] : [];
+        const m = line.trim().match(/^(\d+)\s+(\d+)\s+(\S+\s+\S+\s+\d+\s+\S+\s+\d+)\s+(\S+)(?:\s+(.*))?$/);
+        return m ? [{
+            pid: Number(m[1]), parent: Number(m[2]), start: m[3],
+            agent: path.basename(m[4]),
+            command: m[5] ? path.basename(m[5].split(/\s/)[0]) : '',
+        }] : [];
     });
 }
+// A row matches under either name; rows carrying only `agent` stay valid.
+const named = (proc, agent) => proc.agent === agent || proc.command === agent;
 // Only pid/parent/agent are read, so a caller may pass rows without a start time.
 function findAgent(procs, root, agent) {
     // Breadth-first: select the pane's agent, not agents launched by its tools.
     let level = [Number(root)];
     const seen = new Set();
     while (level.length) {
-        const matches = procs.filter(p => level.includes(p.pid) && p.agent === agent);
+        const matches = procs.filter(p => level.includes(p.pid) && named(p, agent));
         if (matches.length) return matches.length === 1 ? matches[0] : null;
         level.forEach(pid => seen.add(pid));
         level = procs.filter(p => level.includes(p.parent) && !seen.has(p.pid)).map(p => p.pid);
@@ -107,6 +121,48 @@ async function copilotProcessState(output, pid) {
 async function copilotSessionFile(output, pid) {
     return (await copilotProcessState(output, pid))?.file ?? null;
 }
+// Codex is moving its transcripts out of the rollout files and into SQLite: its
+// state database carries a rollout_migration_state table and a migration named
+// "rollout migration state". Rollouts are still written and still held open in
+// 0.153.4, so this is reached only when one is missing - today that is a session
+// which has not taken a turn yet, and eventually every session.
+//
+// The databases are located among the process's own open files, never by
+// globbing ~/.codex: their names carry a schema version that bumps on migration
+// (logs_2, state_5), and binding through the process is what the rest of this
+// file does. Nothing here reads a quota - no rate limit is written to disk at
+// all in 0.153.4, so this fallback can only ever recover the model.
+let sqlite;
+// Opened and closed per read: these are another process's live databases, and
+// nothing here is hot enough to justify holding a handle across ticks.
+async function readRow(file, sql, ...values) {
+    // node:sqlite needs Node >= 22.5. Older hosts simply do not get the
+    // fallback; the pill degrades to the bare agent name as it does today.
+    if (sqlite === undefined) sqlite = await import('node:sqlite').catch(() => null);
+    if (!sqlite) return null;
+    let db;
+    try { db = new sqlite.DatabaseSync(file, { readOnly: true }); } catch { return null; }
+    try { return db.prepare(sql).get(...values) || null; } catch { return null; }
+    finally { try { db.close(); } catch {} }
+}
+async function codexSqliteState(openFiles, proc) {
+    const files = [...new Set(openFiles.split('\n').filter(l => l.startsWith('n')).map(l => l.slice(1)))];
+    const newest = pattern => files.filter(file => pattern.test(file)).sort().pop();
+    const logs = newest(/\/logs_\d+\.sqlite$/);
+    const state = newest(/\/state_\d+\.sqlite$/);
+    if (!logs || !state) return null;
+    // process_uuid is "pid:<pid>:<uuid>" and we know only the pid, which the
+    // kernel reuses, so require the row to postdate this process's own start.
+    const started = Date.parse(proc.start) / 1000;
+    const thread = (await readRow(logs,
+        'select thread_id from logs where process_uuid like ? and thread_id is not null and ts >= ? order by id desc limit 1',
+        `pid:${proc.pid}:%`, Number.isFinite(started) ? Math.floor(started) : 0))?.thread_id;
+    if (!thread) return null;
+    // The row is written on the first turn, so a thread can be known here while
+    // its model is not yet; the caller keeps the bare agent name in that case.
+    const row = await readRow(state, 'select model from threads where id = ?', thread);
+    return { id: thread, model: row?.model || null };
+}
 // Account-wide limits, as opposed to a per-model one that must not overwrite
 // them. Codex renamed this from "codex" to "premium" around 2026-09-08; across
 // 621 token_count events these are the only two ids ever seen, so the guard was
@@ -123,6 +179,12 @@ async function copilotSessionFile(output, pid) {
 const ACCOUNT_LIMIT_IDS = new Set(['codex', 'premium']);
 function modelEvent(agent, event, previous) {
     if (agent === 'codex' && event.type === 'turn_context') return event.payload?.model || null;
+    // A model switch takes effect at once but writes no turn_context, so a
+    // session switched between turns kept reporting the previous turn's model
+    // until the next one ran. Both feed the model and the later event wins,
+    // which is the switch while one is pending and the turn otherwise.
+    if (agent === 'codex' && event.type === 'event_msg' && event.payload?.type === 'thread_settings_applied')
+        return event.payload.thread_settings?.model || previous;
     if (agent === 'copilot' && event.type === 'session.model_change') return event.data?.newModel || null;
     // Auxiliary calls can use another model: do not use model.turn_started.
     return previous;
@@ -164,6 +226,11 @@ async function sessionState(agent, file) {
                     const limits = event.payload?.rate_limits;
                     if (agent === 'codex' && event.type === 'event_msg' && event.payload?.type === 'token_count'
                         && limits && (!limits.limit_id || ACCOUNT_LIMIT_IDS.has(limits.limit_id))) state.rateLimits = limits;
+                    // Only the newest turn counts: a later one that runs at all
+                    // clears the notice without waiting for the reset to pass.
+                    if (agent === 'codex' && event.type === 'event_msg' && event.payload?.type === 'task_complete')
+                        state.limit = event.payload.error?.codex_error_info === 'usage_limit_exceeded'
+                            ? event.payload.error.message : null;
                     if (agent === 'copilot' && event.type === 'model.model_call_success'
                         && event.data?.quotaSnapshots) state.quota = event.data;
                 } catch {}
@@ -173,6 +240,12 @@ async function sessionState(agent, file) {
     if (transcriptCache.size > 100) transcriptCache.clear();
     transcriptCache.set(key, { version, state, ino: stat.ino, size: stat.size, offset, bytesRead: stat.size - start });
     return state;
+}
+// Days once past 24h, because a weekly or multi-day reset reads as nonsense in
+// hours. codexUsage keeps its own hours-only form: its primary window is 5h.
+function remaining(mins) {
+    return mins >= 1440 ? `${Math.floor(mins / 1440)}d${Math.floor(mins % 1440 / 60)}h`
+        : `${Math.floor(mins / 60)}h${mins % 60}m`;
 }
 function codexUsage(limits, now = Date.now() / 1000) {
     const primary = limits?.primary;
@@ -186,6 +259,20 @@ function codexUsage(limits, now = Date.now() / 1000) {
         value += ` · ${Math.floor(mins / 60)}h${mins % 60}m`;
     }
     return value;
+}
+// When the account is out of Codex quota the token_count payload is no help: it
+// reports limit_id "premium" with primary and secondary null, i.e. no usage and
+// no reset, which is why the pill goes blank exactly when it matters most. The
+// turn's own error carries both - codex_error_info names the condition and the
+// human-readable message is the only place the reset time appears anywhere. So
+// the flag decides whether to render and the time is best-effort: an unparsed
+// message still says "limit", it just cannot say until when.
+function codexLimit(message, now = Date.now() / 1000) {
+    if (!message) return '';
+    const at = message.match(/try again at ([A-Za-z]{3,}\s+\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4}),?\s+(\d{1,2}:\d{2}\s*[AP]M)/i);
+    const reset = at ? Date.parse(`${at[1]}, ${at[2]} ${at[3]}`) / 1000 : NaN;
+    if (!Number.isFinite(reset) || reset <= now) return ' · limit';
+    return ` · limit · ${remaining(Math.ceil((reset - now) / 60))}`;
 }
 // Copilot writes its own quota into the transcript we already read, so this is
 // pure formatting - no RPC, no cache, no account binding. Because the snapshot
@@ -206,9 +293,7 @@ function copilotUsage(data, now = Date.now() / 1000) {
         const reset = Date.parse(quota.resetDate) / 1000;
         // Some runtimes substitute the fetch time when no reset date is known.
         if (reset > now) {
-            const mins = Math.ceil((reset - now) / 60);
-            value += mins >= 1440 ? ` · ${Math.floor(mins / 1440)}d${Math.floor(mins % 1440 / 60)}h`
-                : ` · ${Math.floor(mins / 60)}h${mins % 60}m`;
+            value += ` · ${remaining(Math.ceil((reset - now) / 60))}`;
         }
         return value;
     }
@@ -220,10 +305,8 @@ function claudeValue(data, now = Date.now() / 1000) {
         const limit = data.rate_limits?.[key];
         if (!Number.isFinite(limit?.used_percentage) || limit.used_percentage < 0) continue;
         if (!Number.isFinite(limit.resets_at) || limit.resets_at <= now) continue;
-        const mins = Math.ceil((limit.resets_at - now) / 60);
-        const remaining = mins >= 1440 ? `${Math.floor(mins / 1440)}d${Math.floor(mins % 1440 / 60)}h`
-            : `${Math.floor(mins / 60)}h${mins % 60}m`;
-        return `${model} · ${Math.round(limit.used_percentage)}%${label} · ${remaining}`;
+        const left = remaining(Math.ceil((limit.resets_at - now) / 60));
+        return `${model} · ${Math.round(limit.used_percentage)}%${label} · ${left}`;
     }
     return model;
 }
@@ -231,18 +314,18 @@ function hook(data) {
     const procs = processes();
     let proc = procs.find(p => p.pid === process.ppid);
     const seen = new Set();
-    while (proc && proc.agent !== 'claude' && !seen.has(proc.pid)) {
+    while (proc && !named(proc, 'claude') && !seen.has(proc.pid)) {
         seen.add(proc.pid);
         proc = procs.find(p => p.pid === proc.parent);
     }
-    if (proc?.agent === 'claude') atomic(path.join(cacheDir, `claude-${proc.pid}.json`), JSON.stringify({
+    if (proc && named(proc, 'claude')) atomic(path.join(cacheDir, `claude-${proc.pid}.json`), JSON.stringify({
         start: proc.start,
         data: { model: data.model, rate_limits: data.rate_limits },
     }));
     const ctx = data.context_window?.used_percentage;
     process.stdout.write(claudeValue(data) + (Number.isFinite(ctx) ? ` · ${Math.round(ctx)}% ctx` : ''));
 }
-async function refresh(io = { run: runAsync, processes: async () => processes(await runAsync('ps', ['-axo', 'pid=,ppid=,lstart=,comm='])), atomic }) {
+async function refresh(io = { run: runAsync, processes: async () => processes(await runAsync('ps', ['-axo', PS_FORMAT])), atomic }) {
     const panes = (await io.run('tmux', ['list-panes', '-a', '-F', '#{pid}|#{pane_pid}|#{pane_current_command}'])).trim().split('\n')
         .filter(pane => /\|(claude|codex|copilot)$/.test(pane));
     // No process scans, open-file queries or transcript reads while idle.
@@ -277,9 +360,12 @@ async function refresh(io = { run: runAsync, processes: async () => processes(aw
                     try {
                         const state = await sessionState(agent, file);
                         value = state.model ? clean(state.model) : agent;
-                        if (agent === 'codex') value += codexUsage(state.rateLimits);
+                        if (agent === 'codex') value += codexUsage(state.rateLimits) || codexLimit(state.limit);
                         if (agent === 'copilot') value += copilotUsage(state.quota);
                     } catch { /* The session may exit while its log is read. */ }
+                } else if (agent === 'codex') {
+                    const state = await codexSqliteState(openFiles, proc).catch(() => null);
+                    if (state?.model) value = clean(state.model);
                 }
             }
         }
@@ -399,7 +485,7 @@ async function main() {
         if (sourceVersion() !== loadedVersion) return;
     } while (true);
 }
-export { findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, copilotUsage, atomic, refresh, openFilesByPid, createStatusPublisher, hook };
+export { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, copilotUsage, atomic, refresh, openFilesByPid, createStatusPublisher, hook };
 let invokedDirectly = false;
 try { invokedDirectly = Boolean(process.argv[1]) && fs.realpathSync(process.argv[1]) === filename; } catch {}
 if (invokedDirectly) main();
