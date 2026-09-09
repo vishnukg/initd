@@ -106,12 +106,18 @@ async function copilotSessionFile(output, pid) {
     return (await copilotProcessState(output, pid))?.file ?? null;
 }
 // Account-wide limits, as opposed to a per-model one that must not overwrite
-// them. Codex renamed this from "codex" to "premium" around 2026-09-08; the
-// premium payload currently reports primary/secondary null and no credits, so
-// there is nothing to render, but it is accepted so the pill starts working
-// again the moment those fields are populated rather than silently staying
-// blank. Across 621 token_count events on this machine these are the only two
-// ids ever seen.
+// them. Codex renamed this from "codex" to "premium" around 2026-09-08; across
+// 621 token_count events these are the only two ids ever seen, so the guard was
+// only ever excluding the rename. The premium payload reports primary and
+// secondary null, i.e. no usage at all, so the pill renders a blank quota - it
+// is accepted anyway so it resumes on its own once those fields are populated.
+//
+// Do NOT read credits.has_credits as "out of quota" to fill that blank. It is
+// {has_credits: false, unlimited: false, balance: "0"} on all 615 older events
+// too, the ones reporting 3% and 98% used - it means this plan does not use the
+// credits mechanism, not that anything is exhausted. There is likewise no reset
+// time anywhere in the premium payload, so "none left until HH:MM" cannot be
+// rendered either. Blank is the only truthful output.
 const ACCOUNT_LIMIT_IDS = new Set(['codex', 'premium']);
 function modelEvent(agent, event, previous) {
     if (agent === 'codex' && event.type === 'turn_context') return event.payload?.model || null;
