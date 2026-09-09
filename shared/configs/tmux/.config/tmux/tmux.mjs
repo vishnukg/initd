@@ -105,6 +105,14 @@ async function copilotProcessState(output, pid) {
 async function copilotSessionFile(output, pid) {
     return (await copilotProcessState(output, pid))?.file ?? null;
 }
+// Account-wide limits, as opposed to a per-model one that must not overwrite
+// them. Codex renamed this from "codex" to "premium" around 2026-09-08; the
+// premium payload currently reports primary/secondary null and no credits, so
+// there is nothing to render, but it is accepted so the pill starts working
+// again the moment those fields are populated rather than silently staying
+// blank. Across 621 token_count events on this machine these are the only two
+// ids ever seen.
+const ACCOUNT_LIMIT_IDS = new Set(['codex', 'premium']);
 function modelEvent(agent, event, previous) {
     if (agent === 'codex' && event.type === 'turn_context') return event.payload?.model || null;
     if (agent === 'copilot' && event.type === 'session.model_change') return event.data?.newModel || null;
@@ -154,7 +162,7 @@ async function sessionState(agent, file) {
                     state.model = modelEvent(agent, event, state.model);
                     const limits = event.payload?.rate_limits;
                     if (agent === 'codex' && event.type === 'event_msg' && event.payload?.type === 'token_count'
-                        && limits && (!limits.limit_id || limits.limit_id === 'codex')) state.rateLimits = limits;
+                        && limits && (!limits.limit_id || ACCOUNT_LIMIT_IDS.has(limits.limit_id))) state.rateLimits = limits;
                 } catch {}
             }
         }
