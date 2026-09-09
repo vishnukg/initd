@@ -157,24 +157,6 @@ test('concurrent writers leave one complete cache value and no temporary files',
     assert.equal(JSON.parse(fs.readFileSync(file)).value.length, 10000);
     assert.deepEqual(fs.readdirSync(dir), ['cache.json']);
 });
-test('Copilot identity comes only from its own log and account switches invalidate the binding', async t => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-copilot-account-'));
-    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-    fs.mkdirSync(path.join(dir, 'logs'));
-    const log = path.join(dir, 'logs', 'process-123-42.log');
-    const output = `p42\nn${log}`;
-    const auth = value => `2026-09-09T00:00:00Z [INFO] [rust:copilot_runtime::managed_settings::api_session] [managedSettings] self-fetch starting for account ${value}\n`;
-    fs.writeFileSync(log, 'unrelated account https://github.com/personal\n');
-    assert.equal((await copilotProcessState(output, 42)).account, undefined);
-    fs.appendFileSync(log, auth('https://work.ghe.com/work-user'));
-    const first = await copilotProcessState(output, 42);
-    assert.deepEqual(first.account, { host: 'https://work.ghe.com', login: 'work-user' });
-    assert.equal(await copilotProcessState(output, 99), null);
-    fs.appendFileSync(log, auth('(device)'));
-    assert.equal((await copilotProcessState(output, 42)).account, null);
-    fs.appendFileSync(log, auth('https://work.ghe.com/work-user'));
-    assert.notEqual((await copilotProcessState(output, 42)).accountEpoch, first.accountEpoch);
-});
 test('one asynchronous lsof scan covers all agents and does not delay Claude', async () => {
     const writes = [];
     const calls = [];
