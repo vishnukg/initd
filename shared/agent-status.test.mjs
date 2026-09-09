@@ -201,13 +201,31 @@ test('publisher renders every pill and sends well-formed set-option commands', a
     const now = 1000;
     const publish = createStatusPublisher(runCommand, () => `${now}\nclaude\nOpus 5 · 12%\n`, async () => '87%');
     await publish(now);
+    // Every option change goes in one invocation, as a ';'-separated sequence.
+    assert.equal(sent.length, 1);
+    const commands = sent[0].reduce((all, arg) => arg === ';' ? [...all, []]
+        : [...all.slice(0, -1), [...all.at(-1), arg]], [[]]);
+    assert.ok(commands.length > 1);
     // tmux rejects an option change that does not name the set-option command.
-    assert.ok(sent.length > 0);
-    for (const args of sent) assert.equal(args[0], 'set-option');
-    const option = name => sent.find(args => args.includes(name))?.at(-1) ?? '';
+    for (const args of commands) assert.equal(args[0], 'set-option');
+    const option = name => commands.find(args => args.includes(name))?.at(-1) ?? '';
     assert.match(option('@initd-battery'), /87%/);
     assert.match(option('@initd-agent-pill'), /Opus 5 · 12%/);
     assert.match(option('@initd-git-pill'), /main/);
-    assert.deepEqual(sent.find(args => args.includes('@initd-agent'))?.slice(0, 4), ['set-option', '-p', '-t', '%1']);
+    assert.deepEqual(commands.find(args => args.includes('@initd-agent'))?.slice(0, 4), ['set-option', '-p', '-t', '%1']);
     assert.match(option('@emoji'), /\p{Emoji}/u);
+});
+test('a pane path of exactly ";" is escaped so it cannot split the command sequence', async () => {
+    let sent = [];
+    const runCommand = async (command, args) => {
+        if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t;\t1\n';
+        if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
+        if (command === 'tmux') sent = args;
+        return '';
+    };
+    await createStatusPublisher(runCommand, () => '', async () => '')(1000);
+    const directory = sent[sent.indexOf('@initd-directory') + 1];
+    assert.equal(directory, '\\;', 'a bare ; would start a new tmux command');
+    assert.equal(sent.filter(arg => arg === ';').length, sent.reduce((n, arg) =>
+        arg === 'set-option' ? n + 1 : n, 0) - 1, 'one separator between commands, none extra');
 });
