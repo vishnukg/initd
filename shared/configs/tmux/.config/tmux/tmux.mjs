@@ -26,7 +26,11 @@ import { agentPill, battery, clean, gitPill, pill, readAgentCache } from './stat
 const filename = fileURLToPath(import.meta.url);
 const copilotQuota = createQuotaCache();
 const cacheDir = path.join(process.env.HOME, '.cache/initd-tmux');
-const STATUS_REFRESH_MS = 1000;
+// How often pane options are refreshed. tmux repaints on status-interval, whose
+// floor is one whole second, so this only bounds how stale a value can be when
+// that repaint happens - it cannot make the bar paint faster. Halving it to
+// 500ms costs ~1.7% -> ~3.2% of one core; a cycle itself is ~85ms.
+const STATUS_REFRESH_MS = 500;
 const transcriptCache = new Map();
 const sourceVersion = () => [filename, fileURLToPath(new URL('./copilot-quota.mjs', import.meta.url))]
     .map(file => fs.statSync(file).mtimeMs).join(':');
@@ -251,11 +255,37 @@ async function refresh(io = { run: runAsync, processes: async () => processes(aw
 }
 const emojis = [...'🍎🍏🍐🍊🍋🍉🍇🍓🍒🥭🍍🥝🍅🌽🥕☕🍕🍩🍪🎂🧁🍰🥐🥯🥞🧇🍫🍬🍭🍯🥧🍞🍞🧀🥨🍦🍨🍿🍵🧃🧋🍮'];
 const agentStyles = { claude: true, copilot: true, codex: true };
+// This cache directory is ours alone, so anything in it that no longer backs a
+// live pane or agent is garbage - including files left by earlier versions of
+// this script, which is why an unrecognised name counts as dead. Panes owned by
+// another tmux server are swept only once that server itself is gone, since this
+// one cannot enumerate another's panes.
+function sweepCache(server, livePanes, io = {}) {
+    const alive = io.alive || (pid => {
+        try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
+    });
+    let names;
+    try { names = (io.readdir || (() => fs.readdirSync(cacheDir)))(); } catch { return []; }
+    const remove = io.remove || (name => fs.unlinkSync(path.join(cacheDir, name)));
+    const removed = [];
+    for (const name of names) {
+        if (name.endsWith('.tmp')) continue; // an atomic write in flight
+        const pane = name.match(/^pane-(\d+)-(\d+)$/);
+        const claude = name.match(/^claude-(\d+)\.json$/);
+        const dead = pane ? (pane[1] === server ? !livePanes.has(pane[2]) : !alive(Number(pane[1])))
+            : claude ? !alive(Number(claude[1]))
+                : true;
+        if (!dead) continue;
+        try { remove(name); removed.push(name); } catch { /* raced another sweep */ }
+    }
+    return removed;
+}
 // One publisher per watcher: shared directories are queried only once per tick,
 // battery every 30s.
-function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane) => readAgentCache(cacheDir, server, pane), readBattery = battery) {
+function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane) => readAgentCache(cacheDir, server, pane), readBattery = battery, sweep = sweepCache) {
     let batteryAt = -Infinity;
     let batteryValue = '';
+    let sweptAt = -Infinity;
     return async (now = Date.now() / 1000) => {
         const rows = await runCommand('tmux', ['list-panes', '-a', '-F', '#{pane_id}\t#{pid}\t#{pane_pid}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_active}']);
         const panes = rows.trimEnd().split('\n').map(row => row.split('\t'))
@@ -268,6 +298,10 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
         if (now - batteryAt >= 30) {
             batteryValue = await readBattery(runCommand);
             batteryAt = now;
+        }
+        if (now - sweptAt >= 60) {
+            sweep(panes[0][1], new Set(panes.map(([, , root]) => root)));
+            sweptAt = now;
         }
         const commands = [];
         const set = (...args) => commands.push(['set-option', ...args]);
@@ -301,6 +335,9 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
             used.add(emoji);
             set('-w', '-t', id, '@emoji', emoji);
         }
+        // Redraw once the options are in place. Without this the bar would only
+        // repaint on status-interval, which tmux caps at whole seconds. Pushed
+        // directly: it is a command in its own right, not a set-option.
         // One tmux invocation for the whole tick, as a command sequence. Three
         // panes is 18 option changes, and a process each is the bulk of a
         // publish. Only a standalone ';' argument separates commands, so an

@@ -226,6 +226,8 @@ test('a pane path of exactly ";" is escaped so it cannot split the command seque
     await createStatusPublisher(runCommand, () => '', async () => '')(1000);
     const directory = sent[sent.indexOf('@initd-directory') + 1];
     assert.equal(directory, '\\;', 'a bare ; would start a new tmux command');
-    assert.equal(sent.filter(arg => arg === ';').length, sent.reduce((n, arg) =>
-        arg === 'set-option' ? n + 1 : n, 0) - 1, 'one separator between commands, none extra');
+    const commands = sent.reduce((all, arg) => arg === ';' ? [...all, []]
+        : [...all.slice(0, -1), [...all.at(-1), arg]], [[]]);
+    assert.equal(sent.filter(arg => arg === ';').length, commands.length - 1,
+        'one separator between commands, none extra');
 });
