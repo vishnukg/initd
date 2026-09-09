@@ -301,7 +301,13 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
             used.add(emoji);
             set('-w', '-t', id, '@emoji', emoji);
         }
-        for (const args of commands) await runCommand('tmux', args);
+        // One tmux invocation for the whole tick, as a command sequence. Three
+        // panes is 18 option changes, and a process each is the bulk of a
+        // publish. Only a standalone ';' argument separates commands, so an
+        // embedded one ("feature;wip") passes through untouched; a value that is
+        // exactly ';' is escaped, which tmux also rejects when sent on its own.
+        await runCommand('tmux', commands.flatMap((args, index) =>
+            (index ? [';'] : []).concat(args.map(arg => arg === ';' ? '\\;' : arg))));
     };
 }
 function status() {
