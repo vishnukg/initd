@@ -76,6 +76,21 @@ test('Codex reads the latest account quota snapshot, ignoring unrelated limits a
     assert.deepEqual((await sessionState('codex', file)).rateLimits, latest);
     assert.equal((await sessionState('codex', file)).rateLimits.primary.used_percent, 31);
 });
+test('Codex account limits are taken under either id, and a per-model one is ignored', async t => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-agent-limitid-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const file = path.join(dir, 'rollout-limit.jsonl');
+    const event = rate_limits => JSON.stringify({ type: 'event_msg', payload: { type: 'token_count', rate_limits } });
+    const premium = { limit_id: 'premium', primary: { used_percent: 42, resets_at: 20000 } };
+    // Codex renamed the account limit to "premium"; a per-model id must not win.
+    fs.writeFileSync(file, [event({ limit_id: 'codex', primary: { used_percent: 7 } }), event(premium),
+        event({ limit_id: 'other-model', primary: { used_percent: 99 } })].join('\n') + '\n');
+    assert.deepEqual((await sessionState('codex', file)).rateLimits, premium);
+    assert.equal(codexUsage(premium, 5600), ' · 42% · 4h0m');
+    // The payload Codex actually sends today carries no usage at all.
+    const empty = { limit_id: 'premium', primary: null, secondary: null, credits: { has_credits: false, balance: '0' } };
+    assert.equal(codexUsage(empty), '');
+});
 test('Codex percentage includes zero, ticks down on cached data, and hides expired or invalid quota', () => {
     const limits = { primary: { used_percent: 31, resets_at: 20000 } };
     assert.equal(codexUsage(limits, 5600), ' · 31% · 4h0m');
