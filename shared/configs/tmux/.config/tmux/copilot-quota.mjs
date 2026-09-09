@@ -24,9 +24,14 @@ function accountKey(account) {
         return `${host.origin}/${account.login.toLowerCase()}`;
     } catch { return null; }
 }
+// `account` is what the pane's own log claimed. Device-flow logins never write
+// a host/login there - the line reads "for account (device)" - so it may be
+// absent, and then the runtime's own first answer becomes the identity. The
+// before/after comparison still runs either way, so a switch during the read is
+// caught; only the log-vs-runtime cross-check is skipped, and only when the log
+// could not supply one.
 function queryQuota(home, { launch = spawn, timeout = 15000, account } = {}) {
-    const expected = accountKey(account);
-    if (!expected) return Promise.reject(new Error('Pane account unavailable'));
+    let expected = accountKey(account);
     return new Promise((resolve, reject) => {
         const child = launch('copilot', ['--headless', '--stdio', '--no-auto-update', '--log-level', 'none'], {
             env: { ...process.env, COPILOT_HOME: home, COPILOT_OTEL_ENABLED: 'false' },
@@ -73,8 +78,14 @@ function queryQuota(home, { launch = spawn, timeout = 15000, account } = {}) {
                     if (message.error) return finish(new Error('Quota unavailable for this login/runtime'));
                     if (requestId === 2) {
                         quota = message.result;
-                    } else if (accountKey(message.result?.authInfo) !== expected) {
-                        return finish(new Error('Pane and quota accounts do not match'));
+                    } else {
+                        const seen = accountKey(message.result?.authInfo);
+                        // Adopt the runtime's identity only on the first call, and
+                        // only when the log had none; never overwrite a known one.
+                        if (!expected && requestId === 1) expected = seen;
+                        if (!seen || seen !== expected) {
+                            return finish(new Error('Pane and quota accounts do not match'));
+                        }
                     }
                     if (requestId === 3) return finish(null, quota);
                     requestId++;
@@ -92,9 +103,12 @@ function queryQuota(home, { launch = spawn, timeout = 15000, account } = {}) {
 function createQuotaCache(query = queryQuota) {
     const entries = new Map();
     return (home, binding, now = Date.now()) => {
-        const identity = accountKey(binding?.account);
-        if (!identity || !binding?.process) return null;
-        const key = JSON.stringify([home, binding.process, identity]);
+        if (!binding?.process) return null;
+        // A device-flow login has no identity in the log; the pid/start binding
+        // still scopes the entry to one process, and queryQuota pins the account
+        // to whatever that process reports.
+        const identity = accountKey(binding.account);
+        const key = JSON.stringify([home, binding.process, identity ?? 'runtime']);
         const account = { ...binding.account };
         let entry = entries.get(key);
         if (!entry || (!entry.pending && now - entry.at >= 120000)) {
