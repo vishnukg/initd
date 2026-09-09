@@ -5,36 +5,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** The GitHub host and login a Copilot pane is authenticated as. */
-export interface CopilotAccount { host: string; login: string; }
-
-export interface QuotaSnapshot {
-    hasQuota?: boolean;
-    tokenBasedBilling?: boolean;
-    isUnlimitedEntitlement?: boolean;
-    entitlementRequests?: number;
-    remainingPercentage?: number;
-    resetDate?: string;
-}
-
-export interface QuotaResult { quotaSnapshots?: Record<string, QuotaSnapshot | undefined>; }
-
-/** Binds a cached quota to one process and login, so neither can be reused across a switch. */
-export interface QuotaBinding { process: string; account?: Partial<CopilotAccount> | null; }
-
-// Only the handful of members the RPC touches, so a test can supply a double
-// without reproducing every overload of child_process.spawn.
-export interface QuotaRuntime {
-    stdin: { write(chunk: string): unknown; on(event: 'error', listener: () => void): unknown };
-    stdout: { on(event: 'data', listener: (chunk: Buffer) => void): unknown };
-    kill(signal?: NodeJS.Signals): unknown;
-    on(event: 'error' | 'exit', listener: () => void): unknown;
-    once(event: 'close', listener: () => void): unknown;
-}
-export type LaunchRuntime = (command: string, args: string[], options: object) => QuotaRuntime;
+// Shapes this file reads, none of them documented by the CLI:
+//   account          { host: 'https://github.com', login: 'someone' }
+//   getQuota result  { quotaSnapshots: { <name>: snapshot } }
+//   snapshot         { hasQuota, tokenBasedBilling, isUnlimitedEntitlement,
+//                      entitlementRequests, remainingPercentage, resetDate }
+//   binding          { process: '<pid>:<start>:<accountEpoch>', account }
+// `launch` only needs stdin.write/on, stdout.on, kill, on and once, so a test
+// can pass a plain EventEmitter double rather than a real child process.
 
 const filename = fileURLToPath(import.meta.url);
-function accountKey(account: Partial<CopilotAccount> | null | undefined): string | null {
+function accountKey(account) {
     if (typeof account?.host !== 'string' || typeof account?.login !== 'string') return null;
     try {
         const host = new URL(account.host);
@@ -43,12 +24,10 @@ function accountKey(account: Partial<CopilotAccount> | null | undefined): string
         return `${host.origin}/${account.login.toLowerCase()}`;
     } catch { return null; }
 }
-function queryQuota(home: string, { launch = spawn as LaunchRuntime, timeout = 15000, account }: {
-    launch?: LaunchRuntime; timeout?: number; account?: Partial<CopilotAccount> | null;
-} = {}): Promise<QuotaResult | undefined> {
+function queryQuota(home, { launch = spawn, timeout = 15000, account } = {}) {
     const expected = accountKey(account);
     if (!expected) return Promise.reject(new Error('Pane account unavailable'));
-    return new Promise<QuotaResult | undefined>((resolve, reject) => {
+    return new Promise((resolve, reject) => {
         const child = launch('copilot', ['--headless', '--stdio', '--no-auto-update', '--log-level', 'none'], {
             env: { ...process.env, COPILOT_HOME: home, COPILOT_OTEL_ENABLED: 'false' },
             cwd: home, stdio: ['pipe', 'pipe', 'ignore'],
@@ -56,13 +35,13 @@ function queryQuota(home: string, { launch = spawn as LaunchRuntime, timeout = 1
         let buffer = Buffer.alloc(0);
         let done = false;
         let requestId = 1;
-        let quota: QuotaResult | undefined;
-        function request(method: string): void {
+        let quota;
+        function request(method) {
             const body = JSON.stringify({ jsonrpc: '2.0', id: requestId, method, params: {} });
             child.stdin.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
         }
         const timer = setTimeout(() => finish(new Error('Quota request timed out')), timeout);
-        function finish(error: Error | null, result?: QuotaResult): void {
+        function finish(error, result) {
             if (done) return;
             done = true;
             clearTimeout(timer);
@@ -110,10 +89,9 @@ function queryQuota(home: string, { launch = spawn as LaunchRuntime, timeout = 1
 }
 // One request per process/account binding every two minutes, only when requested by
 // a live pane. Failures clear the old value; no account data is saved to disk.
-interface QuotaEntry { at: number; pending: boolean; value: QuotaResult | null; goodAt: number; }
 function createQuotaCache(query = queryQuota) {
-    const entries = new Map<string, QuotaEntry>();
-    return (home: string, binding: QuotaBinding | null | undefined, now = Date.now()): QuotaResult | null => {
+    const entries = new Map();
+    return (home, binding, now = Date.now()) => {
         const identity = accountKey(binding?.account);
         if (!identity || !binding?.process) return null;
         const key = JSON.stringify([home, binding.process, identity]);
@@ -128,30 +106,28 @@ function createQuotaCache(query = queryQuota) {
                 }
                 if (entries.size >= 32) return null;
             }
-            const started: QuotaEntry = { at: now, pending: true, value: entry?.value ?? null, goodAt: entry?.goodAt ?? now };
-            entry = started;
-            entries.set(key, started);
-            Promise.resolve().then(() => query(home, { account })).then(value => { started.value = value ?? null; started.goodAt = now; })
-                .catch(() => { started.value = null; }).finally(() => { started.pending = false; });
+            entry = { at: now, pending: true, value: entry?.value ?? null, goodAt: entry?.goodAt ?? now };
+            entries.set(key, entry);
+            const current = entry;
+            Promise.resolve().then(() => query(home, { account })).then(value => { current.value = value; current.goodAt = now; })
+                .catch(() => { current.value = null; }).finally(() => { current.pending = false; });
         }
         // Retain a matching successful snapshot through the 15s refresh, but
         // never indefinitely if a request stalls. Failures clear it immediately.
         return now - entry.goodAt < 135000 ? entry.value : null;
     };
 }
-function quotaValue(data: QuotaResult | null | undefined, now = Date.now() / 1000): string {
+function quotaValue(data, now = Date.now() / 1000) {
     const snapshots = data?.quotaSnapshots;
     for (const key of ['premium_interactions', 'chat']) {
         const quota = snapshots?.[key];
         if (!quota || quota.hasQuota === false) continue;
         const label = quota.tokenBasedBilling ? 'credits' : key === 'chat' ? 'chat' : 'requests';
         if (quota.isUnlimitedEntitlement || quota.entitlementRequests === -1) return ` · ${label} ∞`;
-        const entitlement = quota.entitlementRequests;
-        const remaining = quota.remainingPercentage;
-        if (!(entitlement !== undefined && entitlement > 0) || !Number.isFinite(remaining)) continue;
-        if (remaining === undefined || remaining < 0 || remaining > 100) continue;
-        let value = ` · ${Math.round(100 - remaining)}% ${label}`;
-        const reset = Date.parse(quota.resetDate ?? '') / 1000;
+        if (!(quota.entitlementRequests > 0) || !Number.isFinite(quota.remainingPercentage)) continue;
+        if (quota.remainingPercentage < 0 || quota.remainingPercentage > 100) continue;
+        let value = ` · ${Math.round(100 - quota.remainingPercentage)}% ${label}`;
+        const reset = Date.parse(quota.resetDate) / 1000;
         // Some runtimes substitute the fetch time when no reset date is known.
         if (reset > now) {
             const mins = Math.ceil((reset - now) / 60);
@@ -164,7 +140,7 @@ function quotaValue(data: QuotaResult | null | undefined, now = Date.now() / 100
 }
 export { queryQuota, createQuotaCache, quotaValue, accountKey };
 let invokedDirectly = false;
-try { invokedDirectly = Boolean(process.argv[1]) && fs.realpathSync(process.argv[1]!) === filename; } catch {}
-if (invokedDirectly) queryQuota(process.argv[2] || path.join(process.env.HOME ?? '', '.copilot'),
-    { account: { host: process.argv[3] ?? '', login: process.argv[4] ?? '' } })
-    .then(result => console.log(quotaValue(result))).catch((error: Error) => { console.error(error.message); process.exitCode = 1; });
+try { invokedDirectly = Boolean(process.argv[1]) && fs.realpathSync(process.argv[1]) === filename; } catch {}
+if (invokedDirectly) queryQuota(process.argv[2] || path.join(process.env.HOME, '.copilot'),
+    { account: { host: process.argv[3], login: process.argv[4] } })
+    .then(result => console.log(quotaValue(result))).catch(error => { console.error(error.message); process.exitCode = 1; });

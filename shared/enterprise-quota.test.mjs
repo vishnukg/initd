@@ -2,22 +2,20 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { claudeValue } from './configs/tmux/.config/tmux/tmux.ts';
-import type { ClaudeHookData } from './configs/tmux/.config/tmux/tmux.ts';
-import { queryQuota, createQuotaCache, quotaValue } from './configs/tmux/.config/tmux/copilot-quota.ts';
-import type { QuotaResult } from './configs/tmux/.config/tmux/copilot-quota.ts';
+import { claudeValue } from './configs/tmux/.config/tmux/tmux.mjs';
+import { queryQuota, createQuotaCache, quotaValue } from './configs/tmux/.config/tmux/copilot-quota.mjs';
 const account = { host: 'https://github.com', login: 'work-user' };
 const binding = { process: '42:start:1', account };
 test('Claude prioritizes enterprise budgets, supports overage, and keeps subscription format', () => {
-    const data: ClaudeHookData = { model: { display_name: 'Sonnet' }, rate_limits: {
+    const data = { model: { display_name: 'Sonnet' }, rate_limits: {
         spend_limit: { used_percentage: 125, resets_at: 90000 },
         five_hour: { used_percentage: 30, resets_at: 3600 },
     } };
     assert.equal(claudeValue(data, 0), 'Sonnet · 125% budget · 1d1h');
-    delete data.rate_limits!.spend_limit;
+    delete data.rate_limits.spend_limit;
     assert.equal(claudeValue(data, 0), 'Sonnet · 30% · 1h0m');
     assert.equal(claudeValue(data, 3600), 'Sonnet');
-    data.rate_limits!.seven_day = { used_percentage: 50, resets_at: 90000 };
+    data.rate_limits.seven_day = { used_percentage: 50, resets_at: 90000 };
     assert.equal(claudeValue(data, 3600), 'Sonnet · 50% week · 1d0h');
 });
 test('Copilot distinguishes credits, requests, unlimited entitlements and absent quotas', () => {
@@ -30,30 +28,21 @@ test('Copilot distinguishes credits, requests, unlimited entitlements and absent
     assert.equal(quotaValue({ quotaSnapshots: { premium_interactions: { ...q, entitlementRequests: 0 } } }), '');
     assert.equal(quotaValue(null), '');
 });
-interface RpcRequest { id?: number; method: string }
-interface FakeChild extends EventEmitter {
-    stdin: PassThrough;
-    stdout: PassThrough;
-    kill: () => void;
-    killed: boolean;
-    requests: RpcRequest[];
-    request?: string;
-}
-/** Stands in for the Copilot CLI over its stdio transport; only what the RPC touches. */
-function runtime(reply: (child: FakeChild, request: RpcRequest) => void): FakeChild {
-    const child = new EventEmitter() as FakeChild;
+// Stands in for the Copilot CLI over its stdio transport; only what the RPC touches.
+function runtime(reply) {
+    const child = new EventEmitter();
     child.stdin = new PassThrough(); child.stdout = new PassThrough();
     child.kill = () => { child.killed = true; queueMicrotask(() => child.emit('close')); };
     child.requests = [];
-    child.stdin.on('data', (bytes: Buffer) => {
+    child.stdin.on('data', bytes => {
         child.request = bytes.toString();
-        const request = JSON.parse(child.request.split('\r\n\r\n')[1]!) as RpcRequest;
+        const request = JSON.parse(child.request.split('\r\n\r\n')[1]);
         child.requests.push(request);
         reply(child, request);
     });
     return child;
 }
-const frame = (message: unknown) => {
+const frame = message => {
     const body = JSON.stringify(message);
     return Buffer.from(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
 };
@@ -72,12 +61,11 @@ test('quota RPC times out and redacts server error details', async () => {
     await assert.rejects(queryQuota('/tmp', { launch: () => stalled, timeout: 10, account }), /timed out/);
     assert.equal(stalled.killed, true);
     const failed = runtime(c => queueMicrotask(() => c.stdout.write(frame({ id: 1, error: { message: 'private auth detail' } }))));
-    await assert.rejects(queryQuota('/tmp', { launch: () => failed, account }), (error: Error) => !error.message.includes('private auth detail'));
+    await assert.rejects(queryQuota('/tmp', { launch: () => failed, account }), error => !error.message.includes('private auth detail'));
 });
 test('quota cache is scoped by home and process/account, deduplicates and refreshes without flicker', async () => {
-    const calls: string[] = [];
-    // The sentinel stands in for a quota payload; the cache only ever passes it through.
-    const cache = createQuotaCache(async home => { calls.push(home); return { home } as unknown as QuotaResult; });
+    const calls = [];
+    const cache = createQuotaCache(async home => { calls.push(home); return { home }; });
     assert.equal(cache('/work', binding, 0), null);
     assert.equal(cache('/work', binding, 1), null);
     cache('/personal', binding, 1);
@@ -104,10 +92,10 @@ test('unknown, mismatched and changing accounts never return quota', async () =>
     await assert.rejects(queryQuota('/tmp', { account, launch: () => child }), /do not match/);
 });
 test('refresh failure clears quota and pending refresh has a hard staleness limit', async () => {
-    let rejectRefresh!: (reason: Error) => void;
+    let rejectRefresh;
     let calls = 0;
     const cache = createQuotaCache(() => ++calls === 1 ? Promise.resolve({ quotaSnapshots: {} })
-        : new Promise<QuotaResult>((resolve, reject) => { rejectRefresh = reject; }));
+        : new Promise((resolve, reject) => { rejectRefresh = reject; }));
     cache('/work', binding, 0);
     await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(cache('/work', binding, 120000), { quotaSnapshots: {} });

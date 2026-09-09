@@ -95,7 +95,7 @@ hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictur
 -- No opacity flags on either: Linux's 0.92 is a tracked per-OS config file
 -- (kitty's linux.conf via `include ${KITTY_OS}.conf`; Ghostty's via the
 -- linux.conf link linux/setup.sh places next to the shared config), so every
--- launcher agrees — these binds, rofi, .desktop entries, docker-menu.ts. A
+-- launcher agrees — these binds, rofi, .desktop entries, docker-menu.mjs. A
 -- flag would only reach windows opened by that one keybind and leave the rest
 -- at the shared config's macOS value (0.58 for both terminals).
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
