@@ -7,26 +7,19 @@ import { fileURLToPath } from 'node:url';
 
 const filename = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(filename), '../..');
-const usage = 'Usage: git-profile.ts [personal|work]';
+const usage = 'Usage: git-profile.mjs [personal|work]';
 
-export interface ProfileOptions {
-    override?: string;
-    interactive?: boolean;
-    /** Injected in tests so the prompt does not need a real TTY. */
-    ask?: (text: string) => Promise<string>;
-    log?: (message: string) => void;
-}
-
-export async function configureProfile(args: string[], {
+// `ask` is injected in tests so the prompt does not need a real TTY.
+export async function configureProfile(args, {
     override = path.join(root, 'shared/configs/git/local.gitconfig'),
     interactive = process.stdin.isTTY,
     ask,
     log = console.log,
-}: ProfileOptions = {}): Promise<void> {
-    if (args.length === 1 && ['--help', '-h'].includes(args[0]!)) return log(usage);
+} = {}) {
+    if (args.length === 1 && ['--help', '-h'].includes(args[0])) return log(usage);
     if (args.length > 1 || (args[0] && !['personal', 'work'].includes(args[0]))) throw new Error(usage);
-    let prompt: readline.Interface | undefined;
-    const question = ask || ((text: string) => {
+    let prompt;
+    const question = ask || (text => {
         prompt ||= readline.createInterface({ input: process.stdin, output: process.stdout });
         return prompt.question(text);
     });
@@ -39,9 +32,9 @@ export async function configureProfile(args: string[], {
 
         const existing = spawnSync('git', ['config', '--file', override, '--get', 'user.email'], { encoding: 'utf8' });
         if (existing.error) throw existing.error;
-        if (existing.status === null || ![0, 1].includes(existing.status)) throw new Error('Cannot read Git identity configuration');
+        if (![0, 1].includes(existing.status)) throw new Error('Cannot read Git identity configuration');
         if (existing.stdout.trim()) return log(`OK Work git email already set: ${existing.stdout.trim()}`);
-        if (!interactive) return log('!! No work git email set — run shared/lib/git-profile.ts work interactively to configure it.');
+        if (!interactive) return log('!! No work git email set — run shared/lib/git-profile.mjs work interactively to configure it.');
         const email = (await question(':: Work git email for this machine: ')).trim();
         if (!email) return log('!! No email entered — work identity unchanged.');
 
@@ -50,7 +43,7 @@ export async function configureProfile(args: string[], {
         try {
             const file = path.join(temporary, 'config');
             try { fs.copyFileSync(override, file); }
-            catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+            catch (error) { if (error.code !== 'ENOENT') throw error; }
             // Git handles quoting and preserves other machine-local settings.
             execFileSync('git', ['config', '--file', file, 'user.email', email]);
             fs.chmodSync(file, 0o600);

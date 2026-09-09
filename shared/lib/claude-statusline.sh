@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Ensures ~/.claude/settings.json points Claude Code's statusLine hook at
-# shared/configs/tmux's claude-statusline-hook.ts, which is what feeds the
+# shared/configs/tmux's claude-statusline-hook.mjs, which is what feeds the
 # Claude pill in the tmux status line with server-authoritative rate-limit
 # data (see that script's header for why). Run standalone or from a
 # platform bootstrap, AFTER link.sh so the hook's target path already
@@ -38,7 +38,7 @@ if os.path.exists(path):
 
 wanted_status_line = {
     "type": "command",
-    "command": "~/.config/tmux/claude-statusline-hook.ts",
+    "command": "~/.config/tmux/claude-statusline-hook.mjs",
     "refreshInterval": 60,
 }
 

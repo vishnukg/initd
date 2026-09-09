@@ -345,7 +345,7 @@ link_session_scripts() {
   # their own symlinks (they live in linux/scripts/, not under a MANAGED_LINKS dir).
   local name target src
   for name in night-light-toggle.sh \
-              weather-popup.ts docker-menu.ts audio-ports.sh; do
+              weather-popup.mjs docker-menu.mjs audio-ports.sh; do
     target="${HOME}/.config/${name}"
     src="${SCRIPTS_DIR}/${name}"
     chmod +x "${src}" 2>/dev/null || true

@@ -17,8 +17,8 @@ developer can follow like a checklist.
 | `linux/bootstrap.sh` | Linux setup: dnf packages (+ COPRs) → gh/1Password/Docker/mise → links → linux/setup.sh → fish → mise → git profile. |
 | `linux/setup.sh` | Linux system tweaks (fonts, GTK theme, session-script links, Firefox profile glue). |
 | `shared/lib/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files. Takes platform arg. |
-| `shared/lib/cleanup.ts` | Remove only the symlinks that initd created. Takes platform arg. |
-| `shared/lib/git-profile.ts` | Set the Git identity: personal uses the default email; work writes an override to `local.gitconfig`. |
+| `shared/lib/cleanup.mjs` | Remove only the symlinks that initd created. Takes platform arg. |
+| `shared/lib/git-profile.mjs` | Set the Git identity: personal uses the default email; work writes an override to `local.gitconfig`. |
 | `macos/brewinstall` | Add a formula or cask to the curated Brewfile and apply it locally. |
 | `shared/lib/fs.sh` | Shared filesystem helpers: `path_exists`, `symlink_points_to`, `verify_symlink_target`, `backup_path`. |
 | `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` array. Sources `fs.sh`. |
@@ -26,7 +26,7 @@ developer can follow like a checklist.
 | `macos/defaults.sh` | Apply macOS system defaults (key repeat, hushlogin). |
 | `macos/update.sh` / `linux/update.sh` | Upgrade Homebrew/dnf packages and mise-managed tools; Linux also self-updates mise. |
 | `shared/lib/logging.sh` | Colored log helpers: `log`, `log_info`, `log_success`, `log_warn`, `log_error`. |
-| `shared/install.test.ts` | Node behavior tests that run the Bash install helpers against temporary home directories. |
+| `shared/install.test.mjs` | Node behavior tests that run the Bash install helpers against temporary home directories. |
 
 ## How to read a script
 
@@ -104,7 +104,7 @@ repo_path="${managed_link#*:}"   # everything after the first colon
 
 **Adding a new managed config:** add one line to the appropriate `MANAGED_LINKS`
 (`shared/managed-links.sh` for cross-platform, `<platform>/managed-links.sh` for
-OS-only) and re-run `node --test shared/install.test.ts`.
+OS-only) and re-run `node --test shared/install.test.mjs`.
 
 ## Bash syntax used most often
 
@@ -257,7 +257,7 @@ This is why `BACKUP_ROOT` must be set before calling `backup_path`.
 ### Behavior tests
 
 ```bash
-node --test shared/install.test.ts
+node --test shared/install.test.mjs
 ```
 
 This is the most important test. It creates temporary `$HOME` directories and
@@ -288,7 +288,7 @@ bash -n bootstrap.sh \
 
 1. **To add a new managed config:** add one line to the appropriate
    `MANAGED_LINKS` (`shared/managed-links.sh` for cross-platform,
-   `<platform>/managed-links.sh` for OS-only) and re-run `node --test shared/install.test.ts`.
+   `<platform>/managed-links.sh` for OS-only) and re-run `node --test shared/install.test.mjs`.
 2. **To add a new Homebrew package:** run `macos/brewinstall <package>`. It
    updates `macos/Brewfile` and installs it locally.
 3. **To add a new dnf package:** append it to `linux/packages.txt`, then re-run

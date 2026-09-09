@@ -1,9 +1,7 @@
 import { execFileSync } from 'node:child_process';
 
-/** A symlink initd owns: `home` is the path in $HOME, `source` its target in the repo. */
-export interface ManagedLink { home: string; source: string; }
-
-export function managedLinks(root: string, platform: string, home: string): ManagedLink[] {
+// Returns { home, source } per link: the path in $HOME and its target in the repo.
+export function managedLinks(root, platform, home) {
     if (!['macos', 'linux'].includes(platform)) throw new Error(`Unsupported platform: ${platform}`);
     const script = [
         'set -euo pipefail',

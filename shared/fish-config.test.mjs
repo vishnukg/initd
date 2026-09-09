@@ -8,8 +8,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fish = execFileSync('which', ['fish'], { encoding: 'utf8' }).trim();
 const source = path.join(__dirname, 'configs/fish/.config/fish/config.fish');
-const plain = (value: string) => value.replace(/\x1b\[[0-9;]* q/g, '').trim();
-function fixture(t: import('node:test').TestContext) {
+const plain = value => value.replace(/\x1b\[[0-9;]* q/g, '').trim();
+function fixture(t) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-fish-test-'));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const config = path.join(root, 'config/fish');
@@ -23,7 +23,7 @@ function fixture(t: import('node:test').TestContext) {
         fs.writeFileSync(path.join(bin, tool), `#!${process.execPath}\nconsole.log('set -g __initd_seen_${tool} '+(process.env.INITD_TEST_VERSION || 'one')); process.exit(process.env.INITD_TEST_FAIL ? 1 : 0);\n`, { mode: 0o755 });
     }
     const env = { ...process.env, HOME: root, XDG_CONFIG_HOME: path.join(root, 'config'), XDG_CACHE_HOME: path.join(root, 'cache'), TMUX: 'fixture', TERM: 'xterm-256color', MISE_FISH_AUTO_ACTIVATE: '0' };
-    return { root, env, bin, run: (code: string, interactive = true, extra: NodeJS.ProcessEnv = {}) => plain(execFileSync(fish, [...(interactive ? ['-i'] : []), '-c', code], { env: { ...env, ...extra }, encoding: 'utf8' })) };
+    return { root, env, bin, run: (code, interactive = true, extra = {}) => plain(execFileSync(fish, [...(interactive ? ['-i'] : []), '-c', code], { env: { ...env, ...extra }, encoding: 'utf8' })) };
 }
 test('Fish config parses and noninteractive shells load only environment overrides', t => {
     execFileSync(fish, ['-n', source]);
@@ -57,7 +57,7 @@ test('non-TTY interactive shells never attempt tmux auto-attach', t => {
 test('tmux server-side selection gives concurrent clients separate sessions', { skip: process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-fish-tmux-'));
     const socket = path.join(root, 'socket');
-    const clients: import('node:child_process').ChildProcess[] = [];
+    const clients = [];
     t.after(() => {
         for (const child of clients) child.kill();
         try { execFileSync('tmux', ['-S', socket, 'kill-server'], { stdio: 'ignore' }); } catch {}
@@ -66,7 +66,7 @@ test('tmux server-side selection gives concurrent clients separate sessions', { 
     execFileSync('tmux', ['-S', socket, '-f', '/dev/null', 'new-session', '-d', '-s', 'existing', '/bin/sh']);
     const branch = fs.readFileSync(source, 'utf8').match(/command tmux start-server \\; if-shell -F '([^']+)' '([^']+)' '([^']+)'/);
     assert.ok(branch);
-    await Promise.all(Array.from({ length: 6 }, () => new Promise<void>((resolve, reject) => {
+    await Promise.all(Array.from({ length: 6 }, () => new Promise((resolve, reject) => {
         const child = spawn('tmux', ['-C', '-S', socket, 'start-server', ';', 'if-shell', '-F', ...branch.slice(1)], { env: { ...process.env, SHELL: '/bin/sh' } });
         clients.push(child);
         let output = '';
