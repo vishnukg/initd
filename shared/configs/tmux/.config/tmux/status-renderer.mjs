@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const STATUS_CACHE_TTL_SECONDS = 3;
+const STATUS_CACHE_TTL_SECONDS = 3;
 
 // Keyed by tmux's #{pane_current_command}, which is an arbitrary string.
 // Glyphs stay as \u escapes: they are Private Use Area code points that editors

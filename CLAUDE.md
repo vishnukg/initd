@@ -200,11 +200,11 @@ Edit files inside this repo, not through the live symlinks.
 
 ### Plain .mjs, no toolchain
 
-Every Node script here is `.mjs` with no build step, no `package.json`, and no `node_modules` — `node --check` is the whole syntax check and `node --test` the whole test runner. Files are run straight out of the repo through the `MANAGED_LINKS` symlinks (`node ~/.config/tmux/tmux.mjs status`, `#!/usr/bin/env node` on `claude-statusline-hook.mjs`), so editing one is the deploy.
+Every Node script here is `.mjs` with no build step, no `package.json`, and no `node_modules` — `node --check` is the whole syntax check and `node --test` the whole test runner. Files are run straight out of the repo through the `MANAGED_LINKS` symlinks (`node ~/.config/tmux/tmux.mjs watch`, `#!/usr/bin/env node` on `claude-statusline-hook.mjs`), so editing one is the deploy.
 
 This was briefly TypeScript, run through Node 24's type stripping. It got reverted, and the reasoning is worth keeping so it isn't re-litigated: of the three bugs that actually shipped in `createStatusPublisher`, `tsc` caught exactly one (`pill` used but never imported) and any linter's `no-undef` catches that same one. The two that needed real finding — a missing `set-option` verb, and a doubled cache read whose fallback lacked the try/catch of the call above it — were invisible to it. **The test caught those, and the test is what earned its keep.** Against one linter-grade catch, TypeScript wanted a `node_modules`, a Node ≥22.18 floor, ~30 non-null assertions, and a handful of `x === undefined` guards that are dead at runtime because `Number.isFinite(undefined)` is already false. It also added a silent failure mode this repo did not have: a non-erasable construct (an `enum`, say) throws at load, `main()` swallows it, and the status line just goes blank.
 
-What survived the revert, because it was never really about types: `findAgent` takes any row carrying `pid`/`parent`/`agent`, `queryQuota`'s `launch` needs only the five members the RPC touches (so a test passes a bare `EventEmitter`), and the reverse-engineered payload shapes are written down as a comment block at the top of `tmux.mjs`.
+What survived the revert, because it was never really about types: `findAgent` takes any row carrying `pid`/`parent`/`agent`, and the reverse-engineered Claude/Codex/Copilot payload shapes are written down as a comment block at the top of `tmux.mjs`.
 
 If typing ever seems worth revisiting: the bar is a bug class the tests genuinely cannot reach, and JSDoc with `checkJs` gets most of the way there without changing what runs.
 
