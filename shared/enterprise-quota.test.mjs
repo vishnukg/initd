@@ -79,8 +79,11 @@ test('quota cache is scoped by home and process/account, deduplicates and refres
     assert.equal(cache('/work', { ...binding, account: { ...account, login: 'personal-user' } }, 120001), null);
     assert.equal(cache('/work', null, 120001), null);
 });
-test('unknown, mismatched and changing accounts never return quota', async () => {
-    await assert.rejects(queryQuota('/tmp', { launch: () => { throw new Error('must not launch'); } }), /Pane account unavailable/);
+test('mismatched, unidentifiable and changing accounts never return quota', async () => {
+    // A runtime that cannot name its own account is still refused.
+    const nameless = runtime((c, r) => queueMicrotask(() => c.stdout.write(frame({ id: r.id, result: { authInfo: {} } }))));
+    await assert.rejects(queryQuota('/tmp', { launch: () => nameless }), /do not match/);
+    assert.equal(nameless.requests.length, 1, 'must not query quota without an identity');
     for (const mismatch of [{ ...account, login: 'personal-user' }, { ...account, host: 'https://work.ghe.com' }, {}]) {
         const child = runtime((c, r) => queueMicrotask(() => c.stdout.write(frame({ id: r.id, result: { authInfo: mismatch } }))));
         await assert.rejects(queryQuota('/tmp', { account, launch: () => child }), /do not match/);
@@ -90,6 +93,29 @@ test('unknown, mismatched and changing accounts never return quota', async () =>
         r.id === 1 ? { authInfo: account } : r.id === 2 ? { quotaSnapshots: {} } : { authInfo: { ...account, login: 'switched' } },
     }))));
     await assert.rejects(queryQuota('/tmp', { account, launch: () => child }), /do not match/);
+});
+test('a device-flow login takes its identity from the runtime and still detects a switch', async () => {
+    // The pane log says "for account (device)", so no account reaches queryQuota.
+    const answer = last => (c, r) => queueMicrotask(() => c.stdout.write(frame({ id: r.id, result:
+        r.id === 2 ? { quotaSnapshots: { chat: { entitlementRequests: 200, remainingPercentage: 98.4 } } }
+            : { authInfo: r.id === 3 ? last : account },
+    })));
+    const ok = runtime(answer(account));
+    assert.deepEqual(await queryQuota('/tmp', { launch: () => ok }),
+        { quotaSnapshots: { chat: { entitlementRequests: 200, remainingPercentage: 98.4 } } });
+    assert.deepEqual(ok.requests.map(r => r.method),
+        ['account.getCurrentAuth', 'account.getQuota', 'account.getCurrentAuth']);
+    // Adopting an identity must not disable the after-the-fact switch check.
+    const switched = runtime(answer({ ...account, login: 'someone-else' }));
+    await assert.rejects(queryQuota('/tmp', { launch: () => switched }), /do not match/);
+    // The cache keys a device-flow pane by its process, and still refuses no process.
+    const seen = [];
+    const cache = createQuotaCache(async home => { seen.push(home); return { quotaSnapshots: {} }; });
+    assert.equal(cache('/home', { process: '42:start:undefined' }, 0), null);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(cache('/home', { process: '42:start:undefined' }, 1), { quotaSnapshots: {} });
+    assert.equal(cache('/home', {}, 1), null);
+    assert.deepEqual(seen, ['/home']);
 });
 test('refresh failure clears quota and pending refresh has a hard staleness limit', async () => {
     let rejectRefresh;
