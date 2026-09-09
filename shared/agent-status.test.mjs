@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, refresh, openFilesByPid, createStatusPublisher } from './configs/tmux/.config/tmux/tmux.mjs';
+import { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, refresh, openFilesByPid, createStatusPublisher } from './configs/tmux/.config/tmux/tmux.mjs';
 const helper = fileURLToPath(new URL('./configs/tmux/.config/tmux/tmux.mjs', import.meta.url));
 
 test('two panes in the same directory resolve their own agent, excluding subagents', () => {
@@ -18,6 +18,27 @@ test('two panes in the same directory resolve their own agent, excluding subagen
     assert.equal(findAgent(procs, 20, 'codex').pid, 21);
     assert.equal(findAgent(procs, 20, 'claude'), null);
     assert.equal(findAgent([...procs, { pid: 13, parent: 10, agent: 'codex' }], 10, 'codex'), null);
+});
+
+// Copilot CLI 1.0.83 renames its main thread, so `comm` reads "MainThread" while
+// argv[0] - and so tmux's pane_current_command - still reads "copilot". Matching
+// comm alone left the pane with a bare icon and no model or quota.
+test('an agent that renamed its process is still found by argv[0]', () => {
+    const rows = [
+        '   10       1 Thu Sep 10 01:35:11 2026 fish fish',
+        '   11      10 Thu Sep 10 01:35:12 2026 MainThread copilot',
+        '   12      10 Thu Sep 10 01:35:12 2026 codex codex --model gpt-5.6',
+        '   13       1 Thu Sep 10 01:35:12 2026 node /opt/copilot/cli.js',
+    ].join('\n');
+    const procs = processes(rows);
+    assert.deepEqual(procs.map(p => [p.agent, p.command]), [
+        ['fish', 'fish'], ['MainThread', 'copilot'], ['codex', 'codex'], ['node', 'cli.js'],
+    ]);
+    assert.equal(procs[1].start, 'Thu Sep 10 01:35:12 2026');
+    assert.equal(findAgent(procs, 10, 'copilot').pid, 11);
+    // A renamed process must not become a wildcard for every other agent.
+    assert.equal(findAgent(procs, 10, 'codex').pid, 12);
+    assert.equal(findAgent(procs, 10, 'claude'), null);
 });
 test('open-file binding rejects ambiguous transcripts and ignores other files', () => {
     assert.equal(sessionFile('codex', 'p11\nn/tmp/rollout-a.jsonl\nn/tmp/config.toml'), '/tmp/rollout-a.jsonl');
@@ -100,6 +121,81 @@ test('Codex percentage includes zero, ticks down on cached data, and hides expir
     assert.equal(codexUsage(null), '');
     assert.equal(codexUsage({ primary: { used_percent: '31' } }), '');
     assert.equal(codexUsage({ primary: { used_percent: -1 } }), '');
+});
+test('a model switched between turns is reported at once, not one turn late', async t => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-agent-switch-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const file = path.join(dir, 'rollout-switch.jsonl');
+    const turn = model => JSON.stringify({ type: 'turn_context', payload: { model } });
+    const applied = model => JSON.stringify({
+        type: 'event_msg', payload: { type: 'thread_settings_applied', thread_settings: { model } },
+    });
+    // A switch after the last turn wins; the next turn then confirms it.
+    fs.writeFileSync(file, [turn('gpt-old'), applied('gpt-new')].join('\n') + '\n');
+    assert.equal((await sessionState('codex', file)).model, 'gpt-new');
+    fs.appendFileSync(file, turn('gpt-new') + '\n');
+    assert.equal((await sessionState('codex', file)).model, 'gpt-new');
+    // Settings carrying no model must not blank a model already known.
+    fs.appendFileSync(file, JSON.stringify({
+        type: 'event_msg', payload: { type: 'thread_settings_applied', thread_settings: {} },
+    }) + '\n');
+    assert.equal((await sessionState('codex', file)).model, 'gpt-new');
+});
+test('an exhausted Codex account says so, and any later turn clears it', async t => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-agent-exhausted-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const file = path.join(dir, 'rollout-exhausted.jsonl');
+    const complete = error => JSON.stringify({ type: 'event_msg', payload: { type: 'task_complete', error } });
+    const message = "You've hit your usage limit. Upgrade to Plus to continue using Codex "
+        + '(https://chatgpt.com/explore/plus), or try again at Sep 13th, 2026 6:05 PM.';
+    fs.writeFileSync(file, complete({ message, codex_error_info: 'usage_limit_exceeded' }) + '\n');
+    assert.equal((await sessionState('codex', file)).limit, message);
+    const reset = Date.parse('Sep 13, 2026 6:05 PM') / 1000;
+    assert.equal(codexLimit(message, reset - 3 * 86400 - 16 * 3600), ' · limit · 3d16h');
+    assert.equal(codexLimit(message, reset - 90 * 60), ' · limit · 1h30m');
+    // Once the reset has passed the countdown is gone, but the turn still failed.
+    assert.equal(codexLimit(message, reset), ' · limit');
+    assert.equal(codexLimit('out of quota, no date here'), ' · limit');
+    assert.equal(codexLimit(null), '');
+    // A turn that runs at all clears the notice without waiting for the reset.
+    fs.appendFileSync(file, complete(null) + '\n');
+    assert.equal((await sessionState('codex', file)).limit, null);
+});
+test('Codex falls back to its SQLite state when no rollout file is open', async t => {
+    const { DatabaseSync } = await import('node:sqlite');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-agent-sqlite-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const proc = { pid: 77, parent: 1, start: 'Thu Sep 10 01:35:11 2026', agent: 'codex' };
+    const started = Math.floor(Date.parse(proc.start) / 1000);
+    // Schema versions bump on migration, so the newest name of each pair wins:
+    // the older databases hold the wrong answer on purpose.
+    const build = (name, statements) => {
+        const db = new DatabaseSync(path.join(dir, `${name}.sqlite`));
+        for (const sql of statements) db.exec(sql);
+        db.close();
+    };
+    const logs = 'create table logs (id integer primary key, ts integer, thread_id text, process_uuid text)';
+    const threads = 'create table threads (id text primary key, model text)';
+    build('logs_1', [logs, `insert into logs values (1, ${started + 5}, 'wrong-db-thread', 'pid:77:zzz')`]);
+    build('logs_2', [logs, `insert into logs values
+        (1, ${started - 60}, 'reused-pid-thread', 'pid:77:aaa'),
+        (2, ${started + 10}, null, 'pid:77:bbb'),
+        (3, ${started + 20}, 'live-thread', 'pid:77:bbb'),
+        (4, ${started + 30}, 'other-pane-thread', 'pid:88:ccc')`]);
+    build('state_4', [threads, "insert into threads values ('live-thread', 'wrong-db-model')"]);
+    build('state_5', [threads, `insert into threads values
+        ('live-thread', 'gpt-5.6-luna'), ('reused-pid-thread', 'gpt-old')`]);
+    const openFiles = ['logs_1', 'logs_2', 'state_4', 'state_5']
+        .map(name => `n${path.join(dir, `${name}.sqlite`)}`).join('\n') + '\nn/dev/pts/3\n';
+    assert.deepEqual(await codexSqliteState(openFiles, proc), { id: 'live-thread', model: 'gpt-5.6-luna' });
+    // The kernel reuses pids, so a row predating this process is not ours.
+    assert.equal(await codexSqliteState(openFiles, { ...proc, pid: 99 }), null);
+    assert.equal(await codexSqliteState('n/dev/pts/3\n', proc), null);
+    // A thread known before its first turn has no model row yet; the caller
+    // keeps the bare agent name rather than inventing one.
+    build('state_6', [threads]);
+    const pending = openFiles + `n${path.join(dir, 'state_6.sqlite')}\n`;
+    assert.deepEqual(await codexSqliteState(pending, proc), { id: 'live-thread', model: null });
 });
 test('Claude can show its model without rate limits and strips tmux formatting', () => {
     assert.equal(claudeValue({ model: { display_name: 'Sonnet' } }), 'Sonnet');
