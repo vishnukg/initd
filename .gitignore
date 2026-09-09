@@ -1,6 +1,10 @@
 # Local Go build output.
 bin/
 
+# Dev-only typecheck dependencies (@types/node, tsc). Node strips the types at
+# load time, so nothing here is needed to actually run the .ts scripts.
+node_modules/
+
 # Claude Code local settings (machine-specific).
 .claude/
 
@@ -17,6 +21,7 @@ shared/fonts/
 # Fish — files managed by fisher or fish itself, not by this repo.
 shared/configs/fish/.config/fish/fish_variables
 shared/configs/fish/.config/fish/local.fish
+shared/configs/fish/.config/fish/local.env.fish
 shared/configs/fish/.config/fish/conf.d/local.fish
 shared/configs/fish/.config/fish/functions/
 shared/configs/fish/.config/fish/completions/

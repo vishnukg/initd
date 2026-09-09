@@ -7,19 +7,13 @@ if test -x /opt/homebrew/bin/brew
 end
 
 # ── PATH ──────────────────────────────────────────────────────────────────────
-# One fish_add_path call, not one per directory: it is a function with
-# argparse and dedupe logic (~0.6 ms per call), so one call per directory
-# was ~3 ms - a fifth of today's ~16 ms startup. The list is in final PATH
-# order, front first.
-#
-# -g: keep fish_user_paths per-session instead of the default universal
-# variable. Without it every shell re-adds these to a list persisted in
-# fish_variables, and a directory removed from this file lingers there until
-# erased by hand. This file is the only source of truth for PATH.
+# Add managed paths together. -g avoids writing universal variables, but
+# preserves existing fish_user_paths and their order. Removing a path here
+# does not erase inherited or previously configured entries.
 #
 # Mise: hybrid setup (see docs/mise.md). Shims are the baseline PATH for
 # every context (scripts, editors, non-interactive shells); interactive
-# shells additionally run `mise activate` (cached, deferred - see below),
+# shells additionally run `mise activate` (deferred - see below),
 # which puts the real binaries first so launches skip the shim hop and
 # tools keep their own process name (e.g. tmux tabs show nvim, not mise).
 #
@@ -30,7 +24,7 @@ end
 # the shims - so in every activated shell `zoxide` resolved to the shim
 # and zoxide's PWD hook cost ~26 ms per cd instead of ~2.5 ms. Left to
 # mise, both dirs land at the front of PATH on activation. starship never
-# needed the entry: its cached init embeds the absolute binary path.
+# needed the entry: its init embeds the absolute binary path.
 set -l initd_paths
 for dir in ~/.local/share/mise/shims \
            ~/.dotnet/tools \
@@ -39,31 +33,30 @@ for dir in ~/.local/share/mise/shims \
 end
 fish_add_path -g $initd_paths
 
+# Environment overrides apply to scripts as well as interactive shells.
+# Keep aliases, abbreviations and other interactive setup in local.fish.
+if test -f $__fish_config_dir/local.env.fish
+    source $__fish_config_dir/local.env.fish
+end
+
 # ── Interactive-only config ────────────────────────────────────────────────────
 if not status is-interactive
     return
 end
 
 # ── Tmux auto-attach ──────────────────────────────────────────────────────────
-# One session per terminal window: reclaim the most recently used session that
-# has no client attached, or start a fresh one. Simultaneous windows never
-# mirror each other; reopening a window picks detached work back up.
-if not set -q TMUX
-    set -l detached (tmux list-sessions \
-        -f '#{==:#{session_attached},0}' \
-        -F '#{session_last_attached} #{session_name}' 2>/dev/null |
-        sort -rn | head -n1 | string split -m1 -f2 ' ')
-    if test -n "$detached"
-        exec tmux attach -t "=$detached"
-    else
-        # Terse names instead of tmux's 0/1/2; first free one wins.
-        for s in fox owl elk bee ant koi ram yak
-            if not tmux has-session -t "=$s" 2>/dev/null
-                exec tmux new-session -s $s
-            end
-        end
-        exec tmux new-session
+# Decide and attach/create inside one synchronous tmux command queue. No
+# shell-side list/check race or locks that could survive a failed client.
+# With no target, attach prefers the most recently used detached session.
+# Let tmux allocate new names. Set INITD_TMUX_AUTO_ATTACH=0 to opt out.
+if not set -q TMUX; and test "$INITD_TMUX_AUTO_ATTACH" != 0; \
+        and isatty stdin; and isatty stdout; and command -q tmux
+    command tmux start-server \; if-shell -F '#{S:#{?session_attached,,1}}' 'attach-session' 'new-session'
+    # Unlike exec, a failed tmux command leaves a usable shell.
+    if test $status -eq 0
+        exit
     end
+    echo 'initd: tmux could not attach; continuing in Fish.' >&2
 end
 
 # ── Greeting ──────────────────────────────────────────────────────────────────
@@ -164,57 +157,24 @@ abbr -a gstp 'git stash pop'
 abbr -a gsw  'git switch'
 abbr -a gswc 'git switch --create'
 
-# ── Cached tool init (zoxide, starship, mise) ─────────────────────────────────
-# Regenerate the cached init script only when the binary is newer than the
-# cache. Extra arguments are passed through to the init command.
-function __source_cached_init --argument-names tool subcmd
-    set -q subcmd[1]; or set subcmd init
-    command -q $tool; or return
-    set -l cache ~/.cache/fish/{$tool}_{$subcmd}.fish
-    # Also regenerate when this config is newer than the cache: the arguments
-    # baked into a cache (starship's --print-full-init) change here, not in
-    # the binary, and a machine with an existing cache would otherwise keep
-    # sourcing the old output for as long as the binary stays the same.
-    if not test -f $cache; or test (command -v $tool) -nt $cache; \
-            or test $__fish_config_dir/config.fish -nt $cache
-        mkdir -p (dirname $cache)
-        switch $tool
-            case mise
-                # Not cacheable as-is: `mise activate fish` opens with two
-                # lines that bake the PATH of the shell that generated it,
-                #   set -gx __MISE_ORIG_PATH '<literal PATH>'
-                #   set -gx PATH <shims first, then that literal PATH>
-                # and sourced later from a shell whose PATH differs (a
-                # local.fish addition, a Neovim terminal, anything set before
-                # the first command) they replace the live PATH with the stale
-                # one. Both are redundant here: shims are already on PATH from
-                # the block above, and the script's own fallback sets
-                # __MISE_ORIG_PATH from the live PATH when unset. The rest is
-                # static, so it stays cached. The filter is inline because
-                # `string` only reads stdin when it is the pipe's direct
-                # target, not from inside a helper function. If mise renames
-                # those lines the pattern stops matching; the mise caller
-                # checks for a leftover and warns.
-                command $tool $subcmd fish $argv[3..] |
-                    string match -rv '^set -gx (PATH|__MISE_ORIG_PATH) ' >$cache
-            case '*'
-                command $tool $subcmd fish $argv[3..] >$cache
-        end
-    end
-    source $cache
+# ── Tool init (zoxide, starship, mise) ──────────────────────────────────────
+# Generate fresh init from the selected binary. No shared cache to race on,
+# no shim-mtime invalidation, and no stale captured PATH. A failed generator
+# must not have its partial output sourced.
+function __initd_tool_init
+    command -q $argv[1]; or return
+    set -l script (command $argv)
+    or return
+    printf '%s\n' $script | source
 end
-__source_cached_init zoxide
-# --print-full-init: plain `starship init fish` emits a one-line stub that
-# runs `starship init fish --print-full-init | psub` at every startup, so
-# the "cache" was still spawning starship, mktemp, cat and rm on each new
-# shell (~7 ms). The full init is the ~90-line script the stub would fetch.
-__source_cached_init starship init --print-full-init
+__initd_tool_init zoxide init fish
+__initd_tool_init starship init fish --print-full-init
 # Interactive-only mise activation: prepends real tool bins to PATH via a
 # prompt hook so shims are only the non-interactive fallback.
 #
 # Deferred to the first command rather than run at startup: activation's
-# initial `mise hook-env` is ~23 ms, more than the whole ~16 ms startup of
-# a new tab, and it buys nothing until a command runs - the shims above
+# initial `mise hook-env` adds startup work but buys nothing until a command
+# runs - the shims above
 # already resolve every tool for the prompt itself. fish_preexec fires
 # before the first typed command executes, so that command (and every
 # prompt after it) sees the fully activated environment; only the empty
@@ -233,13 +193,10 @@ function __initd_mise_activate --on-event fish_preexec
     # measured at the same ~23 ms. A prompt in the same directory takes the
     # early-exit path, ~7 ms.
     set -g mise_fish_mode disable_arrow
-    __source_cached_init mise activate
-    if string match -q 'set -gx PATH *' <~/.cache/fish/mise_activate.fish
-        echo 'initd: mise activate cache still bakes PATH; check the filter in __source_cached_init' >&2
-    end
+    __initd_tool_init mise activate fish
 end
 
 # ── Local overrides (machine-specific, not committed) ─────────────────────────
-if test -f ~/.config/fish/local.fish
-    source ~/.config/fish/local.fish
+if test -f $__fish_config_dir/local.fish
+    source $__fish_config_dir/local.fish
 end

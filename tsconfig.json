@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["esnext"],
+    "types": ["node"],
+
+    // Node runs these files directly and only strips the types away, so the
+    // source must stay valid once every annotation is deleted: no enums, no
+    // namespaces, no parameter properties, and real .ts in import specifiers.
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "shared/**/*.ts",
+    "linux/scripts/**/*.ts"
+  ]
+}

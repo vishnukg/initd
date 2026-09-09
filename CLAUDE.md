@@ -5,11 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Run the behavior test suite (auto-detects host OS; uses temporary home directories)
-shared/test.sh
+# Run install behavior tests (auto-detects host OS; uses temporary home directories)
+node --test shared/install.test.ts
 
 # Agent status: process/session isolation, model switches, concurrent writes
-node --test shared/agent-status.test.cjs
+node --test shared/agent-status.test.ts shared/enterprise-quota.test.ts
+
+# Fish startup (isolated configuration and mock tools; requires fish and node)
+node --test shared/fish-config.test.ts
+# Also test concurrent tmux attachment using a separate temporary server
+INITD_TEST_TMUX=1 node --test shared/fish-config.test.ts
 
 # Syntax-check every script. One `bash -n` call per file, not
 # `bash -n file1 file2 ...` - bash -n only ever checks its FIRST argument;
@@ -18,16 +23,20 @@ node --test shared/agent-status.test.cjs
 # "passes" without checking anything past the first file.
 for f in bootstrap.sh \
   shared/lib/logging.sh shared/lib/fs.sh \
-  shared/lib/link.sh shared/lib/cleanup.sh shared/lib/git-profile.sh shared/lib/fonts.sh \
+  shared/lib/link.sh shared/lib/fonts.sh \
   shared/lib/claude-statusline.sh \
-  shared/managed-links.sh shared/test.sh \
+  shared/managed-links.sh \
   macos/bootstrap.sh macos/defaults.sh macos/brewinstall macos/update.sh macos/managed-links.sh \
-  linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh \
-  shared/configs/tmux/.config/tmux/git-branch.sh shared/configs/tmux/.config/tmux/battery.sh \
-  shared/configs/tmux/.config/tmux/random-emoji.sh shared/configs/tmux/.config/tmux/agent-usage.sh \
-  shared/configs/tmux/.config/tmux/claude-statusline-hook.sh; do
+  linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh; do
   bash -n "$f" && echo "OK   $f" || echo "FAIL $f"
 done
+
+# Typecheck every .ts script. Do NOT substitute `node --check`: on a .ts file
+# with no import/export it parses as CommonJS JavaScript and reports the first
+# type annotation as "Missing initializer in const declaration", and on the ESM
+# files here it exits 0 without checking types at all. tsc is the only check.
+# Dev-only: `npm install` once for @types/node; nothing here is needed at runtime.
+npm run typecheck        # tsc --noEmit
 
 # Full bootstrap (dispatches by uname)
 bash bootstrap.sh
@@ -40,12 +49,12 @@ shared/lib/link.sh macos    # or: linux
 shared/lib/fonts.sh
 
 # Set the Git identity (personal = default email; work = write override to local.gitconfig)
-shared/lib/git-profile.sh personal
-shared/lib/git-profile.sh work
+node shared/lib/git-profile.ts personal
+node shared/lib/git-profile.ts work
 
 # Preview / run cleanup
-shared/lib/cleanup.sh <platform> --dry-run
-shared/lib/cleanup.sh <platform>
+node shared/lib/cleanup.ts <platform> --dry-run
+node shared/lib/cleanup.ts <platform>
 
 # macOS — add a Homebrew package to the curated Brewfile and install it locally
 macos/brewinstall <package>           # auto-detects formula vs cask
@@ -65,11 +74,11 @@ Three top-level buckets, intentionally decoupled. The contract: `shared/` must n
 initd/
 ├── bootstrap.sh              # ~20-line dispatcher: uname -s → macos|linux
 ├── shared/                   # cross-platform — sourced by both bootstraps
-│   ├── lib/                  # logging.sh, fs.sh, link.sh, cleanup.sh, git-profile.sh, fonts.sh, claude-statusline.sh
+│   ├── lib/                  # Bash bootstrap helpers plus cleanup.ts and git-profile.ts
 │   ├── managed-links.sh      # MANAGED_LINKS for shared configs + git helpers
 │   ├── configs/              # colima, fish, git, ghostty, kitty, mise, nvim, starship, tmux
 │   ├── fonts/                # gitignored clone of the PRIVATE vishnukg/fonts repo (Berkeley Mono)
-│   └── test.sh
+│   └── install.test.ts
 ├── macos/                    # self-contained — `rm -rf macos/` and Linux still works
 │   ├── bootstrap.sh
 │   ├── Brewfile
@@ -108,7 +117,7 @@ macos/bootstrap.sh
   ├─ ensure_fish (dscl)
   ├─ mise trust + mise install
   ├─ macos/defaults.sh
-  ├─ setup_git_profile (uses shared/lib/git-profile.sh)
+  ├─ setup_git_profile (uses shared/lib/git-profile.ts)
   ├─ ensure_docker_config                 # merges credsStore=osxkeychain + brew cliPluginsExtraDirs into ~/.docker/config.json
   └─ ensure_colima_service                # brew services start colima (login autostart)
 
@@ -151,13 +160,13 @@ The single array `MANAGED_LINKS` is built in two steps:
 
 Entry format: `"home path:repo path"`. Scripts split with `home_path="${entry%%:*}"` / `repo_path="${entry#*:}"`.
 
-`~/.gitconfig` is an ordinary `MANAGED_LINKS` entry pointing at the single `shared/configs/git/gitconfig`. That base config bakes in the default (personal) Git email and `[include]`s `shared/configs/git/local.gitconfig` *after* the `[user]` block, so a work email written there overrides the default. `shared/lib/git-profile.sh personal|work` only decides whether that override file gets written — it no longer switches what `~/.gitconfig` links to.
+`~/.gitconfig` is an ordinary `MANAGED_LINKS` entry pointing at the single `shared/configs/git/gitconfig`. That base config bakes in the default (personal) Git email and `[include]`s `shared/configs/git/local.gitconfig` *after* the `[user]` block, so a work email written there overrides the default. `shared/lib/git-profile.ts personal|work` only decides whether that override file gets written — it no longer switches what `~/.gitconfig` links to.
 
 **Adding a managed config:**
 - Cross-platform: add to `MANAGED_LINKS` in `shared/managed-links.sh` and place the source under `shared/configs/<name>/`.
 - Platform-only: append to `MANAGED_LINKS` in `<platform>/managed-links.sh` and place the source under `<platform>/configs/<name>/`.
 
-Then add a corresponding assertion in `shared/test.sh` (or rely on the generic `get_managed_links` loop, which iterates over whatever the host platform produces).
+Then add a corresponding assertion in `shared/install.test.ts` (or rely on the generic managed-links loop, which iterates over whatever the host platform produces).
 
 ### Machine-local secrets
 
@@ -189,6 +198,19 @@ Edit files inside this repo, not through the live symlinks.
 ### Backup safety
 
 `backup_path` in `shared/lib/fs.sh` moves any pre-existing unmanaged file to `${BACKUP_ROOT}/<relative-path>` before taking ownership. `BACKUP_ROOT` is exported by each platform's `bootstrap.sh` so re-applying links uses the same timestamped folder for the whole run.
+
+### TypeScript with no build step
+
+Every Node script here is `.ts` and is **run directly** — `node ~/.config/tmux/tmux.ts status`, `#!/usr/bin/env node` on `claude-statusline-hook.ts`, `node --test shared/*.test.ts`. Node 24 strips the types at load and executes the result; there is no `tsc` build, no `dist/`, and the `MANAGED_LINKS` symlinks keep pointing straight at the repo source. This is what lets the "edit the file, it is already live" model survive the move off `.mjs`.
+
+Two consequences are load-bearing:
+
+- **Only erasable syntax is allowed.** No `enum`, no `namespace`, no parameter properties, no decorators — Node throws on them at load rather than stripping them, and the failure looks like a dead status line, not a compile error. `tsconfig.json` sets `erasableSyntaxOnly` so `tsc` rejects them first. `verbatimModuleSyntax` is on for the same reason: a type-only import must say `import type`, or the stripped output keeps a runtime import of something that does not exist.
+- **Import specifiers carry the real `.ts` extension** (`./status-renderer.ts`), because Node's ESM resolver wants the actual filename. That is what `allowImportingTsExtensions` permits; it is not the usual TS convention of writing `.js`.
+
+`node` here comes only from mise (there is no system Node on either machine), currently 24.21, so the stripping support is always present. `npm install` fetches `@types/node` and `tsc` for `npm run typecheck` — **dev-only**; `node_modules/` is gitignored and nothing in bootstrap needs it. Type errors never reach runtime either way, so a machine that never runs `npm install` still works.
+
+Cold start pays about 80 ms for stripping on the full `tmux.ts once` pass (110 ms → 190 ms); the per-redraw `tmux.ts status` path is 40–60 ms. `NODE_COMPILE_CACHE` roughly halves that if it ever matters — deliberately not set, since nothing has felt slow.
 
 ### Line endings
 
