@@ -5,8 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { findAgent, sessionFile, copilotSessionFile, copilotProcessState, sessionState, claudeValue, codexUsage, refresh, openFilesByPid, createStatusPublisher } from './configs/tmux/.config/tmux/tmux.ts';
-const helper = fileURLToPath(new URL('./configs/tmux/.config/tmux/tmux.ts', import.meta.url));
+import { findAgent, sessionFile, copilotSessionFile, copilotProcessState, sessionState, claudeValue, codexUsage, refresh, openFilesByPid, createStatusPublisher } from './configs/tmux/.config/tmux/tmux.mjs';
+const helper = fileURLToPath(new URL('./configs/tmux/.config/tmux/tmux.mjs', import.meta.url));
 
 test('two panes in the same directory resolve their own agent, excluding subagents', () => {
     const procs = [
@@ -14,8 +14,8 @@ test('two panes in the same directory resolve their own agent, excluding subagen
         { pid: 11, parent: 10, agent: 'codex' }, { pid: 21, parent: 20, agent: 'codex' },
         { pid: 12, parent: 11, agent: 'codex' },
     ];
-    assert.equal(findAgent(procs, 10, 'codex')!.pid, 11);
-    assert.equal(findAgent(procs, 20, 'codex')!.pid, 21);
+    assert.equal(findAgent(procs, 10, 'codex').pid, 11);
+    assert.equal(findAgent(procs, 20, 'codex').pid, 21);
     assert.equal(findAgent(procs, 20, 'claude'), null);
     assert.equal(findAgent([...procs, { pid: 13, parent: 10, agent: 'codex' }], 10, 'codex'), null);
 });
@@ -32,7 +32,7 @@ test('Copilot follows only its own process log and tracks foreground session cha
     const log = path.join(dir, 'logs', 'process-123-42.log');
     const first = '11111111-1111-1111-1111-111111111111';
     const second = '22222222-2222-2222-2222-222222222222';
-    const register = (id: string) => `2026-09-08T13:00:19.461Z [INFO] Registering foreground session: ${id}\n`;
+    const register = id => `2026-09-08T13:00:19.461Z [INFO] Registering foreground session: ${id}\n`;
     fs.writeFileSync(log, register(first));
     const openFiles = `p42\nn${log}\nn${dir}/session-store.db`;
     assert.equal(await copilotSessionFile(openFiles, 42), path.join(dir, 'session-state', first, 'events.jsonl'));
@@ -69,12 +69,12 @@ test('Codex reads the latest account quota snapshot, ignoring unrelated limits a
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     const file = path.join(dir, 'rollout-quota.jsonl');
     const latest = { limit_id: 'codex', primary: { used_percent: 31, window_minutes: 300, resets_at: 20000 } };
-    const event = (rate_limits: unknown) => ({ type: 'event_msg', payload: { type: 'token_count', rate_limits } });
+    const event = rate_limits => ({ type: 'event_msg', payload: { type: 'token_count', rate_limits } });
     fs.writeFileSync(file, [event({ ...latest, primary: { used_percent: 20 } }), event(latest),
         event({ limit_id: 'other-model', primary: { used_percent: 99 } }), event(null),
     ].map(record => JSON.stringify(record)).join('\n') + '\n{"partial":');
     assert.deepEqual((await sessionState('codex', file)).rateLimits, latest);
-    assert.equal((await sessionState('codex', file)).rateLimits!.primary!.used_percent, 31);
+    assert.equal((await sessionState('codex', file)).rateLimits.primary.used_percent, 31);
 });
 test('Codex percentage includes zero, ticks down on cached data, and hides expired or invalid quota', () => {
     const limits = { primary: { used_percent: 31, resets_at: 20000 } };
@@ -82,8 +82,8 @@ test('Codex percentage includes zero, ticks down on cached data, and hides expir
     assert.equal(codexUsage(limits, 5660), ' · 31% · 3h59m');
     assert.equal(codexUsage(limits, 20000), '');
     assert.equal(codexUsage({ primary: { used_percent: 0 } }, 0), ' · 0%');
-    assert.equal(codexUsage(undefined), '');
-    assert.equal(codexUsage({ primary: { used_percent: '31' as unknown as number } }), '');
+    assert.equal(codexUsage(null), '');
+    assert.equal(codexUsage({ primary: { used_percent: '31' } }), '');
     assert.equal(codexUsage({ primary: { used_percent: -1 } }), '');
 });
 test('Claude can show its model without rate limits and strips tmux formatting', () => {
@@ -94,7 +94,7 @@ test('incremental reads resume at complete records and recover from rotation and
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-agent-tail-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     const file = path.join(dir, 'rollout-tail.jsonl');
-    const record = (model: string) => JSON.stringify({ type: 'turn_context', payload: { model } }) + '\n';
+    const record = model => JSON.stringify({ type: 'turn_context', payload: { model } }) + '\n';
     const first = record('first');
     fs.writeFileSync(file, first);
     assert.equal((await sessionState('codex', file)).model, 'first');
@@ -103,10 +103,8 @@ test('incremental reads resume at complete records and recover from rotation and
     fs.appendFileSync(file, next.subarray(0, next.length - 5));
     assert.equal((await sessionState('codex', file)).model, 'first');
     const original = fs.createReadStream;
-    const starts: (number | undefined)[] = [];
-    fs.createReadStream = ((name: fs.PathLike, options: { start?: number }) => {
-        starts.push(options.start); return original(name, options);
-    }) as unknown as typeof fs.createReadStream;
+    const starts = [];
+    fs.createReadStream = (name, options) => { starts.push(options.start); return original(name, options); };
     try {
         fs.appendFileSync(file, next.subarray(next.length - 5));
         assert.equal((await sessionState('codex', file)).model, 'second-🤖');
@@ -123,9 +121,9 @@ test('incremental reads resume at complete records and recover from rotation and
     } finally { fs.createReadStream = original; }
 });
 test('idle watcher skips process scans and all expensive data work', async () => {
-    const calls: string[][] = [];
+    const calls = [];
     await refresh({
-        run: (command, args) => { calls.push([command, args[0]!]); return '1|2|fish\n1|3|nvim\n'; },
+        run: (command, args) => { calls.push([command, args[0]]); return '1|2|fish\n1|3|nvim\n'; },
         processes: () => { throw new Error('idle process scan'); },
     });
     assert.deepEqual(calls, [['tmux', 'list-panes']]);
@@ -134,14 +132,14 @@ test('concurrent writers leave one complete cache value and no temporary files',
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-agent-write-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     const file = path.join(dir, 'cache.json');
-    await Promise.all(Array.from({ length: 8 }, (_, i) => new Promise<void>((resolve, reject) => {
+    await Promise.all(Array.from({ length: 8 }, (_, i) => new Promise((resolve, reject) => {
         const child = spawn(process.execPath, ['--input-type=module', '-e', 'import(process.env.INITD_AGENT_HELPER).then(m => m.atomic(process.env.INITD_TARGET, JSON.stringify({writer:process.env.INITD_WRITER,value:"x".repeat(10000)})))'], {
             env: { ...process.env, INITD_AGENT_HELPER: helper, INITD_TARGET: file, INITD_WRITER: String(i) },
         });
         child.on('error', reject);
-        child.on('exit', (code: number | null) => code === 0 ? resolve() : reject(new Error(`writer exited ${code}`)));
+        child.on('exit', code => code === 0 ? resolve() : reject(new Error(`writer exited ${code}`)));
     })));
-    assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).value.length, 10000);
+    assert.equal(JSON.parse(fs.readFileSync(file)).value.length, 10000);
     assert.deepEqual(fs.readdirSync(dir), ['cache.json']);
 });
 test('Copilot identity comes only from its own log and account switches invalidate the binding', async t => {
@@ -150,23 +148,23 @@ test('Copilot identity comes only from its own log and account switches invalida
     fs.mkdirSync(path.join(dir, 'logs'));
     const log = path.join(dir, 'logs', 'process-123-42.log');
     const output = `p42\nn${log}`;
-    const auth = (value: string) => `2026-09-09T00:00:00Z [INFO] [rust:copilot_runtime::managed_settings::api_session] [managedSettings] self-fetch starting for account ${value}\n`;
+    const auth = value => `2026-09-09T00:00:00Z [INFO] [rust:copilot_runtime::managed_settings::api_session] [managedSettings] self-fetch starting for account ${value}\n`;
     fs.writeFileSync(log, 'unrelated account https://github.com/personal\n');
-    assert.equal((await copilotProcessState(output, 42))!.account, undefined);
+    assert.equal((await copilotProcessState(output, 42)).account, undefined);
     fs.appendFileSync(log, auth('https://work.ghe.com/work-user'));
     const first = await copilotProcessState(output, 42);
-    assert.deepEqual(first!.account, { host: 'https://work.ghe.com', login: 'work-user' });
+    assert.deepEqual(first.account, { host: 'https://work.ghe.com', login: 'work-user' });
     assert.equal(await copilotProcessState(output, 99), null);
     fs.appendFileSync(log, auth('(device)'));
-    assert.equal((await copilotProcessState(output, 42))!.account, null);
+    assert.equal((await copilotProcessState(output, 42)).account, null);
     fs.appendFileSync(log, auth('https://work.ghe.com/work-user'));
-    assert.notEqual((await copilotProcessState(output, 42))!.accountEpoch, first!.accountEpoch);
+    assert.notEqual((await copilotProcessState(output, 42)).accountEpoch, first.accountEpoch);
 });
 test('one asynchronous lsof scan covers all agents and does not delay Claude', async () => {
-    const writes: string[][] = [];
-    const calls: [string, string[]][] = [];
-    let release!: (value: string) => void;
-    const lookup = new Promise<string>(resolve => { release = resolve; });
+    const writes = [];
+    const calls = [];
+    let release;
+    const lookup = new Promise(resolve => { release = resolve; });
     const pending = refresh({
         run(command, args) {
             calls.push([command, args]);
@@ -177,23 +175,23 @@ test('one asynchronous lsof scan covers all agents and does not delay Claude', a
             { pid: 20, parent: 1, agent: 'copilot' },
             { pid: 30, parent: 1, agent: 'claude' },
         ],
-        atomic: (file: string, value: string) => { writes.push([file, value]); },
+        atomic: (file, value) => writes.push([file, value]),
     });
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(writes.length, 1);
-    assert.match(writes[0]![1]!, /\nclaude\n/);
+    assert.match(writes[0][1], /\nclaude\n/);
     assert.deepEqual(calls.filter(c => c[0] === 'lsof'), [['lsof', ['-a', '-p', '10,20', '-Fn']]]);
     release(''); // timeout/unavailable lookup still emits safe icon-only caches
     await pending;
     assert.equal(writes.length, 3);
     const files = openFilesByPid('nignored\np10\nn/tmp/rollout-one.jsonl\np20\nn/tmp/session-state/two/events.jsonl\n');
-    assert.equal(sessionFile('codex', files.get(10)!), '/tmp/rollout-one.jsonl');
-    assert.equal(sessionFile('copilot', files.get(20)!), '/tmp/session-state/two/events.jsonl');
+    assert.equal(sessionFile('codex', files.get(10)), '/tmp/rollout-one.jsonl');
+    assert.equal(sessionFile('copilot', files.get(20)), '/tmp/session-state/two/events.jsonl');
     assert.equal(files.size, 2);
 });
 test('publisher renders every pill and sends well-formed set-option commands', async () => {
-    const sent: string[][] = [];
-    const runCommand = async (command: string, args: string[]) => {
+    const sent = [];
+    const runCommand = async (command, args) => {
         if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
         if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
         if (command === 'git' && args.includes('symbolic-ref')) return 'main\n';
@@ -206,7 +204,7 @@ test('publisher renders every pill and sends well-formed set-option commands', a
     // tmux rejects an option change that does not name the set-option command.
     assert.ok(sent.length > 0);
     for (const args of sent) assert.equal(args[0], 'set-option');
-    const option = (name: string) => sent.find(args => args.includes(name))?.at(-1) ?? '';
+    const option = name => sent.find(args => args.includes(name))?.at(-1) ?? '';
     assert.match(option('@initd-battery'), /87%/);
     assert.match(option('@initd-agent-pill'), /Opus 5 · 12%/);
     assert.match(option('@initd-git-pill'), /main/);

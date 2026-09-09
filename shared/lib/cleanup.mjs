@@ -2,10 +2,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { managedLinks } from './managed-links.ts';
+import { managedLinks } from './managed-links.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const usage = 'Usage: cleanup.ts <macos|linux> [--dry-run]';
+const usage = 'Usage: cleanup.mjs <macos|linux> [--dry-run]';
 const [platform, ...args] = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 if (!['macos', 'linux'].includes(platform) || args.some(arg => !['--dry-run', '-h', '--help'].includes(arg))) {
@@ -16,12 +16,12 @@ if (!['macos', 'linux'].includes(platform) || args.some(arg => !['--dry-run', '-
 } else {
     if (dryRun) console.log(':: Dry run mode — no files will be removed.');
     console.log(`==> Removing initd-managed symlinks from ${process.env.HOME} (${platform})`);
-    for (const entry of managedLinks(root, platform, process.env.HOME ?? '')) {
-        let stat: fs.Stats;
+    for (const entry of managedLinks(root, platform, process.env.HOME)) {
+        let stat;
         try {
             stat = fs.lstatSync(entry.home);
         } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+            if (error.code !== 'ENOENT') throw error;
             console.log(`==> Already absent: ${entry.home}`);
             continue;
         }

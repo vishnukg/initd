@@ -18,7 +18,7 @@ initd/
 │   ├── lib/                     # logging, fs, link, cleanup, git-profile, fonts
 │   ├── managed-links.sh         # MANAGED_LINKS for shared configs + git helpers
 │   ├── configs/                 # colima, fish, git, ghostty, kitty, mise, nvim, starship, tmux
-│   └── install.test.ts          # install behavior tests (auto-detects host OS)
+│   └── install.test.mjs          # install behavior tests (auto-detects host OS)
 ├── macos/                       # self-contained macOS bootstrap
 │   ├── bootstrap.sh
 │   ├── Brewfile
@@ -61,11 +61,11 @@ Re-running is safe and idempotent.
 |---|---|
 | Full bootstrap | `bash bootstrap.sh` |
 | Re-apply links only | `shared/lib/link.sh <macos\|linux>` |
-| Set Git identity | `node shared/lib/git-profile.ts personal` / `work` |
-| Remove managed symlinks | `node shared/lib/cleanup.ts <macos\|linux> --dry-run` |
+| Set Git identity | `node shared/lib/git-profile.mjs personal` / `work` |
+| Remove managed symlinks | `node shared/lib/cleanup.mjs <macos\|linux> --dry-run` |
 | Add a brew formula/cask | `macos/brewinstall <name>` |
 | Update tools | `macos/update.sh` or `linux/update.sh` |
-| Run install behavior tests | `node --test shared/install.test.ts` |
+| Run install behavior tests | `node --test shared/install.test.mjs` |
 
 ## Managed config mapping
 
@@ -151,7 +151,7 @@ Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-com
 2. macOS-only: drop under `macos/configs/<name>/`, append to `MANAGED_LINKS` in `macos/managed-links.sh`.
 3. Linux-only: drop under `linux/configs/<name>/`, append in `linux/managed-links.sh`.
 
-Then re-run `node --test shared/install.test.ts`.
+Then re-run `node --test shared/install.test.mjs`.
 
 ## Reference docs
 

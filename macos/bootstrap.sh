@@ -285,12 +285,12 @@ setup_git_profile() {
 
   if [[ ! -t 0 ]]; then
     log_warn "Git identity needs setup, but bootstrap is not running interactively."
-    log_info "Run node shared/lib/git-profile.ts personal or work later."
+    log_info "Run node shared/lib/git-profile.mjs personal or work later."
     return
   fi
 
   log "Setting up Git identity..."
-  mise exec -- node "${SHARED_DIR}/lib/git-profile.ts"
+  mise exec -- node "${SHARED_DIR}/lib/git-profile.mjs"
 }
 
 main() {

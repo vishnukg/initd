@@ -1,10 +1,6 @@
 # Local Go build output.
 bin/
 
-# Dev-only typecheck dependencies (@types/node, tsc). Node strips the types at
-# load time, so nothing here is needed to actually run the .ts scripts.
-node_modules/
-
 # Claude Code local settings (machine-specific).
 .claude/
 
