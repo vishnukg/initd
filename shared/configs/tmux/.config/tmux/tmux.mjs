@@ -4,7 +4,6 @@ import path from 'node:path';
 import { execFile, execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { createQuotaCache, quotaValue, accountKey } from './copilot-quota.mjs';
 import { agentPill, battery, clean, gitPill, pill, readAgentCache } from './status-renderer.mjs';
 
 // The shapes below are reverse-engineered from three agents' logs; none are
@@ -12,9 +11,13 @@ import { agentPill, battery, clean, gitPill, pill, readAgentCache } from './stat
 //   proc         one `ps -axo pid=,ppid=,lstart=,comm=` row:
 //                { pid, parent, start, agent }
 //   state        accumulated while replaying an append-only transcript:
-//                { model, id, rateLimits?, sessionId?, account?, accountEpoch? }
+//                { model, id, rateLimits?, quota?, sessionId? }
 //   rateLimits   Codex token_count payload:
 //                { limit_id, primary: { used_percent, resets_at } }
+//   quota        Copilot model.model_call_success payload, i.e. event.data:
+//                { quotaSnapshots: { chat|completions|premium_interactions:
+//                  { entitlementRequests, remainingPercentage, resetDate,
+//                    isUnlimitedEntitlement, hasQuota?, tokenBasedBilling? } } }
 //   hook data    what Claude Code pipes into the statusLine hook on stdin:
 //                { model: { id, display_name },
 //                  rate_limits: { spend_limit|five_hour|seven_day:
@@ -24,7 +27,6 @@ import { agentPill, battery, clean, gitPill, pill, readAgentCache } from './stat
 //                [pane_id, server pid, pane pid, command, cwd, active]
 
 const filename = fileURLToPath(import.meta.url);
-const copilotQuota = createQuotaCache();
 const cacheDir = path.join(process.env.HOME, '.cache/initd-tmux');
 // How often pane options are refreshed. tmux repaints on status-interval, whose
 // floor is one whole second, so this only bounds how stale a value can be when
@@ -32,7 +34,7 @@ const cacheDir = path.join(process.env.HOME, '.cache/initd-tmux');
 // 500ms costs ~1.7% -> ~3.2% of one core; a cycle itself is ~85ms.
 const STATUS_REFRESH_MS = 500;
 const transcriptCache = new Map();
-const sourceVersion = () => [filename, fileURLToPath(new URL('./copilot-quota.mjs', import.meta.url))]
+const sourceVersion = () => [filename, fileURLToPath(new URL('./status-renderer.mjs', import.meta.url))]
     .map(file => fs.statSync(file).mtimeMs).join(':');
 const loadedVersion = sourceVersion();
 function run(command, args) {
@@ -151,13 +153,6 @@ async function sessionState(agent, file) {
                 pending = pending.subarray(newline + 1);
                 if (agent === 'copilot-process') {
                     const text = line.toString('utf8');
-                    const auth = text.match(/^\S+ \[INFO\] \[rust:copilot_runtime::managed_settings::api_session\] \[managedSettings\] self-fetch starting for account (.+)$/);
-                    if (auth) {
-                        const identity = auth[1].match(/^(https:\/\/[^/\s]+)\/([a-z0-9_-]+)$/i);
-                        const account = identity ? { host: identity[1], login: identity[2] } : null;
-                        if (accountKey(account) !== accountKey(state.account)) state.accountEpoch = offset;
-                        state.account = account;
-                    }
                     const match = text.match(/^\S+ \[INFO\] (Registering|Unregistering) foreground session: ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*$/i);
                     if (match?.[1] === 'Registering') state.sessionId = match[2];
                     else if (match && state.sessionId === match[2]) state.sessionId = null;
@@ -169,6 +164,8 @@ async function sessionState(agent, file) {
                     const limits = event.payload?.rate_limits;
                     if (agent === 'codex' && event.type === 'event_msg' && event.payload?.type === 'token_count'
                         && limits && (!limits.limit_id || ACCOUNT_LIMIT_IDS.has(limits.limit_id))) state.rateLimits = limits;
+                    if (agent === 'copilot' && event.type === 'model.model_call_success'
+                        && event.data?.quotaSnapshots) state.quota = event.data;
                 } catch {}
             }
         }
@@ -189,6 +186,33 @@ function codexUsage(limits, now = Date.now() / 1000) {
         value += ` · ${Math.floor(mins / 60)}h${mins % 60}m`;
     }
     return value;
+}
+// Copilot writes its own quota into the transcript we already read, so this is
+// pure formatting - no RPC, no cache, no account binding. Because the snapshot
+// comes from that session's own log it is inherently the right account, and it
+// is refreshed whenever a model call happens, which is the only time the
+// numbers move. A session that has not called a model yet has none, and the
+// pill correctly shows just the model until it does.
+function copilotUsage(data, now = Date.now() / 1000) {
+    const snapshots = data?.quotaSnapshots;
+    for (const key of ['premium_interactions', 'chat']) {
+        const quota = snapshots?.[key];
+        if (!quota || quota.hasQuota === false) continue;
+        const label = quota.tokenBasedBilling ? 'credits' : key === 'chat' ? 'chat' : 'requests';
+        if (quota.isUnlimitedEntitlement || quota.entitlementRequests === -1) return ` · ${label} ∞`;
+        if (!(quota.entitlementRequests > 0) || !Number.isFinite(quota.remainingPercentage)) continue;
+        if (quota.remainingPercentage < 0 || quota.remainingPercentage > 100) continue;
+        let value = ` · ${Math.round(100 - quota.remainingPercentage)}% ${label}`;
+        const reset = Date.parse(quota.resetDate) / 1000;
+        // Some runtimes substitute the fetch time when no reset date is known.
+        if (reset > now) {
+            const mins = Math.ceil((reset - now) / 60);
+            value += mins >= 1440 ? ` · ${Math.floor(mins / 1440)}d${Math.floor(mins % 1440 / 60)}h`
+                : ` · ${Math.floor(mins / 60)}h${mins % 60}m`;
+        }
+        return value;
+    }
+    return '';
 }
 function claudeValue(data, now = Date.now() / 1000) {
     const model = clean(data.model?.display_name || 'claude');
@@ -254,12 +278,7 @@ async function refresh(io = { run: runAsync, processes: async () => processes(aw
                         const state = await sessionState(agent, file);
                         value = state.model ? clean(state.model) : agent;
                         if (agent === 'codex') value += codexUsage(state.rateLimits);
-                        if (agent === 'copilot') {
-                            const home = path.dirname(path.dirname(path.dirname(file)));
-                            value += quotaValue(copilotQuota(home, {
-                                process: `${proc.pid}:${proc.start}:${copilot?.accountEpoch}`, account: copilot?.account,
-                            }));
-                        }
+                        if (agent === 'copilot') value += copilotUsage(state.quota);
                     } catch { /* The session may exit while its log is read. */ }
                 }
             }
@@ -399,7 +418,7 @@ async function main() {
         if (sourceVersion() !== loadedVersion) return;
     } while (true);
 }
-export { findAgent, sessionFile, copilotSessionFile, copilotProcessState, modelEvent, sessionState, claudeValue, codexUsage, atomic, refresh, openFilesByPid, createStatusPublisher, status, hook };
+export { findAgent, sessionFile, copilotSessionFile, copilotProcessState, modelEvent, sessionState, claudeValue, codexUsage, copilotUsage, atomic, refresh, openFilesByPid, createStatusPublisher, status, hook };
 let invokedDirectly = false;
 try { invokedDirectly = Boolean(process.argv[1]) && fs.realpathSync(process.argv[1]) === filename; } catch {}
 if (invokedDirectly) main();
