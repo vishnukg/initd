@@ -23,7 +23,7 @@ bash scripts directly into fish.
 ## Variables
 
 ```fish
-set name "value"           # local (current function only)
+set -l name "value"        # explicitly local to the current scope
 set -g name "value"        # global (current session, gone when fish exits)
 set -gx name "value"       # global + exported to child processes
 set -U name "value"        # universal (persists across all sessions forever)
@@ -31,10 +31,10 @@ set -U name "value"        # universal (persists across all sessions forever)
 
 ### Global vs universal — when each makes sense
 
-**Global (`-g`)** variables exist for the current fish session only and are
-exported to all child processes. `config.fish` runs on every fish startup, so
-anything set with `-g` there is always available to child processes like Neovim.
-This is the right choice for PATH entries — simple, direct, no hidden state.
+**Global (`-g`)** controls scope, not export. Use `-gx` when child processes
+such as Neovim need the value. `fish_add_path -g` avoids universal-variable
+writes, but preserves existing `fish_user_paths` entries and their order;
+it does not remove old paths simply because they disappear from the config.
 
 ```fish
 set -gx PATH /opt/homebrew/bin $PATH   # equivalent to bash's: export PATH=...
@@ -179,9 +179,12 @@ The same rule applies to `conf.d/` files that define interactive-only behaviour.
 
 The config keeps startup fast by avoiding setup commands during shell startup:
 
-- mise uses `~/.local/share/mise/shims` on `PATH` instead of `mise activate`.
-- `starship` and `zoxide` are loaded from their mise install directories when
-  available, so fish does not need to resolve them through shims first.
+- mise shims provide PATH in every shell; interactive activation is deferred
+  until the first command, then keeps real tool binaries ahead of the shims.
+- Starship and zoxide initialize from the currently selected binaries each
+  interactive startup. There is no shared init cache, shim-mtime invalidation,
+  or cached PATH. Failed initialization output is not sourced. This trades
+  some startup work for simpler, upgrade-safe behavior.
 - Nord colors are set directly with `fish_color_*` variables instead of running
   `fish_config theme choose nord` on every shell start.
 - `fish_greeting` is a normal global variable, not a universal variable written
@@ -191,20 +194,26 @@ The config keeps startup fast by avoiding setup commands during shell startup:
 
 ## Machine-local config
 
-For settings that should only exist on one machine (work credentials, private
-env vars, machine-specific aliases), create:
+Use two gitignored files for machine-specific settings:
 
 ```
-~/.config/fish/local.fish
+~/.config/fish/local.env.fish  # environment: every shell, including fish -c
+~/.config/fish/local.fish      # aliases and preferences: interactive only
 ```
 
-This file is gitignored and sourced by `config.fish` at startup if it exists. Example work machine setup:
+Both are optional and resolved relative to Fish's actual config directory
+(`$__fish_config_dir`, including `XDG_CONFIG_HOME` overrides). For example:
 
 ```fish
-# ~/.config/fish/local.fish  (not in git)
+# ~/.config/fish/local.env.fish  (not in git)
 set -gx GOPRIVATE "github.com/mycompany/*"
 set -gx WORK_API_KEY "..."
+set -gx INITD_TMUX_AUTO_ATTACH 0  # optional: disable automatic tmux attachment
+
+# ~/.config/fish/local.fish  (not in git)
 abbr -a deploy './scripts/deploy.sh staging'
 ```
 
-Create it on any machine that needs it, leave it absent everywhere else.
+Move environment exports from an existing `local.fish` into `local.env.fish`
+if scripts need them. Existing personal overrides are not moved automatically.
+Keep environment setup quiet and idempotent because every Fish invocation loads it.

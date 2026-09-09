@@ -27,25 +27,22 @@ battery, and the active agent's model/usage pill.
 
 ## Auto-start: attach or create on terminal open
 
-Add this to `shared/configs/fish/.config/fish/config.fish`, after the `fish_greeting` line:
+The managed Fish config already handles this; no extra startup snippet is needed.
 
 ```fish
-# Auto-attach to tmux when opening a terminal
-if status is-interactive && not set -q TMUX
-    set -l default_session main
-    if tmux has-session -t $default_session 2>/dev/null
-        exec tmux attach -t $default_session
-    else
-        exec tmux new-session -s $default_session
-    end
-end
+# The decision runs synchronously inside the tmux server's command queue.
+tmux start-server \; if-shell -F '#{S:#{?session_attached,,1}}' 'attach-session' 'new-session'
 ```
 
 What this does:
-- Only runs in interactive shells (not scripts).
+
+- Only runs in interactive shells with terminal input/output and tmux installed.
 - Does nothing if you're already inside tmux (`TMUX` is set).
-- If a session named `main` exists → attaches to it (your work survives terminal restarts).
-- Otherwise → creates a fresh session called `main`.
+- Reuses the most recently used detached session, or creates a new one with
+  a tmux-assigned name. Checking and attaching happen in the same server queue,
+  so simultaneous launches do not race on a shell-side session listing.
+- Leaves a usable Fish shell if tmux fails; exits the outer shell after a normal detach.
+- Set `INITD_TMUX_AUTO_ATTACH=0` in `local.env.fish` to opt out.
 
 ---
 
@@ -215,8 +212,8 @@ list). If the process or session cannot be identified unambiguously, it shows
 only the agent's icon, never another session's model. Icons are an amber robot
 for Claude, a blue Copilot face for Copilot, and a coral Hubot for Codex. Agent
 names are omitted from the pill. Claude and Codex both use
-`model · percentage% · time until reset` (percentage is quota used); Copilot shows
-its model, since this integration has no Copilot quota source.
+`model · percentage% · time until reset` for subscription quotas. Enterprise
+budgets and Copilot entitlements carry labels because their periods differ.
 
 Codex displays the latest `turn_context.model` in that process's open rollout.
 This is the latest recorded turn model: a selection made while idle may not
@@ -237,6 +234,39 @@ icon. Claude's status-line hook records its model and rate limits against the
 owning process and its start time, with unique atomic cache writes. After
 upgrading, Claude's model appears on its next hook invocation.
 
-There are no cost estimates, usage-report subprocesses, or telemetry exports
-needed for the pill. Pane caches expire after ten seconds if the watcher stops
-updating them.
+Claude prefers `rate_limits.spend_limit` when supplied by a Claude apps gateway:
+`model · 65% budget · 12d0h`. Budget usage can exceed 100%. Otherwise it uses the
+five-hour limit, then a labeled weekly limit. Expired or absent limits omit
+the usage portion, leaving the model and robot icon. Standard Claude
+Enterprise accounts may not expose any of these fields through the hook. The
+gateway spend-limit field requires Claude Code 2.1.251 or newer. See the
+[Claude status-line contract](https://code.claude.com/docs/en/statusline).
+
+Copilot queries the installed CLI's read-only `account.getQuota` RPC using its
+headless stdio transport. The expected host/login comes from that pane's own
+process log's managed-settings account record, never a global config default.
+The helper checks `account.getCurrentAuth` before and after the quota request;
+unknown or mismatched identities omit usage rather than substitute another
+login's quota. Runtime versions without the recognized account log record or
+auth RPC omit usage too. Token overrides are not copied from the pane: if the
+helper cannot authenticate as the recorded account, it shows no quota.
+Caches are scoped to the configuration root, process start, account identity,
+and observed account changes, including switching away and back.
+
+Queries are asynchronous, limited to once per two minutes per process/account
+binding while Copilot is active, and time out after 15 seconds. A matching
+successful snapshot stays visible during refresh for at most 135 seconds from
+its request start; failures clear it. Each temporary CLI process exits after
+the response; no conversation is created and no prompts are sent. Percentages
+mean entitlement used and are labeled `credits`, `requests`, or `chat` according
+to the response. `∞` appears only for an explicitly unlimited entitlement (other
+organization limits may still apply). Missing quotas, failed authentication,
+and unsupported CLI versions omit the usage portion. Reset countdowns appear when
+the API supplies a future reset date. See the
+[Copilot quota API](https://docs.github.com/en/copilot/how-tos/copilot-sdk/features/usage-and-billing).
+
+There are no cost estimates, ccusage dependency, or telemetry exports. Account
+quota results stay in memory. Pane caches expire after ten seconds if the
+watcher stops updating them.
+All transcript-based panes share one asynchronous `lsof` scan with a three-second
+timeout per refresh, with output separated by PID. Claude does not wait for it.
