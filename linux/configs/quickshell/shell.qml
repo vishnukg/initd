@@ -414,12 +414,12 @@ ShellRoot {
 
     Process {
         id: weatherPopupProcess
-        command: [Quickshell.env("HOME") + "/.config/weather-popup.sh"]
+        command: [Quickshell.env("HOME") + "/.config/weather-popup.ts"]
     }
 
     Process {
         id: dockerMenuProcess
-        command: [Quickshell.env("HOME") + "/.config/docker-menu.sh"]
+        command: [Quickshell.env("HOME") + "/.config/docker-menu.ts"]
     }
 
     Timer {

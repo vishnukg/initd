@@ -4,6 +4,7 @@
 # committer edits from Windows or via a tool that defaults to CRLF.
 
 *.sh        text eol=lf
+*.ts        text eol=lf
 *.fish      text eol=lf
 *.conf      text eol=lf
 *.ini       text eol=lf
