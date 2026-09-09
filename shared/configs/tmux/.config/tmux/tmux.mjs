@@ -380,28 +380,9 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
             (index ? [';'] : []).concat(args.map(arg => arg === ';' ? '\\;' : arg))));
     };
 }
-function status() {
-    let row;
-    try {
-        row = run('tmux', ['display-message', '-p', '#{pid}|#{pane_pid}|#{pane_current_command}']).trim().split('|');
-    } catch { return ''; }
-    const [server, pane, agent] = row;
-    if (!/^\d+$/.test(server) || !/^\d+$/.test(pane)) return '';
-    const record = readAgentCache(cacheDir, server, pane);
-    if (!record) return '';
-    return agentPill(agent, record);
-}
 async function main() {
-    if (process.argv[2] === 'hook') {
-        try { hook(JSON.parse(fs.readFileSync(0, 'utf8'))); } catch {}
-        return;
-    }
-    if (process.argv[2] === 'status') {
-        process.stdout.write(status());
-        return;
-    }
     if (!['watch', 'once'].includes(process.argv[2])) {
-        console.error('Usage: tmux.mjs <watch|once|status|hook>');
+        console.error('Usage: tmux.mjs <watch|once>');
         process.exitCode = 1;
         return;
     }
@@ -418,7 +399,7 @@ async function main() {
         if (sourceVersion() !== loadedVersion) return;
     } while (true);
 }
-export { findAgent, sessionFile, copilotSessionFile, copilotProcessState, modelEvent, sessionState, claudeValue, codexUsage, copilotUsage, atomic, refresh, openFilesByPid, createStatusPublisher, status, hook };
+export { findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, copilotUsage, atomic, refresh, openFilesByPid, createStatusPublisher, hook };
 let invokedDirectly = false;
 try { invokedDirectly = Boolean(process.argv[1]) && fs.realpathSync(process.argv[1]) === filename; } catch {}
 if (invokedDirectly) main();

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { findAgent, sessionFile, copilotSessionFile, copilotProcessState, sessionState, claudeValue, codexUsage, refresh, openFilesByPid, createStatusPublisher } from './configs/tmux/.config/tmux/tmux.mjs';
+import { findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, refresh, openFilesByPid, createStatusPublisher } from './configs/tmux/.config/tmux/tmux.mjs';
 const helper = fileURLToPath(new URL('./configs/tmux/.config/tmux/tmux.mjs', import.meta.url));
 
 test('two panes in the same directory resolve their own agent, excluding subagents', () => {
