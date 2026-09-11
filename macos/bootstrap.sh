@@ -140,48 +140,11 @@ strip_cask_if_app_exists() {
 ensure_docker_config() {
   require_command docker-credential-osxkeychain "after brew bundle"
 
-  local docker_config="${HOME}/.docker/config.json"
-  mkdir -p "${HOME}/.docker"
-
-  # Merge rather than overwrite: config.json also holds currentContext,
-  # plugin hints, and any existing registry auths.
-  python3 - "${docker_config}" <<'PY' \
-    || { log_error "Failed to update ${docker_config}"; exit 1; }
-import json
-import os
-import sys
-
-path = sys.argv[1]
-config = {}
-if os.path.exists(path):
-    with open(path) as f:
-        config = json.load(f)
-
-wanted = {
-    "credsStore": "osxkeychain",
-}
-plugin_dir = "/opt/homebrew/lib/docker/cli-plugins"
-plugin_dirs = config.get("cliPluginsExtraDirs", [])
-if not isinstance(plugin_dirs, list):
-    plugin_dirs = []
-if plugin_dir not in plugin_dirs:
-    plugin_dirs.append(plugin_dir)
-
-wanted["cliPluginsExtraDirs"] = plugin_dirs
-changed = any(config.get(k) != v for k, v in wanted.items())
-
-if changed:
-    config.update(wanted)
-    with open(path, "w") as f:
-        json.dump(config, f, indent=2)
-        f.write("\n")
-
-# The file can contain registry auth material even when osxkeychain is the
-# configured default, so keep it private whether or not its JSON changed.
-os.chmod(path, 0o600)
-PY
-
-  log_success "Docker config OK (osxkeychain credsStore, brew CLI plugins dir)."
+  # Merges rather than overwrites, and reports its own result. Invoked through
+  # `mise exec` like every other node step here: node comes only from mise, and
+  # mise installs one on demand for the steps that run before `mise install`.
+  mise exec -- node "${MACOS_DIR}/docker-config.mjs" \
+    || { log_error "Failed to update ${HOME}/.docker/config.json"; exit 1; }
 }
 
 ensure_colima_service() {
@@ -334,7 +297,7 @@ main() {
   "${SHARED_DIR}/lib/link.sh" macos
 
   log "Configuring Claude Code's statusLine hook for the tmux usage pill..."
-  "${SHARED_DIR}/lib/claude-statusline.sh"
+  mise exec -- node "${SHARED_DIR}/lib/claude-statusline.mjs"
 
   log "Installing licensed fonts into ~/Library/Fonts..."
   ensure_local_fonts

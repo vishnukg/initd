@@ -11,6 +11,10 @@ node --test shared/install.test.mjs
 # Agent status: process/session isolation, model switches, concurrent writes
 node --test shared/agent-status.test.mjs shared/enterprise-quota.test.mjs
 
+# Config files bootstrap merges into rather than owns (~/.claude/settings.json,
+# ~/.docker/config.json) plus the Firefox profile glue
+node --test shared/bootstrap-config.test.mjs
+
 # Fish startup (isolated configuration and mock tools; requires fish and node)
 node --test shared/fish-config.test.mjs
 # Also test concurrent tmux attachment using a separate temporary server
@@ -24,7 +28,6 @@ INITD_TEST_TMUX=1 node --test shared/fish-config.test.mjs
 for f in bootstrap.sh \
   shared/lib/logging.sh shared/lib/fs.sh \
   shared/lib/link.sh shared/lib/fonts.sh \
-  shared/lib/claude-statusline.sh \
   shared/managed-links.sh \
   macos/bootstrap.sh macos/defaults.sh macos/brewinstall macos/update.sh macos/managed-links.sh \
   linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh; do
@@ -33,7 +36,7 @@ done
 
 # Syntax-check every Node script.
 for f in shared/configs/tmux/.config/tmux/*.mjs shared/lib/*.mjs \
-  shared/*.test.mjs linux/scripts/*.mjs; do
+  shared/*.test.mjs linux/scripts/*.mjs macos/*.mjs; do
   node --check "$f" && echo "OK   $f" || echo "FAIL $f"
 done
 
@@ -73,7 +76,8 @@ Three top-level buckets, intentionally decoupled. The contract: `shared/` must n
 initd/
 ├── bootstrap.sh              # ~20-line dispatcher: uname -s → macos|linux
 ├── shared/                   # cross-platform — sourced by both bootstraps
-│   ├── lib/                  # Bash bootstrap helpers plus cleanup.mjs and git-profile.mjs
+│   ├── lib/                  # Bash bootstrap helpers plus cleanup.mjs, git-profile.mjs,
+│   │                         #   claude-statusline.mjs and json-file.mjs
 │   ├── managed-links.sh      # MANAGED_LINKS for shared configs + git helpers
 │   ├── configs/              # colima, fish, git, ghostty, kitty, mise, nvim, starship, tmux
 │   ├── fonts/                # gitignored clone of the PRIVATE vishnukg/fonts repo (Berkeley Mono)
@@ -83,6 +87,7 @@ initd/
 │   ├── Brewfile
 │   ├── brewinstall
 │   ├── defaults.sh           # macOS defaults write …
+│   ├── docker-config.mjs     # credsStore + brew cli-plugins dir → ~/.docker/config.json
 │   ├── managed-links.sh      # appends macOS-only links to MANAGED_LINKS
 │   └── update.sh
 └── linux/                    # self-contained — `rm -rf linux/` and macOS still works
@@ -91,7 +96,8 @@ initd/
     ├── setup.sh              # system fixes (fonts, theme/config glue)
     ├── managed-links.sh      # appends the Linux-only links to MANAGED_LINKS
     ├── update.sh
-    ├── scripts/              # session scripts invoked by Hyprland/Quickshell
+    ├── scripts/              # session scripts invoked by Hyprland/Quickshell, plus
+    │                         #   firefox-profile.mjs (a setup.sh helper)
     └── configs/              # hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig,
                               #   systemd, gtk-3.0, ghostty, firefox, …
 ```
@@ -110,14 +116,14 @@ macos/bootstrap.sh
   ├─ ensure_gh_auth                           # before the fonts sync, so a fresh machine gets fonts in one run
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ shared/lib/link.sh macos                 # symlinks
-  ├─ shared/lib/claude-statusline.sh          # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
+  ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ ensure_local_fonts                       # COPIES OTFs → ~/Library/Fonts (macOS won't register symlinked fonts)
   ├─ ensure_tmux_terminfo                     # compiles Homebrew ncurses's tmux-256color into ~/.terminfo (system entry lacks Smulx → no nvim undercurl inside tmux)
   ├─ ensure_fish (dscl)
   ├─ mise trust + mise install
   ├─ macos/defaults.sh
   ├─ setup_git_profile (uses shared/lib/git-profile.mjs)
-  ├─ ensure_docker_config                 # merges credsStore=osxkeychain + brew cliPluginsExtraDirs into ~/.docker/config.json
+  ├─ ensure_docker_config                 # runs macos/docker-config.mjs: merges credsStore=osxkeychain + brew cliPluginsExtraDirs into ~/.docker/config.json
   └─ ensure_colima_service                # brew services start colima (login autostart)
 
 linux/bootstrap.sh
@@ -132,7 +138,7 @@ linux/bootstrap.sh
   ├─ ensure_gh_auth                           # before the fonts sync, so a fresh machine gets fonts in one run
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ shared/lib/link.sh linux                 # symlinks (incl. shared/fonts/berkeley-mono → ~/.local/share/fonts)
-  ├─ shared/lib/claude-statusline.sh          # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
+  ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ linux/setup.sh                           # fonts/theme + config glue
   ├─ ensure_fish (chsh)
   ├─ mise trust + mise install
@@ -201,6 +207,10 @@ Edit files inside this repo, not through the live symlinks.
 ### Plain .mjs, no toolchain
 
 Every Node script here is `.mjs` with no build step, no `package.json`, and no `node_modules` — `node --check` is the whole syntax check and `node --test` the whole test runner. Files are run straight out of the repo through the `MANAGED_LINKS` symlinks (`node ~/.config/tmux/tmux.mjs watch`, `#!/usr/bin/env node` on `claude-statusline-hook.mjs`), so editing one is the deploy.
+
+**There is no `python3` anywhere in the bootstrap path, and it should stay that way.** Four steps used to shell out to embedded python heredocs — the two JSON merges (`~/.claude/settings.json`, `~/.docker/config.json`), Firefox's `profiles.ini` parse, and the `content-prefs.sqlite` zoom write — which made python an undeclared runtime dependency of a repo that otherwise needs only bash, node and mise. All four are `.mjs` now: `shared/lib/json-file.mjs` holds the merge-don't-own invariant for both JSON callers, and `linux/scripts/firefox-profile.mjs` does the INI parse by hand and the sqlite write through `node:sqlite`. Anything new that needs to parse or edit structured data belongs in a tested `.mjs`, not in a heredoc.
+
+Bootstrap steps reach node as **`mise exec -- node <script>`**, never a bare `node`. `node` comes only from mise (`node = "lts"` in the mise config; it is in neither the Brewfile nor `packages.txt`), so on a fresh machine there is no node on `PATH` until `mise install --yes` — and `linux/setup.sh` and the statusLine step both run before that. `mise exec` installs a missing tool on demand, and sends its install progress to stderr, so it works at any point in the sequence and a `$(...)` capture of the script's stdout stays clean.
 
 This was briefly TypeScript, run through Node 24's type stripping. It got reverted, and the reasoning is worth keeping so it isn't re-litigated: of the three bugs that actually shipped in `createStatusPublisher`, `tsc` caught exactly one (`pill` used but never imported) and any linter's `no-undef` catches that same one. The two that needed real finding — a missing `set-option` verb, and a doubled cache read whose fallback lacked the try/catch of the call above it — were invisible to it. **The test caught those, and the test is what earned its keep.** Against one linter-grade catch, TypeScript wanted a `node_modules`, a Node ≥22.18 floor, ~30 non-null assertions, and a handful of `x === undefined` guards that are dead at runtime because `Number.isFinite(undefined)` is already false. It also added a silent failure mode this repo did not have: a non-erasable construct (an `enum`, say) throws at load, `main()` swallows it, and the status line just goes blank.
 
