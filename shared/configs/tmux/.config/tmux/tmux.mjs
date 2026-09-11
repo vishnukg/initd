@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFile, execFileSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { agentPill, battery, clean, gitPill, pill, readAgentCache } from './status-renderer.mjs';
 
@@ -48,13 +48,16 @@ function run(command, args) {
     try { return execFileSync(command, args, { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' }, timeout: 3000, maxBuffer: 8 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }); }
     catch { return ''; }
 }
-function runAsync(command, args) {
+function runAsync(command, args, checked = false) {
     // lsof may return 1 when one requested process has just exited, while
     // still returning complete records for the other processes.
-    return new Promise(resolve => execFile(command, args, {
+    return new Promise((resolve, reject) => execFile(command, args, {
         encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' },
         timeout: 3000, killSignal: 'SIGKILL', maxBuffer: 8 * 1024 * 1024,
-    }, (error, stdout) => resolve(error && !(command === 'lsof' && error.code === 1) ? '' : stdout)));
+    }, (error, stdout) => {
+        if (error && checked) return reject(error);
+        resolve(error && !(command === 'lsof' && error.code === 1) ? '' : stdout);
+    }));
 }
 function openFilesByPid(output) {
     const files = new Map();
@@ -483,24 +486,25 @@ const agentStyles = { claude: true, copilot: true, codex: true };
 // and writing the same @initd-* options. Only one needs to: the pills come from
 // those options, and the job's own stdout is deliberately blank. So the workers
 // elect one owner through this lock and the rest idle, still alive so tmux keeps
-// their job (and so one can take over the instant the owner's client goes away).
-const LOCK_NAME = 'watcher.lock';
-const lockPath = path.join(cacheDir, LOCK_NAME);
-// Four ticks. The owner dies with its client, which is routine - closing one of
-// two terminals - so this is how long the pills can go stale before a follower
-// takes over, and it has to clear a tick comfortably to avoid a handover storm.
-const LOCK_STALE_MS = 2000;
+// their job (and so one can take over when the owner's client goes away).
+// Each socket has its own owner: list-panes -a only covers that server.
+function watcherLockPath(socket) {
+    return path.join(cacheDir, `watcher-${createHash('sha256').update(socket).digest('hex')}.lock`);
+}
+let lockPath = watcherLockPath((process.env.TMUX || 'default').replace(/,\d+,\d+$/, ''));
+// A slow cycle is still owned work. Reclaim only after the owner exits; an
+// elapsed-time lease could elect a second worker while a subprocess is pending.
 function claimWatcherLock(now = Date.now(), io = {}) {
+    const file = io.path || lockPath;
     // mkdir first: on a fresh machine nothing has written the cache directory
     // yet, and an ENOENT here would read as 'someone else holds it' and leave
     // every watcher idle with nobody publishing.
     const create = io.create || (value => {
-        fs.mkdirSync(path.dirname(lockPath), { recursive: true });
-        fs.writeFileSync(lockPath, value, { flag: 'wx' });
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, value, { flag: 'wx', mode: 0o600 });
     });
-    const read = io.read || (() => fs.readFileSync(lockPath, 'utf8'));
-    const write = io.write || (value => fs.writeFileSync(lockPath, value));
-    const remove = io.remove || (() => fs.unlinkSync(lockPath));
+    const read = io.read || (() => fs.readFileSync(file, 'utf8'));
+    const remove = io.remove || (() => fs.unlinkSync(file));
     const alive = io.alive || (pid => {
         try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
     });
@@ -509,26 +513,24 @@ function claimWatcherLock(now = Date.now(), io = {}) {
     // wx: whoever creates the file wins, so two watchers starting together
     // cannot both believe they own it.
     try { create(stamp); return true; } catch { /* someone holds it */ }
-    let holder, beat;
-    try { [holder, beat] = read().split('\n'); } catch { return false; }
-    // Already ours: rewrite it, which is also the heartbeat followers read.
-    if (Number(holder) === me) {
-        try { write(stamp); return true; } catch { return false; }
-    }
+    let holder, created;
+    try { [holder, created] = read().split('\n'); } catch { return false; }
+    if (Number(holder) === me) return true;
     // Both fields are checked for shape rather than run through Number(), which
     // turns a truncated or half-written file into a plausible-looking 0 instead
     // of rejecting it. An unreadable lock must not block the work forever.
-    const beating = /^\d+$/.test(holder || '') && /^\d+$/.test(beat || '')
-        && alive(Number(holder)) && now - Number(beat) < LOCK_STALE_MS;
-    if (beating) return false;
+    const owned = /^\d+$/.test(holder || '') && /^\d+$/.test(created || '')
+        && alive(Number(holder));
+    if (owned) return false;
     try { remove(); } catch { /* a peer reclaimed it first */ }
     try { create(stamp); return true; } catch { return false; }
 }
 function releaseWatcherLock(io = {}) {
-    const read = io.read || (() => fs.readFileSync(lockPath, 'utf8'));
-    const remove = io.remove || (() => fs.unlinkSync(lockPath));
+    const file = io.path || lockPath;
+    const read = io.read || (() => fs.readFileSync(file, 'utf8'));
+    const remove = io.remove || (() => fs.unlinkSync(file));
     const me = io.pid || process.pid;
-    // Only ever drop our own: a stale-takeover may already have handed it on.
+    // Only ever drop our own: followers must leave the owner alone.
     try { if (Number(read().split('\n')[0]) !== me) return false; } catch { return false; }
     try { remove(); return true; } catch { return false; }
 }
@@ -542,7 +544,7 @@ function sweepCache(server, livePanes, io = {}) {
     const removed = [];
     for (const name of names) {
         if (name.endsWith('.tmp')) continue; // an atomic write in flight
-        if (name === LOCK_NAME) continue; // the watcher lock, swept by nobody
+        if (name === 'watcher.lock' || /^watcher-[a-f0-9]{64}\.lock$/.test(name)) continue;
         const pane = name.match(/^pane-(\d+)-(\d+)$/);
         const claude = name.match(/^claude-(\d+)\.json$/);
         const dead = pane ? (pane[1] === server ? !livePanes.has(pane[2]) : !alive(Number(pane[1])))
@@ -553,20 +555,28 @@ function sweepCache(server, livePanes, io = {}) {
     }
     return removed;
 }
-// One publisher per watcher: shared directories are queried only once per tick,
-// battery every 30s.
+// Agent values remain responsive; Git is cached for 3s, naming and battery for
+// 30s. Creation hooks run their own first publish immediately.
 function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane) => readAgentCache(cacheDir, server, pane), readBattery = battery, sweep = sweepCache) {
     let batteryAt = -Infinity;
     let batteryValue = '';
     let sweptAt = -Infinity;
+    let namesAt = -Infinity;
+    const branches = new Map();
+    let published = new Map();
     return async (now = Date.now() / 1000) => {
         const rows = await runCommand('tmux', ['list-panes', '-a', '-F', '#{pane_id}\t#{pid}\t#{pane_pid}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_active}']);
         const panes = rows.trimEnd().split('\n').map(row => row.split('\t'))
             .filter(row => row.length === 6 && /^%\d+$/.test(row[0]));
         if (!panes.length) return;
-        const branches = new Map();
+        const directories = new Set(panes.map(row => row[4]));
+        for (const directory of branches.keys()) {
+            if (!directories.has(directory)) branches.delete(directory);
+        }
         for (const [, , , , directory] of panes) {
-            if (!branches.has(directory)) branches.set(directory, gitPill(directory, runCommand));
+            if (!branches.has(directory) || now - branches.get(directory).at >= 3) {
+                branches.set(directory, { at: now, value: gitPill(directory, runCommand) });
+            }
         }
         if (now - batteryAt >= 30) {
             batteryValue = await readBattery(runCommand);
@@ -577,7 +587,13 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
             sweptAt = now;
         }
         const commands = [];
-        const set = (...args) => commands.push(['set-option', ...args]);
+        const nextPublished = new Map();
+        const set = (...args) => {
+            const key = JSON.stringify(args.slice(0, -1));
+            const value = args.at(-1);
+            nextPublished.set(key, value);
+            if (published.get(key) !== value) commands.push(['set-option', ...args]);
+        };
         let activePill = '';
         let activeBranch = '';
         for (const [id, server, root, agent, directory, active] of panes) {
@@ -586,7 +602,7 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
                 record = readRecord(server, root);
             }
             const agentValue = agentPill(agent, record, now);
-            const branchValue = await branches.get(directory);
+            const branchValue = await branches.get(directory).value;
             if (active === '1') { activePill = agentValue; activeBranch = branchValue; }
             for (const [key, value] of Object.entries({
                 agent, directory, 'agent-pill': agentValue,
@@ -598,39 +614,42 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
         set('-g', '@initd-agent-pill', activePill);
         set('-g', '@initd-git-pill', activeBranch);
         set('-g', '@initd-battery', batteryValue ? pill('\u{f0079}', batteryValue, '#4ec994') : '');
-        const windows = (await runCommand('tmux', ['list-windows', '-a', '-F', '#{window_id} #{@emoji}'])).trim().split('\n').map(line => line.split(' '));
-        const used = new Set(windows.map(([, emoji]) => emoji));
-        for (const [id, existing] of windows) {
-            if (!/^@\d+$/.test(id) || emojis.includes(existing)) continue;
-            const available = emojis.filter(emoji => !used.has(emoji));
-            const choices = available.length ? available : emojis;
-            const emoji = choices[Math.floor(Math.random() * choices.length)];
-            used.add(emoji);
-            set('-w', '-t', id, '@emoji', emoji);
+        const checkNames = now - namesAt >= 30;
+        if (checkNames) {
+            const windows = (await runCommand('tmux', ['list-windows', '-a', '-F', '#{window_id} #{@emoji}'])).trim().split('\n').map(line => line.split(' '));
+            const used = new Set(windows.map(([, emoji]) => emoji));
+            for (const [id, existing] of windows) {
+                if (!/^@\d+$/.test(id) || emojis.includes(existing)) continue;
+                const available = emojis.filter(emoji => !used.has(emoji));
+                const choices = available.length ? available : emojis;
+                const emoji = choices[Math.floor(Math.random() * choices.length)];
+                used.add(emoji);
+                commands.push(['set-option', '-w', '-t', id, '@emoji', emoji]);
+            }
+            const sessions = (await runCommand('tmux', ['list-sessions', '-F', '#{session_id} #{session_name}']))
+                .trim().split('\n').map(line => line.split(' '));
+            const takenNames = new Set(sessions.map(([, name]) => name));
+            for (const [id, name] of sessions) {
+                // Only tmux's own allocated names are numeric; a name the user
+                // chose, here or with rename-session, is left alone.
+                if (!/^\$\d+$/.test(id) || !/^\d+$/.test(name)) continue;
+                const free = sessionNames.find(candidate => !takenNames.has(candidate));
+                if (!free) break;
+                takenNames.add(free);
+                // Not a set-option, so it is pushed rather than going through set().
+                commands.push(['rename-session', '-t', id, free]);
+            }
         }
-        const sessions = (await runCommand('tmux', ['list-sessions', '-F', '#{session_id} #{session_name}']))
-            .trim().split('\n').map(line => line.split(' '));
-        const takenNames = new Set(sessions.map(([, name]) => name));
-        for (const [id, name] of sessions) {
-            // Only tmux's own allocated names are numeric; a name the user
-            // chose, here or with rename-session, is left alone.
-            if (!/^\$\d+$/.test(id) || !/^\d+$/.test(name)) continue;
-            const free = sessionNames.find(candidate => !takenNames.has(candidate));
-            if (!free) break;
-            takenNames.add(free);
-            // Not a set-option, so it is pushed rather than going through set().
-            commands.push(['rename-session', '-t', id, free]);
-        }
-        // Redraw once the options are in place. Without this the bar would only
-        // repaint on status-interval, which tmux caps at whole seconds. Pushed
-        // directly: it is a command in its own right, not a set-option.
         // One tmux invocation for the whole tick, as a command sequence. Three
         // panes is 18 option changes, and a process each is the bulk of a
         // publish. Only a standalone ';' argument separates commands, so an
         // embedded one ("feature;wip") passes through untouched; a value that is
         // exactly ';' is escaped, which tmux also rejects when sent on its own.
-        await runCommand('tmux', commands.flatMap((args, index) =>
-            (index ? [';'] : []).concat(args.map(arg => arg === ';' ? '\\;' : arg))));
+        if (commands.length) await runCommand('tmux', commands.flatMap((args, index) =>
+            (index ? [';'] : []).concat(args.map(arg => arg === ';' ? '\\;' : arg))), true);
+        // Commit only after tmux accepts the batch, so a failed write is retried.
+        published = nextPublished;
+        if (checkNames) namesAt = now;
     };
 }
 async function main() {
@@ -644,6 +663,11 @@ async function main() {
     // it never defers to the lock - a new window would otherwise wait out a tick
     // for its emoji.
     const watching = process.argv[2] === 'watch';
+    if (watching) {
+        const socket = run('tmux', ['display-message', '-p', '#{socket_path}']).trim();
+        if (!socket) return;
+        lockPath = watcherLockPath(socket);
+    }
     process.stdout.on('error', () => process.exit(0)); // tmux closed its job pipe
     process.on('exit', () => { if (watching) releaseWatcherLock(); });
     do {
@@ -661,7 +685,7 @@ async function main() {
         if (sourceVersion() !== loadedVersion) return;
     } while (true);
 }
-export { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, copilotUsage, modelName, atomic, refresh, openFilesByPid, createStatusPublisher, hook, claimWatcherLock, releaseWatcherLock, sweepCache, lockPath };
+export { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, copilotUsage, modelName, atomic, refresh, openFilesByPid, createStatusPublisher, hook, claimWatcherLock, releaseWatcherLock, sweepCache, lockPath, watcherLockPath };
 let invokedDirectly = false;
 try { invokedDirectly = Boolean(process.argv[1]) && fs.realpathSync(process.argv[1]) === filename; } catch {}
 if (invokedDirectly) main();

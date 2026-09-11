@@ -7,6 +7,7 @@
 // place that invariant is implemented.
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 // An absent file is an empty object. A malformed one is NOT: silently replacing
 // a file we failed to parse would discard exactly the settings this exists to
@@ -18,7 +19,11 @@ export function readJsonFile(file) {
         if (error.code === 'ENOENT') return {};
         throw error;
     }
-    return text.trim() ? JSON.parse(text) : {};
+    const value = text.trim() ? JSON.parse(text) : {};
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new TypeError(`Expected a JSON object in ${file}`);
+    }
+    return value;
 }
 
 // `mutate` edits the parsed object in place and returns true when it changed
@@ -39,9 +44,9 @@ export function updateJsonFile(file, mutate, { mode = 0o600 } = {}) {
     // Through a temporary file so a crash cannot truncate a config holding the
     // user's own settings, and created at its final mode so the content is never
     // briefly world-readable.
-    const temporary = `${file}.initd-${process.pid}.tmp`;
+    const temporary = `${file}.initd-${randomUUID()}.tmp`;
     try {
-        fs.writeFileSync(temporary, `${JSON.stringify(config, null, 2)}\n`, { mode });
+        fs.writeFileSync(temporary, `${JSON.stringify(config, null, 2)}\n`, { mode, flag: 'wx' });
         fs.renameSync(temporary, file);
     } finally {
         try { fs.unlinkSync(temporary); } catch { /* renamed into place already */ }

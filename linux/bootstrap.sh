@@ -68,7 +68,9 @@ ensure_docker() {
   # Quickshell's bar polls `docker ps` every 15s and would defeat this by
   # waking the daemon each tick, so shell.qml guards that poll behind
   # `systemctl is-active docker.service` — see linux/configs/quickshell/shell.qml.
-  sudo systemctl disable --now docker.service >/dev/null 2>&1 || true
+  # Preserve running containers on re-runs; socket activation applies on the
+  # next boot without stopping a daemon that is already serving work.
+  sudo systemctl disable docker.service >/dev/null 2>&1 || true
   sudo systemctl enable --now docker.socket
   if id -nG "${account_name}" | grep -qw docker; then
     log_success "${account_name} already belongs to the docker group."
@@ -277,7 +279,7 @@ setup_git_profile() {
   fi
 
   log "Setting up Git identity..."
-  mise exec -- node "${SHARED_DIR}/lib/git-profile.mjs"
+  mise -C "${ROOT_DIR}" exec -- node "${SHARED_DIR}/lib/git-profile.mjs"
 }
 
 main() {
@@ -310,7 +312,7 @@ main() {
   "${SHARED_DIR}/lib/link.sh" linux
 
   log "Configuring Claude Code's statusLine hook for the tmux usage pill..."
-  mise exec -- node "${SHARED_DIR}/lib/claude-statusline.mjs"
+  mise -C "${ROOT_DIR}" exec -- node "${SHARED_DIR}/lib/claude-statusline.mjs"
 
   log "Running Linux system tweaks..."
   "${LINUX_DIR}/setup.sh"
@@ -322,7 +324,7 @@ main() {
   mise trust "${SHARED_DIR}/configs/mise/.config/mise/config.toml"
 
   log "Installing shared runtimes and LSP tooling with mise..."
-  mise install --yes
+  mise -C "${ROOT_DIR}" install --yes
 
   setup_git_profile
 
@@ -330,4 +332,6 @@ main() {
   log_success "initd finished for Linux."
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

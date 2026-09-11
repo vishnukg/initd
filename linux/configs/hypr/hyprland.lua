@@ -10,6 +10,11 @@
 
 local mod = "SUPER"
 
+-- GDM does not start fish, so its PATH has no mise shims. Session helpers
+-- written in Node must resolve just as they do from an interactive shell.
+local home = os.getenv("HOME")
+hl.env("PATH", home .. "/.local/share/mise/shims:" .. home .. "/.local/bin:" .. (os.getenv("PATH") or "/usr/bin:/bin"))
+
 hl.env("XCURSOR_SIZE", "24")
 hl.env("XCURSOR_THEME", "Adwaita")
 

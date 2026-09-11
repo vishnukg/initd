@@ -84,9 +84,31 @@ test('install backs up unmanaged configs before linking', () => {
     }
 });
 
-test('personal Git profile does not write an override', () => {
-    const output = run(process.execPath, [path.join(root, 'shared/lib/git-profile.mjs'), 'personal']);
-    assert.match(output, /using the default git email/);
+test('personal Git profile does not write an absent override', async () => {
+    const override = path.join(newHome('personal'), 'local.gitconfig');
+    const output = [];
+    await configureProfile(['personal'], { override, log: line => output.push(line) });
+    assert.match(output.join('\n'), /using the default git email/);
+    assert.equal(fs.existsSync(override), false);
+});
+
+test('reusing a backup directory preserves older files, directories and broken symlinks', () => {
+    const home = newHome('backup-collision');
+    const backups = path.join(home, 'backups');
+    fs.mkdirSync(backups);
+    fs.writeFileSync(path.join(backups, 'settings'), 'first');
+    fs.mkdirSync(path.join(backups, 'settings.1'));
+    fs.writeFileSync(path.join(backups, 'settings.1', 'kept'), 'directory');
+    fs.symlinkSync('missing', path.join(backups, 'settings.2'));
+    fs.writeFileSync(path.join(home, 'settings'), 'latest');
+    run('bash', ['-eu', '-c', 'source "$1/shared/lib/logging.sh"; source "$1/shared/lib/fs.sh"; backup_path "$HOME/settings"', 'test', root], {
+        env: { ...process.env, HOME: home, BACKUP_ROOT: backups },
+    });
+    assert.equal(fs.readFileSync(path.join(backups, 'settings'), 'utf8'), 'first');
+    assert.equal(fs.readFileSync(path.join(backups, 'settings.1', 'kept'), 'utf8'), 'directory');
+    assert.equal(fs.readlinkSync(path.join(backups, 'settings.2')), 'missing');
+    assert.equal(fs.readFileSync(path.join(backups, 'settings.3'), 'utf8'), 'latest');
+    assert.equal(fs.existsSync(path.join(home, 'settings')), false);
 });
 
 test('a broken managed symlink is backed up and repaired', () => {
@@ -145,6 +167,28 @@ test('personal, noninteractive and help profiles do not create an override', asy
         await configureProfile(args, { override, interactive: false, log() {} });
         assert.throws(() => fs.lstatSync(override), { code: 'ENOENT' });
     }
+});
+
+test('switching back to personal removes only the email override', async () => {
+    const override = path.join(newHome('switch-profile'), 'local.gitconfig');
+    fs.writeFileSync(override, '[user]\nemail = work@example.com\n[core]\neditor = nvim\n');
+    await configureProfile([], { override, interactive: false, log() {} });
+    assert.equal(run('git', ['config', '--file', override, 'user.email']).trim(), 'work@example.com');
+    await configureProfile(['personal'], { override, interactive: false, log() {} });
+    assert.equal(spawnSync('git', ['config', '--file', override, '--get', 'user.email']).status, 1);
+    assert.equal(run('git', ['config', '--file', override, 'core.editor']).trim(), 'nvim');
+});
+
+test('Linux manifest installs and cleans up in an isolated home on either host', () => {
+    const home = newHome('linux-links');
+    const env = { ...process.env, HOME: home };
+    run(path.join(root, 'shared/lib/link.sh'), ['linux'], { env });
+    for (const entry of managedLinks(root, 'linux', home)) {
+        assertLink(entry.home, entry.source);
+        assert.ok(fs.existsSync(entry.home), `broken source: ${entry.source}`);
+    }
+    run(process.execPath, [path.join(root, 'shared/lib/cleanup.mjs'), 'linux'], { env });
+    for (const entry of managedLinks(root, 'linux', home)) assert.equal(fs.existsSync(entry.home), false);
 });
 
 test('cleanup dry run preserves links and unmanaged replacements stay untouched', () => {

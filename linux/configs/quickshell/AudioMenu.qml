@@ -124,7 +124,7 @@ Scope {
     }
 
     // ALSA endpoint names embed the port between double underscores
-    // (`...HiFi__HDMI1__sink`), and that token is the key audio-ports.sh
+    // (`...HiFi__HDMI1__sink`), and that token is the key audio-ports.mjs
     // reports under. Non-greedy, because a port name may contain a single
     // underscore of its own. Everything with no port at all -- Bluetooth,
     // AirPlay, filter chains -- returns null and is therefore always attached
@@ -159,30 +159,21 @@ Scope {
         root.close();
     }
 
-    // Emits `<port>|<availability>|<display name>` per card port; see the
+    // Emits a JSON map of port tokens to attachment state and display name; see the
     // script for why this cannot be read out of the Pipewire service.
     Process {
         id: portProcess
 
-        command: [Quickshell.env("HOME") + "/.config/audio-ports.sh"]
+        command: [Quickshell.env("HOME") + "/.config/audio-ports.mjs"]
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const ports = {};
-                const lines = text.trim().split("\n");
-                for (let index = 0; index < lines.length; index++) {
-                    const fields = lines[index].split("|");
-                    if (fields.length !== 3 || fields[0] === "")
-                        continue;
-                    // Only an explicit "not available" means nothing is
-                    // attached: a port that cannot detect presence reports
-                    // "availability unknown" and has to stay in the list.
-                    ports[fields[0]] = {
-                        attached: fields[1] !== "not available",
-                        name: fields[2]
-                    };
+                try {
+                    const ports = JSON.parse(text);
+                    root.ports = ports && typeof ports === "object" && !Array.isArray(ports) ? ports : {};
+                } catch (error) {
+                    root.ports = {};
                 }
-                root.ports = ports;
             }
         }
     }

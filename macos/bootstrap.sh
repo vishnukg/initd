@@ -143,7 +143,7 @@ ensure_docker_config() {
   # Merges rather than overwrites, and reports its own result. Invoked through
   # `mise exec` like every other node step here: node comes only from mise, and
   # mise installs one on demand for the steps that run before `mise install`.
-  mise exec -- node "${MACOS_DIR}/docker-config.mjs" \
+  mise -C "${ROOT_DIR}" exec -- node "${MACOS_DIR}/docker-config.mjs" \
     || { log_error "Failed to update ${HOME}/.docker/config.json"; exit 1; }
 }
 
@@ -253,7 +253,7 @@ setup_git_profile() {
   fi
 
   log "Setting up Git identity..."
-  mise exec -- node "${SHARED_DIR}/lib/git-profile.mjs"
+  mise -C "${ROOT_DIR}" exec -- node "${SHARED_DIR}/lib/git-profile.mjs"
 }
 
 main() {
@@ -297,7 +297,7 @@ main() {
   "${SHARED_DIR}/lib/link.sh" macos
 
   log "Configuring Claude Code's statusLine hook for the tmux usage pill..."
-  mise exec -- node "${SHARED_DIR}/lib/claude-statusline.mjs"
+  mise -C "${ROOT_DIR}" exec -- node "${SHARED_DIR}/lib/claude-statusline.mjs"
 
   log "Installing licensed fonts into ~/Library/Fonts..."
   ensure_local_fonts
@@ -312,7 +312,7 @@ main() {
   mise trust "${SHARED_DIR}/configs/mise/.config/mise/config.toml"
 
   log "Installing shared runtimes and LSP tooling with mise..."
-  mise install --yes
+  mise -C "${ROOT_DIR}" install --yes
 
   log "Applying macOS defaults..."
   "${MACOS_DIR}/defaults.sh"
