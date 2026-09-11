@@ -20,6 +20,16 @@ const temporaryDir = t => {
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const mode = file => fs.statSync(file).mode & 0o777;
 
+test('non-object JSON configs are rejected without changing their contents', t => {
+    const file = path.join(temporaryDir(t), 'config.json');
+    for (const value of ['null', '[]', '42', '"text"']) {
+        fs.writeFileSync(file, value);
+        assert.throws(() => configureStatusLine({ file, log() {} }), /Expected a JSON object/);
+        assert.throws(() => configureDocker({ file, log() {} }), /Expected a JSON object/);
+        assert.equal(fs.readFileSync(file, 'utf8'), value);
+    }
+});
+
 test('a JSON config is merged in place, written only on change, and kept private', t => {
     const dir = temporaryDir(t);
     const file = path.join(dir, 'nested', 'config.json');
@@ -191,7 +201,7 @@ test('the Firefox default zoom is set globally without touching per-site levels'
     const globals = () => db.prepare(`select p.value, p.timestamp from prefs p
         join settings s on s.id = p.settingID
         where p.groupID is null and s.name = 'browser.content.full-zoom'`).all().map(row => ({ ...row }));
-    assert.deepEqual(globals(), [{ value: 1.33, timestamp: 1_700_000_000_000_000 }]);
+    assert.deepEqual(globals(), [{ value: 1.33, timestamp: 1_700_000_000 }]);
     // The setting row was added rather than replacing the unrelated one.
     assert.equal(db.prepare('select count(*) as n from settings').get().n, 2);
     const settingId = db.prepare("select id from settings where name = 'browser.content.full-zoom'").get().id;
@@ -207,7 +217,7 @@ test('the Firefox default zoom is set globally without touching per-site levels'
 
     setDefaultZoom(file, { zoom: 1.5, now: 1_700_000_001_000 });
     db = new DatabaseSync(file);
-    assert.deepEqual(globals(), [{ value: 1.5, timestamp: 1_700_000_001_000_000 }]);
+    assert.deepEqual(globals(), [{ value: 1.5, timestamp: 1_700_000_001 }]);
     assert.deepEqual(db.prepare('select groupID, value from prefs where groupID is not null').all()
         .map(row => ({ ...row })), [{ groupID: 7, value: 2.0 }]);
     // Re-running reuses the existing settings row rather than piling up more.

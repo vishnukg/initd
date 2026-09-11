@@ -72,7 +72,8 @@ export function setDefaultZoom(file, { zoom = 1.33, now = Date.now() } = {}) {
         // cannot win on id order.
         db.prepare('delete from prefs where groupID is null and settingID = ?').run(setting);
         db.prepare('insert into prefs (groupID, settingID, value, timestamp) values (NULL, ?, ?, ?)')
-            .run(setting, zoom, now * 1000);
+            // ContentPrefService2 stores seconds, unlike Places' microseconds.
+            .run(setting, zoom, now / 1000);
         db.exec('commit');
     } finally {
         db.close();

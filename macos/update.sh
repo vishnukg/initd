@@ -16,7 +16,7 @@ Runs:
   brew bundle --file macos/Brewfile
   brew upgrade
   brew cleanup
-  mise upgrade --yes
+  mise -C "${ROOT_DIR}" upgrade --yes
   fisher update (if installed)
   brew bundle cleanup (report only — lists installs the Brewfile doesn't own)
 
@@ -58,7 +58,7 @@ main() {
 
   require_command mise "to upgrade mise-managed tools"
   log "Upgrading mise-managed tools..."
-  mise upgrade --yes
+  mise -C "${ROOT_DIR}" upgrade --yes
 
   if command -v fish &>/dev/null && fish -c "type -q fisher" 2>/dev/null; then
     log "Updating fish plugins..."
