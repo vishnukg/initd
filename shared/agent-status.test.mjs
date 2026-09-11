@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, modelName, refresh, openFilesByPid, createStatusPublisher } from './configs/tmux/.config/tmux/tmux.mjs';
+import { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, modelName, refresh, openFilesByPid, createStatusPublisher, claimWatcherLock, releaseWatcherLock, sweepCache, lockPath } from './configs/tmux/.config/tmux/tmux.mjs';
 const helper = fileURLToPath(new URL('./configs/tmux/.config/tmux/tmux.mjs', import.meta.url));
 
 test('two panes in the same directory resolve their own agent, excluding subagents', () => {
@@ -364,6 +364,7 @@ test('publisher renders every pill and sends well-formed set-option commands', a
     const runCommand = async (command, args) => {
         if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
         if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
+        if (command === 'tmux' && args[0] === 'list-sessions') return '';
         if (command === 'git' && args.includes('symbolic-ref')) return 'main\n';
         if (command === 'tmux') sent.push(args);
         return '';
@@ -400,4 +401,108 @@ test('a pane path of exactly ";" is escaped so it cannot split the command seque
         : [...all.slice(0, -1), [...all.at(-1), arg]], [[]]);
     assert.equal(sent.filter(arg => arg === ';').length, commands.length - 1,
         'one separator between commands, none extra');
+});
+test('a tmux-allocated numeric session is renamed; a chosen name is left alone', async () => {
+    let sent = [];
+    const runCommand = async (command, args) => {
+        if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
+        if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
+        if (command === 'tmux' && args[0] === 'list-sessions') return '$0 emerald\n$1 1\n$2 2\n$3 notes\n';
+        if (command === 'tmux') sent = args;
+        return '';
+    };
+    await createStatusPublisher(runCommand, () => '', async () => '')(1000);
+    const commands = sent.reduce((all, arg) => arg === ';' ? [...all, []]
+        : [...all.slice(0, -1), [...all.at(-1), arg]], [[]]);
+    const renames = commands.filter(args => args[0] === 'rename-session');
+    // "emerald" is already taken and "notes" was chosen by hand, so only the two
+    // numeric sessions are renamed - each to a distinct still-free name.
+    assert.deepEqual(renames, [['rename-session', '-t', '$1', 'sapphire'],
+        ['rename-session', '-t', '$2', 'ruby']]);
+});
+test('session renaming stops when every name is taken rather than reusing one', async () => {
+    let sent = [];
+    const taken = ['emerald', 'sapphire', 'ruby', 'topaz', 'opal', 'jade',
+        'amber', 'onyx', 'garnet', 'pearl', 'agate', 'zircon'];
+    const runCommand = async (command, args) => {
+        if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
+        if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
+        if (command === 'tmux' && args[0] === 'list-sessions') {
+            return taken.map((name, index) => `$${index} ${name}`).join('\n') + `\n$${taken.length} ${taken.length}\n`;
+        }
+        if (command === 'tmux') sent = args;
+        return '';
+    };
+    await createStatusPublisher(runCommand, () => '', async () => '')(1000);
+    assert.ok(!sent.includes('rename-session'), 'a duplicate name would be rejected by tmux');
+});
+// The lock is addressed through an in-memory store rather than the real cache
+// directory, so these never touch a running watcher's file.
+function lockStore(initial = null) {
+    let value = initial;
+    return {
+        get value() { return value; },
+        io: (pid, alive = () => true) => ({
+            pid,
+            alive,
+            create: next => {
+                if (value !== null) throw Object.assign(new Error('EEXIST'), { code: 'EEXIST' });
+                value = next;
+            },
+            read: () => {
+                if (value === null) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+                return value;
+            },
+            write: next => { value = next; },
+            remove: () => {
+                if (value === null) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+                value = null;
+            },
+        }),
+    };
+}
+test('exactly one watcher holds the lock while its holder stays alive', () => {
+    const store = lockStore();
+    assert.equal(claimWatcherLock(1000, store.io(11)), true, 'the first watcher takes it');
+    assert.equal(claimWatcherLock(1000, store.io(22)), false, 'a second client’s watcher idles');
+    assert.equal(claimWatcherLock(1500, store.io(22)), false);
+    // The owner re-taking it is also the heartbeat followers read.
+    assert.equal(claimWatcherLock(1500, store.io(11)), true);
+    assert.equal(store.value, '11\n1500\n');
+});
+test('the lock passes on when its holder dies or stops beating', () => {
+    const dead = lockStore();
+    claimWatcherLock(1000, dead.io(11));
+    // tmux SIGKILLs the job when a client goes away, so nothing is released.
+    assert.equal(claimWatcherLock(1100, dead.io(22, pid => pid !== 11)), true, 'a dead holder must not block');
+    assert.equal(dead.value, '22\n1100\n');
+    const stalled = lockStore();
+    claimWatcherLock(1000, stalled.io(11));
+    assert.equal(claimWatcherLock(2500, stalled.io(22)), false, 'still inside the stale window');
+    assert.equal(claimWatcherLock(3100, stalled.io(22)), true, 'a live but stalled holder times out');
+});
+test('an unreadable lock is reclaimed rather than blocking the watcher forever', () => {
+    const store = lockStore('11\n');           // truncated: no heartbeat
+    assert.equal(claimWatcherLock(1000, store.io(22)), true);
+    assert.equal(store.value, '22\n1000\n');
+});
+test('a watcher releases only its own lock', () => {
+    const store = lockStore();
+    claimWatcherLock(1000, store.io(11));
+    assert.equal(releaseWatcherLock(store.io(22)), false, 'a follower must not free the owner’s lock');
+    assert.notEqual(store.value, null);
+    assert.equal(releaseWatcherLock(store.io(11)), true);
+    assert.equal(store.value, null);
+    assert.equal(releaseWatcherLock(store.io(11)), false, 'releasing twice is a no-op');
+});
+test('the cache sweep leaves the watcher lock alone', () => {
+    const names = ['watcher.lock', 'pane-1-2', 'stray-file'];
+    const removed = sweepCache('1', new Set(['2']), {
+        readdir: () => names,
+        remove: () => {},
+        alive: () => false,
+    });
+    // pane-1-2 backs a live pane; stray-file is unrecognised and therefore dead.
+    assert.deepEqual(removed, ['stray-file'], 'sweeping the lock would unseat the running watcher');
+    assert.match(lockPath, /watcher\.lock$/);
 });
