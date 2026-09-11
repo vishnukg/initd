@@ -393,8 +393,10 @@ resolve_firefox_profile_dir() {
 }
 
 find_firefox_profile_dir() {
-  if ! command -v python3 >/dev/null 2>&1; then
-    log_warn "python3 not available — skipping firefox profile detection."
+  # `mise exec` rather than a bare `node`: setup.sh runs before `mise install`
+  # during a fresh bootstrap, and mise installs a node on demand.
+  if ! command -v mise >/dev/null 2>&1; then
+    log_warn "mise not available — skipping firefox profile detection."
     return 1
   fi
 
@@ -415,27 +417,9 @@ find_firefox_profile_dir() {
 
   [[ -z "${moz_dir}" ]] && return 1
 
-  # Firefox 67+ tracks the active profile per-install via an [InstallXXXX]
-  # section whose Default= value is the profile path directly — this takes
-  # priority over the legacy per-profile Default=1 flag, which Firefox stops
-  # updating once an [Install...] section exists.
+  # Which section wins, and why, is documented in firefox-profile.mjs.
   local ff_profile
-  ff_profile="$(python3 - "${moz_dir}/profiles.ini" <<'PYEOF'
-import configparser, sys
-p = configparser.ConfigParser()
-p.read(sys.argv[1])
-for s in p.sections():
-    if s.startswith("Install"):
-        path = p.get(s, "Default", fallback="")
-        if path:
-            print(path)
-            sys.exit(0)
-for s in p.sections():
-    if p.get(s, "Default", fallback="0") == "1" and p.get(s, "Path", fallback=""):
-        print(p.get(s, "Path"))
-        sys.exit(0)
-PYEOF
-)"
+  ff_profile="$(mise exec -- node "${SCRIPTS_DIR}/firefox-profile.mjs" path "${moz_dir}/profiles.ini" || true)"
 
   [[ -z "${ff_profile}" ]] && return 1
 
@@ -491,28 +475,7 @@ set_firefox_default_zoom() {
     return
   fi
 
-  if python3 - "${content_prefs}" <<'PYEOF'
-import sqlite3, sys, time
-
-db = sqlite3.connect(sys.argv[1], timeout=2)
-try:
-    setting = "browser.content.full-zoom"
-    row = db.execute("SELECT id FROM settings WHERE name = ? ORDER BY id LIMIT 1", (setting,)).fetchone()
-    if row is None:
-        cursor = db.execute("INSERT INTO settings (name) VALUES (?)", (setting,))
-        setting_id = cursor.lastrowid
-    else:
-        setting_id = row[0]
-    db.execute("DELETE FROM prefs WHERE groupID IS NULL AND settingID = ?", (setting_id,))
-    db.execute(
-        "INSERT INTO prefs (groupID, settingID, value, timestamp) VALUES (NULL, ?, ?, ?)",
-        (setting_id, 1.33, int(time.time() * 1_000_000)),
-    )
-    db.commit()
-finally:
-    db.close()
-PYEOF
-  then
+  if mise exec -- node "${SCRIPTS_DIR}/firefox-profile.mjs" zoom "${content_prefs}"; then
     log_success "Set Firefox default zoom to 133%."
   else
     # Firefox can keep the database locked even when its main process name
