@@ -465,6 +465,11 @@ async function refresh(io = { run: runAsync, processes: async () => processes(aw
         (io.atomic || atomic)(path.join(cacheDir, `pane-${server}-${root}`), `${Math.floor(Date.now() / 1000)}\n${agent}\n${value}\n`);
     }));
 }
+// Gemstone session names instead of tmux's 0/1/2; first free one wins. Assigned
+// here rather than by the shell's `new-session`, so a session created any
+// other way gets one too and no two shells can race for the same name.
+const sessionNames = ['emerald', 'sapphire', 'ruby', 'topaz', 'opal', 'jade',
+    'amber', 'onyx', 'garnet', 'pearl', 'agate', 'zircon'];
 const emojis = [...'🍎🍏🍐🍊🍋🍉🍇🍓🍒🥭🍍🥝🍅🌽🥕☕🍕🍩🍪🎂🧁🍰🥐🥯🥞🧇🍫🍬🍭🍯🥧🍞🍞🧀🥨🍦🍨🍿🍵🧃🧋🍮'];
 const agentStyles = { claude: true, copilot: true, codex: true };
 // This cache directory is ours alone, so anything in it that no longer backs a
@@ -472,6 +477,61 @@ const agentStyles = { claude: true, copilot: true, codex: true };
 // this script, which is why an unrecognised name counts as dead. Panes owned by
 // another tmux server are swept only once that server itself is gone, since this
 // one cannot enumerate another's panes.
+// tmux keys #() jobs per client, so every attached client starts its own
+// watcher - measured 1/2/3 watchers for 1/2/3 clients. Each was doing the same
+// global scan (list-panes -a, ps, lsof, a git call per directory) twice a second
+// and writing the same @initd-* options. Only one needs to: the pills come from
+// those options, and the job's own stdout is deliberately blank. So the workers
+// elect one owner through this lock and the rest idle, still alive so tmux keeps
+// their job (and so one can take over the instant the owner's client goes away).
+const LOCK_NAME = 'watcher.lock';
+const lockPath = path.join(cacheDir, LOCK_NAME);
+// Four ticks. The owner dies with its client, which is routine - closing one of
+// two terminals - so this is how long the pills can go stale before a follower
+// takes over, and it has to clear a tick comfortably to avoid a handover storm.
+const LOCK_STALE_MS = 2000;
+function claimWatcherLock(now = Date.now(), io = {}) {
+    // mkdir first: on a fresh machine nothing has written the cache directory
+    // yet, and an ENOENT here would read as 'someone else holds it' and leave
+    // every watcher idle with nobody publishing.
+    const create = io.create || (value => {
+        fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+        fs.writeFileSync(lockPath, value, { flag: 'wx' });
+    });
+    const read = io.read || (() => fs.readFileSync(lockPath, 'utf8'));
+    const write = io.write || (value => fs.writeFileSync(lockPath, value));
+    const remove = io.remove || (() => fs.unlinkSync(lockPath));
+    const alive = io.alive || (pid => {
+        try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
+    });
+    const me = io.pid || process.pid;
+    const stamp = `${me}\n${now}\n`;
+    // wx: whoever creates the file wins, so two watchers starting together
+    // cannot both believe they own it.
+    try { create(stamp); return true; } catch { /* someone holds it */ }
+    let holder, beat;
+    try { [holder, beat] = read().split('\n'); } catch { return false; }
+    // Already ours: rewrite it, which is also the heartbeat followers read.
+    if (Number(holder) === me) {
+        try { write(stamp); return true; } catch { return false; }
+    }
+    // Both fields are checked for shape rather than run through Number(), which
+    // turns a truncated or half-written file into a plausible-looking 0 instead
+    // of rejecting it. An unreadable lock must not block the work forever.
+    const beating = /^\d+$/.test(holder || '') && /^\d+$/.test(beat || '')
+        && alive(Number(holder)) && now - Number(beat) < LOCK_STALE_MS;
+    if (beating) return false;
+    try { remove(); } catch { /* a peer reclaimed it first */ }
+    try { create(stamp); return true; } catch { return false; }
+}
+function releaseWatcherLock(io = {}) {
+    const read = io.read || (() => fs.readFileSync(lockPath, 'utf8'));
+    const remove = io.remove || (() => fs.unlinkSync(lockPath));
+    const me = io.pid || process.pid;
+    // Only ever drop our own: a stale-takeover may already have handed it on.
+    try { if (Number(read().split('\n')[0]) !== me) return false; } catch { return false; }
+    try { remove(); return true; } catch { return false; }
+}
 function sweepCache(server, livePanes, io = {}) {
     const alive = io.alive || (pid => {
         try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
@@ -482,6 +542,7 @@ function sweepCache(server, livePanes, io = {}) {
     const removed = [];
     for (const name of names) {
         if (name.endsWith('.tmp')) continue; // an atomic write in flight
+        if (name === LOCK_NAME) continue; // the watcher lock, swept by nobody
         const pane = name.match(/^pane-(\d+)-(\d+)$/);
         const claude = name.match(/^claude-(\d+)\.json$/);
         const dead = pane ? (pane[1] === server ? !livePanes.has(pane[2]) : !alive(Number(pane[1])))
@@ -547,6 +608,19 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
             used.add(emoji);
             set('-w', '-t', id, '@emoji', emoji);
         }
+        const sessions = (await runCommand('tmux', ['list-sessions', '-F', '#{session_id} #{session_name}']))
+            .trim().split('\n').map(line => line.split(' '));
+        const takenNames = new Set(sessions.map(([, name]) => name));
+        for (const [id, name] of sessions) {
+            // Only tmux's own allocated names are numeric; a name the user
+            // chose, here or with rename-session, is left alone.
+            if (!/^\$\d+$/.test(id) || !/^\d+$/.test(name)) continue;
+            const free = sessionNames.find(candidate => !takenNames.has(candidate));
+            if (!free) break;
+            takenNames.add(free);
+            // Not a set-option, so it is pushed rather than going through set().
+            commands.push(['rename-session', '-t', id, free]);
+        }
         // Redraw once the options are in place. Without this the bar would only
         // repaint on status-interval, which tmux caps at whole seconds. Pushed
         // directly: it is a command in its own right, not a set-option.
@@ -566,11 +640,20 @@ async function main() {
         return;
     }
     const publish = createStatusPublisher();
+    // `once` is the after-new-window/after-new-session hook and runs alone, so
+    // it never defers to the lock - a new window would otherwise wait out a tick
+    // for its emoji.
+    const watching = process.argv[2] === 'watch';
     process.stdout.on('error', () => process.exit(0)); // tmux closed its job pipe
+    process.on('exit', () => { if (watching) releaseWatcherLock(); });
     do {
-        try { await refresh(); } catch {}
-        try { await publish(); } catch {}
-        if (process.argv[2] === 'once') return;
+        if (!watching || claimWatcherLock()) {
+            try { await refresh(); } catch {}
+            try { await publish(); } catch {}
+        }
+        if (!watching) return;
+        // Blank by design: the pills are read from the @initd-* options, not
+        // from this job's output. The write is what keeps tmux's pipe alive.
         process.stdout.write('\n');
         await new Promise(resolve => setTimeout(resolve, STATUS_REFRESH_MS));
         // tmux restarts the same #() job on its next redraw. Source changes take
@@ -578,7 +661,7 @@ async function main() {
         if (sourceVersion() !== loadedVersion) return;
     } while (true);
 }
-export { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, copilotUsage, modelName, atomic, refresh, openFilesByPid, createStatusPublisher, hook };
+export { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, copilotUsage, modelName, atomic, refresh, openFilesByPid, createStatusPublisher, hook, claimWatcherLock, releaseWatcherLock, sweepCache, lockPath };
 let invokedDirectly = false;
 try { invokedDirectly = Boolean(process.argv[1]) && fs.realpathSync(process.argv[1]) === filename; } catch {}
 if (invokedDirectly) main();

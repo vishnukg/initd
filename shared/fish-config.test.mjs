@@ -82,3 +82,47 @@ test('tmux server-side selection gives concurrent clients separate sessions', { 
     assert.ok(sessions.includes('existing:1'));
     assert.ok(sessions.every(s => s.endsWith(':1')));
 });
+// A pty is the whole point here: `exit` from a sourced config.fish stops the
+// sourcing but leaves an interactive shell at a prompt, and only a real
+// terminal shows that. A tmux pane is the pty this suite already depends on.
+function ptyShell(t, tmuxScript) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-fish-pty-'));
+    const socket = path.join(os.tmpdir(), `ifp-${process.pid}-${Math.random().toString(36).slice(2, 8)}`);
+    t.after(() => {
+        try { execFileSync('tmux', ['-S', socket, 'kill-server'], { stdio: 'ignore' }); } catch {}
+        fs.rmSync(root, { recursive: true, force: true });
+    });
+    const config = path.join(root, 'config/fish');
+    const bin = path.join(root, 'bin');
+    fs.mkdirSync(config, { recursive: true });
+    fs.mkdirSync(bin);
+    fs.copyFileSync(source, path.join(config, 'config.fish'));
+    fs.writeFileSync(path.join(config, 'local.env.fish'), `set -gx PATH '${bin}' /usr/bin /bin\n`);
+    fs.writeFileSync(path.join(bin, 'tmux'), tmuxScript, { mode: 0o755 });
+    execFileSync('tmux', ['-S', socket, '-f', '/dev/null', 'new-session', '-d', '-s', 'pty',
+        // -u TMUX: the pane is itself inside tmux, and the block under test is
+        // skipped whenever TMUX is already set.
+        `env -u TMUX -u TMUX_PANE HOME=${root} XDG_CONFIG_HOME=${path.join(root, 'config')} MISE_FISH_AUTO_ACTIVATE=0 ${fish} -i`]);
+    return {
+        alive: () => {
+            try {
+                execFileSync('tmux', ['-S', socket, 'has-session', '-t', 'pty'], { stdio: 'ignore' });
+                return true;
+            } catch { return false; }
+        },
+        screen: () => plain(execFileSync('tmux', ['-S', socket, 'capture-pane', '-p', '-t', 'pty'], { encoding: 'utf8' })),
+    };
+}
+const settle = () => new Promise(resolve => setTimeout(resolve, 2000));
+test('the shell closes the terminal when tmux exits cleanly', { skip: process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
+    // `exit` here would abort the rest of config.fish and strand a live shell.
+    const shell = ptyShell(t, '#!/bin/sh\nexit 0\n');
+    await settle();
+    assert.equal(shell.alive(), false, 'killing the last tmux window must close the terminal, not drop to Fish');
+});
+test('a failed tmux leaves a usable shell rather than closing the terminal', { skip: process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
+    const shell = ptyShell(t, '#!/bin/sh\nexit 1\n');
+    await settle();
+    assert.equal(shell.alive(), true, 'a shell that cannot reach tmux must stay usable');
+    assert.match(shell.screen(), /could not attach/);
+});
