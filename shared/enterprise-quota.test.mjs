@@ -14,6 +14,8 @@ test('Claude prioritizes enterprise budgets, supports overage, and keeps subscri
     delete data.rate_limits.spend_limit;
     assert.equal(claudeValue(data, 0), 'Sonnet · 30% · 1h0m');
     assert.equal(claudeValue(data, 3600), 'Sonnet');
+    // Exactly on ESCALATE_AT_PERCENT, which is inclusive: raise that constant and
+    // this is the assertion that says so rather than failing somewhere vaguer.
     data.rate_limits.seven_day = { used_percentage: 50, resets_at: 90000 };
     assert.equal(claudeValue(data, 3600), 'Sonnet · 50% week · 1d0h');
 });
