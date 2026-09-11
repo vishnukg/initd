@@ -31,7 +31,9 @@ for dir in ~/.local/share/mise/shims \
            ~/.local/bin
     test -d $dir; and set -a initd_paths $dir
 end
-fish_add_path -g $initd_paths
+# Guard the empty case: on a machine where none of these exist yet,
+# fish_add_path with no arguments just fails.
+test -n "$initd_paths"; and fish_add_path -g $initd_paths
 
 # Environment overrides apply to scripts as well as interactive shells.
 # Keep aliases, abbreviations and other interactive setup in local.fish.
@@ -48,13 +50,19 @@ end
 # Decide and attach/create inside one synchronous tmux command queue. No
 # shell-side list/check race or locks that could survive a failed client.
 # With no target, attach prefers the most recently used detached session.
-# Let tmux allocate new names. Set INITD_TMUX_AUTO_ATTACH=0 to opt out.
+# tmux allocates a numeric name; tmux.mjs renames it from its own list on the
+# after-new-session hook. Set INITD_TMUX_AUTO_ATTACH=0 to opt out.
 if not set -q TMUX; and test "$INITD_TMUX_AUTO_ATTACH" != 0; \
         and isatty stdin; and isatty stdout; and command -q tmux
     command tmux start-server \; if-shell -F '#{S:#{?session_attached,,1}}' 'attach-session' 'new-session'
-    # Unlike exec, a failed tmux command leaves a usable shell.
+    # Close the terminal now that tmux is done. `exit` cannot do it: from a
+    # sourced config.fish it only stops sourcing the rest of the file and leaves
+    # an interactive shell sitting at a prompt, so killing the last tmux window
+    # dropped back to Fish instead of closing kitty. Replacing the shell here,
+    # rather than exec'ing tmux itself, keeps what the exec was avoiding: a
+    # failed tmux command still leaves a usable shell.
     if test $status -eq 0
-        exit
+        exec true
     end
     echo 'initd: tmux could not attach; continuing in Fish.' >&2
 end
