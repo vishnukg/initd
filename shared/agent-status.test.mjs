@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, refresh, openFilesByPid, createStatusPublisher } from './configs/tmux/.config/tmux/tmux.mjs';
+import { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, modelName, refresh, openFilesByPid, createStatusPublisher } from './configs/tmux/.config/tmux/tmux.mjs';
 const helper = fileURLToPath(new URL('./configs/tmux/.config/tmux/tmux.mjs', import.meta.url));
 
 test('two panes in the same directory resolve their own agent, excluding subagents', () => {
@@ -174,14 +174,19 @@ test('Codex falls back to its SQLite state when no rollout file is open', async 
         for (const sql of statements) db.exec(sql);
         db.close();
     };
-    const logs = 'create table logs (id integer primary key, ts integer, thread_id text, process_uuid text)';
+    const logs = 'create table logs (id integer primary key, ts integer, thread_id text, process_uuid text, feedback_log_body text)';
     const threads = 'create table threads (id text primary key, model text)';
-    build('logs_1', [logs, `insert into logs values (1, ${started + 5}, 'wrong-db-thread', 'pid:77:zzz')`]);
-    build('logs_2', [logs, `insert into logs values
-        (1, ${started - 60}, 'reused-pid-thread', 'pid:77:aaa'),
-        (2, ${started + 10}, null, 'pid:77:bbb'),
-        (3, ${started + 20}, 'live-thread', 'pid:77:bbb'),
-        (4, ${started + 30}, 'other-pane-thread', 'pid:88:ccc')`]);
+    const rows = values => `insert into logs (id, ts, thread_id, process_uuid, feedback_log_body) values ${values}`;
+    build('logs_1', [logs, rows(`(1, ${started + 5}, 'wrong-db-thread', 'pid:77:zzz', null)`)]);
+    // 'turn-id' is the regression: Codex 0.154.0 stamps a turn's rows with that
+    // turn's own id in the same column, so the newest row is usually NOT a
+    // thread. Both ids are UUIDv7, so only the threads table separates them.
+    build('logs_2', [logs, rows(`
+        (1, ${started - 60}, 'reused-pid-thread', 'pid:77:aaa', null),
+        (2, ${started + 10}, null, 'pid:77:bbb', null),
+        (3, ${started + 20}, 'live-thread', 'pid:77:bbb', null),
+        (4, ${started + 25}, 'turn-id', 'pid:77:bbb', null),
+        (5, ${started + 30}, 'other-pane-thread', 'pid:88:ccc', null)`)]);
     build('state_4', [threads, "insert into threads values ('live-thread', 'wrong-db-model')"]);
     build('state_5', [threads, `insert into threads values
         ('live-thread', 'gpt-5.6-luna'), ('reused-pid-thread', 'gpt-old')`]);
@@ -191,15 +196,87 @@ test('Codex falls back to its SQLite state when no rollout file is open', async 
     // The kernel reuses pids, so a row predating this process is not ours.
     assert.equal(await codexSqliteState(openFiles, { ...proc, pid: 99 }), null);
     assert.equal(await codexSqliteState('n/dev/pts/3\n', proc), null);
-    // A thread known before its first turn has no model row yet; the caller
-    // keeps the bare agent name rather than inventing one.
-    build('state_6', [threads]);
+    // A thread whose model column is not set yet: the caller keeps the bare
+    // agent name rather than inventing one.
+    build('state_6', [threads, "insert into threads values ('live-thread', null)"]);
     const pending = openFiles + `n${path.join(dir, 'state_6.sqlite')}\n`;
     assert.deepEqual(await codexSqliteState(pending, proc), { id: 'live-thread', model: null });
+    // Every logged id being a turn is indistinguishable from knowing nothing.
+    build('state_7', [threads, "insert into threads values ('some-other-thread', 'gpt-nope')"]);
+    assert.equal(await codexSqliteState(openFiles + `n${path.join(dir, 'state_7.sqlite')}\n`, proc), null);
+    // Before its first turn there is no threads row at all, so only the
+    // session_init log line names the model. Every id logged by then came from
+    // thread/start, which is why the newest one is the thread's own.
+    const init = "session_init: Configuring session: model=gpt-5.6-terra; provider=ConfiguredModelProvider { info:";
+    build('logs_3', [logs, rows(`
+        (1, ${started + 5}, 'fresh-thread', 'pid:77:ddd', '${init}'),
+        (2, ${started + 6}, 'fresh-thread', 'pid:77:ddd', 'shell snapshot captured')`)]);
+    const state7 = `n${path.join(dir, 'state_7.sqlite')}\n`;
+    const logs3 = ['logs_1', 'logs_3', 'state_4', 'state_5']
+        .map(name => `n${path.join(dir, `${name}.sqlite`)}`).join('\n') + '\n';
+    assert.deepEqual(await codexSqliteState(logs3 + state7, proc), { id: 'fresh-thread', model: 'gpt-5.6-terra' });
+    // A log message is the weakest source: a threads row that names a model, and
+    // so survives a later /model switch, must win over it.
+    build('state_8', [threads, "insert into threads values ('fresh-thread', 'gpt-switched-to')"]);
+    assert.deepEqual(await codexSqliteState(logs3 + `n${path.join(dir, 'state_8.sqlite')}\n`, proc),
+        { id: 'fresh-thread', model: 'gpt-switched-to' });
+    // A pid whose rows predate it learns nothing from the log line either.
+    assert.equal(await codexSqliteState(logs3 + state7, { ...proc, pid: 99 }), null);
 });
 test('Claude can show its model without rate limits and strips tmux formatting', () => {
     assert.equal(claudeValue({ model: { display_name: 'Sonnet' } }), 'Sonnet');
     assert.equal(claudeValue({ model: { display_name: '#[bg=red]\nSonnet' } }), '[bg=red]Sonnet');
+});
+test('Claude holds the 5h window and escalates only to a slower one that is binding', () => {
+    const model = { display_name: 'Opus 5' };
+    const five = (used, resets_at = 20000) => ({ used_percentage: used, resets_at });
+    const week = (used, resets_at = 200000) => ({ used_percentage: used, resets_at });
+    const value = rate_limits => claudeValue({ model, rate_limits }, 5600);
+    // Near-tied windows must not swap the readout back and forth: a week at 21%
+    // is not yet binding, so the 5h window keeps the slot.
+    assert.equal(value({ five_hour: five(19), seven_day: week(21) }), 'Opus 5 · 19% · 4h0m');
+    // Past the threshold and the fuller of the two, the week takes the slot - the
+    // case the original first-listed rule could never show at all.
+    assert.equal(value({ five_hour: five(7), seven_day: week(62) }), 'Opus 5 · 62% week · 2d6h');
+    // A 5h window about to stop the next turn is never hidden behind it.
+    assert.equal(value({ five_hour: five(95), seven_day: week(62) }), 'Opus 5 · 95% · 4h0m');
+    // A budget escalates on the same rule and carries its own label.
+    assert.equal(value({ spend_limit: five(88), five_hour: five(19), seven_day: week(21) }), 'Opus 5 · 88% budget · 4h0m');
+    // A quiet budget stays out of the way, exactly as a quiet week does.
+    assert.equal(value({ spend_limit: five(30), five_hour: five(19) }), 'Opus 5 · 19% · 4h0m');
+    // With no 5h window to hold the slot, a slower one below the threshold is
+    // still reported rather than leaving the pill with only a model name.
+    assert.equal(value({ seven_day: week(21) }), 'Opus 5 · 21% week · 2d6h');
+    // Expired or malformed windows are not candidates at all.
+    assert.equal(value({ five_hour: five(99, 5000), seven_day: week(21) }), 'Opus 5 · 21% week · 2d6h');
+    assert.equal(value({ five_hour: five(-1) }), 'Opus 5');
+    assert.equal(value({ five_hour: { used_percentage: '19', resets_at: 20000 } }), 'Opus 5');
+});
+test('Copilot auto mode reports the model it routed to, and forgets it on a pinned switch', async t => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-agent-auto-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const file = path.join(dir, 'events.jsonl');
+    const write = records => fs.writeFileSync(file, records.map(r => JSON.stringify(r)).join('\n') + '\n');
+    const change = newModel => ({ type: 'session.model_change', data: { newModel } });
+    const resolved = chosenModel => ({ type: 'session.auto_mode_resolved', data: { chosenModel } });
+    // "auto" is the router's name; the pill must show what it chose.
+    write([change('auto'), resolved('gpt-5.6-luna')]);
+    let state = await sessionState('copilot', file);
+    assert.equal(state.model, 'auto');
+    assert.equal(modelName('copilot', state), 'gpt-5.6-luna');
+    // Auto can route elsewhere on a later turn; the newest decision wins.
+    write([change('auto'), resolved('gpt-5.6-luna'), resolved('claude-sonnet-5')]);
+    assert.equal(modelName('copilot', await sessionState('copilot', file)), 'claude-sonnet-5');
+    // Pinning a model must drop the resolution rather than keep naming it.
+    write([change('auto'), resolved('gpt-5.6-luna'), change('claude-opus-5')]);
+    state = await sessionState('copilot', file);
+    assert.equal(state.autoModel, null);
+    assert.equal(modelName('copilot', state), 'claude-opus-5');
+    // Auto before its first routed turn has nothing better than the mode name.
+    write([change('auto')]);
+    assert.equal(modelName('copilot', await sessionState('copilot', file)), 'auto');
+    // Codex never has a resolution and must be passed through untouched.
+    assert.equal(modelName('codex', { model: 'auto', autoModel: 'gpt-5.6-luna' }), 'auto');
 });
 test('incremental reads resume at complete records and recover from rotation and truncation', async t => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-agent-tail-'));
