@@ -16,7 +16,7 @@ Runs:
   sudo dnf upgrade --refresh -y
   sudo dnf autoremove -y
   mise self-update --yes
-  mise upgrade --yes
+  mise -C "${ROOT_DIR}" upgrade --yes
   linux/setup.sh --firefox-only
 
 Options:
@@ -45,7 +45,7 @@ main() {
   mise self-update --yes
 
   log "Upgrading mise-managed tools..."
-  mise upgrade --yes
+  mise -C "${ROOT_DIR}" upgrade --yes
 
   log "Refreshing Firefox configuration..."
   "${ROOT_DIR}/linux/setup.sh" --firefox-only

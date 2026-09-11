@@ -44,6 +44,14 @@ backup_path() {
 
   path_exists "${path}" || return 0
 
+  # A caller may reuse BACKUP_ROOT across runs. Preserve every earlier copy,
+  # including directories and dangling symlinks, instead of letting mv replace it.
+  local base="${backup}" suffix=0
+  while path_exists "${backup}"; do
+    suffix=$((suffix + 1))
+    backup="${base}.${suffix}"
+  done
+
   mkdir -p "$(dirname "${backup}")"
   log_warn "Backing up unmanaged ${path} -> ${backup}"
   mv "${path}" "${backup}"

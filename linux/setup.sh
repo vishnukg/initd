@@ -38,7 +38,7 @@ source "${ROOT_DIR}/shared/lib/logging.sh"
 source "${ROOT_DIR}/shared/lib/fs.sh"
 
 # ── Fonts ─────────────────────────────────────────────────────────────────────
-install_firacode_nerd_font() {
+install_firacode_nerd_font() (
   local font_dir="${HOME}/.local/share/fonts/FiraCode"
 
   if ls "${font_dir}"/*.ttf >/dev/null 2>&1; then
@@ -50,17 +50,19 @@ install_firacode_nerd_font() {
   require_command unzip "to extract Nerd Fonts"
 
   mkdir -p "${font_dir}"
+  local archive
+  archive="$(mktemp "${TMPDIR:-/tmp}/initd-firacode.XXXXXX")"
+  trap 'rm -f "${archive}"' EXIT
   log "Downloading FiraCode Nerd Font..."
   curl -fL --progress-bar --max-time 300 \
     "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip" \
-    -o /tmp/FiraCode-nerd.zip
-  unzip -q -o /tmp/FiraCode-nerd.zip "*.ttf" -d "${font_dir}"
-  rm -f /tmp/FiraCode-nerd.zip
+    -o "${archive}"
+  unzip -q -o "${archive}" "*.ttf" -d "${font_dir}"
   fc-cache -f "${font_dir}" >/dev/null
   log_success "FiraCode Nerd Font installed."
-}
+)
 
-install_symbols_nerd_font() {
+install_symbols_nerd_font() (
   # Berkeley Mono (kitty's font) carries no Nerd Font icon glyphs, so kitty's
   # symbol_map points at this family. Ghostty no longer needs it — it runs the
   # patched FiraCode Nerd Font build, which carries the icons in-family — but
@@ -80,15 +82,17 @@ install_symbols_nerd_font() {
   require_command unzip "to extract Nerd Fonts"
 
   mkdir -p "${font_dir}"
+  local archive
+  archive="$(mktemp "${TMPDIR:-/tmp}/initd-symbols.XXXXXX")"
+  trap 'rm -f "${archive}"' EXIT
   log "Downloading Symbols Nerd Font..."
   curl -fL --progress-bar --max-time 300 \
     "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/NerdFontsSymbolsOnly.zip" \
-    -o /tmp/SymbolsNerd.zip
-  unzip -q -o /tmp/SymbolsNerd.zip "*.ttf" -d "${font_dir}"
-  rm -f /tmp/SymbolsNerd.zip
+    -o "${archive}"
+  unzip -q -o "${archive}" "*.ttf" -d "${font_dir}"
   fc-cache -f "${font_dir}" >/dev/null
   log_success "Symbols Nerd Font installed."
-}
+)
 
 # ── System fixes ──────────────────────────────────────────────────────────────
 disable_unused_daemons() {
@@ -101,12 +105,18 @@ disable_unused_daemons() {
   #                  bug reports, which this machine does not do.
   #   rsyslog      — duplicates the journal into /var/log/messages (~28 MB);
   #                  journalctl is the log here.
-  local unit to_disable=()
+  local unit state to_disable=()
   for unit in ModemManager.service \
               abrtd.service abrt-journal-core.service abrt-oops.service \
               abrt-xorg.service abrt-vmcore.service \
               rsyslog.service; do
-    [[ "$(systemctl is-enabled "${unit}" 2>/dev/null)" =~ ^(disabled|masked|not-found)$ ]] || to_disable+=("${unit}")
+    # Absent units can print nothing to stdout; do not pass them to disable,
+    # whose failure would abort the rest of setup under set -e.
+    [[ "$(systemctl show -p LoadState --value "${unit}" 2>/dev/null)" == loaded ]] || continue
+    state="$(systemctl is-enabled "${unit}" 2>/dev/null || true)"
+    if [[ ! "${state}" =~ ^(disabled|masked)$ ]] || systemctl is-active --quiet "${unit}"; then
+      to_disable+=("${unit}")
+    fi
   done
 
   if [[ "${#to_disable[@]}" -eq 0 ]]; then
@@ -188,7 +198,8 @@ sof_sdw_module_has_dell_quirk() {
     *.xz)  xz -dc "${module}" ;;
     *.zst) zstd -dc "${module}" ;;
     *)     cat "${module}" ;;
-  esac 2>/dev/null | grep -aq 'Dell XPS WCL'
+  # Consume all input: grep -q can SIGPIPE the decompressor under pipefail.
+  esac 2>/dev/null | grep -a 'Dell XPS WCL' >/dev/null
 }
 
 disable_speaker_drc() {
@@ -213,7 +224,7 @@ disable_speaker_drc() {
 
   local live stored
   live="$(amixer -D "${dev}" cget name="${control}" | grep -oE 'values=(on|off)' | cut -d= -f2)"
-  stored="$(grep -A1 -F "name '${control}'" "${state}" 2>/dev/null | grep -oE 'value (true|false)' | cut -d' ' -f2)"
+  stored="$(grep -A1 -F "name '${control}'" "${state}" 2>/dev/null | grep -oE 'value (true|false)' | cut -d' ' -f2 || true)"
 
   if [[ "${live}" == "off" && "${stored}" == "false" ]]; then
     log_success "Speaker DRC already off (live and stored)."
@@ -344,8 +355,14 @@ link_session_scripts() {
   # hyprland.lua/Quickshell invoke these by absolute ~/.config/ path, so they need
   # their own symlinks (they live in linux/scripts/, not under a MANAGED_LINKS dir).
   local name target src
+  mkdir -p "${HOME}/.config"
+  # Retire only the old link owned by initd; preserve unrelated user scripts.
+  target="${HOME}/.config/audio-ports.sh"
+  if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${SCRIPTS_DIR}/audio-ports.sh" ]]; then
+    backup_path "${target}"
+  fi
   for name in night-light-toggle.sh \
-              weather-popup.mjs docker-menu.mjs audio-ports.sh; do
+              weather-popup.mjs docker-menu.mjs audio-ports.mjs; do
     target="${HOME}/.config/${name}"
     src="${SCRIPTS_DIR}/${name}"
     chmod +x "${src}" 2>/dev/null || true
@@ -407,7 +424,7 @@ find_firefox_profile_dir() {
   # Create the profile non-interactively so this initial bootstrap can install
   # user.js and userChrome.css immediately rather than requiring a second run.
   if [[ -z "${moz_dir}" ]] && command -v firefox >/dev/null 2>&1; then
-    log "Initializing the managed Firefox profile..."
+    log "Initializing the managed Firefox profile..." >&2
     if firefox --headless --CreateProfile default-release >/dev/null 2>&1; then
       moz_dir="$(find_firefox_profile_root || true)"
     else
@@ -419,7 +436,7 @@ find_firefox_profile_dir() {
 
   # Which section wins, and why, is documented in firefox-profile.mjs.
   local ff_profile
-  ff_profile="$(mise exec -- node "${SCRIPTS_DIR}/firefox-profile.mjs" path "${moz_dir}/profiles.ini" || true)"
+  ff_profile="$(mise -C "${ROOT_DIR}" exec -- node "${SCRIPTS_DIR}/firefox-profile.mjs" path "${moz_dir}/profiles.ini" || true)"
 
   [[ -z "${ff_profile}" ]] && return 1
 
@@ -451,7 +468,7 @@ link_firefox_profile() {
     if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
       continue
     fi
-    [[ -e "${target}" || -L "${target}" ]] && rm -f "${target}"
+    [[ -e "${target}" || -L "${target}" ]] && backup_path "${target}"
     ln -s "${src}" "${target}"
     log_success "Linked $(basename "${target}")"
   done
@@ -475,7 +492,7 @@ set_firefox_default_zoom() {
     return
   fi
 
-  if mise exec -- node "${SCRIPTS_DIR}/firefox-profile.mjs" zoom "${content_prefs}"; then
+  if mise -C "${ROOT_DIR}" exec -- node "${SCRIPTS_DIR}/firefox-profile.mjs" zoom "${content_prefs}"; then
     log_success "Set Firefox default zoom to 133%."
   else
     # Firefox can keep the database locked even when its main process name
@@ -607,6 +624,8 @@ main() {
   disable_speaker_drc
   check_hyprland_session
   mask_desktop_user_units
+  # The schedule's ExecStart must exist before its service/timer is started.
+  link_session_scripts
   enable_hyprmoncfg
   enable_night_light_schedule
   link_ghostty_linux_conf
@@ -615,7 +634,6 @@ main() {
   apply_gsettings_keyboard
   link_gtkrc_2
   link_icons_default
-  link_session_scripts
   link_firefox_profile
   set_firefox_default_zoom
   add_user_to_video_group
@@ -625,4 +643,6 @@ main() {
   log_success "Linux tweaks applied."
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

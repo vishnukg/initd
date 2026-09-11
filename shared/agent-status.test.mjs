@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, modelName, refresh, openFilesByPid, createStatusPublisher, claimWatcherLock, releaseWatcherLock, sweepCache, lockPath } from './configs/tmux/.config/tmux/tmux.mjs';
+import { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, modelName, refresh, openFilesByPid, createStatusPublisher, claimWatcherLock, releaseWatcherLock, sweepCache, lockPath, watcherLockPath } from './configs/tmux/.config/tmux/tmux.mjs';
 const helper = fileURLToPath(new URL('./configs/tmux/.config/tmux/tmux.mjs', import.meta.url));
 
 test('two panes in the same directory resolve their own agent, excluding subagents', () => {
@@ -466,11 +466,11 @@ test('exactly one watcher holds the lock while its holder stays alive', () => {
     assert.equal(claimWatcherLock(1000, store.io(11)), true, 'the first watcher takes it');
     assert.equal(claimWatcherLock(1000, store.io(22)), false, 'a second client’s watcher idles');
     assert.equal(claimWatcherLock(1500, store.io(22)), false);
-    // The owner re-taking it is also the heartbeat followers read.
+    // Ownership does not need a disk write every tick.
     assert.equal(claimWatcherLock(1500, store.io(11)), true);
-    assert.equal(store.value, '11\n1500\n');
+    assert.equal(store.value, '11\n1000\n');
 });
-test('the lock passes on when its holder dies or stops beating', () => {
+test('the lock passes on when its holder dies but never during slow live work', () => {
     const dead = lockStore();
     claimWatcherLock(1000, dead.io(11));
     // tmux SIGKILLs the job when a client goes away, so nothing is released.
@@ -478,8 +478,8 @@ test('the lock passes on when its holder dies or stops beating', () => {
     assert.equal(dead.value, '22\n1100\n');
     const stalled = lockStore();
     claimWatcherLock(1000, stalled.io(11));
-    assert.equal(claimWatcherLock(2500, stalled.io(22)), false, 'still inside the stale window');
-    assert.equal(claimWatcherLock(3100, stalled.io(22)), true, 'a live but stalled holder times out');
+    assert.equal(claimWatcherLock(2500, stalled.io(22)), false);
+    assert.equal(claimWatcherLock(61000, stalled.io(22)), false, 'slow live work must retain ownership');
 });
 test('an unreadable lock is reclaimed rather than blocking the watcher forever', () => {
     const store = lockStore('11\n');           // truncated: no heartbeat
@@ -496,7 +496,7 @@ test('a watcher releases only its own lock', () => {
     assert.equal(releaseWatcherLock(store.io(11)), false, 'releasing twice is a no-op');
 });
 test('the cache sweep leaves the watcher lock alone', () => {
-    const names = ['watcher.lock', 'pane-1-2', 'stray-file'];
+    const names = ['watcher.lock', path.basename(lockPath), 'pane-1-2', 'stray-file'];
     const removed = sweepCache('1', new Set(['2']), {
         readdir: () => names,
         remove: () => {},
@@ -504,5 +504,121 @@ test('the cache sweep leaves the watcher lock alone', () => {
     });
     // pane-1-2 backs a live pane; stray-file is unrecognised and therefore dead.
     assert.deepEqual(removed, ['stray-file'], 'sweeping the lock would unseat the running watcher');
-    assert.match(lockPath, /watcher\.lock$/);
+    assert.match(lockPath, /watcher-[a-f0-9]{64}\.lock$/);
+});
+
+test('separate tmux sockets elect independent owners and same-server followers idle', t => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-watcher-locks-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const a = path.join(dir, path.basename(watcherLockPath('/tmp/tmux/default')));
+    const b = path.join(dir, path.basename(watcherLockPath('/tmp/tmux/other')));
+    const owner = file => ({ path: file, pid: 11, alive: () => true });
+    assert.equal(claimWatcherLock(1000, owner(a)), true);
+    assert.equal(claimWatcherLock(1000, owner(b)), true);
+    assert.equal(claimWatcherLock(1000, { ...owner(a), pid: 22 }), false);
+    assert.equal(releaseWatcherLock(owner(a)), true);
+    assert.equal(claimWatcherLock(2000, { ...owner(b), pid: 22 }), false);
+});
+
+test('publisher skips unchanged writes, caches Git, and refreshes new directories immediately', async () => {
+    const calls = [];
+    let directory = '/repo';
+    let branch = 'main';
+    const runCommand = async (command, args) => {
+        calls.push([command, args[0]]);
+        if (command === 'git') return branch;
+        if (args[0] === 'list-panes') return `%1\t100\t200\tfish\t${directory}\t1\n%2\t100\t201\tfish\t${directory}\t0\n`;
+        return '';
+    };
+    const publish = createStatusPublisher(runCommand, () => '', async () => '', () => {});
+    await publish(1000);
+    calls.length = 0;
+    await publish(1000.5);
+    assert.deepEqual(calls, [['tmux', 'list-panes']]);
+    branch = 'feature';
+    calls.length = 0;
+    await publish(1003);
+    assert.equal(calls.filter(([cmd]) => cmd === 'git').length, 1, 'shared directory queried once');
+    assert.ok(calls.some(([, action]) => action === 'set-option'));
+    assert.ok(!calls.some(([, action]) => action === 'list-sessions'));
+    directory = '/new';
+    calls.length = 0;
+    await publish(1003.5);
+    assert.equal(calls.filter(([cmd]) => cmd === 'git').length, 1);
+    calls.length = 0;
+    await publish(1030);
+    assert.ok(calls.some(([, action]) => action === 'list-windows'));
+    assert.ok(calls.some(([, action]) => action === 'list-sessions'));
+});
+
+test('publisher retries option changes after a failed tmux batch', async () => {
+    let attempts = 0;
+    const publish = createStatusPublisher(async (command, args) => {
+        if (args[0] === 'list-panes') return '%1\t100\t200\tfish\t/repo\t1\n';
+        if (args[0] === 'set-option' && ++attempts === 1) throw new Error('server unavailable');
+        return '';
+    }, () => '', async () => '', () => {});
+    await assert.rejects(publish(1000), /server unavailable/);
+    await publish(1000.5);
+    assert.equal(attempts, 2);
+});
+
+test('real watchers publish to both servers and a follower takes over after owner exit', {
+    skip: process.env.INITD_TEST_TMUX !== '1', timeout: 15000,
+}, async t => {
+    const dir = fs.mkdtempSync('/tmp/initd-watchers-');
+    const sockets = [path.join(dir, 'a'), path.join(dir, 'b')];
+    const children = [];
+    t.after(async () => {
+        await Promise.all(children.map(child => new Promise(resolve => {
+            if (child.exitCode !== null || child.signalCode !== null) return resolve();
+            child.once('exit', resolve);
+            child.kill();
+        })));
+        for (const socket of sockets) {
+            try { execFileSync('tmux', ['-S', socket, 'kill-server'], { stdio: 'ignore' }); } catch {}
+        }
+        fs.rmSync(dir, { recursive: true, force: true });
+    });
+    const waitUntil = async predicate => {
+        const end = Date.now() + 5000;
+        while (!predicate()) {
+            if (Date.now() >= end) for (const socket of sockets) {
+                t.diagnostic(execFileSync('tmux', ['-S', socket, 'list-panes', '-a', '-F', '#{pane_current_command}|#{@initd-agent}|#{pane_current_path}|#{@initd-directory}'], { encoding: 'utf8' }));
+            }
+            assert.ok(Date.now() < end, 'watcher did not publish or hand over in time');
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+    };
+    for (const socket of sockets) {
+        execFileSync('tmux', ['-S', socket, '-f', '/dev/null', 'new-session', '-d', '-s', 'review', '/bin/sleep 30']);
+    }
+    const socketPaths = new Map(sockets.map(socket => [socket,
+        execFileSync('tmux', ['-S', socket, 'display-message', '-p', '#{socket_path}'], { encoding: 'utf8' }).trim()]));
+    const start = socket => {
+        const child = spawn(process.execPath, [helper, 'watch'], {
+            env: { ...process.env, HOME: dir, TMUX: `${socket},1,0`, TMUX_PANE: undefined },
+            stdio: ['ignore', 'ignore', 'pipe'],
+        });
+        child.stderr.resume();
+        children.push(child);
+        return child;
+    };
+    const owners = sockets.map(start);
+    const lock = socket => path.join(dir, '.cache/initd-tmux', path.basename(watcherLockPath(socketPaths.get(socket))));
+    const holder = socket => {
+        try { return Number(fs.readFileSync(lock(socket), 'utf8').split('\n')[0]); } catch { return null; }
+    };
+    await waitUntil(() => sockets.every((socket, i) => holder(socket) === owners[i].pid));
+    await waitUntil(() => sockets.every(socket => {
+        try {
+            const [current, published] = execFileSync('tmux', ['-S', socket, 'display-message', '-p', '-t', 'review', '#{pane_current_command}|#{@initd-agent}'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().split('|');
+            return !!current && current === published;
+        }
+        catch { return false; }
+    }));
+    const follower = start(sockets[0]);
+    await new Promise(resolve => { owners[0].once('exit', resolve); owners[0].kill(); });
+    await waitUntil(() => holder(sockets[0]) === follower.pid);
+    assert.equal(holder(sockets[1]), owners[1].pid, 'another server keeps its owner');
 });

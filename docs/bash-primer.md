@@ -19,7 +19,7 @@ developer can follow like a checklist.
 | `shared/lib/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files. Takes platform arg. |
 | `shared/lib/cleanup.mjs` | Remove only the symlinks that initd created. Takes platform arg. |
 | `shared/lib/git-profile.mjs` | Set the Git identity: personal uses the default email; work writes an override to `local.gitconfig`. |
-| `macos/brewinstall` | Add a formula or cask to the curated Brewfile and apply it locally. |
+| `macos/brewinstall` | JavaScript entry point: add a formula or cask to the curated Brewfile and apply it locally; requires Node. |
 | `shared/lib/fs.sh` | Shared filesystem helpers: `path_exists`, `symlink_points_to`, `verify_symlink_target`, `backup_path`. |
 | `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` array. Sources `fs.sh`. |
 | `<platform>/managed-links.sh` | Appends platform-specific entries to `MANAGED_LINKS`. |
@@ -276,13 +276,19 @@ because the risky thing is filesystem state, not individual functions.
 After editing a script, verify there are no syntax errors:
 
 ```bash
-bash -n bootstrap.sh \
+for file in bootstrap.sh \
   shared/lib/logging.sh shared/lib/fs.sh \
   shared/lib/link.sh \
   shared/managed-links.sh \
-  macos/bootstrap.sh macos/defaults.sh macos/brewinstall macos/update.sh macos/managed-links.sh \
-  linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh
+  macos/bootstrap.sh macos/defaults.sh macos/update.sh macos/managed-links.sh \
+  linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh; do
+  bash -n "$file" || exit
+done
 ```
+
+Run `bash -n` separately for each file: additional arguments to a single call
+are script arguments, so Bash only checks the first file. Check the JavaScript
+helpers with `node --check`, including the extensionless `macos/brewinstall`.
 
 ## How to safely change these scripts
 
