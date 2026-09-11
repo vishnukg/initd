@@ -11,13 +11,19 @@ import { agentPill, battery, clean, gitPill, pill, readAgentCache } from './stat
 //   proc         one `ps -axo pid=,ppid=,lstart=,comm=,args=` row:
 //                { pid, parent, start, agent, command }
 //   state        accumulated while replaying an append-only transcript:
-//                { model, id, rateLimits?, limit?, quota?, sessionId? }
+//                { model, id, autoModel?, rateLimits?, limit?, quota?,
+//                  sessionId? }
 //   rateLimits   Codex token_count payload:
 //                { limit_id, primary: { used_percent, resets_at } }
 //   quota        Copilot model.model_call_success payload, i.e. event.data:
 //                { quotaSnapshots: { chat|completions|premium_interactions:
 //                  { entitlementRequests, remainingPercentage, resetDate,
 //                    isUnlimitedEntitlement, hasQuota?, tokenBasedBilling? } } }
+//                1.0.83 sends neither hasQuota nor tokenBasedBilling, and
+//                reports entitlementRequests 0 for a tier the account does not
+//                hold - which is what already excludes that tier. Both fields
+//                are still read, so an older CLI that does send them keeps
+//                working.
 //   hook data    what Claude Code pipes into the statusLine hook on stdin:
 //                { model: { id, display_name },
 //                  rate_limits: { spend_limit|five_hour|seven_day:
@@ -123,26 +129,29 @@ async function copilotSessionFile(output, pid) {
 }
 // Codex is moving its transcripts out of the rollout files and into SQLite: its
 // state database carries a rollout_migration_state table and a migration named
-// "rollout migration state". Rollouts are still written and still held open in
-// 0.153.4, so this is reached only when one is missing - today that is a session
-// which has not taken a turn yet, and eventually every session.
+// "rollout migration state". Rollouts are still written in 0.154.0, but no
+// longer created until the first turn - a fresh session has no rollout at all,
+// so this is the only thing that can name its model, and eventually it will be
+// the only thing that can name any session's.
 //
 // The databases are located among the process's own open files, never by
 // globbing ~/.codex: their names carry a schema version that bumps on migration
 // (logs_2, state_5), and binding through the process is what the rest of this
-// file does. Nothing here reads a quota - no rate limit is written to disk at
-// all in 0.153.4, so this fallback can only ever recover the model.
+// file does. Nothing here reads a quota - as of 0.154.0 no rate limit is written
+// to either database, so this can only ever recover the model. The quota still
+// has to come from a rollout, which means a session shows one only once it has
+// taken the turn that creates that rollout.
 let sqlite;
 // Opened and closed per read: these are another process's live databases, and
 // nothing here is hot enough to justify holding a handle across ticks.
-async function readRow(file, sql, ...values) {
+async function readRows(file, sql, ...values) {
     // node:sqlite needs Node >= 22.5. Older hosts simply do not get the
     // fallback; the pill degrades to the bare agent name as it does today.
     if (sqlite === undefined) sqlite = await import('node:sqlite').catch(() => null);
-    if (!sqlite) return null;
+    if (!sqlite) return [];
     let db;
-    try { db = new sqlite.DatabaseSync(file, { readOnly: true }); } catch { return null; }
-    try { return db.prepare(sql).get(...values) || null; } catch { return null; }
+    try { db = new sqlite.DatabaseSync(file, { readOnly: true }); } catch { return []; }
+    try { return db.prepare(sql).all(...values); } catch { return []; }
     finally { try { db.close(); } catch {} }
 }
 async function codexSqliteState(openFiles, proc) {
@@ -154,14 +163,49 @@ async function codexSqliteState(openFiles, proc) {
     // process_uuid is "pid:<pid>:<uuid>" and we know only the pid, which the
     // kernel reuses, so require the row to postdate this process's own start.
     const started = Date.parse(proc.start) / 1000;
-    const thread = (await readRow(logs,
-        'select thread_id from logs where process_uuid like ? and thread_id is not null and ts >= ? order by id desc limit 1',
-        `pid:${proc.pid}:%`, Number.isFinite(started) ? Math.floor(started) : 0))?.thread_id;
-    if (!thread) return null;
-    // The row is written on the first turn, so a thread can be known here while
-    // its model is not yet; the caller keeps the bare agent name in that case.
-    const row = await readRow(state, 'select model from threads where id = ?', thread);
-    return { id: thread, model: row?.model || null };
+    // logs.thread_id does not only hold thread ids. 0.154.0 also stamps the rows
+    // a turn emits with that turn's own id, so the newest row almost always
+    // carries a turn and the old "order by id desc limit 1" joined nothing -
+    // both ids are UUIDv7, so nothing in the string tells them apart. Only the
+    // threads table can: a turn id is simply not in it. So collect every id this
+    // process logged, newest last-seen first, and take the first that is a
+    // thread. The limit is there to bound the IN list below, and is far above the
+    // turns a session accumulates before Codex prunes the table.
+    const since = Number.isFinite(started) ? Math.floor(started) : 0;
+    const mine = `pid:${proc.pid}:%`;
+    const candidates = await readRows(logs,
+        'select thread_id, max(id) as last from logs where process_uuid like ? and thread_id is not null and ts >= ? group by thread_id order by last desc limit 200',
+        mine, since);
+    // One query for every candidate rather than one per candidate: the turn ids
+    // just do not come back, and a session's turns are what makes the list long.
+    const rows = candidates.length ? await readRows(state,
+        `select id, model from threads where id in (${candidates.map(() => '?').join(',')})`,
+        ...candidates.map(row => row.thread_id)) : [];
+    const threads = new Map(rows.map(row => [row.id, row.model]));
+    for (const { thread_id: thread } of candidates) {
+        if (threads.has(thread) && threads.get(thread)) return { id: thread, model: threads.get(thread) };
+    }
+    // Before its first turn a session has no rollout AND no threads row: that
+    // row lands with the first turn and only backdates its created_at to the
+    // session start, so neither of the sources above knows anything yet. The one
+    // thing on disk that does is the session_init log line, which carries
+    // "Configuring session: model=<model>" and is written while the thread
+    // starts. Matched last and by body rather than target, because it is a log
+    // message rather than a column: it is the weakest of the three, and it says
+    // nothing about a later /model switch, which the two above both cover.
+    const init = await readRows(logs,
+        "select feedback_log_body as body from logs where process_uuid like ? and ts >= ? and feedback_log_body like '%Configuring session: model=%' order by id desc limit 1",
+        mine, since);
+    const model = String(init[0]?.body ?? '').match(/Configuring session: model=([^\s;]+)/)?.[1];
+    // Reached only before the first turn, so every id logged so far came from
+    // thread/start and the newest is the thread's own rather than a turn's.
+    if (model) return { id: candidates[0]?.thread_id ?? null, model };
+    // A thread known with no model anywhere is still worth reporting as known;
+    // the caller keeps the bare agent name rather than inventing a model.
+    for (const { thread_id: thread } of candidates) {
+        if (threads.has(thread)) return { id: thread, model: null };
+    }
+    return null;
 }
 // Account-wide limits, as opposed to a per-model one that must not overwrite
 // them. Codex renamed this from "codex" to "premium" around 2026-09-08; across
@@ -188,6 +232,24 @@ function modelEvent(agent, event, previous) {
     if (agent === 'copilot' && event.type === 'session.model_change') return event.data?.newModel || null;
     // Auxiliary calls can use another model: do not use model.turn_started.
     return previous;
+}
+// "auto" is the name of Copilot's router, not of a model, and it is all
+// session.model_change ever reports in auto mode. The model it actually routed
+// to arrives in its own event and is what Copilot's own footer shows as
+// "Auto -> gpt-5.6-luna", so the pill reports that. Unlike model.turn_started
+// this is the main conversation's routing decision, not an auxiliary call.
+function copilotModelEvent(event, previous) {
+    if (event.type === 'session.auto_mode_resolved') return event.data?.chosenModel || null;
+    // Leaving auto for a pinned model must drop it, or the pill would keep
+    // naming whatever auto last chose.
+    if (event.type === 'session.model_change' && event.data?.newModel !== 'auto') return null;
+    return previous;
+}
+// Only auto mode has something to resolve; a pinned model is already the answer,
+// and a session that has not routed a turn yet has nothing better than the mode.
+function modelName(agent, state) {
+    if (agent === 'copilot' && state.model === 'auto' && state.autoModel) return state.autoModel;
+    return state.model;
 }
 async function sessionState(agent, file) {
     const stat = fs.statSync(file);
@@ -223,6 +285,7 @@ async function sessionState(agent, file) {
                 try {
                     const event = JSON.parse(line.toString('utf8'));
                     state.model = modelEvent(agent, event, state.model);
+                    if (agent === 'copilot') state.autoModel = copilotModelEvent(event, state.autoModel);
                     const limits = event.payload?.rate_limits;
                     if (agent === 'codex' && event.type === 'event_msg' && event.payload?.type === 'token_count'
                         && limits && (!limits.limit_id || ACCOUNT_LIMIT_IDS.has(limits.limit_id))) state.rateLimits = limits;
@@ -299,16 +362,40 @@ function copilotUsage(data, now = Date.now() / 1000) {
     }
     return '';
 }
+// Where a slower window becomes worth the pill's one slot. The 5h window is the
+// everyday readout: it is the one that interrupts a task, the number that
+// actually moves while working, and its reset is on a scale worth planning
+// around. The slower windows take the slot only once they are binding, because
+// the consequences are not symmetric - exhausting the 5h window costs a couple of
+// hours, exhausting the week or the budget costs days, which is worth seeing
+// coming rather than only on arrival.
+//
+// Reporting whichever window is simply fullest was tried and is worse on both
+// counts: it reads 90% of five hours as though it were 90% of a week, and it
+// swaps the readout every time the two cross - for windows sitting at 19% and
+// 21% that is constant motion carrying no information. Taking the first listed
+// instead, which is what this did originally, hid a week at 20% behind a 5h
+// window that had just reset to 0%.
+const ESCALATE_AT_PERCENT = 50;
 function claudeValue(data, now = Date.now() / 1000) {
     const model = clean(data.model?.display_name || 'claude');
-    for (const [key, label] of [['spend_limit', ' budget'], ['five_hour', ''], ['seven_day', ' week']]) {
-        const limit = data.rate_limits?.[key];
-        if (!Number.isFinite(limit?.used_percentage) || limit.used_percentage < 0) continue;
-        if (!Number.isFinite(limit.resets_at) || limit.resets_at <= now) continue;
-        const left = remaining(Math.ceil((limit.resets_at - now) / 60));
-        return `${model} · ${Math.round(limit.used_percentage)}%${label} · ${left}`;
-    }
-    return model;
+    const windows = [['spend_limit', ' budget'], ['five_hour', ''], ['seven_day', ' week']]
+        .map(([key, label]) => ({ key, label, limit: data.rate_limits?.[key] }))
+        .filter(({ limit }) => Number.isFinite(limit?.used_percentage) && limit.used_percentage >= 0
+            && Number.isFinite(limit.resets_at) && limit.resets_at > now);
+    // The threshold is a floor on escalation rather than a priority: a slower
+    // window has to clear it AND be the fuller one to take the slot, so a 5h
+    // window about to stop the next turn is never hidden behind a week that
+    // merely looks busy.
+    const chosen = windows
+        .filter(({ key, limit }) => key === 'five_hour' || limit.used_percentage >= ESCALATE_AT_PERCENT)
+        .sort((a, b) => b.limit.used_percentage - a.limit.used_percentage)[0]
+        // Nothing qualified, so there is no 5h window here to hold the slot; a
+        // quiet slower one still beats showing a bare model name.
+        || windows[0];
+    if (!chosen) return model;
+    const left = remaining(Math.ceil((chosen.limit.resets_at - now) / 60));
+    return `${model} · ${Math.round(chosen.limit.used_percentage)}%${chosen.label} · ${left}`;
 }
 function hook(data) {
     const procs = processes();
@@ -356,17 +443,23 @@ async function refresh(io = { run: runAsync, processes: async () => processes(aw
                 const file = sessionFile(agent, openFiles)
                     || copilot?.file;
                 if (process.argv.includes('--verbose')) process.stdout.write(JSON.stringify({ agent, file }) + '\n');
+                let model = null;
+                let usage = '';
                 if (file) {
                     try {
                         const state = await sessionState(agent, file);
-                        value = state.model ? clean(state.model) : agent;
-                        if (agent === 'codex') value += codexUsage(state.rateLimits) || codexLimit(state.limit);
-                        if (agent === 'copilot') value += copilotUsage(state.quota);
+                        model = modelName(agent, state);
+                        if (agent === 'codex') usage = codexUsage(state.rateLimits) || codexLimit(state.limit);
+                        if (agent === 'copilot') usage = copilotUsage(state.quota);
                     } catch { /* The session may exit while its log is read. */ }
-                } else if (agent === 'codex') {
-                    const state = await codexSqliteState(openFiles, proc).catch(() => null);
-                    if (state?.model) value = clean(state.model);
                 }
+                // A rollout that exists but has recorded no turn_context names no
+                // model either, so the database answers for both cases - not just
+                // for the missing-rollout one. The quota is never in there.
+                if (!model && agent === 'codex') {
+                    model = (await codexSqliteState(openFiles, proc).catch(() => null))?.model || null;
+                }
+                value = (model ? clean(model) : agent) + usage;
             }
         }
         (io.atomic || atomic)(path.join(cacheDir, `pane-${server}-${root}`), `${Math.floor(Date.now() / 1000)}\n${agent}\n${value}\n`);
@@ -485,7 +578,7 @@ async function main() {
         if (sourceVersion() !== loadedVersion) return;
     } while (true);
 }
-export { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, copilotUsage, atomic, refresh, openFilesByPid, createStatusPublisher, hook };
+export { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, copilotUsage, modelName, atomic, refresh, openFilesByPid, createStatusPublisher, hook };
 let invokedDirectly = false;
 try { invokedDirectly = Boolean(process.argv[1]) && fs.realpathSync(process.argv[1]) === filename; } catch {}
 if (invokedDirectly) main();
