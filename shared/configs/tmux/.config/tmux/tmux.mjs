@@ -16,8 +16,8 @@ import {
 
 const filename = fileURLToPath(import.meta.url);
 const cacheDir = path.join(process.env.HOME, '.cache/initd-tmux');
-// Poll every half second; tmux paints the published options once per second.
-const STATUS_REFRESH_MS = 500;
+// Match tmux's once-per-second redraw instead of scanning between redraws.
+const STATUS_REFRESH_MS = 1000;
 const transcriptCache = new Map();
 const sourceVersion = () => [filename, fileURLToPath(new URL('./status-renderer.mjs', import.meta.url))]
     .map(file => fs.statSync(file).mtimeMs).join(':');
@@ -286,14 +286,19 @@ function hook(data) {
     const ctx = data.context_window?.used_percentage;
     process.stdout.write(claudeValue(data) + (Number.isFinite(ctx) ? ` · ${Math.round(ctx)}% ctx` : ''));
 }
-async function refresh(io = { run: runAsync, processes: async () => processes(await runAsync('ps', ['-axo', PS_FORMAT])), atomic }) {
-    const panes = (await io.run('tmux', ['list-panes', '-a', '-F', '#{pid}|#{pane_pid}|#{pane_current_command}'])).trim().split('\n')
-        .filter(pane => /\|(claude|codex|copilot)$/.test(pane));
+async function readPanes(runCommand = runAsync) {
+    const rows = await runCommand('tmux', ['list-panes', '-a', '-F', '#{pane_id}\t#{pid}\t#{pane_pid}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_active}']);
+    return rows.trimEnd().split('\n').map(row => row.split('\t'))
+        .filter(row => row.length === 6 && /^%\d+$/.test(row[0]));
+}
+async function refresh(io = { run: runAsync, processes: async () => processes(await runAsync('ps', ['-axo', PS_FORMAT])), atomic }, snapshot) {
+    const panes = (snapshot ?? await readPanes(io.run))
+        .filter(([, , , agent]) => ['claude', 'codex', 'copilot'].includes(agent));
     // No process scans, open-file queries or transcript reads while idle.
     if (!panes.length) return;
     const procs = await io.processes();
     const targets = panes.flatMap(pane => {
-        const [server, root, agent] = pane.split('|');
+        const [, server, root, agent] = pane;
         if (!/^\d+$/.test(server) || !/^\d+$/.test(root)) return [];
         const proc = findAgent(procs, root, agent);
         if (process.argv.includes('--verbose')) process.stdout.write(JSON.stringify({ pane, proc, processCount: procs.length }) + '\n');
@@ -426,10 +431,8 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
     let namesAt = -Infinity;
     const branches = new Map();
     let published = new Map();
-    return async (now = Date.now() / 1000) => {
-        const rows = await runCommand('tmux', ['list-panes', '-a', '-F', '#{pane_id}\t#{pid}\t#{pane_pid}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_active}']);
-        const panes = rows.trimEnd().split('\n').map(row => row.split('\t'))
-            .filter(row => row.length === 6 && /^%\d+$/.test(row[0]));
+    return async (now = Date.now() / 1000, snapshot) => {
+        const panes = snapshot ?? await readPanes(runCommand);
         if (!panes.length) return;
         const directories = new Set(panes.map(row => row[4]));
         for (const directory of branches.keys()) {
@@ -536,8 +539,9 @@ async function main() {
     process.on('exit', () => { if (watching) releaseWatcherLock(); });
     do {
         if (!watching || claimWatcherLock()) {
-            try { await refresh(); } catch {}
-            try { await publish(); } catch {}
+            const panes = await readPanes();
+            try { await refresh(undefined, panes); } catch {}
+            try { await publish(undefined, panes); } catch {}
         }
         if (!watching) return;
         // Blank by design: the pills are read from the @initd-* options, not
