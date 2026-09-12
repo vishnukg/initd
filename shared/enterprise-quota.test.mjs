@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { claudeValue, copilotUsage, sessionState } from './configs/tmux/.config/tmux/tmux.mjs';
+import { sessionState } from './configs/tmux/.config/tmux/tmux.mjs';
+import { claudeValue, copilotUsage } from './configs/tmux/.config/tmux/status-renderer.mjs';
 
 test('Claude prioritizes enterprise budgets, supports overage, and keeps subscription format', () => {
     const data = { model: { display_name: 'Sonnet' }, rate_limits: {

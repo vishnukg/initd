@@ -35,6 +35,14 @@ export function readJsonFile(file) {
 // It is asserted even when the JSON did not change, so a file left more
 // permissive by an earlier run or by the tool that created it gets corrected.
 export function updateJsonFile(file, mutate, { mode = 0o600 } = {}) {
+    let stat;
+    try { stat = fs.lstatSync(file); }
+    catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+    }
+    // Replace the target atomically, preserving a user's config symlink.
+    // A broken link fails here instead of being replaced with a new file.
+    if (stat?.isSymbolicLink()) file = fs.realpathSync(file);
     const config = readJsonFile(file);
     if (mutate(config) !== true) {
         if (fs.existsSync(file)) fs.chmodSync(file, mode);
@@ -59,5 +67,6 @@ export function updateJsonFile(file, mutate, { mode = 0o600 } = {}) {
 export function sameFlatObject(value, wanted) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
     const keys = Object.keys(wanted);
-    return keys.length === Object.keys(value).length && keys.every(key => value[key] === wanted[key]);
+    return keys.length === Object.keys(value).length
+        && keys.every(key => Object.hasOwn(value, key) && value[key] === wanted[key]);
 }

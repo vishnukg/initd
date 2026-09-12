@@ -2,7 +2,7 @@
 import { execFile } from 'node:child_process';
 // A missing notification/IPC tool emits an asynchronous error; the fetch
 // try/catch cannot catch it. Bound these commands and report failures.
-const run = (command, args) => execFile(command, args, { timeout: 5000 }, error => {
+const run = (command, args) => execFile(command, args, { timeout: 5000, killSignal: 'SIGKILL' }, error => {
     if (error) console.error(`${command}: ${error.message}`);
 });
 const url = 'https://wttr.in/?format=%l|%c+%C,+%t+(feels+%f)|%w+wind,+%h+humidity|%p+precipitation,+%m';

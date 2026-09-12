@@ -45,7 +45,7 @@ test('concurrent Fish startups have independent init and do not write a shared c
         let output = '';
         child.stdout.on('data', data => { output += data; });
         child.on('error', reject);
-        child.on('exit', code => code === 0 ? resolve(plain(output)) : reject(new Error(`Fish exited ${code}`)));
+        child.on('close', code => code === 0 ? resolve(plain(output)) : reject(new Error(`Fish exited ${code}`)));
     })));
     assert.deepEqual(values, ['0', '1', '2', '3', '4', '5']);
 });

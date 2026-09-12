@@ -75,7 +75,24 @@ test('flat-object equality ignores key order and rejects non-objects', () => {
     assert.equal(sameFlatObject({ a: 1 }, { a: 1, b: 2 }), false);
     assert.equal(sameFlatObject({ a: 1, b: 2 }, { a: 1 }), false);
     assert.equal(sameFlatObject({ a: '1' }, { a: 1 }), false);
+    assert.equal(sameFlatObject(Object.assign(Object.create({ a: 1 }), { b: 2 }), { a: 1 }), false);
     for (const value of [undefined, null, 'x', 7, ['a']]) assert.equal(sameFlatObject(value, { a: 1 }), false);
+});
+test('JSON updates preserve config symlinks and reject broken targets', t => {
+    const dir = temporaryDir(t);
+    const target = path.join(dir, 'target.json');
+    const link = path.join(dir, 'config.json');
+    fs.writeFileSync(target, '{"theme":"dark"}');
+    fs.symlinkSync('target.json', link);
+    configureStatusLine({ file: link, log() {} });
+    assert.equal(fs.readlinkSync(link), 'target.json');
+    assert.equal(read(target).theme, 'dark');
+    assert.equal(read(target).statusLine.type, 'command');
+    assert.equal(mode(target), 0o600);
+    fs.unlinkSync(target);
+    assert.throws(() => configureStatusLine({ file: link, log() {} }), { code: 'ENOENT' });
+    assert.equal(fs.readlinkSync(link), 'target.json');
+    assert.equal(fs.existsSync(target), false);
 });
 test('the Claude statusLine hook is configured without disturbing other settings', t => {
     const dir = temporaryDir(t);

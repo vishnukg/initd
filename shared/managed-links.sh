@@ -5,9 +5,6 @@
 
 : "${ROOT_DIR:?ROOT_DIR must be set before sourcing shared/managed-links.sh}"
 
-# shellcheck disable=SC1091
-source "${ROOT_DIR}/shared/lib/fs.sh"
-
 # Format: "home path:repo path".
 # Cross-platform configs only. Add platform-only entries in <platform>/managed-links.sh.
 # ~/.gitconfig points at the single base config; the machine-local email/overrides
