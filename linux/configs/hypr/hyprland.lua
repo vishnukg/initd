@@ -115,7 +115,7 @@ hl.bind(mod .. " + Tab", hl.dsp.exec_cmd("rofi -show window"))
 hl.bind(mod .. " + SHIFT + F23", hl.dsp.exec_cmd("rofi -show drun"))
 -- Toggle night light (4500 K via night-light.service; a schedule keeps it on
 -- 19:00–07:00, and this manual toggle stands until the next boundary)
-hl.bind(mod .. " + SHIFT + n", hl.dsp.exec_cmd("~/.config/night-light-toggle.sh"))
+hl.bind(mod .. " + SHIFT + n", hl.dsp.exec_cmd("~/.config/night-light-toggle.mjs"))
 
 -- Lock now / lock-session (hypridle runs hyprlock on loginctl lock-session)
 -- Ctrl+Super+Q mirrors macOS's Ctrl+Cmd+Q; $mod+Shift+X kept as the original.

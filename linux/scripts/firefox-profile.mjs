@@ -1,17 +1,14 @@
 #!/usr/bin/env node
-// The two things linux/setup.sh needs out of a Firefox profile, as one tool:
-//
-//   path <profiles.ini>           print the active profile's Path, as recorded
-//   zoom <content-prefs.sqlite>   set 133% as the default full-zoom level
-//
-// A setup-time helper rather than a session script like its neighbours here, but
-// it belongs with them: it is the Firefox half of linux/setup.sh and nothing
-// else calls it.
+// Discover/init a Firefox profile, install managed files, and set default zoom.
 import fs from 'node:fs';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
+import { defaultBackupRoot, installLink, pathStat } from '../../shared/lib/fs.mjs';
 
-const usage = 'Usage: firefox-profile.mjs path <profiles.ini> | zoom <content-prefs.sqlite>';
+const usage = 'Usage: firefox-profile.mjs setup | path <profiles.ini> | zoom <content-prefs.sqlite>';
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 // profiles.ini is flat INI: [Section] headers plus key=value lines. Parsed here
 // rather than with a library because this repo has no node_modules. Keys are
@@ -80,12 +77,67 @@ export function setDefaultZoom(file, { zoom = 1.33, now = Date.now() } = {}) {
     }
 }
 
-function main([verb, file]) {
-    if (!file || !['path', 'zoom'].includes(verb)) {
-        console.error(usage);
-        process.exitCode = 1;
-        return;
+export function findProfileDirectory({
+    home = process.env.HOME, configHome = process.env.XDG_CONFIG_HOME || path.join(home, '.config'),
+    run = spawnSync, warn = console.warn,
+} = {}) {
+    const roots = [path.join(home, '.mozilla/firefox'), path.join(configHome, 'mozilla/firefox')];
+    const findRoot = () => roots.find(root => pathStat(path.join(root, 'profiles.ini'))?.isFile());
+    let root = findRoot();
+    if (!root) {
+        const result = run('firefox', ['--headless', '--CreateProfile', 'default-release'], {
+            stdio: 'ignore', timeout: 15000, killSignal: 'SIGKILL',
+        });
+        if (result.error?.code === 'ENOENT') return null;
+        if (result.error || result.status !== 0) {
+            warn('!! Firefox could not initialize a profile — retry on the next setup run.');
+            return null;
+        }
+        root = findRoot();
     }
+    if (!root) return null;
+    const profile = profilePath(fs.readFileSync(path.join(root, 'profiles.ini'), 'utf8'));
+    return profile ? path.resolve(root, profile) : null;
+}
+
+export function configureFirefox({
+    root = repo, home = process.env.HOME, configHome = process.env.XDG_CONFIG_HOME || path.join(home, '.config'),
+    backupRoot = defaultBackupRoot(home), run = spawnSync, log = console.log, warn = console.warn,
+} = {}) {
+    const profile = findProfileDirectory({ home, configHome, run, warn });
+    if (!profile) {
+        log('==> No Firefox profile present — skipping.');
+        return null;
+    }
+    for (const relative of ['user.js', 'chrome/userChrome.css', 'chrome/userContent.css']) {
+        const source = path.join(root, 'linux/configs/firefox', relative);
+        if (pathStat(source)?.isFile()) installLink(path.join(profile, relative), source, { home, backupRoot, log });
+    }
+    // Cosmetic zoom failures must not undo the links or abort system setup.
+    const running = run('pgrep', ['-x', 'firefox'], { stdio: 'ignore', timeout: 3000, killSignal: 'SIGKILL' });
+    if (running.error || ![0, 1].includes(running.status)) {
+        warn('!! Cannot determine whether Firefox is running — leaving default zoom unchanged.');
+    } else if (running.status === 0) {
+        warn('!! Firefox is running — close it and rerun setup to set 133% zoom.');
+    } else {
+        const database = path.join(profile, 'content-prefs.sqlite');
+        if (!pathStat(database)?.isFile()) {
+            warn('!! Firefox preferences are not initialized — open Firefox once, close it, and rerun setup.');
+        } else {
+            try {
+                setDefaultZoom(database);
+                log('OK Set Firefox default zoom to 133%.');
+            } catch (error) {
+                warn(`!! Could not update Firefox zoom: ${error.message}`);
+            }
+        }
+    }
+    return profile;
+}
+
+function main([verb, file, ...extra]) {
+    if (verb === 'setup' && !file) return configureFirefox();
+    if (!file || extra.length || !['path', 'zoom'].includes(verb)) throw new Error(usage);
     if (verb === 'path') {
         const found = profilePath(fs.readFileSync(file, 'utf8'));
         // No active profile is a normal outcome, not an error: the caller treats

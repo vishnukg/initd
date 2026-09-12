@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { managedLinks } from './lib/managed-links.mjs';
 import { configureProfile } from './lib/git-profile.mjs';
+import { backupPath, installLink } from './lib/fs.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const root = path.resolve(__dirname, '..');
@@ -33,7 +34,7 @@ function testLinks(home) {
     return managedLinks(root, platform, home);
 }
 function link(home, backupRoot) {
-    return run(path.join(root, 'shared/lib/link.sh'), [platform], {
+    return run(process.execPath, [path.join(root, 'shared/lib/link.mjs'), platform], {
         env: { ...process.env, HOME: home, BACKUP_ROOT: backupRoot },
     });
 }
@@ -101,9 +102,7 @@ test('reusing a backup directory preserves older files, directories and broken s
     fs.writeFileSync(path.join(backups, 'settings.1', 'kept'), 'directory');
     fs.symlinkSync('missing', path.join(backups, 'settings.2'));
     fs.writeFileSync(path.join(home, 'settings'), 'latest');
-    run('bash', ['-eu', '-c', 'source "$1/shared/lib/logging.sh"; source "$1/shared/lib/fs.sh"; backup_path "$HOME/settings"', 'test', root], {
-        env: { ...process.env, HOME: home, BACKUP_ROOT: backups },
-    });
+    backupPath(path.join(home, 'settings'), { home, backupRoot: backups, log() {} });
     assert.equal(fs.readFileSync(path.join(backups, 'settings'), 'utf8'), 'first');
     assert.equal(fs.readFileSync(path.join(backups, 'settings.1', 'kept'), 'utf8'), 'directory');
     assert.equal(fs.readlinkSync(path.join(backups, 'settings.2')), 'missing');
@@ -182,7 +181,7 @@ test('switching back to personal removes only the email override', async () => {
 test('Linux manifest installs and cleans up in an isolated home on either host', () => {
     const home = newHome('linux-links');
     const env = { ...process.env, HOME: home };
-    run(path.join(root, 'shared/lib/link.sh'), ['linux'], { env });
+    run(process.execPath, [path.join(root, 'shared/lib/link.mjs'), 'linux'], { env });
     for (const entry of managedLinks(root, 'linux', home)) {
         assertLink(entry.home, entry.source);
         assert.ok(fs.existsSync(entry.home), `broken source: ${entry.source}`);
@@ -213,4 +212,42 @@ test('cleanup reports filesystem errors instead of claiming paths are absent', (
     const home = newHome('cleanup-error');
     fs.symlinkSync(path.join(home, '.config'), path.join(home, '.config'));
     assert.throws(() => cleanup(home), /ELOOP/);
+});
+
+test('link launcher requests Node explicitly before any managed mise config exists', () => {
+    const home = newHome('fresh-launcher');
+    const bin = path.join(home, 'bin');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'mise'), [
+        '#!/bin/sh',
+        '[ "$1" = -C ] && [ "$2" = "$INITD_ROOT" ] && [ "$3" = exec ] || exit 90',
+        '[ "$4" = node@lts ] && [ "$5" = -- ] && [ "$6" = node ] || exit 91',
+        '[ ! -e "$HOME/.config/mise/config.toml" ] || exit 92',
+        'shift 6',
+        'exec "$INITD_NODE" "$@"',
+        '',
+    ].join('\n'), { mode: 0o755 });
+    run(path.join(root, 'shared/lib/link.sh'), [platform], {
+        env: { ...process.env, HOME: home, PATH: `${bin}:/usr/bin:/bin`, INITD_ROOT: root, INITD_NODE: process.execPath },
+    });
+    for (const entry of testLinks(home)) assertLink(entry.home, entry.source);
+});
+
+test('a missing link source never moves an unmanaged destination', () => {
+    const home = newHome('missing-source');
+    const file = path.join(home, 'config');
+    fs.writeFileSync(file, 'keep');
+    assert.throws(() => installLink(file, path.join(home, 'missing'), { home, backupRoot: path.join(home, 'backup') }), /source path/);
+    assert.equal(fs.readFileSync(file, 'utf8'), 'keep');
+    assert.equal(fs.existsSync(path.join(home, 'backup')), false);
+});
+
+test('backups outside HOME stay beneath backupRoot', () => {
+    const home = newHome('outside-home');
+    const source = path.join(newHome('checkout'), 'config');
+    fs.writeFileSync(source, 'keep');
+    const backupRoot = path.join(home, 'backup');
+    const backup = backupPath(source, { home, backupRoot, log() {} });
+    assert.ok(backup.startsWith(backupRoot + path.sep));
+    assert.equal(fs.readFileSync(backup, 'utf8'), 'keep');
 });

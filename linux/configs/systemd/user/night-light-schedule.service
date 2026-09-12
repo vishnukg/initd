@@ -8,7 +8,8 @@ After=graphical-session.target
 
 [Service]
 Type=oneshot
-ExecStart=%h/.config/night-light-toggle.sh auto
+# The user manager may not inherit Hyprland's mise-enabled PATH.
+ExecStart=%h/.local/share/mise/shims/node %h/.config/night-light-toggle.mjs auto
 
 [Install]
 WantedBy=graphical-session.target
