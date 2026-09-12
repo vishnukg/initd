@@ -245,15 +245,21 @@ async function sessionState(agent, file) {
     };
     const start = offset;
     const input = stat.size > start ? fs.createReadStream(file, { start, end: stat.size - 1 }) : null;
-    let pending = Buffer.alloc(0);
+    // Keep chunk fragments until a newline arrives. Repeatedly concatenating
+    // an unfinished record copies large tool/image payloads quadratically.
+    let fragments = [];
+    let pendingBytes = 0;
     try {
         if (input) for await (const chunk of input) {
-            pending = Buffer.concat([pending, chunk]);
+            let start = 0;
             let newline;
-            while ((newline = pending.indexOf(10)) !== -1) {
-                const line = pending.subarray(0, newline);
-                offset += newline + 1;
-                pending = pending.subarray(newline + 1);
+            while ((newline = chunk.indexOf(10, start)) !== -1) {
+                const tail = chunk.subarray(start, newline);
+                const line = fragments.length ? Buffer.concat([...fragments, tail], pendingBytes + tail.length) : tail;
+                offset += pendingBytes + tail.length + 1;
+                fragments = [];
+                pendingBytes = 0;
+                start = newline + 1;
                 if (agent === 'copilot-process') {
                     const text = line.toString('utf8');
                     const match = text.match(/^\S+ \[INFO\] (Registering|Unregistering) foreground session: ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*$/i);
@@ -264,6 +270,11 @@ async function sessionState(agent, file) {
                 try {
                     applyEvent(agent, state, JSON.parse(line.toString('utf8')));
                 } catch { /* Ignore malformed records; later records may be valid. */ }
+            }
+            if (start < chunk.length) {
+                const tail = chunk.subarray(start);
+                fragments.push(tail);
+                pendingBytes += tail.length;
             }
         }
     } finally { input?.destroy(); }
@@ -348,7 +359,12 @@ async function refresh(io = { run: runAsync, processes: async () => processes(aw
 // rule here covers sessions created by Fish, tmux commands, and keybindings.
 const sessionNames = ['nova', 'vega', 'io', 'sol', 'luna', 'mars',
     'lyra', 'titan', 'pluto', 'orion'];
-const emojis = [...'🍎🍏🍐🍊🍋🍉🍇🍓🍒🥭🍍🥝🍅🌽🥕☕🍕🍩🍪🎂🧁🍰🥐🥯🥞🧇🍫🍬🍭🍯🥧🍞🍞🧀🥨🍦🍨🍿🍵🧃🧋🍮'];
+const emojis = [
+    '🧬', '🧪', '⚗️', '🔬', '🔭',
+    '🧮', '📐', '🧩', '♾️', '🎲',
+    '🚀', '🛸', '🛰️', '🪐', '☄️',
+    '🦕', '🎮', '👾', '🤖', '💎', '🧲',
+];
 // Each attached tmux client starts a watcher. One owner per socket publishes
 // the shared pane options; followers idle and take over if the owner exits.
 function watcherLockPath(socket) {

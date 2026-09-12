@@ -19,9 +19,23 @@ tmux server (one per machine, invisible)
 - **Window** — a tab inside a session.
 - **Pane** — a split inside a window.
 
-The session name shows in the bottom-left of your status bar in green. The
+The session name shows in the bottom-left of your status bar in purple. The
 bottom-right shows the active pane's git branch (only inside a repository),
 battery, and the active agent's model/usage pill.
+
+Window tabs show the index, command (or custom window name), directory basename,
+and a randomly assigned emoji. The current 21-icon pool is:
+
+- Science: 🧬 🧪 ⚗️ 🔬 🔭
+- Maths and puzzles: 🧮 📐 🧩 ♾️ 🎲
+- Space: 🚀 🛸 🛰️ 🪐 ☄️
+- Nerdy extras: 🦕 🎮 👾 🤖 💎 🧲
+
+New windows choose an unused icon across the server's windows; repeats are
+allowed once the pool is exhausted. Existing windows keep their icon while it
+remains in the pool. Edit `emojis` in
+`shared/configs/tmux/.config/tmux/tmux.mjs` to change the set. Each entry is a
+complete emoji string so variation selectors stay attached to their symbols.
 
 ---
 
@@ -194,18 +208,18 @@ tmux copy mode lets you scroll and copy from the terminal buffer — works every
 
 ## Practice exercises
 
-1. Open a new terminal → confirm it auto-attaches to `main` (after adding the fish snippet).
+1. Open a new terminal → Fish attaches to a detached session or creates one with a space-themed name. Note its name in the status bar.
 2. Create a second session: `tmux new-session -s scratch`
 3. Open the picker: `C-a s` — you should see both sessions. Switch between them.
 4. Rename: `C-a $`, type `work`, Enter. Watch the status bar update.
-5. Detach: `C-a d`. Open a new terminal — you're back in `main`.
+5. Detach: `C-a d`. Open a new terminal — Fish reattaches to the most recently used detached session.
 6. Clean up: `tmux kill-session -t work`.
 
 ## Agent status
 
 The right-hand pill follows the focused pane’s agent process. One watcher per
 tmux socket publishes pane options; other clients’ watchers idle until the
-owner exits. Each cycle waits half a second after its work finishes. tmux
+owner exits. Each cycle waits one second after its work finishes. tmux
 repaints once per second.
 
 - **Claude:** the hook records its model and rate limits against the owning

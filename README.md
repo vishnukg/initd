@@ -109,7 +109,8 @@ Gitignored paths — used if present, silently skipped if absent.
 | Path | Purpose |
 |---|---|
 | `shared/configs/git/local.gitconfig` | Work (or other) Git email override — absent on personal machines |
-| `shared/configs/fish/.config/fish/local.fish` | Machine-specific env vars and overrides |
+| `shared/configs/fish/.config/fish/local.env.fish` | Machine-specific environment variables, loaded by every Fish shell; set `INITD_TMUX_AUTO_ATTACH=0` here to opt out of tmux |
+| `shared/configs/fish/.config/fish/local.fish` | Interactive-only aliases and preferences |
 | `shared/fonts/` | Clone of the PRIVATE `vishnukg/fonts` repo (Berkeley Mono — paid, per-user licensed, so a public repo can't carry the OTFs). Synced by `shared/lib/fonts.sh`, which warns and skips without `gh` auth |
 
 ## Backups
@@ -156,6 +157,8 @@ Then re-run `node --test shared/install.test.mjs`.
 ## Reference docs
 
 - `docs/bash-primer.md` — repo-specific Bash patterns
+- `docs/javascript.md` — JavaScript helpers, tmux update flow, and efficiency boundaries
+- `docs/config-review.md` — dated validation results and remaining platform checks
 - `docs/fish.md` — fish/bash/zsh syntax comparison
 - `docs/nvim.md` — Neovim setup with Lazy.nvim
 - `docs/mise.md` — mise tool management

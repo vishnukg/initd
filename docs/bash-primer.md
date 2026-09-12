@@ -89,7 +89,7 @@ MANAGED_LINKS=(
 ```
 
 `linux/managed-links.sh` appends OS-only entries to the same array (Hyprland,
-Quickshell, rofi, dunst, fontconfig, PipeWire, GTK, and session services).
+Quickshell, rofi, dunst, fontconfig, GTK, and session services).
 `macos/managed-links.sh` is currently empty — every macOS dotfile lives in
 `shared/configs/`.
 
@@ -240,11 +240,12 @@ After editing a script, verify there are no syntax errors:
 
 ```bash
 for file in bootstrap.sh \
-  shared/lib/logging.sh \
+  shared/lib/logging.sh shared/lib/fonts.sh \
   shared/lib/link.sh \
   shared/managed-links.sh \
   macos/bootstrap.sh macos/defaults.sh macos/update.sh macos/managed-links.sh \
-  linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh; do
+  linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh \
+  linux/scripts/*.sh; do
   bash -n "$file" || exit
 done
 ```
