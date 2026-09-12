@@ -337,10 +337,38 @@ test('incremental reads resume at complete records and recover from rotation and
 test('idle watcher skips process scans and all expensive data work', async () => {
     const calls = [];
     await refresh({
-        run: (command, args) => { calls.push([command, args[0]]); return '1|2|fish\n1|3|nvim\n'; },
+        run: (command, args) => { calls.push([command, args[0]]); return '%1\t1\t2\tfish\t/repo\t1\n%2\t1\t3\tnvim\t/repo\t0\n'; },
         processes: () => { throw new Error('idle process scan'); },
     });
     assert.deepEqual(calls, [['tmux', 'list-panes']]);
+});
+test('discovery and publishing share a snapshot and recheck ownership each cycle', async () => {
+    const snapshot = [['%1', '1', '10', 'claude', '/repo', '1']];
+    const records = new Map();
+    const sent = [];
+    let scans = 0;
+    const runCommand = async (command, args) => {
+        assert.notEqual(args[0], 'list-panes', 'the supplied snapshot needs no extra query');
+        if (command === 'tmux' && args[0] === 'set-option') sent.push(...tmuxCommands(args));
+        return '';
+    };
+    const io = {
+        run: runCommand,
+        processes: async () => { scans++; return []; },
+        atomic: (file, value) => records.set(path.basename(file), value),
+    };
+    const publish = createStatusPublisher(runCommand,
+        (server, root) => records.get(`pane-${server}-${root}`), async () => '', () => {});
+    for (let tick = 0; tick < 2; tick++) {
+        await refresh(io, snapshot);
+        await publish(undefined, snapshot);
+    }
+    assert.equal(scans, 2, 'ownership must not be cached across cycles');
+    assert.match(records.get('pane-1-10'), /\nclaude\nclaude\n$/);
+    assert.ok(sent.some(args => args.includes('@initd-agent') && args.at(-1) === 'claude'));
+    await refresh(io, []);
+    await publish(undefined, []);
+    assert.equal(scans, 2, 'an empty snapshot must not trigger discovery');
 });
 test('concurrent writers leave one complete cache value and no temporary files', async t => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-agent-write-'));
@@ -364,7 +392,7 @@ test('one asynchronous lsof scan covers all agents and does not delay Claude', a
     const pending = refresh({
         run(command, args) {
             calls.push([command, args]);
-            return command === 'tmux' ? '1|10|codex\n1|20|copilot\n1|30|claude' : lookup;
+            return command === 'tmux' ? '%1\t1\t10\tcodex\t/repo\t1\n%2\t1\t20\tcopilot\t/repo\t0\n%3\t1\t30\tclaude\t/repo\t0' : lookup;
         },
         processes: async () => [
             { pid: 10, parent: 1, agent: 'codex' },
