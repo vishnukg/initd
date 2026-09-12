@@ -3,9 +3,9 @@
 Colima ("Container Linux on Mac") runs a lightweight Linux VM in the
 background and gives you a standard Docker CLI on top of it — no Docker
 Desktop required or installed on this repo's machines. `macos/Brewfile`
-installs four formulas for this: `colima` (the VM/runtime manager),
+installs five formulas for this: `colima` (the VM/runtime manager),
 `docker` (the CLI client only — not Docker Desktop), `docker-compose`
-(the compose plugin), and `docker-credential-helper` (the `osxkeychain`
+(the compose plugin), `docker-buildx` (the build plugin), and `docker-credential-helper` (the `osxkeychain`
 credential helper, see below).
 
 Docker Desktop and Colima both ultimately provide the same thing: a Docker
@@ -16,7 +16,7 @@ same time as Colima, since both fight over the default Docker context/socket.
 
 ## Daily use
 
-Colima runs as a login service (`brew services start colima`, enabled by
+Colima runs as a login service (`env -u TMUX brew services start colima`, enabled by
 `ensure_colima_service` in `macos/bootstrap.sh`), so the VM is already up
 when you log in — `docker` commands just work, no manual start needed.
 
@@ -24,8 +24,8 @@ when you log in — `docker` commands just work, no manual start needed.
 docker ps                   # normal docker CLI, talking to Colima
 docker compose up           # docker-compose formula wires this in
 colima status               # check the VM
-brew services stop colima   # stop the VM and disable autostart
-brew services start colima  # start it again / re-enable autostart
+env -u TMUX brew services stop colima   # stop the VM and disable autostart
+env -u TMUX brew services start colima  # start it again / re-enable autostart
 ```
 
 Use the `brew services` commands rather than bare `colima start`/`stop`:
@@ -34,6 +34,9 @@ launchd owns the process (`colima start -f` under label
 manually-started instance makes the launchd job exit-and-respawn in a loop.
 `ensure_colima_service` handles this handover automatically if it finds a
 manual instance running.
+
+The commands unset `TMUX` for Homebrew, matching bootstrap's service calls so
+they also work from the automatically attached tmux shell.
 
 Colima persists state between starts, so stopping it doesn't lose images
 or containers — it just frees the CPU/RAM the VM was holding.
@@ -97,7 +100,7 @@ Most single-machine dev setups never need this — the default profile
 ## Troubleshooting
 
 - `docker` commands hang or say "Cannot connect to the Docker daemon" →
-  `colima start` (the VM isn't running).
+  `env -u TMUX brew services restart colima` for the managed login service.
 - `docker` seems to be talking to the wrong daemon → check
   `docker context ls` and `docker context use colima` (Colima sets this
   automatically on start, but Docker Desktop launching afterward can steal
@@ -108,7 +111,8 @@ Most single-machine dev setups never need this — the default profile
   If you Ctrl-C at that point, the VM usually keeps running but the
   `colima` Docker context never gets (re)activated, leaving `docker`
   pointing at the wrong socket ("Cannot connect to the Docker daemon at
-  unix:///var/run/docker.sock"). Fix: `brew services restart colima` and
+  unix:///var/run/docker.sock"). Fix: `env -u TMUX brew services restart colima` and
   let it finish this time.
-- Full reset: `colima delete` (destroys the VM and all containers/images
-  inside it), then `colima start` again.
+- Full reset: stop the service with `env -u TMUX brew services stop colima`,
+  run `colima delete` (destroys the VM and all containers/images inside it),
+  then run `env -u TMUX brew services start colima`.

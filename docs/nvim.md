@@ -151,7 +151,7 @@ it / at   -- inner tag / tag (HTML/XML)
 
 Example: `ci"` = change inside quotes, `da(` = delete a set of parens and everything inside.
 
-**Counts** multiply a motion or operator: `3w` = 3 words forward, `d2j` = delete 2 lines down.
+**Counts** multiply a motion or operator: `3w` = 3 words forward, `d2j` = delete the current line and the next two lines.
 
 ### Marks
 
@@ -289,7 +289,7 @@ local fn = function(x) return x * 2 end
 vim.keymap.set("n", "<leader>x", function() print("hi") end)
 
 -- Calling with a single table or string: parens are optional
-require("lazy")          -- same as require("lazy")
+require "lazy"           -- same as require("lazy")
 ```
 
 ### Control flow
