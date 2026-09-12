@@ -5,8 +5,23 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, modelName, refresh, openFilesByPid, createStatusPublisher, claimWatcherLock, releaseWatcherLock, sweepCache, lockPath, watcherLockPath } from './configs/tmux/.config/tmux/tmux.mjs';
+import {
+    processes, findAgent, sessionFile, copilotSessionFile, sessionState,
+    codexSqliteState, modelName, refresh, openFilesByPid, createStatusPublisher,
+    claimWatcherLock, releaseWatcherLock, sweepCache, lockPath, watcherLockPath,
+} from './configs/tmux/.config/tmux/tmux.mjs';
+import { agentPill, claudeValue, codexUsage, codexLimit } from './configs/tmux/.config/tmux/status-renderer.mjs';
 const helper = fileURLToPath(new URL('./configs/tmux/.config/tmux/tmux.mjs', import.meta.url));
+
+// Decode the same argv framing tmux receives, for readable batch assertions.
+function tmuxCommands(args) {
+    const commands = [[]];
+    for (const arg of args) {
+        if (arg === ';') commands.push([]);
+        else commands.at(-1).push(arg);
+    }
+    return commands;
+}
 
 test('two panes in the same directory resolve their own agent, excluding subagents', () => {
     const procs = [
@@ -222,6 +237,17 @@ test('Codex falls back to its SQLite state when no rollout file is open', async 
         { id: 'fresh-thread', model: 'gpt-switched-to' });
     // A pid whose rows predate it learns nothing from the log line either.
     assert.equal(await codexSqliteState(logs3 + state7, { ...proc, pid: 99 }), null);
+    assert.equal(await codexSqliteState(openFiles, { ...proc, start: 'unknown' }), null);
+    // Schema 10 is newer than 8, even though alphabetic sorting says otherwise.
+    build('state_10', [threads, "insert into threads values ('fresh-thread', 'gpt-latest')"]);
+    assert.deepEqual(await codexSqliteState(logs3 + state7
+        + `n${path.join(dir, 'state_10.sqlite')}\n`, proc),
+    { id: 'fresh-thread', model: 'gpt-latest' });
+});
+test('unrecognized command names cannot inherit an agent style', () => {
+    for (const command of ['fish', 'constructor', 'toString', '__proto__']) {
+        assert.equal(agentPill(command), '');
+    }
 });
 test('Claude can show its model without rate limits and strips tmux formatting', () => {
     assert.equal(claudeValue({ model: { display_name: 'Sonnet' } }), 'Sonnet');
@@ -374,8 +400,7 @@ test('publisher renders every pill and sends well-formed set-option commands', a
     await publish(now);
     // Every option change goes in one invocation, as a ';'-separated sequence.
     assert.equal(sent.length, 1);
-    const commands = sent[0].reduce((all, arg) => arg === ';' ? [...all, []]
-        : [...all.slice(0, -1), [...all.at(-1), arg]], [[]]);
+    const commands = tmuxCommands(sent[0]);
     assert.ok(commands.length > 1);
     // tmux rejects an option change that does not name the set-option command.
     for (const args of commands) assert.equal(args[0], 'set-option');
@@ -397,8 +422,7 @@ test('a pane path of exactly ";" is escaped so it cannot split the command seque
     await createStatusPublisher(runCommand, () => '', async () => '')(1000);
     const directory = sent[sent.indexOf('@initd-directory') + 1];
     assert.equal(directory, '\\;', 'a bare ; would start a new tmux command');
-    const commands = sent.reduce((all, arg) => arg === ';' ? [...all, []]
-        : [...all.slice(0, -1), [...all.at(-1), arg]], [[]]);
+    const commands = tmuxCommands(sent);
     assert.equal(sent.filter(arg => arg === ';').length, commands.length - 1,
         'one separator between commands, none extra');
 });
@@ -407,23 +431,22 @@ test('a tmux-allocated numeric session is renamed; a chosen name is left alone',
     const runCommand = async (command, args) => {
         if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
         if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
-        if (command === 'tmux' && args[0] === 'list-sessions') return '$0 emerald\n$1 1\n$2 2\n$3 notes\n';
+        if (command === 'tmux' && args[0] === 'list-sessions') return '$0 nova\n$1 1\n$2 2\n$3 notes\n';
         if (command === 'tmux') sent = args;
         return '';
     };
     await createStatusPublisher(runCommand, () => '', async () => '')(1000);
-    const commands = sent.reduce((all, arg) => arg === ';' ? [...all, []]
-        : [...all.slice(0, -1), [...all.at(-1), arg]], [[]]);
+    const commands = tmuxCommands(sent);
     const renames = commands.filter(args => args[0] === 'rename-session');
-    // "emerald" is already taken and "notes" was chosen by hand, so only the two
+    // "nova" is already taken and "notes" was chosen by hand, so only the two
     // numeric sessions are renamed - each to a distinct still-free name.
-    assert.deepEqual(renames, [['rename-session', '-t', '$1', 'sapphire'],
-        ['rename-session', '-t', '$2', 'ruby']]);
+    assert.deepEqual(renames, [['rename-session', '-t', '$1', 'vega'],
+        ['rename-session', '-t', '$2', 'io']]);
 });
 test('session renaming stops when every name is taken rather than reusing one', async () => {
     let sent = [];
-    const taken = ['emerald', 'sapphire', 'ruby', 'topaz', 'opal', 'jade',
-        'amber', 'onyx', 'garnet', 'pearl', 'agate', 'zircon'];
+    const taken = ['nova', 'vega', 'io', 'sol', 'luna', 'mars',
+        'lyra', 'titan', 'pluto', 'orion'];
     const runCommand = async (command, args) => {
         if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
         if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
@@ -435,6 +458,18 @@ test('session renaming stops when every name is taken rather than reusing one', 
     };
     await createStatusPublisher(runCommand, () => '', async () => '')(1000);
     assert.ok(!sent.includes('rename-session'), 'a duplicate name would be rejected by tmux');
+});
+test('session names containing spaces are preserved in full', async () => {
+    let sent = [];
+    const publish = createStatusPublisher(async (command, args) => {
+        if (args[0] === 'list-panes') return '%1\t100\t200\tfish\t/repo\t1\n';
+        if (args[0] === 'list-sessions') return '$0 123 notes\n$1 nova work\n$2 2\n';
+        if (command === 'tmux' && args[0] === 'set-option') sent = args;
+        return '';
+    }, () => '', async () => '', () => {});
+    await publish(1000);
+    const renames = tmuxCommands(sent).filter(args => args[0] === 'rename-session');
+    assert.deepEqual(renames, [['rename-session', '-t', '$2', 'nova']]);
 });
 // The lock is addressed through an in-memory store rather than the real cache
 // directory, so these never touch a running watcher's file.

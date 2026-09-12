@@ -4,40 +4,19 @@ import path from 'node:path';
 import { execFile, execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { agentPill, battery, clean, gitPill, pill, readAgentCache } from './status-renderer.mjs';
+import {
+    agentPill, battery, clean, gitPill, pill, readAgentCache,
+    claudeValue, codexUsage, codexLimit, copilotUsage,
+} from './status-renderer.mjs';
 
-// The shapes below are reverse-engineered from three agents' logs; none are
-// documented and all can change without notice.
-//   proc         one `ps -axo pid=,ppid=,lstart=,comm=,args=` row:
-//                { pid, parent, start, agent, command }
-//   state        accumulated while replaying an append-only transcript:
-//                { model, id, autoModel?, rateLimits?, limit?, quota?,
-//                  sessionId? }
-//   rateLimits   Codex token_count payload:
-//                { limit_id, primary: { used_percent, resets_at } }
-//   quota        Copilot model.model_call_success payload, i.e. event.data:
-//                { quotaSnapshots: { chat|completions|premium_interactions:
-//                  { entitlementRequests, remainingPercentage, resetDate,
-//                    isUnlimitedEntitlement, hasQuota?, tokenBasedBilling? } } }
-//                1.0.83 sends neither hasQuota nor tokenBasedBilling, and
-//                reports entitlementRequests 0 for a tier the account does not
-//                hold - which is what already excludes that tier. Both fields
-//                are still read, so an older CLI that does send them keeps
-//                working.
-//   hook data    what Claude Code pipes into the statusLine hook on stdin:
-//                { model: { id, display_name },
-//                  rate_limits: { spend_limit|five_hour|seven_day:
-//                                 { used_percentage, resets_at } },
-//                  context_window: { used_percentage } }
-//   pane row     tmux list-panes -F, tab separated:
-//                [pane_id, server pid, pane pid, command, cwd, active]
+// Process rows: { pid, parent, start, agent, command }.
+// Transcript state: { model, id, autoModel?, rateLimits?, limit?, quota?, sessionId? }.
+// External log formats can change. Unknown data leaves the agent icon visible;
+// models and quotas must come from that pane's process and its open files.
 
 const filename = fileURLToPath(import.meta.url);
 const cacheDir = path.join(process.env.HOME, '.cache/initd-tmux');
-// How often pane options are refreshed. tmux repaints on status-interval, whose
-// floor is one whole second, so this only bounds how stale a value can be when
-// that repaint happens - it cannot make the bar paint faster. Halving it to
-// 500ms costs ~1.7% -> ~3.2% of one core; a cycle itself is ~85ms.
+// Poll every half second; tmux paints the published options once per second.
 const STATUS_REFRESH_MS = 500;
 const transcriptCache = new Map();
 const sourceVersion = () => [filename, fileURLToPath(new URL('./status-renderer.mjs', import.meta.url))]
@@ -45,8 +24,15 @@ const sourceVersion = () => [filename, fileURLToPath(new URL('./status-renderer.
 const loadedVersion = sourceVersion();
 function run(command, args) {
     // ps lstart follows locale (e.g. "Sep 8" vs "8 Sep"); fix its wire format.
-    try { return execFileSync(command, args, { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' }, timeout: 3000, maxBuffer: 8 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }); }
-    catch { return ''; }
+    try {
+        return execFileSync(command, args, {
+            encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' },
+            timeout: 3000, killSignal: 'SIGKILL', maxBuffer: 8 * 1024 * 1024,
+            stdio: ['ignore', 'pipe', 'ignore'],
+        });
+    } catch {
+        return '';
+    }
 }
 function runAsync(command, args, checked = false) {
     // lsof may return 1 when one requested process has just exited, while
@@ -63,10 +49,20 @@ function openFilesByPid(output) {
     const files = new Map();
     let pid;
     for (const line of output.split('\n')) {
-        if (/^p\d+$/.test(line)) { pid = Number(line.slice(1)); files.set(pid, ''); }
-        else if (pid && line.startsWith('n')) files.set(pid, files.get(pid) + line + '\n');
+        if (/^p\d+$/.test(line)) {
+            pid = Number(line.slice(1));
+            files.set(pid, '');
+        } else if (pid && line.startsWith('n')) {
+            files.set(pid, files.get(pid) + line + '\n');
+        }
     }
     return files;
+}
+function fileNames(output) {
+    const names = output.split('\n')
+        .filter(line => line.startsWith('n'))
+        .map(line => line.slice(1));
+    return [...new Set(names)];
 }
 function readJSON(file) {
     try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
@@ -74,16 +70,15 @@ function readJSON(file) {
 function atomic(file, value) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`;
-    try { fs.writeFileSync(tmp, value, { mode: 0o600 }); fs.renameSync(tmp, file); }
-    finally { try { fs.unlinkSync(tmp); } catch {} }
+    try {
+        fs.writeFileSync(tmp, value, { mode: 0o600, flag: 'wx' });
+        fs.renameSync(tmp, file);
+    } finally {
+        try { fs.unlinkSync(tmp); } catch { /* Already renamed or removed. */ }
+    }
 }
-// Two names per row, because neither alone identifies every agent, and the two
-// platforms disagree on which one tmux itself reports. `comm` is the kernel's
-// process name, which a runtime may overwrite: Copilot CLI 1.0.83 renames its
-// main thread to "MainThread", so comm stops saying "copilot" entirely. `args`
-// carries argv[0], which stays "copilot" - and is what tmux reads on Linux, so
-// matching it is matching what pane_current_command already told us. macOS tmux
-// reports comm instead, hence keeping both rather than picking one.
+// Match both comm and argv[0]: Copilot may rename comm to MainThread, and
+// macOS and Linux tmux differ in which name pane_current_command reports.
 const PS_FORMAT = 'pid=,ppid=,lstart=,comm=,args=';
 function processes(output = run('ps', ['-axo', PS_FORMAT])) {
     return output.trim().split('\n').flatMap(line => {
@@ -111,16 +106,16 @@ function findAgent(procs, root, agent) {
     return null;
 }
 function sessionFile(agent, output) {
-    const files = [...new Set(output.split('\n').filter(l => l.startsWith('n')).map(l => l.slice(1)).filter(file =>
-        agent === 'codex' ? /\/rollout-[^/]+\.jsonl$/.test(file) : /\/session-state\/[^/]+\/events\.jsonl$/.test(file)))];
+    const pattern = agent === 'codex' ? /\/rollout-[^/]+\.jsonl$/ : /\/session-state\/[^/]+\/events\.jsonl$/;
+    const files = fileNames(output).filter(file => pattern.test(file));
     return files.length === 1 ? files[0] : null;
 }
 async function copilotProcessState(output, pid) {
     // Copilot closes events.jsonl between writes, but keeps its own process log
     // open. Resolve only that PID's log and its latest foreground registration.
-    const files = [...new Set(output.split('\n').filter(l => l.startsWith('n')).map(l => l.slice(1))
-        .filter(file => path.basename(path.dirname(file)) === 'logs'
-            && new RegExp(`^process-\\d+-${Number(pid)}\\.log$`).test(path.basename(file))))];
+    const pattern = new RegExp(`^process-\\d+-${Number(pid)}\\.log$`);
+    const files = fileNames(output).filter(file => path.basename(path.dirname(file)) === 'logs'
+        && pattern.test(path.basename(file)));
     if (files.length !== 1) return null;
     try {
         const state = await sessionState('copilot-process', files[0]);
@@ -130,26 +125,13 @@ async function copilotProcessState(output, pid) {
 async function copilotSessionFile(output, pid) {
     return (await copilotProcessState(output, pid))?.file ?? null;
 }
-// Codex is moving its transcripts out of the rollout files and into SQLite: its
-// state database carries a rollout_migration_state table and a migration named
-// "rollout migration state". Rollouts are still written in 0.154.0, but no
-// longer created until the first turn - a fresh session has no rollout at all,
-// so this is the only thing that can name its model, and eventually it will be
-// the only thing that can name any session's.
-//
-// The databases are located among the process's own open files, never by
-// globbing ~/.codex: their names carry a schema version that bumps on migration
-// (logs_2, state_5), and binding through the process is what the rest of this
-// file does. Nothing here reads a quota - as of 0.154.0 no rate limit is written
-// to either database, so this can only ever recover the model. The quota still
-// has to come from a rollout, which means a session shows one only once it has
-// taken the turn that creates that rollout.
+// Codex may not create a rollout until its first turn. Its open SQLite
+// databases provide a fallback model; quotas still require transcript events.
 let sqlite;
 // Opened and closed per read: these are another process's live databases, and
 // nothing here is hot enough to justify holding a handle across ticks.
 async function readRows(file, sql, ...values) {
-    // node:sqlite needs Node >= 22.5. Older hosts simply do not get the
-    // fallback; the pill degrades to the bare agent name as it does today.
+    // Hosts without node:sqlite retain transcript-only status.
     if (sqlite === undefined) sqlite = await import('node:sqlite').catch(() => null);
     if (!sqlite) return [];
     let db;
@@ -158,23 +140,19 @@ async function readRows(file, sql, ...values) {
     finally { try { db.close(); } catch {} }
 }
 async function codexSqliteState(openFiles, proc) {
-    const files = [...new Set(openFiles.split('\n').filter(l => l.startsWith('n')).map(l => l.slice(1)))];
-    const newest = pattern => files.filter(file => pattern.test(file)).sort().pop();
+    const files = fileNames(openFiles);
+    const newest = pattern => files.filter(file => pattern.test(file))
+        .sort((a, b) => a.localeCompare(b, 'en', { numeric: true })).pop();
     const logs = newest(/\/logs_\d+\.sqlite$/);
     const state = newest(/\/state_\d+\.sqlite$/);
     if (!logs || !state) return null;
     // process_uuid is "pid:<pid>:<uuid>" and we know only the pid, which the
     // kernel reuses, so require the row to postdate this process's own start.
     const started = Date.parse(proc.start) / 1000;
-    // logs.thread_id does not only hold thread ids. 0.154.0 also stamps the rows
-    // a turn emits with that turn's own id, so the newest row almost always
-    // carries a turn and the old "order by id desc limit 1" joined nothing -
-    // both ids are UUIDv7, so nothing in the string tells them apart. Only the
-    // threads table can: a turn id is simply not in it. So collect every id this
-    // process logged, newest last-seen first, and take the first that is a
-    // thread. The limit is there to bound the IN list below, and is far above the
-    // turns a session accumulates before Codex prunes the table.
-    const since = Number.isFinite(started) ? Math.floor(started) : 0;
+    if (!Number.isFinite(started)) return null;
+    // Logs contain both turn IDs and thread IDs. Only IDs present in threads
+    // can identify a session; query them together and prefer the latest one.
+    const since = Math.floor(started);
     const mine = `pid:${proc.pid}:%`;
     const candidates = await readRows(logs,
         'select thread_id, max(id) as last from logs where process_uuid like ? and thread_id is not null and ts >= ? group by thread_id order by last desc limit 200',
@@ -188,14 +166,8 @@ async function codexSqliteState(openFiles, proc) {
     for (const { thread_id: thread } of candidates) {
         if (threads.has(thread) && threads.get(thread)) return { id: thread, model: threads.get(thread) };
     }
-    // Before its first turn a session has no rollout AND no threads row: that
-    // row lands with the first turn and only backdates its created_at to the
-    // session start, so neither of the sources above knows anything yet. The one
-    // thing on disk that does is the session_init log line, which carries
-    // "Configuring session: model=<model>" and is written while the thread
-    // starts. Matched last and by body rather than target, because it is a log
-    // message rather than a column: it is the weakest of the three, and it says
-    // nothing about a later /model switch, which the two above both cover.
+    // Before the first turn there may be no threads row. The session-init
+    // message can name the initial model, but never overrides a threads row.
     const init = await readRows(logs,
         "select feedback_log_body as body from logs where process_uuid like ? and ts >= ? and feedback_log_body like '%Configuring session: model=%' order by id desc limit 1",
         mine, since);
@@ -210,43 +182,47 @@ async function codexSqliteState(openFiles, proc) {
     }
     return null;
 }
-// Account-wide limits, as opposed to a per-model one that must not overwrite
-// them. Codex renamed this from "codex" to "premium" around 2026-09-08; across
-// 621 token_count events these are the only two ids ever seen, so the guard was
-// only ever excluding the rename. The premium payload reports primary and
-// secondary null, i.e. no usage at all, so the pill renders a blank quota - it
-// is accepted anyway so it resumes on its own once those fields are populated.
-//
-// Do NOT read credits.has_credits as "out of quota" to fill that blank. It is
-// {has_credits: false, unlimited: false, balance: "0"} on all 615 older events
-// too, the ones reporting 3% and 98% used - it means this plan does not use the
-// credits mechanism, not that anything is exhausted. There is likewise no reset
-// time anywhere in the premium payload, so "none left until HH:MM" cannot be
-// rendered either. Blank is the only truthful output.
+// Accept account-wide limits under either observed ID. Per-model limits and
+// credit balances do not describe subscription usage.
 const ACCOUNT_LIMIT_IDS = new Set(['codex', 'premium']);
-function modelEvent(agent, event, previous) {
-    if (agent === 'codex' && event.type === 'turn_context') return event.payload?.model || null;
-    // A model switch takes effect at once but writes no turn_context, so a
-    // session switched between turns kept reporting the previous turn's model
-    // until the next one ran. Both feed the model and the later event wins,
-    // which is the switch while one is pending and the turn otherwise.
-    if (agent === 'codex' && event.type === 'event_msg' && event.payload?.type === 'thread_settings_applied')
-        return event.payload.thread_settings?.model || previous;
-    if (agent === 'copilot' && event.type === 'session.model_change') return event.data?.newModel || null;
-    // Auxiliary calls can use another model: do not use model.turn_started.
-    return previous;
-}
-// "auto" is the name of Copilot's router, not of a model, and it is all
-// session.model_change ever reports in auto mode. The model it actually routed
-// to arrives in its own event and is what Copilot's own footer shows as
-// "Auto -> gpt-5.6-luna", so the pill reports that. Unlike model.turn_started
-// this is the main conversation's routing decision, not an auxiliary call.
-function copilotModelEvent(event, previous) {
-    if (event.type === 'session.auto_mode_resolved') return event.data?.chosenModel || null;
-    // Leaving auto for a pinned model must drop it, or the pill would keep
-    // naming whatever auto last chose.
-    if (event.type === 'session.model_change' && event.data?.newModel !== 'auto') return null;
-    return previous;
+// Apply only foreground model and quota events. Auxiliary model calls do not
+// change the displayed model. Each recognized event updates the state in place.
+function applyEvent(agent, state, event) {
+    if (agent === 'codex') {
+        if (event.type === 'turn_context') state.model = event.payload?.model || null;
+        if (event.type !== 'event_msg') return;
+        const payload = event.payload;
+        switch (payload?.type) {
+            case 'thread_settings_applied':
+                state.model = payload.thread_settings?.model || state.model;
+                break;
+            case 'token_count': {
+                const limits = payload.rate_limits;
+                if (limits && (!limits.limit_id || ACCOUNT_LIMIT_IDS.has(limits.limit_id))) {
+                    state.rateLimits = limits;
+                }
+                break;
+            }
+            case 'task_complete':
+                // Any later completed turn clears an earlier limit notice.
+                state.limit = payload.error?.codex_error_info === 'usage_limit_exceeded'
+                    ? payload.error.message : null;
+                break;
+        }
+    } else if (agent === 'copilot') {
+        switch (event.type) {
+            case 'session.model_change':
+                state.model = event.data?.newModel || null;
+                if (state.model !== 'auto') state.autoModel = null;
+                break;
+            case 'session.auto_mode_resolved':
+                state.autoModel = event.data?.chosenModel || null;
+                break;
+            case 'model.model_call_success':
+                if (event.data?.quotaSnapshots) state.quota = event.data;
+                break;
+        }
+    }
 }
 // Only auto mode has something to resolve; a pinned model is already the answer,
 // and a session that has not routed a turn yet has nothing better than the mode.
@@ -286,119 +262,14 @@ async function sessionState(agent, file) {
                     continue;
                 }
                 try {
-                    const event = JSON.parse(line.toString('utf8'));
-                    state.model = modelEvent(agent, event, state.model);
-                    if (agent === 'copilot') state.autoModel = copilotModelEvent(event, state.autoModel);
-                    const limits = event.payload?.rate_limits;
-                    if (agent === 'codex' && event.type === 'event_msg' && event.payload?.type === 'token_count'
-                        && limits && (!limits.limit_id || ACCOUNT_LIMIT_IDS.has(limits.limit_id))) state.rateLimits = limits;
-                    // Only the newest turn counts: a later one that runs at all
-                    // clears the notice without waiting for the reset to pass.
-                    if (agent === 'codex' && event.type === 'event_msg' && event.payload?.type === 'task_complete')
-                        state.limit = event.payload.error?.codex_error_info === 'usage_limit_exceeded'
-                            ? event.payload.error.message : null;
-                    if (agent === 'copilot' && event.type === 'model.model_call_success'
-                        && event.data?.quotaSnapshots) state.quota = event.data;
-                } catch {}
+                    applyEvent(agent, state, JSON.parse(line.toString('utf8')));
+                } catch { /* Ignore malformed records; later records may be valid. */ }
             }
         }
     } finally { input?.destroy(); }
     if (transcriptCache.size > 100) transcriptCache.clear();
-    transcriptCache.set(key, { version, state, ino: stat.ino, size: stat.size, offset, bytesRead: stat.size - start });
+    transcriptCache.set(key, { version, state, ino: stat.ino, size: stat.size, offset });
     return state;
-}
-// Days once past 24h, because a weekly or multi-day reset reads as nonsense in
-// hours. codexUsage keeps its own hours-only form: its primary window is 5h.
-function remaining(mins) {
-    return mins >= 1440 ? `${Math.floor(mins / 1440)}d${Math.floor(mins % 1440 / 60)}h`
-        : `${Math.floor(mins / 60)}h${mins % 60}m`;
-}
-function codexUsage(limits, now = Date.now() / 1000) {
-    const primary = limits?.primary;
-    if (!Number.isFinite(primary?.used_percent) || primary.used_percent < 0 || primary.used_percent > 100) return '';
-    const reset = primary.resets_at;
-    // A passed reset makes this snapshot stale; wait for fresh server data.
-    if (Number.isFinite(reset) && reset <= now) return '';
-    let value = ` · ${Math.round(primary.used_percent)}%`;
-    if (Number.isFinite(reset)) {
-        const mins = Math.ceil((reset - now) / 60);
-        value += ` · ${Math.floor(mins / 60)}h${mins % 60}m`;
-    }
-    return value;
-}
-// When the account is out of Codex quota the token_count payload is no help: it
-// reports limit_id "premium" with primary and secondary null, i.e. no usage and
-// no reset, which is why the pill goes blank exactly when it matters most. The
-// turn's own error carries both - codex_error_info names the condition and the
-// human-readable message is the only place the reset time appears anywhere. So
-// the flag decides whether to render and the time is best-effort: an unparsed
-// message still says "limit", it just cannot say until when.
-function codexLimit(message, now = Date.now() / 1000) {
-    if (!message) return '';
-    const at = message.match(/try again at ([A-Za-z]{3,}\s+\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4}),?\s+(\d{1,2}:\d{2}\s*[AP]M)/i);
-    const reset = at ? Date.parse(`${at[1]}, ${at[2]} ${at[3]}`) / 1000 : NaN;
-    if (!Number.isFinite(reset) || reset <= now) return ' · limit';
-    return ` · limit · ${remaining(Math.ceil((reset - now) / 60))}`;
-}
-// Copilot writes its own quota into the transcript we already read, so this is
-// pure formatting - no RPC, no cache, no account binding. Because the snapshot
-// comes from that session's own log it is inherently the right account, and it
-// is refreshed whenever a model call happens, which is the only time the
-// numbers move. A session that has not called a model yet has none, and the
-// pill correctly shows just the model until it does.
-function copilotUsage(data, now = Date.now() / 1000) {
-    const snapshots = data?.quotaSnapshots;
-    for (const key of ['premium_interactions', 'chat']) {
-        const quota = snapshots?.[key];
-        if (!quota || quota.hasQuota === false) continue;
-        const label = quota.tokenBasedBilling ? 'credits' : key === 'chat' ? 'chat' : 'requests';
-        if (quota.isUnlimitedEntitlement || quota.entitlementRequests === -1) return ` · ${label} ∞`;
-        if (!(quota.entitlementRequests > 0) || !Number.isFinite(quota.remainingPercentage)) continue;
-        if (quota.remainingPercentage < 0 || quota.remainingPercentage > 100) continue;
-        let value = ` · ${Math.round(100 - quota.remainingPercentage)}% ${label}`;
-        const reset = Date.parse(quota.resetDate) / 1000;
-        // Some runtimes substitute the fetch time when no reset date is known.
-        if (reset > now) {
-            value += ` · ${remaining(Math.ceil((reset - now) / 60))}`;
-        }
-        return value;
-    }
-    return '';
-}
-// Where a slower window becomes worth the pill's one slot. The 5h window is the
-// everyday readout: it is the one that interrupts a task, the number that
-// actually moves while working, and its reset is on a scale worth planning
-// around. The slower windows take the slot only once they are binding, because
-// the consequences are not symmetric - exhausting the 5h window costs a couple of
-// hours, exhausting the week or the budget costs days, which is worth seeing
-// coming rather than only on arrival.
-//
-// Reporting whichever window is simply fullest was tried and is worse on both
-// counts: it reads 90% of five hours as though it were 90% of a week, and it
-// swaps the readout every time the two cross - for windows sitting at 19% and
-// 21% that is constant motion carrying no information. Taking the first listed
-// instead, which is what this did originally, hid a week at 20% behind a 5h
-// window that had just reset to 0%.
-const ESCALATE_AT_PERCENT = 50;
-function claudeValue(data, now = Date.now() / 1000) {
-    const model = clean(data.model?.display_name || 'claude');
-    const windows = [['spend_limit', ' budget'], ['five_hour', ''], ['seven_day', ' week']]
-        .map(([key, label]) => ({ key, label, limit: data.rate_limits?.[key] }))
-        .filter(({ limit }) => Number.isFinite(limit?.used_percentage) && limit.used_percentage >= 0
-            && Number.isFinite(limit.resets_at) && limit.resets_at > now);
-    // The threshold is a floor on escalation rather than a priority: a slower
-    // window has to clear it AND be the fuller one to take the slot, so a 5h
-    // window about to stop the next turn is never hidden behind a week that
-    // merely looks busy.
-    const chosen = windows
-        .filter(({ key, limit }) => key === 'five_hour' || limit.used_percentage >= ESCALATE_AT_PERCENT)
-        .sort((a, b) => b.limit.used_percentage - a.limit.used_percentage)[0]
-        // Nothing qualified, so there is no 5h window here to hold the slot; a
-        // quiet slower one still beats showing a bare model name.
-        || windows[0];
-    if (!chosen) return model;
-    const left = remaining(Math.ceil((chosen.limit.resets_at - now) / 60));
-    return `${model} · ${Math.round(chosen.limit.used_percentage)}%${chosen.label} · ${left}`;
 }
 function hook(data) {
     const procs = processes();
@@ -468,26 +339,13 @@ async function refresh(io = { run: runAsync, processes: async () => processes(aw
         (io.atomic || atomic)(path.join(cacheDir, `pane-${server}-${root}`), `${Math.floor(Date.now() / 1000)}\n${agent}\n${value}\n`);
     }));
 }
-// Gemstone session names instead of tmux's 0/1/2; first free one wins. Assigned
-// here rather than by the shell's `new-session`, so a session created any
-// other way gets one too and no two shells can race for the same name.
-const sessionNames = ['emerald', 'sapphire', 'ruby', 'topaz', 'opal', 'jade',
-    'amber', 'onyx', 'garnet', 'pearl', 'agate', 'zircon'];
+// Replace numeric defaults with the first free space-themed name. Keeping the
+// rule here covers sessions created by Fish, tmux commands, and keybindings.
+const sessionNames = ['nova', 'vega', 'io', 'sol', 'luna', 'mars',
+    'lyra', 'titan', 'pluto', 'orion'];
 const emojis = [...'🍎🍏🍐🍊🍋🍉🍇🍓🍒🥭🍍🥝🍅🌽🥕☕🍕🍩🍪🎂🧁🍰🥐🥯🥞🧇🍫🍬🍭🍯🥧🍞🍞🧀🥨🍦🍨🍿🍵🧃🧋🍮'];
-const agentStyles = { claude: true, copilot: true, codex: true };
-// This cache directory is ours alone, so anything in it that no longer backs a
-// live pane or agent is garbage - including files left by earlier versions of
-// this script, which is why an unrecognised name counts as dead. Panes owned by
-// another tmux server are swept only once that server itself is gone, since this
-// one cannot enumerate another's panes.
-// tmux keys #() jobs per client, so every attached client starts its own
-// watcher - measured 1/2/3 watchers for 1/2/3 clients. Each was doing the same
-// global scan (list-panes -a, ps, lsof, a git call per directory) twice a second
-// and writing the same @initd-* options. Only one needs to: the pills come from
-// those options, and the job's own stdout is deliberately blank. So the workers
-// elect one owner through this lock and the rest idle, still alive so tmux keeps
-// their job (and so one can take over when the owner's client goes away).
-// Each socket has its own owner: list-panes -a only covers that server.
+// Each attached tmux client starts a watcher. One owner per socket publishes
+// the shared pane options; followers idle and take over if the owner exits.
 function watcherLockPath(socket) {
     return path.join(cacheDir, `watcher-${createHash('sha256').update(socket).digest('hex')}.lock`);
 }
@@ -534,6 +392,7 @@ function releaseWatcherLock(io = {}) {
     try { if (Number(read().split('\n')[0]) !== me) return false; } catch { return false; }
     try { remove(); return true; } catch { return false; }
 }
+// Remove stale pane/agent caches, preserving other live servers and locks.
 function sweepCache(server, livePanes, io = {}) {
     const alive = io.alive || (pid => {
         try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
@@ -547,9 +406,12 @@ function sweepCache(server, livePanes, io = {}) {
         if (name === 'watcher.lock' || /^watcher-[a-f0-9]{64}\.lock$/.test(name)) continue;
         const pane = name.match(/^pane-(\d+)-(\d+)$/);
         const claude = name.match(/^claude-(\d+)\.json$/);
-        const dead = pane ? (pane[1] === server ? !livePanes.has(pane[2]) : !alive(Number(pane[1])))
-            : claude ? !alive(Number(claude[1]))
-                : true;
+        let dead = true;
+        if (pane) {
+            dead = pane[1] === server ? !livePanes.has(pane[2]) : !alive(Number(pane[1]));
+        } else if (claude) {
+            dead = !alive(Number(claude[1]));
+        }
         if (!dead) continue;
         try { remove(name); removed.push(name); } catch { /* raced another sweep */ }
     }
@@ -573,7 +435,7 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
         for (const directory of branches.keys()) {
             if (!directories.has(directory)) branches.delete(directory);
         }
-        for (const [, , , , directory] of panes) {
+        for (const directory of directories) {
             if (!branches.has(directory) || now - branches.get(directory).at >= 3) {
                 branches.set(directory, { at: now, value: gitPill(directory, runCommand) });
             }
@@ -598,7 +460,7 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
         let activeBranch = '';
         for (const [id, server, root, agent, directory, active] of panes) {
             let record = '';
-            if (agentStyles[agent] && /^\d+$/.test(server) && /^\d+$/.test(root)) {
+            if (['claude', 'copilot', 'codex'].includes(agent) && /^\d+$/.test(server) && /^\d+$/.test(root)) {
                 record = readRecord(server, root);
             }
             const agentValue = agentPill(agent, record, now);
@@ -627,11 +489,13 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
                 commands.push(['set-option', '-w', '-t', id, '@emoji', emoji]);
             }
             const sessions = (await runCommand('tmux', ['list-sessions', '-F', '#{session_id} #{session_name}']))
-                .trim().split('\n').map(line => line.split(' '));
+                .split('\n').filter(Boolean).map(line => {
+                    const separator = line.indexOf(' ');
+                    return [line.slice(0, separator), line.slice(separator + 1)];
+                });
             const takenNames = new Set(sessions.map(([, name]) => name));
             for (const [id, name] of sessions) {
-                // Only tmux's own allocated names are numeric; a name the user
-                // chose, here or with rename-session, is left alone.
+                // Treat numeric names as allocated defaults; preserve other names.
                 if (!/^\$\d+$/.test(id) || !/^\d+$/.test(name)) continue;
                 const free = sessionNames.find(candidate => !takenNames.has(candidate));
                 if (!free) break;
@@ -685,7 +549,12 @@ async function main() {
         if (sourceVersion() !== loadedVersion) return;
     } while (true);
 }
-export { processes, findAgent, sessionFile, copilotSessionFile, sessionState, claudeValue, codexUsage, codexLimit, codexSqliteState, copilotUsage, modelName, atomic, refresh, openFilesByPid, createStatusPublisher, hook, claimWatcherLock, releaseWatcherLock, sweepCache, lockPath, watcherLockPath };
+export {
+    processes, findAgent, sessionFile, copilotSessionFile, sessionState,
+    codexSqliteState, modelName, atomic, refresh, openFilesByPid,
+    createStatusPublisher, hook, claimWatcherLock, releaseWatcherLock,
+    sweepCache, lockPath, watcherLockPath,
+};
 let invokedDirectly = false;
 try { invokedDirectly = Boolean(process.argv[1]) && fs.realpathSync(process.argv[1]) === filename; } catch {}
 if (invokedDirectly) main();

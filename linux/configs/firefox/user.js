@@ -1,7 +1,7 @@
 // Native-window integration for Hyprland + media tuning.
-// Applied by linux/setup.sh:link_firefox_profile via a symlink into the
+// Applied by linux/scripts/firefox-profile.mjs setup via a symlink into the
 // active profile. Requires a Firefox restart to take effect.
-// (Default zoom is a separate mechanism — see set_firefox_default_zoom below.)
+// (Default zoom is a separate mechanism — see setDefaultZoom below.)
 
 // Required or Firefox ignores chrome/userChrome.css entirely.
 user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
@@ -37,7 +37,7 @@ user_pref("general.smoothScroll", true);
 user_pref("general.smoothScroll.msdPhysics.enabled", true);
 
 // Default page zoom (133%) is set separately in content-prefs.sqlite by
-// linux/setup.sh:set_firefox_default_zoom — that's the mechanism Firefox's
+// linux/scripts/firefox-profile.mjs:setDefaultZoom — that's the mechanism Firefox's
 // own Zoom UI actually reads; a pref here can't drive it.
 
 // Hardware video decode via the libva-intel-media-driver installed in

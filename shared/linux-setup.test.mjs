@@ -6,6 +6,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dockerMenu } from '../linux/scripts/docker-menu.mjs';
+import { configureFirefox, findProfileDirectory } from '../linux/scripts/firefox-profile.mjs';
+import { configureLinks } from '../linux/scripts/config-links.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 function fixture(t) {
@@ -29,7 +31,15 @@ test('Firefox managed files back up existing user settings and relink idempotent
     const profile = path.join(f.home, 'profile');
     fs.mkdirSync(path.join(profile, 'chrome'), { recursive: true });
     fs.writeFileSync(path.join(profile, 'user.js'), 'user settings');
-    f.run('FIREFOX_PROFILE_RESOLVED=1; FIREFOX_PROFILE_DIR="$HOME/profile"; link_firefox_profile; link_firefox_profile');
+    const registry = path.join(f.home, '.mozilla/firefox');
+    fs.mkdirSync(registry, { recursive: true });
+    fs.writeFileSync(path.join(registry, 'profiles.ini'), `[InstallTEST]\nDefault=${profile}\n`);
+    const options = {
+        home: f.home, configHome: path.join(f.home, '.config'), backupRoot: path.join(f.home, 'backup'),
+        run: () => ({ status: 1 }), log() {}, warn() {},
+    };
+    configureFirefox(options);
+    configureFirefox(options);
     assert.equal(fs.readFileSync(path.join(f.home, 'backup/profile/user.js'), 'utf8'), 'user settings');
     assert.equal(fs.realpathSync(path.join(profile, 'user.js')), path.join(root, 'linux/configs/firefox/user.js'));
 });
@@ -38,28 +48,96 @@ test('session links migrate the owned audio shell helper and preserve unrelated 
     const f = fixture(t);
     const old = path.join(f.home, '.config/audio-ports.sh');
     fs.mkdirSync(path.dirname(old));
-    fs.symlinkSync(path.join(root, 'linux/scripts/audio-ports.sh'), old);
-    f.run('link_session_scripts; link_session_scripts');
+    const checkout = path.join(f.home, 'checkout');
+    fs.mkdirSync(path.join(checkout, 'shared/configs/ghostty/.config/ghostty'), { recursive: true });
+    fs.mkdirSync(path.join(checkout, 'linux'));
+    fs.symlinkSync(path.join(root, 'linux/configs'), path.join(checkout, 'linux/configs'));
+    fs.symlinkSync(path.join(root, 'linux/scripts'), path.join(checkout, 'linux/scripts'));
+    const options = { root: checkout, home: f.home, backupRoot: path.join(f.home, 'backup'), log() {} };
+    fs.symlinkSync(path.join(checkout, 'linux/scripts/audio-ports.sh'), old);
+    configureLinks(options);
+    configureLinks(options);
     assert.equal(fs.existsSync(old), false);
-    assert.equal(fs.readlinkSync(path.join(f.home, 'backup/.config/audio-ports.sh')), path.join(root, 'linux/scripts/audio-ports.sh'));
+    assert.equal(fs.readlinkSync(path.join(f.home, 'backup/.config/audio-ports.sh')), path.join(checkout, 'linux/scripts/audio-ports.sh'));
     assert.equal(fs.realpathSync(path.join(f.home, '.config/audio-ports.mjs')), path.join(root, 'linux/scripts/audio-ports.mjs'));
     fs.writeFileSync(old, 'user helper');
-    f.run('link_session_scripts');
+    configureLinks(options);
     assert.equal(fs.readFileSync(old, 'utf8'), 'user helper');
 });
 
-test('fresh Firefox profile lookup returns only the path, not progress messages', t => {
+test('fresh Firefox profile lookup creates a profile and returns its resolved path', t => {
     const f = fixture(t);
-    const out = f.run(`
-firefox() {
-    mkdir -p "$HOME/.mozilla/firefox"
-    printf '[InstallTEST]\\nDefault=created\\n' > "$HOME/.mozilla/firefox/profiles.ini"
+    const profile = findProfileDirectory({ home: f.home, configHome: path.join(f.home, '.config'), run(command, args) {
+        assert.equal(command, 'firefox');
+        assert.deepEqual(args, ['--headless', '--CreateProfile', 'default-release']);
+        const registry = path.join(f.home, '.mozilla/firefox');
+        fs.mkdirSync(registry, { recursive: true });
+        fs.writeFileSync(path.join(registry, 'profiles.ini'), '[InstallTEST]\nDefault=created\n');
+        return { status: 0 };
+    } });
+    assert.equal(profile, path.join(f.home, '.mozilla/firefox/created'));
+});
+
+test('Firefox discovery respects legacy roots, XDG roots, and absolute paths', t => {
+    const { home } = fixture(t);
+    const configHome = path.join(home, 'xdg');
+    const legacy = path.join(home, '.mozilla/firefox');
+    const xdg = path.join(configHome, 'mozilla/firefox');
+    for (const directory of [legacy, xdg]) fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(path.join(legacy, 'profiles.ini'), '[InstallTEST]\nDefault=legacy\n');
+    const absolute = path.join(home, 'custom profile');
+    fs.writeFileSync(path.join(xdg, 'profiles.ini'), `[InstallTEST]\nDefault=${absolute}\n`);
+    const options = { home, configHome, run() { assert.fail('existing profile must not launch Firefox'); } };
+    assert.equal(findProfileDirectory(options), path.join(legacy, 'legacy'));
+    fs.unlinkSync(path.join(legacy, 'profiles.ini'));
+    assert.equal(findProfileDirectory(options), absolute);
+});
+
+test('Firefox zoom is skipped when running or process status is unavailable, and database errors are nonfatal', t => {
+    const { home } = fixture(t);
+    const registry = path.join(home, '.mozilla/firefox');
+    const profile = path.join(registry, 'profile');
+    fs.mkdirSync(profile, { recursive: true });
+    fs.writeFileSync(path.join(registry, 'profiles.ini'), '[InstallTEST]\nDefault=profile\n');
+    const database = path.join(profile, 'content-prefs.sqlite');
+    fs.writeFileSync(database, 'invalid database');
+    const warnings = [];
+    const options = { home, configHome: path.join(home, '.config'), backupRoot: path.join(home, 'backup'), log() {}, warn: message => warnings.push(message) };
+    for (const result of [{ status: 0 }, { error: new Error('pgrep missing') }, { status: 1 }]) {
+        assert.equal(configureFirefox({ ...options, run: () => result }), profile);
+    }
+    assert.match(warnings[0], /Firefox is running/);
+    assert.match(warnings[1], /Cannot determine/);
+    assert.match(warnings[2], /Could not update/);
+    assert.equal(fs.readFileSync(database, 'utf8'), 'invalid database');
+    assert.equal(fs.realpathSync(path.join(profile, 'user.js')), path.join(root, 'linux/configs/firefox/user.js'));
+});
+
+test('an unavailable Firefox install or failed initialization leaves the profile absent', t => {
+    const { home } = fixture(t);
+    const warnings = [];
+    const options = { home, configHome: path.join(home, '.config'), warn: message => warnings.push(message) };
+    assert.equal(findProfileDirectory({ ...options, run: () => ({ error: { code: 'ENOENT' } }) }), null);
+    assert.deepEqual(warnings, []);
+    assert.equal(findProfileDirectory({ ...options, run: () => ({ status: 1 }) }), null);
+    assert.match(warnings[0], /could not initialize/);
+    assert.equal(fs.existsSync(path.join(home, '.mozilla')), false);
+});
+
+test('Firefox-only setup calls the JavaScript setup workflow through mise', t => {
+    const f = fixture(t);
+    const registry = path.join(f.home, '.mozilla/firefox');
+    fs.mkdirSync(registry, { recursive: true });
+    fs.writeFileSync(path.join(registry, 'profiles.ini'), '[InstallTEST]\nDefault=profile\n');
+    f.run(`
+mise() {
+  [[ "$1" == -C && "$2" == "$ROOT_DIR" && "$3" == exec && "$4" == -- && "$5" == node ]] || return 98
+  shift 5
+  "$INITD_NODE" "$@"
 }
-mise() { [[ "$1" == -C && "$2" == "$ROOT_DIR" ]] || return 98; shift 5; "$INITD_NODE" "$@"; }
-cd "$HOME"
-find_firefox_profile_dir
+main --firefox-only
 `);
-    assert.equal(out.trim(), path.join(f.home, '.mozilla/firefox/created'));
+    assert.equal(fs.realpathSync(path.join(registry, 'profile/user.js')), path.join(root, 'linux/configs/firefox/user.js'));
 });
 
 test('absent optional daemons do not abort Linux setup', t => {

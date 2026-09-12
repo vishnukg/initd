@@ -1,7 +1,7 @@
 # Bash primer for initd
 
 This repo uses Bash because setup is mostly command orchestration: Homebrew,
-Git, mise, macOS defaults, symlinks, and `$HOME` paths. Keeping it in Bash
+Git, mise, and macOS defaults. Keeping the entry points in Bash
 means a fresh machine does not need Node, Go, or a build step before bootstrap
 can run.
 
@@ -16,17 +16,17 @@ developer can follow like a checklist.
 | `macos/bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → links → fish → mise → macOS defaults. |
 | `linux/bootstrap.sh` | Linux setup: dnf packages (+ COPRs) → gh/1Password/Docker/mise → links → linux/setup.sh → fish → mise → git profile. |
 | `linux/setup.sh` | Linux system tweaks (fonts, GTK theme, session-script links, Firefox profile glue). |
-| `shared/lib/link.sh` | Install managed config symlinks into `$HOME`, back up unmanaged files. Takes platform arg. |
+| `shared/lib/link.sh` | Obtain Node through mise and launch `link.mjs`. Takes a platform argument. |
 | `shared/lib/cleanup.mjs` | Remove only the symlinks that initd created. Takes platform arg. |
 | `shared/lib/git-profile.mjs` | Set the Git identity: personal uses the default email; work writes an override to `local.gitconfig`. |
 | `macos/brewinstall` | JavaScript entry point: add a formula or cask to the curated Brewfile and apply it locally; requires Node. |
-| `shared/lib/fs.sh` | Shared filesystem helpers: `path_exists`, `symlink_points_to`, `verify_symlink_target`, `backup_path`. |
-| `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` array. Sources `fs.sh`. |
+| `shared/lib/fs.mjs` | JavaScript filesystem helpers shared by installation, cleanup, and Linux config setup. |
+| `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` array. |
 | `<platform>/managed-links.sh` | Appends platform-specific entries to `MANAGED_LINKS`. |
 | `macos/defaults.sh` | Apply macOS system defaults (key repeat, hushlogin). |
 | `macos/update.sh` / `linux/update.sh` | Upgrade Homebrew/dnf packages and mise-managed tools; Linux also self-updates mise. |
 | `shared/lib/logging.sh` | Colored log helpers: `log`, `log_info`, `log_success`, `log_warn`, `log_error`. |
-| `shared/install.test.mjs` | Node behavior tests that run the Bash install helpers against temporary home directories. |
+| `shared/install.test.mjs` | Behavior tests for installation, backups, cleanup, and the bootstrap launcher. |
 
 ## How to read a script
 
@@ -60,9 +60,8 @@ open the helper function whose name matches the step you care about.
 1. **Keep policy data in one place per scope.** `shared/managed-links.sh` defines
    the cross-platform `MANAGED_LINKS`; each `<platform>/managed-links.sh` appends
    its OS-only entries to the same array.
-2. **Keep filesystem mechanics in one place.** `shared/lib/fs.sh` owns helpers
-   like `path_exists`, `symlink_points_to`, `backup_path`, and
-   `verify_symlink_target`.
+2. **Keep filesystem mechanics in one place.** `shared/lib/fs.mjs` owns
+   `pathStat`, `pointsTo`, `backupPath`, `installLink`, and `removeLink`.
 3. **Do not delete user files.** Existing unmanaged files are moved to
    `~/.config/initd-backups/<timestamp>/` before initd takes ownership.
 4. **Only remove links initd owns.** Cleanup checks where each symlink points
@@ -94,13 +93,10 @@ Quickshell, rofi, dunst, fontconfig, PipeWire, GTK, and session services).
 `macos/managed-links.sh` is currently empty — every macOS dotfile lives in
 `shared/configs/`.
 
-Each entry is `home path:repo path`. Scripts split
-the pair like this:
-
-```bash
-home_path="${managed_link%%:*}"  # everything before the first colon
-repo_path="${managed_link#*:}"   # everything after the first colon
-```
+Each entry is `home path:repo path`. `shared/lib/managed-links.mjs` evaluates
+the manifests with Bash and reads NUL-separated entries. The JavaScript
+installer consumes objects with `home` and `source` fields, preserving spaces
+and newlines in paths.
 
 **Adding a new managed config:** add one line to the appropriate `MANAGED_LINKS`
 (`shared/managed-links.sh` for cross-platform, `<platform>/managed-links.sh` for
@@ -142,48 +138,13 @@ ln -s "${source}" "${path}"   # correct
 ln -s $source $path           # breaks if path contains spaces
 ```
 
-### Checking whether a path exists
+### Filesystem work
 
-`path_exists` from `shared/lib/fs.sh` handles regular files, directories, and
-broken symlinks:
-
-```bash
-if path_exists "${path}"; then
-  backup_path "${path}"
-fi
-```
-
-Using `-e` alone would miss broken symlinks (a symlink whose target has been
-deleted), so `path_exists` checks both `-e` and `-L`.
-
-### Checking where a symlink points
-
-`symlink_points_to` and `verify_symlink_target` from `shared/lib/fs.sh`:
-
-```bash
-# Returns true/false — use in if-conditions
-if symlink_points_to "${path}" "${expected}"; then ...
-
-# Exits 1 with an error message if wrong — use as a hard assertion
-verify_symlink_target "${path}" "${expected}"
-```
-
-Under the hood, both call `readlink` to get the symlink's target and compare it
-as a plain string. This works because all initd symlinks are created with
-absolute paths.
-
-### Loops over managed links
-
-```bash
-for managed_link in "${MANAGED_LINKS[@]}"; do
-  home_path="${managed_link%%:*}"
-  repo_path="${managed_link#*:}"
-  install_managed_link "${home_path}" "${repo_path}"
-done
-```
-
-`${array[@]}` expands every element. `%%:*` strips everything from the first
-colon to the end; `#*:` strips everything up to and including the first colon.
+Bash still uses `[[ -f path ]]` and `[[ -d path ]]` for simple checks.
+Installation and backup operations live in `shared/lib/fs.mjs`; its
+`pathStat` handles broken symlinks and propagates filesystem errors.
+`installLink` backs up unmanaged paths, and `removeLink` verifies ownership
+before deleting. See [JavaScript in initd](javascript.md) for those helpers.
 
 ### Argument parsing
 
@@ -215,7 +176,7 @@ trap 'rm -f "${work_brewfile}"' EXIT
 `&&` and `||` are used for one-line conditionals:
 
 ```bash
-path_exists "${GITCONFIG}" && backup_path "${GITCONFIG}"   # backup only if it exists
+[[ -d "${font_dir}" ]] && log "Font directory exists"
 command -v brew >/dev/null || { log_error "brew not found"; exit 1; }
 ```
 
@@ -239,18 +200,20 @@ redirected.
 If initd finds a real file or unrelated symlink where it needs to install a
 managed link, it moves it to a timestamped backup directory first:
 
-```bash
-backup_path "${path}"
+```js
+backupPath(file, { home, backupRoot });
 ```
 
-`backup_path` keeps the home-relative path under one shared `BACKUP_ROOT` so
+`backupPath` in `shared/lib/fs.mjs` keeps the home-relative path under one shared `BACKUP_ROOT` so
 all backups from a single bootstrap run are grouped in one folder. For example:
 
 ```text
 ~/.config/fish  ->  ~/.config/initd-backups/20260509120000/.config/fish
 ```
 
-This is why `BACKUP_ROOT` must be set before calling `backup_path`.
+Callers pass `backupRoot` explicitly; the platform bootstrap exports
+`BACKUP_ROOT` to group its helpers' backups. Paths outside HOME use an
+`external/` subtree, keeping every backup beneath the chosen backup root.
 
 ## Testing strategy
 
@@ -277,7 +240,7 @@ After editing a script, verify there are no syntax errors:
 
 ```bash
 for file in bootstrap.sh \
-  shared/lib/logging.sh shared/lib/fs.sh \
+  shared/lib/logging.sh \
   shared/lib/link.sh \
   shared/managed-links.sh \
   macos/bootstrap.sh macos/defaults.sh macos/update.sh macos/managed-links.sh \
@@ -300,7 +263,7 @@ helpers with `node --check`, including the extensionless `macos/brewinstall`.
 3. **To add a new dnf package:** append it to `linux/packages.txt`, then re-run
    `linux/bootstrap.sh`.
 4. **Keep `main` readable as a checklist.** Put filesystem logic in
-   `shared/lib/fs.sh` and path knowledge in the `managed-links.sh` files.
+   `shared/lib/fs.mjs` and path knowledge in the `managed-links.sh` files.
 5. **Don't branch on OS inside `shared/`.** If shared code would need to, push
    the branch into the platform bootstrap script instead.
 6. **Run the behavior tests** after any filesystem-related change.

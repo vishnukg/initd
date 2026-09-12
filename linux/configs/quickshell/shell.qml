@@ -393,7 +393,7 @@ ShellRoot {
     }
 
     // Night light state is the gammastep process itself, run as the
-    // night-light.service user unit (see linux/scripts/night-light-toggle.sh):
+    // night-light.service user unit (see linux/scripts/night-light-toggle.mjs):
     // on Wayland the gamma table resets when the client exits, so "warm" means
     // "gammastep is running". The toggle script pings `qs ipc call bar
     // refreshNightLight` after every switch — keybind, bulb click or the
@@ -409,7 +409,7 @@ ShellRoot {
 
     Process {
         id: nightLightToggleProcess
-        command: [Quickshell.env("HOME") + "/.config/night-light-toggle.sh"]
+        command: [Quickshell.env("HOME") + "/.config/night-light-toggle.mjs"]
     }
 
     Process {

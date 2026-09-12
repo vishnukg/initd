@@ -39,7 +39,9 @@ What this does:
 - Only runs in interactive shells with terminal input/output and tmux installed.
 - Does nothing if you're already inside tmux (`TMUX` is set).
 - Reuses the most recently used detached session, or creates a new one with
-  a tmux-assigned name. Checking and attaching happen in the same server queue,
+  a tmux-assigned name that the status helper replaces with the first available
+  short space-themed name (`nova`, `vega`, `io`, etc.). Custom names are preserved.
+  Checking and attaching happen in the same server queue,
   so simultaneous launches do not race on a shell-side session listing.
 - Leaves a usable Fish shell if tmux fails; exits the outer shell after a normal detach.
 - Set `INITD_TMUX_AUTO_ATTACH=0` in `local.env.fish` to opt out.
@@ -201,72 +203,40 @@ tmux copy mode lets you scroll and copy from the terminal buffer — works every
 
 ## Agent status
 
-The right-hand pill follows the focused pane's agent process. A background
-watcher resolves process ancestry and open transcript files every three seconds.
-When no agent pane is active it only checks tmux's pane list. Transcript reads
-resume at the last complete newline; partial records are retried, and truncation
-or file replacement resets the reader. The unchanged watcher command is a single
-tmux status job; after code changes it exits so tmux starts the updated version.
-It requires `node`, `ps`, and `lsof` (included on macOS; managed in Linux's package
-list). If the process or session cannot be identified unambiguously, it shows
-only the agent's icon, never another session's model. Icons are an amber robot
-for Claude, a blue Copilot face for Copilot, and a coral Hubot for Codex. Agent
-names are omitted from the pill. Claude and Codex both use
-`model · percentage% · time until reset` for subscription quotas. Enterprise
-budgets and Copilot entitlements carry labels because their periods differ.
+The right-hand pill follows the focused pane’s agent process. One watcher per
+tmux socket publishes pane options; other clients’ watchers idle until the
+owner exits. Each cycle waits half a second after its work finishes. tmux
+repaints once per second.
 
-Codex displays the latest `turn_context.model` in that process's open rollout.
-This is the latest recorded turn model: a selection made while idle may not
-appear until the next turn records it.
-Codex also shows the latest recorded primary quota percentage used and
-time until reset from its `token_count.rate_limits` data. This is account usage,
-not context-window usage. The countdown updates between turns; an expired
-snapshot is hidden until fresh data arrives.
+- **Claude:** the hook records its model and rate limits against the owning
+  process and start time. The five-hour window is preferred. A fuller week or
+  budget can take its place after reaching 50%; without five-hour data, an
+  available slower window is shown.
+- **Codex:** model changes and account limits come from the open rollout.
+  Open SQLite databases provide a fallback model before a rollout is available.
+  Usage-limit errors show a notice, with a countdown when their message
+  contains a recognizable reset date.
+- **Copilot:** model selections, automatic routing decisions, and quotas come
+  from session events. When that file is closed, its process log identifies
+  the latest foreground session. Quotas come from model-call events; the
+  watcher makes no account RPC requests.
 
-Copilot uses `session.model_change` in its open session events file; auxiliary
-model calls do not change the label.
-If its events file is closed between writes, the watcher reads that process's
-open `process-<timestamp>-<pid>.log` and follows its latest foreground-session
-registration to the events file. This lookup is incremental and needs no
-telemetry export. A model selection of `auto` appears as `auto`.
-When a CLI does not keep its transcript open, the pill falls back to its agent
-icon. Claude's status-line hook records its model and rate limits against the
-owning process and its start time, with unique atomic cache writes. After
-upgrading, Claude's model appears on its next hook invocation.
+Unknown or ambiguous sessions show only the agent icon: an amber robot for
+Claude, a blue face for Copilot, and a coral Hubot for Codex. Percentages
+describe account usage, not context usage. Budgets and Copilot entitlements
+carry labels such as `budget`, `credits`, or `requests`. Missing data is omitted.
+Claude and Codex suppress expired usage snapshots. Copilot retains the last
+reported percentage and omits a countdown after its reported reset date.
 
-Claude prefers `rate_limits.spend_limit` when supplied by a Claude apps gateway:
-`model · 65% budget · 12d0h`. Budget usage can exceed 100%. Otherwise it uses the
-five-hour limit, then a labeled weekly limit. Expired or absent limits omit
-the usage portion, leaving the model and robot icon. Standard Claude
-Enterprise accounts may not expose any of these fields through the hook. The
-gateway spend-limit field requires Claude Code 2.1.251 or newer. See the
-[Claude status-line contract](https://code.claude.com/docs/en/statusline).
+Transcript reads resume after the last complete newline, including when a
+writer splits a UTF-8 character. Truncation or file replacement resets the
+reader. One asynchronous `lsof` scan serves all relevant processes with a
+three-second timeout. Claude does not wait for it. Without any agent panes,
+agent refresh skips process and transcript work.
 
-Copilot queries the installed CLI's read-only `account.getQuota` RPC using its
-headless stdio transport. The expected host/login comes from that pane's own
-process log's managed-settings account record, never a global config default.
-The helper checks `account.getCurrentAuth` before and after the quota request;
-unknown or mismatched identities omit usage rather than substitute another
-login's quota. Runtime versions without the recognized account log record or
-auth RPC omit usage too. Token overrides are not copied from the pane: if the
-helper cannot authenticate as the recorded account, it shows no quota.
-Caches are scoped to the configuration root, process start, account identity,
-and observed account changes, including switching away and back.
+Pane caches expire after three seconds without refresh. Git branches are
+cached for three seconds, battery and naming checks for thirty seconds.
+The watcher exits when its source or renderer changes so tmux starts the
+updated version using the same status-job command.
 
-Queries are asynchronous, limited to once per two minutes per process/account
-binding while Copilot is active, and time out after 15 seconds. A matching
-successful snapshot stays visible during refresh for at most 135 seconds from
-its request start; failures clear it. Each temporary CLI process exits after
-the response; no conversation is created and no prompts are sent. Percentages
-mean entitlement used and are labeled `credits`, `requests`, or `chat` according
-to the response. `∞` appears only for an explicitly unlimited entitlement (other
-organization limits may still apply). Missing quotas, failed authentication,
-and unsupported CLI versions omit the usage portion. Reset countdowns appear when
-the API supplies a future reset date. See the
-[Copilot quota API](https://docs.github.com/en/copilot/how-tos/copilot-sdk/features/usage-and-billing).
-
-There are no cost estimates, ccusage dependency, or telemetry exports. Account
-quota results stay in memory. Pane caches expire after ten seconds if the
-watcher stops updating them.
-All transcript-based panes share one asynchronous `lsof` scan with a three-second
-timeout per refresh, with output separated by PID. Claude does not wait for it.
+For an implementation tour, see [JavaScript in initd](javascript.md).

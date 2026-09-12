@@ -34,8 +34,6 @@ export BACKUP_ROOT="${BACKUP_ROOT:-${HOME}/.config/initd-backups/$(date +%Y%m%d%
 
 # shellcheck disable=SC1091
 source "${ROOT_DIR}/shared/lib/logging.sh"
-# shellcheck disable=SC1091
-source "${ROOT_DIR}/shared/lib/fs.sh"
 
 # ── Fonts ─────────────────────────────────────────────────────────────────────
 install_firacode_nerd_font() (
@@ -300,206 +298,13 @@ enable_night_light_schedule() {
   log_success "Night-light schedule enabled (warm 19:00-07:00)."
 }
 
-link_ghostty_linux_conf() {
-  # Ghostty has no per-OS include (config-file does no variable expansion), so
-  # the Linux-only file has to be placed next to the shared config by this
-  # script rather than selected by name the way kitty's ${KITTY_OS}.conf is.
-  # The shared config ends with `config-file = ?linux.conf`; the `?` makes it
-  # optional, so on macOS — where nothing creates this link — it is a no-op.
-  local target="${ROOT_DIR}/shared/configs/ghostty/.config/ghostty/linux.conf"
-  local src="${CONFIGS_DIR}/ghostty/linux.conf"
-
-  # The directory is tracked (config lives in it), but mkdir -p keeps this from
-  # being the one step that fails on a partial or hand-made checkout.
-  mkdir -p "$(dirname "${target}")"
-
-  if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
-    log_success "Ghostty linux.conf already linked."
-  else
-    [[ -e "${target}" || -L "${target}" ]] && backup_path "${target}"
-    ln -s "${src}" "${target}"
-    log_success "Linked Ghostty linux.conf -> ${src}"
-  fi
+# Filesystem work runs through mise even before Node is on PATH.
+configure_links() {
+  mise -C "${ROOT_DIR}" exec -- node "${SCRIPTS_DIR}/config-links.mjs"
 }
 
-# ── Config glue (special-case paths) ─────────────────────────────────────────
-link_gtkrc_2() {
-  local target="${HOME}/.gtkrc-2.0"
-  local src="${CONFIGS_DIR}/gtkrc-2.0"
-
-  if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
-    log_success ".gtkrc-2.0 already linked."
-  else
-    [[ -e "${target}" || -L "${target}" ]] && backup_path "${target}"
-    ln -s "${src}" "${target}"
-    log_success "Linked ~/.gtkrc-2.0 -> ${src}"
-  fi
-}
-
-link_icons_default() {
-  local target_dir="${HOME}/.icons/default"
-  local target="${target_dir}/index.theme"
-  local src="${CONFIGS_DIR}/icons-default/index.theme"
-
-  mkdir -p "${target_dir}"
-  if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
-    log_success "icons default already linked."
-  else
-    [[ -e "${target}" || -L "${target}" ]] && backup_path "${target}"
-    ln -s "${src}" "${target}"
-    log_success "Linked default icon theme."
-  fi
-}
-
-link_session_scripts() {
-  # hyprland.lua/Quickshell invoke these by absolute ~/.config/ path, so they need
-  # their own symlinks (they live in linux/scripts/, not under a MANAGED_LINKS dir).
-  local name target src
-  mkdir -p "${HOME}/.config"
-  # Retire only the old link owned by initd; preserve unrelated user scripts.
-  target="${HOME}/.config/audio-ports.sh"
-  if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${SCRIPTS_DIR}/audio-ports.sh" ]]; then
-    backup_path "${target}"
-  fi
-  for name in night-light-toggle.sh \
-              weather-popup.mjs docker-menu.mjs audio-ports.mjs; do
-    target="${HOME}/.config/${name}"
-    src="${SCRIPTS_DIR}/${name}"
-    chmod +x "${src}" 2>/dev/null || true
-    if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
-      log_success "${name} already linked."
-    else
-      [[ -e "${target}" || -L "${target}" ]] && backup_path "${target}"
-      ln -s "${src}" "${target}"
-      log_success "Linked ~/.config/${name}"
-    fi
-  done
-}
-
-# Firefox's profile root varies by install/version:
-#   - legacy ~/.mozilla/firefox — used whenever it exists (takes priority)
-#   - XDG ~/.config/mozilla/firefox — Firefox 143+ default when no legacy dir
-# Match Firefox's own resolution order: legacy first, then XDG.
-find_firefox_profile_root() {
-  local candidate
-  for candidate in \
-    "${HOME}/.mozilla/firefox" \
-    "${XDG_CONFIG_HOME:-${HOME}/.config}/mozilla/firefox"
-  do
-    if [[ -f "${candidate}/profiles.ini" ]]; then
-      printf '%s\n' "${candidate}"
-      return 0
-    fi
-  done
-  return 1
-}
-
-# Resolves the active Firefox profile directory into FIREFOX_PROFILE_DIR
-# (empty when there is none), creating a fresh profile non-interactively if
-# Firefox is installed but has never run. Shared by link_firefox_profile and
-# set_firefox_default_zoom; the lookup runs once per setup.sh invocation, so
-# profiles.ini is parsed (and any profile created) a single time. Sets a
-# global rather than printing because a `$(...)` caller would run in a
-# subshell and lose the cache.
-FIREFOX_PROFILE_DIR=""
-FIREFOX_PROFILE_RESOLVED=0
-resolve_firefox_profile_dir() {
-  [[ "${FIREFOX_PROFILE_RESOLVED}" == "1" ]] && return
-  FIREFOX_PROFILE_RESOLVED=1
-  FIREFOX_PROFILE_DIR="$(find_firefox_profile_dir || true)"
-}
-
-find_firefox_profile_dir() {
-  # `mise exec` rather than a bare `node`: setup.sh runs before `mise install`
-  # during a fresh bootstrap, and mise installs a node on demand.
-  if ! command -v mise >/dev/null 2>&1; then
-    log_warn "mise not available — skipping firefox profile detection."
-    return 1
-  fi
-
-  local moz_dir
-  moz_dir="$(find_firefox_profile_root || true)"
-
-  # A freshly installed Firefox has no profiles.ini until its first launch.
-  # Create the profile non-interactively so this initial bootstrap can install
-  # user.js and userChrome.css immediately rather than requiring a second run.
-  if [[ -z "${moz_dir}" ]] && command -v firefox >/dev/null 2>&1; then
-    log "Initializing the managed Firefox profile..." >&2
-    if firefox --headless --CreateProfile default-release >/dev/null 2>&1; then
-      moz_dir="$(find_firefox_profile_root || true)"
-    else
-      log_warn "Firefox could not initialize a profile — retry on the next setup run."
-    fi
-  fi
-
-  [[ -z "${moz_dir}" ]] && return 1
-
-  # Which section wins, and why, is documented in firefox-profile.mjs.
-  local ff_profile
-  ff_profile="$(mise -C "${ROOT_DIR}" exec -- node "${SCRIPTS_DIR}/firefox-profile.mjs" path "${moz_dir}/profiles.ini" || true)"
-
-  [[ -z "${ff_profile}" ]] && return 1
-
-  if [[ "${ff_profile}" = /* ]]; then
-    printf '%s\n' "${ff_profile}"
-  else
-    printf '%s\n' "${moz_dir}/${ff_profile}"
-  fi
-}
-
-link_firefox_profile() {
-  resolve_firefox_profile_dir
-  local ff_dir="${FIREFOX_PROFILE_DIR}"
-  if [[ -z "${ff_dir}" ]]; then
-    log "No firefox profile present — skipping."
-    return
-  fi
-  mkdir -p "${ff_dir}/chrome"
-
-  local pair target src
-  for pair in \
-    "user.js:${ff_dir}/user.js" \
-    "chrome/userChrome.css:${ff_dir}/chrome/userChrome.css" \
-    "chrome/userContent.css:${ff_dir}/chrome/userContent.css"
-  do
-    target="${pair#*:}"
-    src="${CONFIGS_DIR}/firefox/${pair%%:*}"
-    [[ -f "${src}" ]] || continue
-    if [[ -L "${target}" ]] && [[ "$(readlink "${target}")" == "${src}" ]]; then
-      continue
-    fi
-    [[ -e "${target}" || -L "${target}" ]] && backup_path "${target}"
-    ln -s "${src}" "${target}"
-    log_success "Linked $(basename "${target}")"
-  done
-}
-
-set_firefox_default_zoom() {
-  # Firefox's Zoom UI reads per-site full-zoom levels from content-prefs.sqlite,
-  # not from any user.js pref — this sets 133% as the default for any site
-  # that doesn't already have its own saved zoom level.
-  resolve_firefox_profile_dir
-  local ff_dir="${FIREFOX_PROFILE_DIR}"
-  [[ -z "${ff_dir}" ]] && return
-
-  local content_prefs="${ff_dir}/content-prefs.sqlite"
-  if pgrep -x firefox >/dev/null 2>&1; then
-    log_warn "Firefox is running — leaving its default zoom unchanged. Close Firefox and re-run setup.sh to set 133%."
-    return
-  fi
-  if [[ ! -f "${content_prefs}" ]]; then
-    log_warn "Firefox content preferences are not initialized yet — open Firefox once, close it, then re-run setup.sh to set 133% zoom."
-    return
-  fi
-
-  if mise -C "${ROOT_DIR}" exec -- node "${SCRIPTS_DIR}/firefox-profile.mjs" zoom "${content_prefs}"; then
-    log_success "Set Firefox default zoom to 133%."
-  else
-    # Firefox can keep the database locked even when its main process name
-    # is not exactly "firefox". A cosmetic preference must not abort the
-    # rest of the idempotent system setup.
-    log_warn "Firefox preferences database is busy — leaving default zoom unchanged. Close Firefox and re-run setup.sh to set 133%."
-  fi
+configure_firefox() {
+  mise -C "${ROOT_DIR}" exec -- node "${SCRIPTS_DIR}/firefox-profile.mjs" setup
 }
 
 apply_gsettings_theme() {
@@ -598,8 +403,7 @@ main() {
           exit 1
         fi
         log "Refreshing Firefox profile configuration..."
-        link_firefox_profile
-        set_firefox_default_zoom
+        configure_firefox
         log_success "Firefox profile configuration refreshed."
         return
         ;;
@@ -625,17 +429,13 @@ main() {
   check_hyprland_session
   mask_desktop_user_units
   # The schedule's ExecStart must exist before its service/timer is started.
-  link_session_scripts
+  configure_links
   enable_hyprmoncfg
   enable_night_light_schedule
-  link_ghostty_linux_conf
 
   apply_gsettings_theme
   apply_gsettings_keyboard
-  link_gtkrc_2
-  link_icons_default
-  link_firefox_profile
-  set_firefox_default_zoom
+  configure_firefox
   add_user_to_video_group
 
   restart_dunst
