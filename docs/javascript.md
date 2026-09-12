@@ -55,6 +55,10 @@ open files. `sessionState()` reads complete new log records; `applyEvent()`
 updates the model and quota fields. The renderer turns those fields into
 text, which is saved in a short-lived pane cache.
 
+The watcher polls once per second, matching tmux's status redraw interval.
+Agent discovery and status publishing share one pane snapshot per cycle;
+process and open-file checks stay fresh on every cycle that has an agent.
+
 The publisher reads those caches, combines them with Git and battery values,
 and sends changed options to tmux in one command batch. Its returned function
 remembers the previous values through a **closure**: local variables survive
