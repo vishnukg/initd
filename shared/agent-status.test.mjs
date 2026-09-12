@@ -304,6 +304,24 @@ test('Copilot auto mode reports the model it routed to, and forgets it on a pinn
     // Codex never has a resolution and must be passed through untouched.
     assert.equal(modelName('codex', { model: 'auto', autoModel: 'gpt-5.6-luna' }), 'auto');
 });
+test('large transcript records are assembled with linear copying and preserve incomplete tails', async t => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-large-record-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const file = path.join(dir, 'rollout-large.jsonl');
+    const record = JSON.stringify({ type: 'turn_context', payload: { padding: '🧬'.repeat(262144), model: 'large-model' } });
+    fs.writeFileSync(file, record + '\n{"type":"turn_context","payload":{"model":"next');
+    const concat = Buffer.concat;
+    let copied = 0;
+    t.mock.method(Buffer, 'concat', function (parts, length) {
+        copied += length ?? parts.reduce((sum, part) => sum + part.length, 0);
+        return concat(parts, length);
+    });
+    assert.equal((await sessionState('codex', file)).model, 'large-model');
+    assert.ok(copied <= fs.statSync(file).size * 2, 'copy volume must stay linear in record size');
+    fs.appendFileSync(file, '-model"}}\n');
+    assert.equal((await sessionState('codex', file)).model, 'next-model');
+});
+
 test('incremental reads resume at complete records and recover from rotation and truncation', async t => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-agent-tail-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));

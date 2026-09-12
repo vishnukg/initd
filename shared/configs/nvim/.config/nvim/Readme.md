@@ -219,7 +219,7 @@ The Language Server Protocol (LSP) is a standard that allows editors to talk to 
 | `vim.lsp` | Built-in Neovim LSP engine — speaks the protocol |
 | `nvim-lspconfig` | Knows the startup command & options for each server |
 
-`lua/user/lsp/servers.lua` iterates the server list, applies any per-server overrides from `lua/user/lsp/settings/<server>.lua`, and calls `vim.lsp.config` + `vim.lsp.enable`. Server binaries are resolved from `PATH`, which the fish config populates with the mise shim directory via `fish_add_path` (no `mise activate` — it is explicitly disabled).
+`lua/user/lsp/servers.lua` iterates the server list, applies any per-server overrides from `lua/user/lsp/settings/<server>.lua`, and calls `vim.lsp.config` + `vim.lsp.enable`. Server binaries are resolved from `PATH`. Fish adds mise shims for every shell and activates mise before the first interactive command, placing selected tool binaries ahead of the shims.
 
 **What LSP provides:** completions, diagnostics, go-to-definition, hover docs, find references, rename, code actions, inlay hints.
 
@@ -253,9 +253,9 @@ Exactly one client formats each save. A matching none-ls source is preferred, wh
 
 `nvim-cmp` is the completion engine. It aggregates suggestions from multiple sources and displays them in a unified popup.
 
-```
-
 `nvim-autopairs` is an explicit cmp dependency. Its `confirm_done` hook is registered from `cmp.lua`, so accepting a completion and inserting its closing pair does not depend on `InsertEnter` plugin load order.
+
+```text
 nvim-cmp sources (in priority order):
   1. LSP         ← type/function/variable suggestions from language server
   2. LuaSnip     ← code snippet expansions
