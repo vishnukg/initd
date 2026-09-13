@@ -1,0 +1,122 @@
+[
+  {
+    "id": "eso1105a",
+    "title": "Messier 78: a reflection nebula in Orion",
+    "width": 8679,
+    "height": 8411,
+    "credit": "ESO/Igor Chekalin",
+    "source": "https://www.eso.org/public/images/eso1105a/",
+    "url": "https://cdn.eso.org/images/large/eso1105a.jpg",
+    "file": "01-m78-blue-clouds.jpg"
+  },
+  {
+    "id": "eso1605a",
+    "title": "Young star lights up reflection nebula IC 2631",
+    "width": 9788,
+    "height": 9048,
+    "credit": "ESO",
+    "source": "https://www.eso.org/public/images/eso1605a/",
+    "url": "https://cdn.eso.org/images/large/eso1605a.jpg",
+    "file": "02-ic2631-blue-starfield.jpg"
+  },
+  {
+    "id": "eso1009a",
+    "title": "The cosmic bat \u2014 NGC 1788",
+    "width": 6670,
+    "height": 5018,
+    "credit": "ESO",
+    "source": "https://www.eso.org/public/images/eso1009a/",
+    "url": "https://cdn.eso.org/images/large/eso1009a.jpg",
+    "file": "03-cosmic-bat.jpg"
+  },
+  {
+    "id": "eso1027a",
+    "title": "The R Coronae Australis region imaged with the Wide Field Imager at La Silla*",
+    "width": 8795,
+    "height": 8573,
+    "credit": "ESO",
+    "source": "https://www.eso.org/public/images/eso1027a/",
+    "url": "https://cdn.eso.org/images/large/eso1027a.jpg",
+    "file": "04-corona-australis.jpg"
+  },
+  {
+    "id": "heic1520a",
+    "title": "Veil Nebula",
+    "width": 10681,
+    "height": 7121,
+    "credit": "NASA, ESA, Hubble Heritage Team",
+    "source": "https://esahubble.org/images/heic1520a/",
+    "url": "https://cdn.esahubble.org/archives/images/large/heic1520a.jpg",
+    "file": "05-veil-teal-filaments.jpg"
+  },
+  {
+    "id": "heic1509a",
+    "title": "Westerlund 2",
+    "width": 8919,
+    "height": 6683,
+    "credit": "NASA, ESA, the Hubble Heritage Team (STScI/AURA), A. Nota (ESA/STScI), and the Westerlund 2 Science Team",
+    "source": "https://esahubble.org/images/heic1509a/",
+    "url": "https://cdn.esahubble.org/archives/images/large/heic1509a.jpg",
+    "file": "06-westerlund-blue-cluster.jpg"
+  },
+  {
+    "id": "eso0907a",
+    "title": "The Helix Nebula*",
+    "width": 7059,
+    "height": 6535,
+    "credit": "ESO",
+    "source": "https://www.eso.org/public/images/eso0907a/",
+    "url": "https://cdn.eso.org/images/large/eso0907a.jpg",
+    "file": "07-helix-turquoise-eye.jpg"
+  },
+  {
+    "id": "eso1103a",
+    "title": "The Orion Nebula*",
+    "width": 8948,
+    "height": 8597,
+    "credit": "ESO/Igor Chekalin",
+    "source": "https://www.eso.org/public/images/eso1103a/",
+    "url": "https://cdn.eso.org/images/large/eso1103a.jpg",
+    "file": "08-orion-blue-glow.jpg"
+  },
+  {
+    "id": "eso1208a",
+    "title": "ESO\u2019s VLT reveals the Carina Nebula's hidden secrets",
+    "width": 13092,
+    "height": 8926,
+    "credit": "ESO/T. Preibisch",
+    "source": "https://www.eso.org/public/images/eso1208a/",
+    "url": "https://cdn.eso.org/images/large/eso1208a.jpg",
+    "file": "09-carina-blue-stars.jpg"
+  },
+  {
+    "id": "eso1006a",
+    "title": "VISTA's infrared view of the Orion Nebula*",
+    "width": 12640,
+    "height": 15546,
+    "credit": "ESO/J. Emerson/VISTA. Acknowledgment: Cambridge Astronomical Survey Unit",
+    "source": "https://www.eso.org/public/images/eso1006a/",
+    "url": "https://cdn.eso.org/images/large/eso1006a.jpg",
+    "file": "10-orion-infrared-stars.jpg"
+  },
+  {
+    "id": "eso1205a",
+    "title": "VISTA\u2019s look at the Helix Nebula",
+    "width": 6592,
+    "height": 6592,
+    "credit": "ESO/VISTA/J. Emerson. Acknowledgment: Cambridge Astronomical Survey Unit",
+    "source": "https://www.eso.org/public/images/eso1205a/",
+    "url": "https://cdn.eso.org/images/large/eso1205a.jpg",
+    "file": "11-helix-blue-starfield.jpg"
+  },
+  {
+    "id": "eso1828a",
+    "title": "The Carina Nebula in infrared light",
+    "width": 11800,
+    "height": 12608,
+    "credit": "ESO/J. Emerson/M. Irwin/J. Lewis",
+    "source": "https://www.eso.org/public/images/eso1828a/",
+    "url": "https://cdn.eso.org/images/large/eso1828a.jpg",
+    "file": "12-carina-infrared-stars.jpg"
+  }
+]
