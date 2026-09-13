@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Hyprland
 
 Scope {
     id: root
@@ -8,44 +9,95 @@ Scope {
     required property var anchorItem
     required property var barWindow
     required property var menu
+    property bool inlineAvailableNetworks: false
 
     property var menuStack: []
+    readonly property var currentOpener: menuStack.length > 0
+        ? menuStack[menuStack.length - 1] : null
+    property real openHeight: 180
+    readonly property var availableMenu: {
+        if (!inlineAvailableNetworks || menuStack.length !== 1 || !currentOpener)
+            return null;
+        const entries = currentOpener.children.values;
+        for (const entry of entries) {
+            if (entry.hasChildren && cleanLabel(entry.text).toLowerCase() === "available networks")
+                return entry;
+        }
+        return null;
+    }
+    readonly property var displayEntries: {
+        if (!currentOpener)
+            return [];
+        const entries = currentOpener.children.values;
+        const networks = availableOpener.children.values;
+        let result = [];
+        for (const entry of entries) {
+            result.push(entry);
+            if (entry === availableMenu)
+                result = result.concat(networks);
+        }
+        return result;
+    }
+
+    // Bind to the current entry so a scan that rebuilds NetworkManager's
+    // menu also replaces the opener; never retain a stale network submenu.
+    QsMenuOpener {
+        id: availableOpener
+        menu: root.availableMenu
+    }
 
     function cleanLabel(label) {
         return label.replace(/__/g, "\u0000").replace(/_/g, "").replace(/\u0000/g, "_");
     }
 
     function open() {
-        menuStack = [menu];
-        menuOpener.menu = menu;
+        if (popup.visible) {
+            close();
+            return;
+        }
+        if (!menu)
+            return;
+        openHeight = 180;
+        openSubmenu(menu);
         popup.visible = true;
+        focusGrab.active = true;
     }
 
     function close() {
+        focusGrab.active = false;
         popup.visible = false;
+        const oldStack = menuStack;
         menuStack = [];
+        for (let i = oldStack.length - 1; i >= 0; i--)
+            oldStack[i].destroy();
     }
 
     function openSubmenu(entry) {
-        menuStack = menuStack.concat([entry]);
-        menuOpener.menu = entry;
+        // Keep each ancestor open while browsing its children. Releasing an
+        // opener can unload the entries referenced by a deeper submenu.
+        const opener = openerComponent.createObject(root, { menu: entry });
+        menuStack = menuStack.concat([opener]);
+        menuScroll.contentY = 0;
     }
 
     function goBack() {
         if (menuStack.length <= 1)
             return;
+        const oldOpener = currentOpener;
         menuStack = menuStack.slice(0, -1);
-        menuOpener.menu = menuStack[menuStack.length - 1];
+        oldOpener.destroy();
+        menuScroll.contentY = 0;
     }
 
-    QsMenuOpener {
-        id: rootMenuOpener
-        menu: root.menu
+    Component {
+        id: openerComponent
+        QsMenuOpener {}
     }
 
-    QsMenuOpener {
-        id: menuOpener
-        menu: root.menu
+    HyprlandFocusGrab {
+        id: focusGrab
+        windows: [popup, root.barWindow]
+        onCleared: root.close()
     }
 
     PopupWindow {
@@ -53,9 +105,11 @@ Scope {
 
         visible: false
         color: "transparent"
-        grabFocus: true
+        // Hyprland's grab survives pointer movement between the bar and menu,
+        // and dismisses on an outside click instead of incidental focus loss.
+        grabFocus: false
         implicitWidth: 310
-        implicitHeight: Math.min(menuColumn.implicitHeight + 12, 620)
+        implicitHeight: root.openHeight
 
         anchor {
             window: root.barWindow
@@ -67,14 +121,18 @@ Scope {
 
         Rectangle {
             anchors.fill: parent
+            focus: true
+            Keys.onEscapePressed: root.close()
             color: "#f20d0e12"
             border.width: 1
             border.color: "#24ffffff"
             radius: 12
 
             Flickable {
+                id: menuScroll
                 anchors.fill: parent
                 anchors.margins: 6
+                contentWidth: width
                 contentHeight: menuColumn.implicitHeight
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
@@ -84,6 +142,13 @@ Scope {
 
                     width: parent.width
                     spacing: 1
+                    // DBus menu updates can briefly empty the list. Never
+                    // collapse the popup under the pointer during this visit.
+                    onImplicitHeightChanged: {
+                        if (root.menuStack.length > 0)
+                            root.openHeight = Math.max(root.openHeight,
+                                Math.min(implicitHeight + 12, 620));
+                    }
 
                     Rectangle {
                         visible: root.menuStack.length > 1
@@ -128,12 +193,15 @@ Scope {
                     }
 
                     Repeater {
-                        model: menuOpener.children
+                        model: root.displayEntries
 
                         delegate: Item {
                             id: entry
 
                             required property var modelData
+                            readonly property bool inlineHeader: modelData === root.availableMenu
+                            readonly property bool interactive: !modelData.isSeparator
+                                && modelData.enabled && !inlineHeader
                             width: menuColumn.width
                             height: modelData.isSeparator ? 9 : 34
 
@@ -154,7 +222,7 @@ Scope {
                                 anchors.fill: parent
                                 visible: !entry.modelData.isSeparator
                                 radius: 7
-                                color: entryHover.hovered && entry.modelData.enabled
+                                color: entryHover.hovered && entry.interactive
                                     ? "#18ffffff"
                                     : "transparent"
 
@@ -195,7 +263,9 @@ Scope {
                                 Text {
                                     Layout.fillWidth: true
                                     text: root.cleanLabel(entry.modelData.text)
-                                    color: entry.modelData.enabled ? "#e8eaf0" : "#656a78"
+                                        + (entry.inlineHeader && availableOpener.children.values.length === 0
+                                            ? " — none reported" : "")
+                                    color: entry.interactive ? "#e8eaf0" : "#656a78"
                                     elide: Text.ElideRight
                                     font.family: "Inter"
                                     font.pixelSize: 14
@@ -203,7 +273,7 @@ Scope {
                                 }
 
                                 Text {
-                                    visible: entry.modelData.hasChildren
+                                    visible: entry.modelData.hasChildren && !entry.inlineHeader
                                     text: "›"
                                     color: "#8fb7e8"
                                     font.family: "Inter"
@@ -213,12 +283,12 @@ Scope {
 
                             HoverHandler {
                                 id: entryHover
-                                enabled: !entry.modelData.isSeparator && entry.modelData.enabled
+                                enabled: entry.interactive
                                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                             }
 
                             TapHandler {
-                                enabled: !entry.modelData.isSeparator && entry.modelData.enabled
+                                enabled: entry.interactive
                                 onTapped: {
                                     if (entry.modelData.hasChildren) {
                                         root.openSubmenu(entry.modelData);
