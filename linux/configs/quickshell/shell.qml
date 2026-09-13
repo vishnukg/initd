@@ -26,6 +26,7 @@ ShellRoot {
     property string weatherSunset: ""
     property string backlightText: "--%"
     property bool nightLightOn: false
+    property bool wifiConnected: false
     property var sink: Pipewire.defaultAudioSink
 
     function start(process) {
@@ -350,6 +351,18 @@ ShellRoot {
     }
 
     Process {
+        id: wifiStateProcess
+        command: ["env", "LC_ALL=C", "nmcli", "-t", "-f", "TYPE,STATE", "device", "status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.wifiConnected = text.trim().split("\n").some(function(line) {
+                    return line === "wifi:connected" || line === "wifi:connected (externally)";
+                });
+            }
+        }
+    }
+
+    Process {
         id: dockerProcess
         // Guarded on docker.service being up, because docker.service is
         // socket-activated: an unguarded `docker ps` touches /run/docker.sock,
@@ -427,7 +440,10 @@ ShellRoot {
         repeat: true
         running: true
         triggeredOnStart: true
-        onTriggered: root.start(metricsProcess)
+        onTriggered: {
+            root.start(metricsProcess);
+            root.start(wifiStateProcess);
+        }
     }
 
     Timer {
@@ -710,7 +726,9 @@ ShellRoot {
                                     width: 19
                                     height: 19
                                     source: trayItem.networkApplet
-                                        ? "file:///usr/share/icons/Papirus-Dark/16x16/devices/network-wireless.svg"
+                                        ? (root.wifiConnected
+                                            ? "file:///usr/share/icons/Papirus-Dark/16x16/devices/network-wireless.svg"
+                                            : Qt.resolvedUrl("icons/network-wireless-empty.svg"))
                                         : trayItem.bluetoothApplet
                                             ? "file:///usr/share/icons/Papirus-Dark/16x16/devices/bluetooth.svg"
                                             : trayItem.modelData.icon
@@ -728,6 +746,7 @@ ShellRoot {
                                     anchorItem: trayItem
                                     barWindow: panel
                                     menu: trayItem.modelData.menu
+                                    inlineAvailableNetworks: trayItem.networkApplet
                                 }
 
                                 HoverHandler {
