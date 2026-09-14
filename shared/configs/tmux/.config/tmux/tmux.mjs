@@ -18,6 +18,7 @@ const filename = fileURLToPath(import.meta.url);
 const cacheDir = path.join(process.env.HOME, '.cache/initd-tmux');
 // Match tmux's once-per-second redraw instead of scanning between redraws.
 const STATUS_REFRESH_MS = 1000;
+const MAX_PENDING_BYTES = 64 * 1024;
 const transcriptCache = new Map();
 const sourceVersion = () => [filename, fileURLToPath(new URL('./status-renderer.mjs', import.meta.url))]
     .map(file => fs.statSync(file).mtimeMs).join(':');
@@ -236,19 +237,19 @@ async function sessionState(agent, file) {
     const version = `${stat.ino}:${stat.size}:${stat.mtimeMs}`;
     const cached = transcriptCache.get(key);
     if (cached?.version === version) return cached.state;
-    // Logs are append-only. Resume at the last complete newline, so a partially
-    // written JSON record (including split UTF-8 bytes) is retried next time.
+    // Logs are append-only. Retain unfinished bytes (including split UTF-8)
+    // so a streaming record is not reread from its start on every tick.
+    // Oversized tails fall back to rereading rather than retaining huge payloads.
     const append = cached && cached.ino === stat.ino && stat.size > cached.size;
-    let offset = append ? cached.offset : 0;
     const state = append ? { ...cached.state } : {
         model: null, id: agent === 'codex' ? path.basename(file, '.jsonl') : path.basename(path.dirname(file)),
     };
-    const start = offset;
+    const start = append ? cached.readOffset : 0;
     const input = stat.size > start ? fs.createReadStream(file, { start, end: stat.size - 1 }) : null;
     // Keep chunk fragments until a newline arrives. Repeatedly concatenating
     // an unfinished record copies large tool/image payloads quadratically.
-    let fragments = [];
-    let pendingBytes = 0;
+    let fragments = append ? [...cached.fragments] : [];
+    let pendingBytes = append ? cached.pendingBytes : 0;
     try {
         if (input) for await (const chunk of input) {
             let start = 0;
@@ -256,7 +257,6 @@ async function sessionState(agent, file) {
             while ((newline = chunk.indexOf(10, start)) !== -1) {
                 const tail = chunk.subarray(start, newline);
                 const line = fragments.length ? Buffer.concat([...fragments, tail], pendingBytes + tail.length) : tail;
-                offset += pendingBytes + tail.length + 1;
                 fragments = [];
                 pendingBytes = 0;
                 start = newline + 1;
@@ -279,7 +279,12 @@ async function sessionState(agent, file) {
         }
     } finally { input?.destroy(); }
     if (transcriptCache.size > 100) transcriptCache.clear();
-    transcriptCache.set(key, { version, state, ino: stat.ino, size: stat.size, offset });
+    const retain = pendingBytes <= MAX_PENDING_BYTES;
+    transcriptCache.set(key, {
+        version, state, ino: stat.ino, size: stat.size,
+        readOffset: retain ? stat.size : stat.size - pendingBytes,
+        fragments: retain ? fragments : [], pendingBytes: retain ? pendingBytes : 0,
+    });
     return state;
 }
 function hook(data) {
