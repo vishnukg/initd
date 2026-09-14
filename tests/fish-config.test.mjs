@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fish = execFileSync('which', ['fish'], { encoding: 'utf8' }).trim();
-const source = path.join(__dirname, 'configs/fish/.config/fish/config.fish');
+const source = path.join(__dirname, '../shared/configs/fish/.config/fish/config.fish');
 const plain = value => value.replace(/\x1b\[[0-9;]* q/g, '').trim();
 function fixture(t) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-fish-test-'));

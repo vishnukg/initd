@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { sessionState } from './configs/tmux/.config/tmux/tmux.mjs';
-import { claudeValue, copilotUsage } from './configs/tmux/.config/tmux/status-renderer.mjs';
+import { sessionState } from '../shared/configs/tmux/.config/tmux/tmux.mjs';
+import { claudeValue, copilotUsage } from '../shared/configs/tmux/.config/tmux/status-renderer.mjs';
 
 for (const { name, rateLimits, now, expected } of [
     { name: 'enterprise budget includes overage', now: 0, expected: 'Sonnet · 125% budget · 1d1h', rateLimits: {

@@ -9,16 +9,17 @@ It owns both:
 
 ## Layout
 
-Three top-level buckets. The platform directories are decoupled — `rm -rf macos/` or `rm -rf linux/` and the other platform keeps working.
+Runtime code lives in three directories: `shared/`, `macos/`, and `linux/`. Behavior tests live in `tests/`; documentation lives in `docs/`. The platform directories are decoupled — `rm -rf macos/` or `rm -rf linux/` and the other platform keeps working.
 
 ```text
 initd/
 ├── bootstrap.sh                 # dispatcher: detects uname -s and execs the platform bootstrap
+├── tests/                       # behavior tests and isolated integration tests
+├── docs/                        # configuration guides and testing conventions
 ├── shared/                      # cross-platform
 │   ├── lib/                     # logging, fs, link, cleanup, git-profile, fonts
 │   ├── managed-links.sh         # MANAGED_LINKS for shared configs + git helpers
-│   ├── configs/                 # colima, fish, git, ghostty, kitty, mise, nvim, starship, tmux
-│   └── install.test.mjs          # install behavior tests (auto-detects host OS)
+│   └── configs/                 # colima, fish, git, ghostty, kitty, mise, nvim, starship, tmux
 ├── macos/                       # self-contained macOS bootstrap
 │   ├── bootstrap.sh
 │   ├── Brewfile
@@ -65,7 +66,10 @@ Re-running is safe and idempotent.
 | Remove managed symlinks | `node shared/lib/cleanup.mjs <macos\|linux> --dry-run` |
 | Add a brew formula/cask | `macos/brewinstall <name>` |
 | Update tools | `macos/update.sh` or `linux/update.sh` |
-| Run install behavior tests | `node --test shared/install.test.mjs` |
+| Run install behavior tests | `node --test tests/install.test.mjs` |
+| Run the full regression suite | `INITD_TEST_TMUX=1 node --test tests/*.test.mjs` |
+
+See [Testing](docs/testing.md) for test organization and conventions.
 
 ## Managed config mapping
 
@@ -152,7 +156,7 @@ Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-com
 2. macOS-only: drop under `macos/configs/<name>/`, append to `MANAGED_LINKS` in `macos/managed-links.sh`.
 3. Linux-only: drop under `linux/configs/<name>/`, append in `linux/managed-links.sh`.
 
-Then re-run `node --test shared/install.test.mjs`.
+Then re-run `node --test tests/install.test.mjs`.
 
 ## Reference docs
 
