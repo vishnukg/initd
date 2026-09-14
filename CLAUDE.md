@@ -12,7 +12,7 @@ INITD_TEST_TMUX=1 node --test shared/*.test.mjs
 node --test shared/install.test.mjs
 
 # Agent status: process/session isolation, model switches, concurrent writes
-node --test shared/agent-status.test.mjs shared/enterprise-quota.test.mjs
+node --test shared/agent-*.test.mjs shared/status-publisher.test.mjs shared/watcher-lifecycle.test.mjs shared/enterprise-quota.test.mjs
 
 # Config files bootstrap merges into rather than owns (~/.claude/settings.json,
 # ~/.docker/config.json) plus the Firefox profile glue
