@@ -26,7 +26,7 @@ developer can follow like a checklist.
 | `macos/defaults.sh` | Apply macOS system defaults (key repeat, hushlogin). |
 | `macos/update.sh` / `linux/update.sh` | Upgrade Homebrew/dnf packages and mise-managed tools; Linux also self-updates mise. |
 | `shared/lib/logging.sh` | Colored log helpers: `log`, `log_info`, `log_success`, `log_warn`, `log_error`. |
-| `shared/install.test.mjs` | Behavior tests for installation, backups, cleanup, and the bootstrap launcher. |
+| `tests/install.test.mjs` | Behavior tests for installation, backups, cleanup, and the bootstrap launcher. |
 
 ## How to read a script
 
@@ -100,7 +100,7 @@ and newlines in paths.
 
 **Adding a new managed config:** add one line to the appropriate `MANAGED_LINKS`
 (`shared/managed-links.sh` for cross-platform, `<platform>/managed-links.sh` for
-OS-only) and re-run `node --test shared/install.test.mjs`.
+OS-only) and re-run `node --test tests/install.test.mjs`.
 
 ## Bash syntax used most often
 
@@ -220,7 +220,7 @@ Callers pass `backupRoot` explicitly; the platform bootstrap exports
 ### Behavior tests
 
 ```bash
-node --test shared/install.test.mjs
+node --test tests/install.test.mjs
 ```
 
 This is the most important test. It creates temporary `$HOME` directories and
@@ -258,7 +258,7 @@ helpers with `node --check`, including the extensionless `macos/brewinstall`.
 
 1. **To add a new managed config:** add one line to the appropriate
    `MANAGED_LINKS` (`shared/managed-links.sh` for cross-platform,
-   `<platform>/managed-links.sh` for OS-only) and re-run `node --test shared/install.test.mjs`.
+   `<platform>/managed-links.sh` for OS-only) and re-run `node --test tests/install.test.mjs`.
 2. **To add a new Homebrew package:** run `macos/brewinstall <package>`. It
    updates `macos/Brewfile` and installs it locally.
 3. **To add a new dnf package:** append it to `linux/packages.txt`, then re-run

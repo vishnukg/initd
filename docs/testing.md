@@ -1,12 +1,16 @@
 # Tests
 
+Run commands from the repository root. The suite requires Node.js with
+`node:sqlite` support and Fish; the full integration run also requires tmux.
+There is no dependency installation or build step for the tests.
+
 Run the full suite, including isolated tmux servers and interactive Fish shells:
 
 ```sh
-INITD_TEST_TMUX=1 node --test shared/*.test.mjs
+INITD_TEST_TMUX=1 node --test tests/*.test.mjs
 ```
 
-The suite stays in `shared/`, organized by behavior:
+The suite lives in the root `tests/` directory, organized by behavior:
 
 | File | Scope |
 | --- | --- |
@@ -19,7 +23,7 @@ The suite stays in `shared/`, organized by behavior:
 
 The remaining files cover bootstrap configs, installation, Linux setup, Fish,
 night light, and enterprise quotas. Run an individual file with
-`node --test shared/<name>.test.mjs`; enable `INITD_TEST_TMUX=1` for real tmux
+`node --test tests/<name>.test.mjs`; enable `INITD_TEST_TMUX=1` for real tmux
 and terminal integration checks. Without it those checks are explicitly skipped.
 
 Keep unit tests isolated from the user's files and services: inject command

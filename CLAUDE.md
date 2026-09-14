@@ -6,22 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Full regression suite (includes isolated tmux servers and Linux helper mocks)
-INITD_TEST_TMUX=1 node --test shared/*.test.mjs
+INITD_TEST_TMUX=1 node --test tests/*.test.mjs
 
 # Run install behavior tests (auto-detects host OS; uses temporary home directories)
-node --test shared/install.test.mjs
+node --test tests/install.test.mjs
 
 # Agent status: process/session isolation, model switches, concurrent writes
-node --test shared/agent-*.test.mjs shared/status-publisher.test.mjs shared/watcher-lifecycle.test.mjs shared/enterprise-quota.test.mjs
+node --test tests/agent-*.test.mjs tests/status-publisher.test.mjs tests/watcher-lifecycle.test.mjs tests/enterprise-quota.test.mjs
 
 # Config files bootstrap merges into rather than owns (~/.claude/settings.json,
 # ~/.docker/config.json) plus the Firefox profile glue
-node --test shared/bootstrap-config.test.mjs
+node --test tests/bootstrap-config.test.mjs
 
 # Fish startup (isolated configuration and mock tools; requires fish and node)
-node --test shared/fish-config.test.mjs
+node --test tests/fish-config.test.mjs
 # Also test concurrent tmux attachment using a separate temporary server
-INITD_TEST_TMUX=1 node --test shared/fish-config.test.mjs
+INITD_TEST_TMUX=1 node --test tests/fish-config.test.mjs
 
 # Syntax-check every script. One `bash -n` call per file, not
 # `bash -n file1 file2 ...` - bash -n only ever checks its FIRST argument;
@@ -40,7 +40,7 @@ done
 
 # Syntax-check every Node script.
 for f in shared/configs/tmux/.config/tmux/*.mjs shared/lib/*.mjs \
-  shared/*.test.mjs linux/scripts/*.mjs macos/*.mjs macos/brewinstall; do
+  tests/*.test.mjs linux/scripts/*.mjs macos/*.mjs macos/brewinstall; do
   node --check "$f" && echo "OK   $f" || echo "FAIL $f"
 done
 
@@ -74,18 +74,19 @@ linux/update.sh
 
 ## Architecture
 
-Three top-level buckets, intentionally decoupled. The contract: `shared/` must not branch on OS; if it would need to, push that branch into the platform script.
+Runtime code lives in three intentionally decoupled directories: `shared/`, `macos/`, and `linux/`. Tests live in the root `tests/` directory; see `docs/testing.md` for test organization and Arrange/Act/Assert conventions. The contract: `shared/` must not branch on OS; if it would need to, push that branch into the platform script.
 
 ```
 initd/
 ├── bootstrap.sh              # ~20-line dispatcher: uname -s → macos|linux
+├── tests/                    # behavior tests and isolated integration tests
+├── docs/                     # configuration guides and testing conventions
 ├── shared/                   # cross-platform — sourced by both bootstraps
 │   ├── lib/                  # Bash bootstrap helpers plus cleanup.mjs, git-profile.mjs,
 │   │                         #   claude-statusline.mjs and json-file.mjs
 │   ├── managed-links.sh      # MANAGED_LINKS for shared configs + git helpers
 │   ├── configs/              # colima, fish, git, ghostty, kitty, mise, nvim, starship, tmux
-│   ├── fonts/                # gitignored clone of the PRIVATE vishnukg/fonts repo (Berkeley Mono)
-│   └── install.test.mjs
+│   └── fonts/                # gitignored clone of the PRIVATE vishnukg/fonts repo (Berkeley Mono)
 ├── macos/                    # self-contained — `rm -rf macos/` and Linux still works
 │   ├── bootstrap.sh
 │   ├── Brewfile
@@ -174,7 +175,7 @@ Entry format: `"home path:repo path"`. `shared/lib/managed-links.mjs` reads NUL-
 - Cross-platform: add to `MANAGED_LINKS` in `shared/managed-links.sh` and place the source under `shared/configs/<name>/`.
 - Platform-only: append to `MANAGED_LINKS` in `<platform>/managed-links.sh` and place the source under `<platform>/configs/<name>/`.
 
-Then add a corresponding assertion in `shared/install.test.mjs` (or rely on the generic managed-links loop, which iterates over whatever the host platform produces).
+Then add a corresponding assertion in `tests/install.test.mjs` (or rely on the generic managed-links loop, which iterates over whatever the host platform produces).
 
 ### Machine-local secrets
 

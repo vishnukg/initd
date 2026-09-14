@@ -7,9 +7,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { managedLinks } from './lib/managed-links.mjs';
-import { configureProfile } from './lib/git-profile.mjs';
-import { backupPath, installLink } from './lib/fs.mjs';
+import { managedLinks } from '../shared/lib/managed-links.mjs';
+import { configureProfile } from '../shared/lib/git-profile.mjs';
+import { backupPath, installLink } from '../shared/lib/fs.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const root = path.resolve(__dirname, '..');
