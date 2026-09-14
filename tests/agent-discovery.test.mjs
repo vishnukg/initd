@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { processes, findAgent, sessionFile, copilotSessionFile, codexSqliteState, refresh, openFilesByPid } from './configs/tmux/.config/tmux/tmux.mjs';
+import { processes, findAgent, sessionFile, copilotSessionFile, codexSqliteState, refresh, openFilesByPid } from '../shared/configs/tmux/.config/tmux/tmux.mjs';
 
 test('two panes in the same directory resolve their own agent, excluding subagents', () => {
     // Arrange

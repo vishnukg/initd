@@ -43,7 +43,7 @@ Read the small config helpers before the long-running tmux watcher:
 | `shared/configs/tmux/.config/tmux/tmux.mjs` | Discover agent sessions, maintain caches, and publish tmux options |
 | `shared/configs/tmux/.config/tmux/status-renderer.mjs` | Format status pills, quotas, Git branches, and battery values |
 | `shared/configs/tmux/.config/tmux/claude-statusline-hook.mjs` | Pass Claude's stdin JSON to the hook handler |
-| `shared/*.test.mjs` | Behavior tests using temporary files, command substitutes, and isolated tmux servers |
+| `tests/*.test.mjs` | Behavior tests using temporary files, command substitutes, and isolated tmux servers |
 
 ## Following a tmux update
 
@@ -128,7 +128,7 @@ node --check shared/configs/tmux/.config/tmux/tmux.mjs
 Run the complete regression suite, including isolated tmux servers:
 
 ```sh
-INITD_TEST_TMUX=1 node --test shared/*.test.mjs
+INITD_TEST_TMUX=1 node --test tests/*.test.mjs
 ```
 
 The suite requires Node, Bash, Git, Fish, and tmux. Linux desktop commands are

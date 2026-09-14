@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { sessionState, modelName } from './configs/tmux/.config/tmux/tmux.mjs';
-import { codexUsage, codexLimit } from './configs/tmux/.config/tmux/status-renderer.mjs';
+import { sessionState, modelName } from '../shared/configs/tmux/.config/tmux/tmux.mjs';
+import { codexUsage, codexLimit } from '../shared/configs/tmux/.config/tmux/status-renderer.mjs';
 
 test('model switches use the latest context, not historical usage or auxiliary calls', async t => {
     // Arrange
