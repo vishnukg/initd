@@ -3,11 +3,16 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const fish = execFileSync('which', ['fish'], { encoding: 'utf8' }).trim();
+// Fish is a declared dependency of this suite, but a host without it should
+// skip these the way the tmux checks are skipped - not fail the whole file at
+// import time, which reports as an error with no indication of the cause.
+const located = spawnSync('which', ['fish'], { encoding: 'utf8' });
+const fish = located.status === 0 ? located.stdout.trim() : '';
+const noFish = fish === '' && 'fish is not installed';
 const source = path.join(__dirname, '../../shared/configs/fish/.config/fish/config.fish');
 const plain = value => value.replace(/\x1b\[[0-9;]* q/g, '').trim();
 function fixture(t) {
@@ -35,7 +40,7 @@ function cachedToolInit(shell) {
             .filter(file => fs.statSync(file).isFile() && fs.readFileSync(file, 'utf8').includes('__initd_seen_'));
     });
 }
-test('Fish config parses and noninteractive shells load only environment overrides', t => {
+test('Fish config parses and noninteractive shells load only environment overrides', { skip: noFish }, t => {
     // Arrange
     const shell = fixture(t);
 
@@ -49,7 +54,7 @@ test('Fish config parses and noninteractive shells load only environment overrid
     assert.equal(noninteractive, 'work');
     assert.equal(interactive, 'work yes');
 });
-test('tool init is fresh, rejects failed output, and defers mise until preexec', t => {
+test('tool init is fresh, rejects failed output, and defers mise until preexec', { skip: noFish }, t => {
     // Arrange
     const shell = fixture(t);
 
@@ -64,7 +69,7 @@ test('tool init is fresh, rejects failed output, and defers mise until preexec',
     assert.equal(failed, '');
     assert.deepEqual(cachedToolInit(shell), []);
 });
-test('concurrent Fish startups have independent init and do not write a shared cache', async t => {
+test('concurrent Fish startups have independent init and do not write a shared cache', { skip: noFish }, async t => {
     // Arrange
     const f = fixture(t);
 
@@ -81,18 +86,18 @@ test('concurrent Fish startups have independent init and do not write a shared c
     assert.deepEqual(values, ['0', '1', '2', '3', '4', '5']);
     assert.deepEqual(cachedToolInit(f), []);
 });
-test('non-TTY interactive shells never attempt tmux auto-attach', t => {
+test('non-TTY interactive shells never attempt tmux auto-attach', { skip: noFish }, t => {
     // Arrange
     const f = fixture(t);
     fs.writeFileSync(path.join(f.bin, 'tmux'), '#!/bin/sh\necho unexpected-tmux\nexit 1\n', { mode: 0o755 });
 
     // Act
-    const frunResult = f.run('echo ready', true, { TMUX: undefined });
+    const shellOutput = f.run('echo ready', true, { TMUX: undefined });
 
     // Assert
-    assert.equal(frunResult, 'ready');
+    assert.equal(shellOutput, 'ready');
 });
-test('tmux server-side selection gives concurrent clients separate sessions', { skip: process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
+test('tmux server-side selection gives concurrent clients separate sessions', { skip: noFish || process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
     // Arrange
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-fish-tmux-'));
     const socket = path.join(root, 'socket');
@@ -170,7 +175,7 @@ async function waitUntil(predicate, description) {
         await delay(25);
     }
 }
-test('the shell closes the terminal when tmux exits cleanly', { skip: process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
+test('the shell closes the terminal when tmux exits cleanly', { skip: noFish || process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
     // Arrange
     const tmuxScript = '#!/bin/sh\n: > "$HOME/tmux-invoked"\nexit 0\n';
 
@@ -182,7 +187,7 @@ test('the shell closes the terminal when tmux exits cleanly', { skip: process.en
     assert.equal(shell.tmuxWasInvoked(), true, 'the shell must exercise auto-attach before exiting');
     assert.equal(shell.alive(), false, 'killing the last tmux window must close the terminal, not drop to Fish');
 });
-test('a failed tmux leaves a usable shell rather than closing the terminal', { skip: process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
+test('a failed tmux leaves a usable shell rather than closing the terminal', { skip: noFish || process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
     // Arrange
     const tmuxScript = '#!/bin/sh\n: > "$HOME/tmux-invoked"\nexit 1\n';
 

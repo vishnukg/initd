@@ -178,10 +178,10 @@ test('the Claude statusLine hook is configured without disturbing other settings
     const log = line => logged.push(line);
 
     // Act
-    const configureStatusLineResult = configureStatusLine({ file, log });
+    const firstRun = configureStatusLine({ file, log });
 
     // Assert
-    assert.equal(configureStatusLineResult, true);
+    assert.equal(firstRun, true);
     assert.deepEqual(read(file).statusLine, {
         type: 'command',
         command: '~/.config/tmux/claude-statusline-hook.mjs',
@@ -191,10 +191,10 @@ test('the Claude statusLine hook is configured without disturbing other settings
 
     // Act
     // Idempotent: a second run neither rewrites nor claims it did.
-    const configureStatusLineResult2 = configureStatusLine({ file, log });
+    const secondRun = configureStatusLine({ file, log });
 
     // Assert
-    assert.equal(configureStatusLineResult2, false);
+    assert.equal(secondRun, false);
     assert.match(logged.at(-1), /already configured/);
 
     // Arrange
@@ -205,10 +205,10 @@ test('the Claude statusLine hook is configured without disturbing other settings
     }));
 
     // Act
-    const configureStatusLineResult3 = configureStatusLine({ file, log });
+    const afterAForeignStatusLine = configureStatusLine({ file, log });
 
     // Assert
-    assert.equal(configureStatusLineResult3, true);
+    assert.equal(afterAForeignStatusLine, true);
     const after = read(file);
     assert.equal(after.statusLine.command, '~/.config/tmux/claude-statusline-hook.mjs');
     assert.equal(after.model, 'opus');
@@ -222,10 +222,10 @@ test('the Claude statusLine hook is configured without disturbing other settings
     } }));
 
     // Act
-    const configureStatusLineResult4 = configureStatusLine({ file, log });
+    const afterAKeyReshuffle = configureStatusLine({ file, log });
 
     // Assert
-    assert.equal(configureStatusLineResult4, false);
+    assert.equal(afterAKeyReshuffle, false);
 });
 test('Docker config gains the keychain helper and appends its plugin dir', t => {
     // Arrange
@@ -235,19 +235,19 @@ test('Docker config gains the keychain helper and appends its plugin dir', t => 
     const brewPlugins = '/opt/homebrew/lib/docker/cli-plugins';
 
     // Act
-    const configureDockerResult = configureDocker({ file, log });
+    const firstRun = configureDocker({ file, log });
 
     // Assert
-    assert.equal(configureDockerResult, true);
+    assert.equal(firstRun, true);
     assert.deepEqual(read(file), { credsStore: 'osxkeychain', cliPluginsExtraDirs: [brewPlugins] });
     // Can hold registry auth material even with a credential helper configured.
     assert.equal(mode(file), 0o600);
 
     // Act
-    const configureDockerResult2 = configureDocker({ file, log });
+    const secondRun = configureDocker({ file, log });
 
     // Assert
-    assert.equal(configureDockerResult2, false);
+    assert.equal(secondRun, false);
 
     // Arrange
     // Another install's plugin directory is appended to, never replaced, and
@@ -259,10 +259,10 @@ test('Docker config gains the keychain helper and appends its plugin dir', t => 
     }));
 
     // Act
-    const configureDockerResult3 = configureDocker({ file, log });
+    const afterAnotherPluginDirectory = configureDocker({ file, log });
 
     // Assert
-    assert.equal(configureDockerResult3, true);
+    assert.equal(afterAnotherPluginDirectory, true);
     assert.deepEqual(read(file), {
         currentContext: 'colima',
         auths: { 'ghcr.io': {} },
@@ -271,10 +271,10 @@ test('Docker config gains the keychain helper and appends its plugin dir', t => 
     });
 
     // Act
-    const configureDockerResult4 = configureDocker({ file, log });
+    const repeatedAfterMerging = configureDocker({ file, log });
 
     // Assert
-    assert.equal(configureDockerResult4, false);
+    assert.equal(repeatedAfterMerging, false);
 
     // Arrange
     // A non-array value cannot be appended to, so it is normalised away rather
@@ -282,10 +282,10 @@ test('Docker config gains the keychain helper and appends its plugin dir', t => 
     fs.writeFileSync(file, JSON.stringify({ credsStore: 'osxkeychain', cliPluginsExtraDirs: 'oops' }));
 
     // Act
-    const configureDockerResult5 = configureDocker({ file, log });
+    const afterANonArrayValue = configureDocker({ file, log });
 
     // Assert
-    assert.equal(configureDockerResult5, true);
+    assert.equal(afterANonArrayValue, true);
     assert.deepEqual(read(file).cliPluginsExtraDirs, [brewPlugins]);
 
     // Arrange
@@ -293,10 +293,10 @@ test('Docker config gains the keychain helper and appends its plugin dir', t => 
     fs.writeFileSync(file, JSON.stringify({ credsStore: 'desktop', cliPluginsExtraDirs: [brewPlugins] }));
 
     // Act
-    const configureDockerResult6 = configureDocker({ file, log });
+    const afterAForeignCredentialHelper = configureDocker({ file, log });
 
     // Assert
-    assert.equal(configureDockerResult6, true);
+    assert.equal(afterAForeignCredentialHelper, true);
     assert.equal(read(file).credsStore, 'osxkeychain');
 });
 for (const { name, ini, expected } of [

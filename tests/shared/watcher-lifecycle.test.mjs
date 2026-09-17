@@ -66,29 +66,29 @@ test('exactly one watcher holds the lock while its holder stays alive', () => {
     const store = lockStore();
 
     // Act
-    const claimWatcherLockResult = claimWatcherLock(1000, store.io(11));
+    const firstClaim = claimWatcherLock(1000, store.io(11));
 
     // Assert
-    assert.equal(claimWatcherLockResult, true, 'the first watcher takes it');
+    assert.equal(firstClaim, true, 'the first watcher takes it');
 
     // Act
-    const claimWatcherLockResult2 = claimWatcherLock(1000, store.io(22));
+    const claimByFollower = claimWatcherLock(1000, store.io(22));
 
     // Assert
-    assert.equal(claimWatcherLockResult2, false, 'a second client’s watcher idles');
+    assert.equal(claimByFollower, false, 'a second client’s watcher idles');
 
     // Act
-    const claimWatcherLockResult3 = claimWatcherLock(1500, store.io(22));
+    const laterClaimByFollower = claimWatcherLock(1500, store.io(22));
 
     // Assert
-    assert.equal(claimWatcherLockResult3, false);
+    assert.equal(laterClaimByFollower, false);
 
     // Act
     // Ownership does not need a disk write every tick.
-    const claimWatcherLockResult4 = claimWatcherLock(1500, store.io(11));
+    const reclaimByHolder = claimWatcherLock(1500, store.io(11));
 
     // Assert
-    assert.equal(claimWatcherLockResult4, true);
+    assert.equal(reclaimByHolder, true);
     assert.equal(store.value, '11\n1000\n');
 });
 
@@ -99,10 +99,10 @@ test('the lock passes on when its holder dies but never during slow live work', 
     // Act
     claimWatcherLock(1000, dead.io(11));
     // tmux SIGKILLs the job when a client goes away, so nothing is released.
-    const claimWatcherLockResult = claimWatcherLock(1100, dead.io(22, pid => pid !== 11));
+    const claimAfterHolderDied = claimWatcherLock(1100, dead.io(22, pid => pid !== 11));
 
     // Assert
-    assert.equal(claimWatcherLockResult, true, 'a dead holder must not block');
+    assert.equal(claimAfterHolderDied, true, 'a dead holder must not block');
     assert.equal(dead.value, '22\n1100\n');
 
     // Arrange
@@ -110,16 +110,16 @@ test('the lock passes on when its holder dies but never during slow live work', 
 
     // Act
     claimWatcherLock(1000, stalled.io(11));
-    const claimWatcherLockResult2 = claimWatcherLock(2500, stalled.io(22));
+    const claimDuringSlowWork = claimWatcherLock(2500, stalled.io(22));
 
     // Assert
-    assert.equal(claimWatcherLockResult2, false);
+    assert.equal(claimDuringSlowWork, false);
 
     // Act
-    const claimWatcherLockResult3 = claimWatcherLock(61000, stalled.io(22));
+    const claimAfterLongSlowWork = claimWatcherLock(61000, stalled.io(22));
 
     // Assert
-    assert.equal(claimWatcherLockResult3, false, 'slow live work must retain ownership');
+    assert.equal(claimAfterLongSlowWork, false, 'slow live work must retain ownership');
 });
 
 test('an unreadable lock is reclaimed rather than blocking the watcher forever', () => {
@@ -128,10 +128,10 @@ test('an unreadable lock is reclaimed rather than blocking the watcher forever',
 
     // Act
     // truncated: no heartbeat
-    const claimWatcherLockResult = claimWatcherLock(1000, store.io(22));
+    const claimOverTruncatedLock = claimWatcherLock(1000, store.io(22));
 
     // Assert
-    assert.equal(claimWatcherLockResult, true);
+    assert.equal(claimOverTruncatedLock, true);
     assert.equal(store.value, '22\n1000\n');
 });
 
@@ -141,24 +141,24 @@ test('a watcher releases only its own lock', () => {
 
     // Act
     claimWatcherLock(1000, store.io(11));
-    const releaseWatcherLockResult = releaseWatcherLock(store.io(22));
+    const releaseByFollower = releaseWatcherLock(store.io(22));
 
     // Assert
-    assert.equal(releaseWatcherLockResult, false, 'a follower must not free the owner’s lock');
+    assert.equal(releaseByFollower, false, 'a follower must not free the owner’s lock');
     assert.notEqual(store.value, null);
 
     // Act
-    const releaseWatcherLockResult2 = releaseWatcherLock(store.io(11));
+    const releaseByHolder = releaseWatcherLock(store.io(11));
 
     // Assert
-    assert.equal(releaseWatcherLockResult2, true);
+    assert.equal(releaseByHolder, true);
     assert.equal(store.value, null);
 
     // Act
-    const releaseWatcherLockResult3 = releaseWatcherLock(store.io(11));
+    const releaseAgain = releaseWatcherLock(store.io(11));
 
     // Assert
-    assert.equal(releaseWatcherLockResult3, false, 'releasing twice is a no-op');
+    assert.equal(releaseAgain, false, 'releasing twice is a no-op');
 });
 
 test('the cache sweep leaves the watcher lock alone', () => {
@@ -191,41 +191,41 @@ test('separate tmux sockets elect independent owners and same-server followers i
     const owner = file => ({ path: file, pid: 11, alive: () => true });
 
     // Act
-    const claimWatcherLockResult = claimWatcherLock(1000, owner(a));
+    const claimOnFirstSocket = claimWatcherLock(1000, owner(a));
 
     // Assert
-    assert.equal(claimWatcherLockResult, true);
+    assert.equal(claimOnFirstSocket, true);
 
     // Act
-    const claimWatcherLockResult2 = claimWatcherLock(1000, owner(b));
+    const claimOnSecondSocket = claimWatcherLock(1000, owner(b));
 
     // Assert
-    assert.equal(claimWatcherLockResult2, true);
+    assert.equal(claimOnSecondSocket, true);
 
     // Act
-    const claimWatcherLockResult3 = claimWatcherLock(1000, { ...owner(a), pid: 22 });
+    const followerOnFirstSocket = claimWatcherLock(1000, { ...owner(a), pid: 22 });
 
     // Assert
-    assert.equal(claimWatcherLockResult3, false);
+    assert.equal(followerOnFirstSocket, false);
 
     // Act
-    const releaseWatcherLockResult = releaseWatcherLock(owner(a));
+    const releaseOfFirstSocket = releaseWatcherLock(owner(a));
 
     // Assert
-    assert.equal(releaseWatcherLockResult, true);
+    assert.equal(releaseOfFirstSocket, true);
 
     // Act
-    const claimWatcherLockResult4 = claimWatcherLock(2000, { ...owner(b), pid: 22 });
+    const followerOnSecondSocket = claimWatcherLock(2000, { ...owner(b), pid: 22 });
 
     // Assert
-    assert.equal(claimWatcherLockResult4, false);
+    assert.equal(followerOnSecondSocket, false);
 });
 
 test('real watchers publish to both servers and a follower takes over after owner exit', {
     skip: process.env.INITD_TEST_TMUX !== '1', timeout: 15000,
 }, async t => {
     // Arrange
-    const dir = fs.mkdtempSync('/tmp/initd-watchers-');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-watchers-'));
     const sockets = [path.join(dir, 'a'), path.join(dir, 'b')];
     const children = [];
     t.after(async () => {

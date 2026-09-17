@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { processes, findAgent, sessionFile, copilotSessionFile, codexSqliteState, refresh, openFilesByPid } from '../../shared/configs/tmux/.config/tmux/tmux.mjs';
+
+const root = fileURLToPath(new URL('../..', import.meta.url));
 
 test('two panes in the same directory resolve their own agent, excluding subagents', () => {
     // Arrange
@@ -14,16 +18,16 @@ test('two panes in the same directory resolve their own agent, excluding subagen
     ];
 
     // Act
-    const findAgentResult = findAgent(procs, 10, 'codex').pid;
-    const findAgentResult2 = findAgent(procs, 20, 'codex').pid;
-    const findAgentResult3 = findAgent(procs, 20, 'claude');
-    const findAgentResult4 = findAgent([...procs, { pid: 13, parent: 10, agent: 'codex' }], 10, 'codex');
+    const firstPaneAgent = findAgent(procs, 10, 'codex').pid;
+    const secondPaneAgent = findAgent(procs, 20, 'codex').pid;
+    const claudeInACodexPane = findAgent(procs, 20, 'claude');
+    const ambiguousCodexPair = findAgent([...procs, { pid: 13, parent: 10, agent: 'codex' }], 10, 'codex');
 
     // Assert
-    assert.equal(findAgentResult, 11);
-    assert.equal(findAgentResult2, 21);
-    assert.equal(findAgentResult3, null);
-    assert.equal(findAgentResult4, null);
+    assert.equal(firstPaneAgent, 11);
+    assert.equal(secondPaneAgent, 21);
+    assert.equal(claudeInACodexPane, null);
+    assert.equal(ambiguousCodexPair, null);
 });
 
 // Copilot CLI 1.0.83 renames its main thread, so `comm` reads "MainThread" while
@@ -48,23 +52,23 @@ test('an agent that renamed its process is still found by argv[0]', () => {
     assert.equal(procs[1].start, 'Thu Sep 10 01:35:12 2026');
 
     // Act
-    const findAgentResult = findAgent(procs, 10, 'copilot').pid;
+    const renamedCopilot = findAgent(procs, 10, 'copilot').pid;
 
     // Assert
-    assert.equal(findAgentResult, 11);
+    assert.equal(renamedCopilot, 11);
 
     // Act
     // A renamed process must not become a wildcard for every other agent.
-    const findAgentResult2 = findAgent(procs, 10, 'codex').pid;
+    const codexInTheSamePane = findAgent(procs, 10, 'codex').pid;
 
     // Assert
-    assert.equal(findAgentResult2, 12);
+    assert.equal(codexInTheSamePane, 12);
 
     // Act
-    const findAgentResult3 = findAgent(procs, 10, 'claude');
+    const claudeNotPresent = findAgent(procs, 10, 'claude');
 
     // Assert
-    assert.equal(findAgentResult3, null);
+    assert.equal(claudeNotPresent, null);
 });
 
 for (const { name, agent, files, expected } of [
@@ -98,69 +102,74 @@ test('Copilot follows only its own process log and tracks foreground session cha
     const openFiles = `p42\nn${log}\nn${dir}/session-store.db`;
 
     // Act
-    const copilotSessionFileResult = await copilotSessionFile(openFiles, 42);
-    const copilotSessionFileResult2 = await copilotSessionFile(openFiles, 99);
+    const boundSession = await copilotSessionFile(openFiles, 42);
+    const sessionForAnotherPid = await copilotSessionFile(openFiles, 99);
 
     // Assert
-    assert.equal(copilotSessionFileResult, path.join(dir, 'session-state', first, 'events.jsonl'));
-    assert.equal(copilotSessionFileResult2, null);
+    assert.equal(boundSession, path.join(dir, 'session-state', first, 'events.jsonl'));
+    assert.equal(sessionForAnotherPid, null);
 
     // Arrange
     fs.appendFileSync(log, '2026-09-08T13:00:20Z [INFO] auxiliary session: ' + second + '\n');
 
     // Act
-    const copilotSessionFileResult3 = await copilotSessionFile(openFiles, 42);
+    const afterAuxiliaryLine = await copilotSessionFile(openFiles, 42);
 
     // Assert
-    assert.equal(copilotSessionFileResult3, path.join(dir, 'session-state', first, 'events.jsonl'));
+    assert.equal(afterAuxiliaryLine, path.join(dir, 'session-state', first, 'events.jsonl'));
 
     // Arrange
     fs.appendFileSync(log, register(second).slice(0, -1));
 
     // Act
-    const copilotSessionFileResult4 = await copilotSessionFile(openFiles, 42);
+    const afterPartialLine = await copilotSessionFile(openFiles, 42);
 
     // Assert
-    assert.equal(copilotSessionFileResult4, path.join(dir, 'session-state', first, 'events.jsonl'));
+    assert.equal(afterPartialLine, path.join(dir, 'session-state', first, 'events.jsonl'));
 
     // Arrange
     fs.appendFileSync(log, '\n');
 
     // Act
-    const copilotSessionFileResult5 = await copilotSessionFile(openFiles, 42);
+    const afterCompletedLine = await copilotSessionFile(openFiles, 42);
 
     // Assert
-    assert.equal(copilotSessionFileResult5, path.join(dir, 'session-state', second, 'events.jsonl'));
+    assert.equal(afterCompletedLine, path.join(dir, 'session-state', second, 'events.jsonl'));
 
     // Arrange
     fs.appendFileSync(log, `2026-09-08T13:00:21Z [INFO] Unregistering foreground session: ${second}\n`);
 
     // Act
-    const copilotSessionFileResult6 = await copilotSessionFile(openFiles, 42);
-    const copilotSessionFileResult7 = await copilotSessionFile(openFiles + `\nn${dir}/logs/process-456-42.log`, 42);
+    const afterUnregistration = await copilotSessionFile(openFiles, 42);
+    const withTwoProcessLogs = await copilotSessionFile(openFiles + `\nn${dir}/logs/process-456-42.log`, 42);
 
     // Assert
-    assert.equal(copilotSessionFileResult6, null);
-    assert.equal(copilotSessionFileResult7, null);
+    assert.equal(afterUnregistration, null);
+    assert.equal(withTwoProcessLogs, null);
 });
 
-test('Codex falls back to its SQLite state when no rollout file is open', async t => {
-    // Arrange
+// Codex may not create a rollout until its first turn, so its open SQLite
+// databases are the fallback. Every case below shares one fixture: two log
+// databases and two state databases, where the OLDER schema of each pair holds
+// the wrong answer on purpose, plus a terminal that is not a database at all.
+//
+// Schema numbers bump on migration, so the newest name of each pair must win.
+async function codexDatabases(t) {
     const { DatabaseSync } = await import('node:sqlite');
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-agent-sqlite-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     const proc = { pid: 77, parent: 1, start: 'Thu Sep 10 01:35:11 2026', agent: 'codex' };
     const started = Math.floor(Date.parse(proc.start) / 1000);
-    // Schema versions bump on migration, so the newest name of each pair wins:
-    // the older databases hold the wrong answer on purpose.
     const build = (name, statements) => {
         const db = new DatabaseSync(path.join(dir, `${name}.sqlite`));
         for (const sql of statements) db.exec(sql);
         db.close();
+        return `n${path.join(dir, `${name}.sqlite`)}\n`;
     };
     const logs = 'create table logs (id integer primary key, ts integer, thread_id text, process_uuid text, feedback_log_body text)';
     const threads = 'create table threads (id text primary key, model text)';
     const rows = values => `insert into logs (id, ts, thread_id, process_uuid, feedback_log_body) values ${values}`;
+
     build('logs_1', [logs, rows(`(1, ${started + 5}, 'wrong-db-thread', 'pid:77:zzz', null)`)]);
     // 'turn-id' is the regression: Codex 0.154.0 stamps a turn's rows with that
     // turn's own id in the same column, so the newest row is usually NOT a
@@ -174,51 +183,7 @@ test('Codex falls back to its SQLite state when no rollout file is open', async 
     build('state_4', [threads, "insert into threads values ('live-thread', 'wrong-db-model')"]);
     build('state_5', [threads, `insert into threads values
         ('live-thread', 'gpt-5.6-luna'), ('reused-pid-thread', 'gpt-old')`]);
-    const openFiles = ['logs_1', 'logs_2', 'state_4', 'state_5']
-        .map(name => `n${path.join(dir, `${name}.sqlite`)}`).join('\n') + '\nn/dev/pts/3\n';
 
-    // Act
-    const codexSqliteStateResult = await codexSqliteState(openFiles, proc);
-
-    // Assert
-    assert.deepEqual(codexSqliteStateResult, { id: 'live-thread', model: 'gpt-5.6-luna' });
-
-    // Act
-    // The kernel reuses pids, so a row predating this process is not ours.
-    const codexSqliteStateResult2 = await codexSqliteState(openFiles, { ...proc, pid: 99 });
-
-    // Assert
-    assert.equal(codexSqliteStateResult2, null);
-
-    // Act
-    const codexSqliteStateResult3 = await codexSqliteState('n/dev/pts/3\n', proc);
-
-    // Assert
-    assert.equal(codexSqliteStateResult3, null);
-
-    // Arrange
-    // A thread whose model column is not set yet: the caller keeps the bare
-    // agent name rather than inventing one.
-    build('state_6', [threads, "insert into threads values ('live-thread', null)"]);
-    const pending = openFiles + `n${path.join(dir, 'state_6.sqlite')}\n`;
-
-    // Act
-    const codexSqliteStateResult4 = await codexSqliteState(pending, proc);
-
-    // Assert
-    assert.deepEqual(codexSqliteStateResult4, { id: 'live-thread', model: null });
-
-    // Arrange
-    // Every logged id being a turn is indistinguishable from knowing nothing.
-    build('state_7', [threads, "insert into threads values ('some-other-thread', 'gpt-nope')"]);
-
-    // Act
-    const codexSqliteStateResult5 = await codexSqliteState(openFiles + `n${path.join(dir, 'state_7.sqlite')}\n`, proc);
-
-    // Assert
-    assert.equal(codexSqliteStateResult5, null);
-
-    // Arrange
     // Before its first turn there is no threads row at all, so only the
     // session_init log line names the model. Every id logged by then came from
     // thread/start, which is why the newest one is the thread's own.
@@ -226,52 +191,132 @@ test('Codex falls back to its SQLite state when no rollout file is open', async 
     build('logs_3', [logs, rows(`
         (1, ${started + 5}, 'fresh-thread', 'pid:77:ddd', '${init}'),
         (2, ${started + 6}, 'fresh-thread', 'pid:77:ddd', 'shell snapshot captured')`)]);
-    const state7 = `n${path.join(dir, 'state_7.sqlite')}\n`;
-    const logs3 = ['logs_1', 'logs_3', 'state_4', 'state_5']
-        .map(name => `n${path.join(dir, `${name}.sqlite`)}`).join('\n') + '\n';
 
-    // Act
-    const codexSqliteStateResult6 = await codexSqliteState(logs3 + state7, proc);
+    const open = names => names.map(name => `n${path.join(dir, `${name}.sqlite`)}`).join('\n')
+        + '\nn/dev/pts/3\n';
+    return {
+        proc,
+        threads,
+        build,
+        // A session that has taken a turn: logs_2 names the thread, state_5 its model.
+        started: open(['logs_1', 'logs_2', 'state_4', 'state_5']),
+        // A session before its first turn: only logs_3's session_init line has a model.
+        fresh: open(['logs_1', 'logs_3', 'state_4', 'state_5']),
+    };
+}
 
-    // Assert
-    assert.deepEqual(codexSqliteStateResult6, { id: 'fresh-thread', model: 'gpt-5.6-terra' });
-
+test('Codex takes the thread from the newest log database, ignoring turn ids', async t => {
     // Arrange
-    // A log message is the weakest source: a threads row that names a model, and
-    // so survives a later /model switch, must win over it.
-    build('state_8', [threads, "insert into threads values ('fresh-thread', 'gpt-switched-to')"]);
+    const codex = await codexDatabases(t);
 
     // Act
-    const codexSqliteStateResult7 = await codexSqliteState(logs3 + `n${path.join(dir, 'state_8.sqlite')}\n`, proc);
+    const state = await codexSqliteState(codex.started, codex.proc);
 
     // Assert
-    assert.deepEqual(codexSqliteStateResult7,
-        { id: 'fresh-thread', model: 'gpt-switched-to' });
+    assert.deepEqual(state, { id: 'live-thread', model: 'gpt-5.6-luna' });
+});
 
-    // Act
-    // A pid whose rows predate it learns nothing from the log line either.
-    const codexSqliteStateResult8 = await codexSqliteState(logs3 + state7, { ...proc, pid: 99 });
-
-    // Assert
-    assert.equal(codexSqliteStateResult8, null);
-
-    // Act
-    const codexSqliteStateResult9 = await codexSqliteState(openFiles, { ...proc, start: 'unknown' });
-
-    // Assert
-    assert.equal(codexSqliteStateResult9, null);
-
+test('a thread whose model is not recorded yet keeps the bare agent name', async t => {
     // Arrange
-    // Schema 10 is newer than 8, even though alphabetic sorting says otherwise.
-    build('state_10', [threads, "insert into threads values ('fresh-thread', 'gpt-latest')"]);
+    // The caller shows "codex" rather than inventing a model name.
+    const codex = await codexDatabases(t);
+    const pending = codex.started + codex.build('state_6', [codex.threads,
+        "insert into threads values ('live-thread', null)"]);
 
     // Act
-    const codexSqliteStateResult10 = await codexSqliteState(logs3 + state7
-        + `n${path.join(dir, 'state_10.sqlite')}\n`, proc);
+    const state = await codexSqliteState(pending, codex.proc);
 
     // Assert
-    assert.deepEqual(codexSqliteStateResult10,
-    { id: 'fresh-thread', model: 'gpt-latest' });
+    assert.deepEqual(state, { id: 'live-thread', model: null });
+});
+
+test('a logged id that no threads row confirms identifies nothing', async t => {
+    // Arrange
+    // Every logged id being a turn is indistinguishable from knowing nothing.
+    const codex = await codexDatabases(t);
+    const unconfirmed = codex.started + codex.build('state_7', [codex.threads,
+        "insert into threads values ('some-other-thread', 'gpt-nope')"]);
+
+    // Act
+    const state = await codexSqliteState(unconfirmed, codex.proc);
+
+    // Assert
+    assert.equal(state, null);
+});
+
+test('before its first turn the session_init log line names the model', async t => {
+    // Arrange
+    const codex = await codexDatabases(t);
+    const withoutThreadsRow = codex.fresh + codex.build('state_7', [codex.threads,
+        "insert into threads values ('some-other-thread', 'gpt-nope')"]);
+
+    // Act
+    const state = await codexSqliteState(withoutThreadsRow, codex.proc);
+
+    // Assert
+    assert.deepEqual(state, { id: 'fresh-thread', model: 'gpt-5.6-terra' });
+});
+
+test('a threads row outranks the session_init log message', async t => {
+    // Arrange
+    // A log message is the weakest source: a threads row names the model a
+    // later /model switch left behind, so it must win over the startup line.
+    const codex = await codexDatabases(t);
+    const switched = codex.fresh + codex.build('state_8', [codex.threads,
+        "insert into threads values ('fresh-thread', 'gpt-switched-to')"]);
+
+    // Act
+    const state = await codexSqliteState(switched, codex.proc);
+
+    // Assert
+    assert.deepEqual(state, { id: 'fresh-thread', model: 'gpt-switched-to' });
+});
+
+test('schema 10 is newer than schema 8, though alphabetic sorting says otherwise', async t => {
+    // Arrange
+    const codex = await codexDatabases(t);
+    const both = codex.fresh
+        + codex.build('state_7', [codex.threads, "insert into threads values ('some-other-thread', 'gpt-nope')"])
+        + codex.build('state_8', [codex.threads, "insert into threads values ('fresh-thread', 'gpt-switched-to')"])
+        + codex.build('state_10', [codex.threads, "insert into threads values ('fresh-thread', 'gpt-latest')"]);
+
+    // Act
+    const state = await codexSqliteState(both, codex.proc);
+
+    // Assert
+    assert.deepEqual(state, { id: 'fresh-thread', model: 'gpt-latest' });
+});
+
+// The kernel reuses pids, so rows that predate this process are not its own,
+// and a process whose start time will not parse can never be matched at all.
+for (const { name, patch, transcript } of [
+    { name: 'a reused pid ignores rows recorded before it started', patch: { pid: 99 }, transcript: 'started' },
+    { name: 'a reused pid learns nothing from the session_init line either', patch: { pid: 99 }, transcript: 'fresh' },
+    { name: 'an unparseable process start time matches nothing', patch: { start: 'unknown' }, transcript: 'started' },
+]) {
+    test(`Codex SQLite fallback: ${name}`, async t => {
+        // Arrange
+        const codex = await codexDatabases(t);
+        const openFiles = codex[transcript];
+
+        // Act
+        const state = await codexSqliteState(openFiles, { ...codex.proc, ...patch });
+
+        // Assert
+        assert.equal(state, null);
+    });
+}
+
+test('a pane with no open database has no fallback to read', async t => {
+    // Arrange
+    // Only a terminal is open: nothing here is a Codex database.
+    const codex = await codexDatabases(t);
+
+    // Act
+    const state = await codexSqliteState('n/dev/pts/3\n', codex.proc);
+
+    // Assert
+    assert.equal(state, null);
 });
 
 test('idle watcher skips process scans and all expensive data work', async () => {
@@ -326,15 +371,148 @@ test('one asynchronous lsof scan covers all agents and does not delay Claude', a
 
     // Act
     const files = openFilesByPid('nignored\np10\nn/tmp/rollout-one.jsonl\np20\nn/tmp/session-state/two/events.jsonl\n');
-    const sessionFileResult = sessionFile('codex', files.get(10));
+    const codexTranscript = sessionFile('codex', files.get(10));
 
     // Assert
-    assert.equal(sessionFileResult, '/tmp/rollout-one.jsonl');
+    assert.equal(codexTranscript, '/tmp/rollout-one.jsonl');
 
     // Act
-    const sessionFileResult2 = sessionFile('copilot', files.get(20));
+    const copilotTranscript = sessionFile('copilot', files.get(20));
 
     // Assert
-    assert.equal(sessionFileResult2, '/tmp/session-state/two/events.jsonl');
+    assert.equal(copilotTranscript, '/tmp/session-state/two/events.jsonl');
     assert.equal(files.size, 2);
+});
+
+// The Claude status line runs claude-statusline-hook.mjs as its own process, so
+// the hook is exercised the same way: a real subprocess, a fake `ps` on PATH and
+// a temporary HOME. Its own ppid is this test file's pid, which is what the fake
+// process table is built around.
+function hookFixture(t, rows) {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-hook-'));
+    t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+    const bin = path.join(home, 'bin');
+    fs.mkdirSync(bin);
+    const table = rows.map(([pid, parent, name]) =>
+        `${pid} ${parent} Thu Sep 10 01:35:11 2026 ${name} ${name}`).join('\n');
+    // PATH holds nothing but this directory, so the real `ps` can never answer
+    // instead - which also means the fake may only use shell builtins.
+    fs.writeFileSync(path.join(bin, 'ps'), `#!/bin/sh\necho '${table}'\n`, { mode: 0o755 });
+    return {
+        home,
+        cache: pid => path.join(home, '.cache/initd-tmux', `claude-${pid}.json`),
+        cached: () => {
+            try { return fs.readdirSync(path.join(home, '.cache/initd-tmux')); }
+            catch { return []; }
+        },
+        run: data => spawnSync(process.execPath,
+            [path.join(root, 'shared/configs/tmux/.config/tmux/claude-statusline-hook.mjs')], {
+                input: JSON.stringify(data), env: { HOME: home, PATH: bin },
+                encoding: 'utf8', timeout: 10000,
+            }),
+    };
+}
+
+test('the Claude hook caches its own agent process and appends the context window', t => {
+    // Arrange
+    const claudePid = 424242;
+    const hook = hookFixture(t, [
+        [process.pid, claudePid, 'node'],
+        [claudePid, 1, 'claude'],
+        // A second, unrelated Claude must not be picked up in place of the parent.
+        [999999, 1, 'claude'],
+    ]);
+    // The hook reads the real clock, so the reset is anchored to it: a fixed
+    // far-future timestamp would render in the days form instead.
+    const rateLimits = { five_hour: { used_percentage: 30, resets_at: Math.floor(Date.now() / 1000) + 7200 } };
+
+    // Act
+    const result = hook.run({
+        model: { display_name: 'Opus 5' },
+        rate_limits: rateLimits,
+        context_window: { used_percentage: 42.4 },
+    });
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /^Opus 5 · 30% · \d+h\d+m · 42% ctx$/);
+    assert.deepEqual(hook.cached(), [`claude-${claudePid}.json`]);
+    assert.deepEqual(JSON.parse(fs.readFileSync(hook.cache(claudePid), 'utf8')), {
+        start: 'Thu Sep 10 01:35:11 2026',
+        data: { model: { display_name: 'Opus 5' }, rate_limits: rateLimits },
+    });
+});
+
+test('the Claude hook omits an absent context window and caches no unknown ancestry', t => {
+    // Arrange
+    const claudePid = 424243;
+    const named = hookFixture(t, [[process.pid, claudePid, 'node'], [claudePid, 1, 'claude']]);
+
+    // Act
+    const withoutContext = named.run({ model: { display_name: 'Opus 5' } });
+
+    // Assert
+    assert.equal(withoutContext.stdout, 'Opus 5');
+
+    // Arrange
+    // Nothing in the ancestry is Claude: the value still prints, but a cache
+    // entry keyed to the wrong process would outlive this run and mislabel a pane.
+    const orphaned = hookFixture(t, [[process.pid, 1, 'node']]);
+
+    // Act
+    const unowned = orphaned.run({ model: { display_name: 'Opus 5' } });
+
+    // Assert
+    assert.equal(unowned.status, 0, unowned.stderr);
+    assert.equal(unowned.stdout, 'Opus 5');
+    assert.deepEqual(orphaned.cached(), []);
+});
+
+test('the Claude hook terminates on a cyclic process table instead of hanging', t => {
+    // Arrange
+    // A pid whose ancestry loops back on itself: without the seen-set guard the
+    // walk never ends, and the status line blocks Claude's own render.
+    const hook = hookFixture(t, [
+        [process.pid, 500, 'node'], [500, 501, 'fish'], [501, 500, 'fish'],
+    ]);
+
+    // Act
+    const result = hook.run({ model: { display_name: 'Opus 5' } });
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.signal, null, 'a timed-out hook is killed by signal');
+    assert.equal(result.stdout, 'Opus 5');
+    assert.deepEqual(hook.cached(), []);
+});
+
+// Every other refresh test hands in a snapshot, which skips the list-panes
+// parse entirely. tmux emits one tab-separated row per pane, and a pane whose
+// path or command contains a tab would otherwise shift every later field.
+test('malformed list-panes rows are dropped rather than published against', async () => {
+    // Arrange
+    const writes = [];
+    const rows = [
+        '%1\t1\t10\tcodex\t/repo\t1',
+        // Six fields but not a pane id: never a target for set-option -t.
+        'x1\t1\t11\tcodex\t/repo\t1',
+        // A tab inside the pane path splits the row into seven fields.
+        '%2\t1\t12\tcodex\t/re\tpo\t1',
+        // Truncated row: tmux was killed mid-write.
+        '%3\t1\t13\tcodex',
+        '',
+    ].join('\n');
+
+    // Act
+    await refresh({
+        run: async () => rows,
+        processes: async () => [
+            { pid: 10, parent: 1, agent: 'codex' }, { pid: 11, parent: 1, agent: 'codex' },
+            { pid: 12, parent: 1, agent: 'codex' }, { pid: 13, parent: 1, agent: 'codex' },
+        ],
+        atomic: file => writes.push(path.basename(file)),
+    });
+
+    // Assert
+    assert.deepEqual(writes, ['pane-1-10']);
 });

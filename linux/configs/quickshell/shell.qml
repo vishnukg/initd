@@ -9,6 +9,9 @@ import Quickshell.Services.Pipewire
 import Quickshell.Services.SystemTray
 import Quickshell.Services.UPower
 import Quickshell.Wayland
+// Pure presentation logic, shared with AudioMenu.qml and covered by
+// tests/linux/bar-logic.test.mjs.
+import "bar-logic.mjs" as BarLogic
 
 ShellRoot {
     id: root
@@ -40,97 +43,24 @@ ShellRoot {
 
     // wttr.in hands back "HH:MM:SS" (and sometimes "HH:MM:SS AM"); both reduce
     // to minutes-since-midnight so day/night is a plain numeric compare.
-    function clockMinutes(value) {
-        const match = /(\d{1,2}):(\d{2})/.exec(value);
-        if (!match)
-            return -1;
-        let hours = parseInt(match[1], 10);
-        const minutes = parseInt(match[2], 10);
-        if (/PM/i.test(value) && hours < 12)
-            hours += 12;
-        if (/AM/i.test(value) && hours === 12)
-            hours = 0;
-        return hours * 60 + minutes;
-    }
-
     function weatherIsNight() {
-        const sunrise = clockMinutes(weatherSunrise);
-        const sunset = clockMinutes(weatherSunset);
-        if (sunrise < 0 || sunset < 0)
-            return false;
         const now = new Date();
-        const minutes = now.getHours() * 60 + now.getMinutes();
-        return minutes < sunrise || minutes >= sunset;
+        return BarLogic.isNight(weatherSunrise, weatherSunset,
+            now.getHours() * 60 + now.getMinutes());
     }
 
-    // WWO condition names are a fixed vocabulary ("Patchy light rain with
-    // thunder", "Moderate or heavy sleet showers", ...), so keyword tests in
-    // severity order cover the whole set without a 48-entry lookup table.
     function weatherIcon() {
-        const condition = weatherCondition.toLowerCase();
-        const night = weatherIsNight();
-        if (condition.indexOf("thunder") >= 0)
-            return condition.indexOf("rain") >= 0 || condition.indexOf("snow") >= 0
-                ? "󰙾"
-                : "󰖓";
-        if (condition.indexOf("ice pellets") >= 0 || condition.indexOf("hail") >= 0)
-            return "󰖒";
-        if (condition.indexOf("fog") >= 0)
-            return "󰖑";
-        if (condition.indexOf("mist") >= 0 || condition.indexOf("haze") >= 0)
-            return "󰼰";
-        if (condition.indexOf("sleet") >= 0 || condition.indexOf("freezing") >= 0)
-            return "󰙿";
-        if (condition.indexOf("blizzard") >= 0 || condition.indexOf("heavy snow") >= 0)
-            return "󰼶";
-        if (condition.indexOf("snow") >= 0)
-            return condition.indexOf("patchy") >= 0 ? "󰼵" : "󰖘";
-        if (condition.indexOf("torrential") >= 0 || condition.indexOf("heavy rain") >= 0)
-            return "󰖖";
-        if (condition.indexOf("rain") >= 0 || condition.indexOf("drizzle") >= 0
-                || condition.indexOf("shower") >= 0)
-            return condition.indexOf("patchy") >= 0 ? "󰼳" : "󰖗";
-        if (condition.indexOf("partly") >= 0)
-            return night ? "󰼱" : "󰖕";
-        if (condition.indexOf("cloud") >= 0 || condition.indexOf("overcast") >= 0)
-            return "󰖐";
-        if (condition.indexOf("sunny") >= 0)
-            return "󰖙";
-        if (condition.indexOf("clear") >= 0)
-            return night ? "󰖔" : "󰖙";
-        return "󰼯";
+        return BarLogic.weatherIcon(weatherCondition, weatherIsNight());
     }
 
     // wttr.in reports whatever unit the request resolved to, so read the unit
     // off the string rather than assuming Celsius.
     function weatherCelsius() {
-        const match = /(-?\d+(?:\.\d+)?)/.exec(weatherTemp);
-        if (!match)
-            return NaN;
-        const value = parseFloat(match[1]);
-        return /F/i.test(weatherTemp) ? (value - 32) * 5 / 9 : value;
+        return BarLogic.weatherCelsius(weatherTemp);
     }
 
-    // Mild weather says nothing, so it stays flat: colour only appears once the
-    // reading is cold enough or hot enough to be worth noticing, deepening as
-    // it gets further from comfortable.
     function weatherColor() {
-        const celsius = weatherCelsius();
-        if (isNaN(celsius))
-            return "#e8eaf0";
-        if (celsius <= 0)
-            return "#6fa8e0";
-        if (celsius < 6)
-            return "#8fb7e8";
-        if (celsius < 12)
-            return "#8fd8e8";
-        if (celsius <= 25)
-            return "#e8eaf0";
-        if (celsius < 30)
-            return "#e8b87a";
-        if (celsius < 35)
-            return "#e89a8f";
-        return "#e0788a";
+        return BarLogic.weatherColor(weatherCelsius());
     }
 
     function weatherTooltip() {
@@ -144,14 +74,7 @@ ShellRoot {
     // CPU and memory share one ramp: neutral until the machine is working,
     // amber under load, red when it is saturated.
     function loadColor(reading) {
-        const percent = parseInt(reading, 10);
-        if (isNaN(percent))
-            return "#e8eaf0";
-        if (percent >= 90)
-            return "#e0788a";
-        if (percent >= 70)
-            return "#e8b87a";
-        return "#e8eaf0";
+        return BarLogic.loadColor(reading);
     }
 
     function powerProfileText() {
