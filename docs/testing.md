@@ -7,23 +7,31 @@ There is no dependency installation or build step for the tests.
 Run the full suite, including isolated tmux servers and interactive Fish shells:
 
 ```sh
-INITD_TEST_TMUX=1 node --test tests/*.test.mjs
+INITD_TEST_TMUX=1 node --test tests/linux/*.test.mjs tests/macos/*.test.mjs tests/shared/*.test.mjs
 ```
 
-The suite lives in the root `tests/` directory, organized by behavior:
+The suite lives in the `tests/` directory, organized by platform and scope:
+
+| Directory | Scope |
+| --- | --- |
+| `tests/linux/` | Linux setup, Firefox, Chrome, audio, and night-light |
+| `tests/macos/` | Homebrew and macOS bootstrap helpers |
+| `tests/shared/` | Cross-platform links, Fish, tmux, status, agents, and shared config helpers |
+
+The individual files are organized as follows:
 
 | File | Scope |
 | --- | --- |
-| `agent-transcripts.test.mjs` | Models, quota events, streaming reads, truncation and rotation |
-| `agent-discovery.test.mjs` | Process ownership, open-file binding and SQLite fallback |
-| `status-publisher.test.mjs` | Rendering, publication, caching and session names |
-| `watcher-lifecycle.test.mjs` | Locks, atomic writes and real watcher takeover |
-| `audio-ports.test.mjs` | Audio parsing and command-line behavior |
-| `brewinstall.test.mjs` | Argument validation, Brewfile updates and failure handling |
+| `shared/agent-transcripts.test.mjs` | Models, quota events, streaming reads, truncation and rotation |
+| `shared/agent-discovery.test.mjs` | Process ownership, open-file binding and SQLite fallback |
+| `shared/status-publisher.test.mjs` | Rendering, publication, caching and session names |
+| `shared/watcher-lifecycle.test.mjs` | Locks, atomic writes and real watcher takeover |
+| `linux/audio-ports.test.mjs` | Audio parsing and command-line behavior |
+| `macos/brewinstall.test.mjs` | Argument validation, Brewfile updates and failure handling |
 
 The remaining files cover bootstrap configs, installation, Linux setup, Fish,
 night light, and enterprise quotas. Run an individual file with
-`node --test tests/<name>.test.mjs`; enable `INITD_TEST_TMUX=1` for real tmux
+`node --test tests/<platform>/<name>.test.mjs`; enable `INITD_TEST_TMUX=1` for real tmux
 and terminal integration checks. Without it those checks are explicitly skipped.
 
 Keep unit tests isolated from the user's files and services: inject command

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { configureChrome } from '../linux/scripts/chrome-profile.mjs';
+import { configureChrome } from '../../linux/scripts/chrome-profile.mjs';
 
 function fixture(t, status = 1) {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-chrome-'));

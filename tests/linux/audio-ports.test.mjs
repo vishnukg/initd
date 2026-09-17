@@ -5,9 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { parsePorts, readPorts } from '../linux/scripts/audio-ports.mjs';
+import { parsePorts, readPorts } from '../../linux/scripts/audio-ports.mjs';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
+const root = fileURLToPath(new URL('../..', import.meta.url));
 
 test('audio card JSON preserves display names and only explicit unavailable ports are hidden', () => {
     // Arrange
