@@ -18,10 +18,10 @@ test('model switches use the latest context, not historical usage or auxiliary c
     ].map(record => JSON.stringify(record)).join('\n') + '\n{"partial":');
 
     // Act
-    const sessionStateResult = await sessionState('codex', file);
+    const codexState = await sessionState('codex', file);
 
     // Assert
-    assert.deepEqual(sessionStateResult, { id: 'rollout-a', model: 'new-model' });
+    assert.deepEqual(codexState, { id: 'rollout-a', model: 'new-model' });
 
     // Arrange
     fs.writeFileSync(file, [
@@ -31,10 +31,10 @@ test('model switches use the latest context, not historical usage or auxiliary c
     ].map(record => JSON.stringify(record)).join('\n') + '\n');
 
     // Act
-    const sessionStateResult2 = (await sessionState('copilot', file)).model;
+    const copilotModel = (await sessionState('copilot', file)).model;
 
     // Assert
-    assert.equal(sessionStateResult2, 'auto');
+    assert.equal(copilotModel, 'auto');
 });
 
 test('Codex reads the latest account quota snapshot, ignoring unrelated limits and partial writes', async t => {
@@ -49,12 +49,12 @@ test('Codex reads the latest account quota snapshot, ignoring unrelated limits a
     ].map(record => JSON.stringify(record)).join('\n') + '\n{"partial":');
 
     // Act
-    const sessionStateResult = (await sessionState('codex', file)).rateLimits;
-    const sessionStateResult2 = (await sessionState('codex', file)).rateLimits.primary.used_percent;
+    const latestRateLimits = (await sessionState('codex', file)).rateLimits;
+    const latestUsedPercent = (await sessionState('codex', file)).rateLimits.primary.used_percent;
 
     // Assert
-    assert.deepEqual(sessionStateResult, latest);
-    assert.equal(sessionStateResult2, 31);
+    assert.deepEqual(latestRateLimits, latest);
+    assert.equal(latestUsedPercent, 31);
 });
 
 test('Codex account limits are taken under either id, and a per-model one is ignored', async t => {
@@ -69,22 +69,22 @@ test('Codex account limits are taken under either id, and a per-model one is ign
         event({ limit_id: 'other-model', primary: { used_percent: 99 } })].join('\n') + '\n');
 
     // Act
-    const sessionStateResult = (await sessionState('codex', file)).rateLimits;
-    const codexUsageResult = codexUsage(premium, 5600);
+    const accountRateLimits = (await sessionState('codex', file)).rateLimits;
+    const premiumUsage = codexUsage(premium, 5600);
 
     // Assert
-    assert.deepEqual(sessionStateResult, premium);
-    assert.equal(codexUsageResult, ' · 42% · 4h0m');
+    assert.deepEqual(accountRateLimits, premium);
+    assert.equal(premiumUsage, ' · 42% · 4h0m');
 
     // Arrange
     // The payload Codex actually sends today carries no usage at all.
     const empty = { limit_id: 'premium', primary: null, secondary: null, credits: { has_credits: false, balance: '0' } };
 
     // Act
-    const codexUsageResult2 = codexUsage(empty);
+    const usageWithoutNumbers = codexUsage(empty);
 
     // Assert
-    assert.equal(codexUsageResult2, '');
+    assert.equal(usageWithoutNumbers, '');
 });
 
 test('Codex percentage includes zero, ticks down on cached data, and hides expired or invalid quota', () => {
@@ -92,22 +92,22 @@ test('Codex percentage includes zero, ticks down on cached data, and hides expir
     const limits = { primary: { used_percent: 31, resets_at: 20000 } };
 
     // Act
-    const codexUsageResult = codexUsage(limits, 5600);
-    const codexUsageResult2 = codexUsage(limits, 5660);
-    const codexUsageResult3 = codexUsage(limits, 20000);
-    const codexUsageResult4 = codexUsage({ primary: { used_percent: 0 } }, 0);
-    const codexUsageResult5 = codexUsage(null);
-    const codexUsageResult6 = codexUsage({ primary: { used_percent: '31' } });
-    const codexUsageResult7 = codexUsage({ primary: { used_percent: -1 } });
+    const freshUsage = codexUsage(limits, 5600);
+    const aMinuteLater = codexUsage(limits, 5660);
+    const afterReset = codexUsage(limits, 20000);
+    const zeroPercent = codexUsage({ primary: { used_percent: 0 } }, 0);
+    const withoutLimits = codexUsage(null);
+    const nonNumericPercent = codexUsage({ primary: { used_percent: '31' } });
+    const negativePercent = codexUsage({ primary: { used_percent: -1 } });
 
     // Assert
-    assert.equal(codexUsageResult, ' · 31% · 4h0m');
-    assert.equal(codexUsageResult2, ' · 31% · 3h59m');
-    assert.equal(codexUsageResult3, '');
-    assert.equal(codexUsageResult4, ' · 0%');
-    assert.equal(codexUsageResult5, '');
-    assert.equal(codexUsageResult6, '');
-    assert.equal(codexUsageResult7, '');
+    assert.equal(freshUsage, ' · 31% · 4h0m');
+    assert.equal(aMinuteLater, ' · 31% · 3h59m');
+    assert.equal(afterReset, '');
+    assert.equal(zeroPercent, ' · 0%');
+    assert.equal(withoutLimits, '');
+    assert.equal(nonNumericPercent, '');
+    assert.equal(negativePercent, '');
 });
 
 test('a model switched between turns is reported at once, not one turn late', async t => {
@@ -123,19 +123,19 @@ test('a model switched between turns is reported at once, not one turn late', as
     fs.writeFileSync(file, [turn('gpt-old'), applied('gpt-new')].join('\n') + '\n');
 
     // Act
-    const sessionStateResult = (await sessionState('codex', file)).model;
+    const afterSettingsApplied = (await sessionState('codex', file)).model;
 
     // Assert
-    assert.equal(sessionStateResult, 'gpt-new');
+    assert.equal(afterSettingsApplied, 'gpt-new');
 
     // Arrange
     fs.appendFileSync(file, turn('gpt-new') + '\n');
 
     // Act
-    const sessionStateResult2 = (await sessionState('codex', file)).model;
+    const afterConfirmingTurn = (await sessionState('codex', file)).model;
 
     // Assert
-    assert.equal(sessionStateResult2, 'gpt-new');
+    assert.equal(afterConfirmingTurn, 'gpt-new');
 
     // Arrange
     // Settings carrying no model must not blank a model already known.
@@ -144,10 +144,10 @@ test('a model switched between turns is reported at once, not one turn late', as
     }) + '\n');
 
     // Act
-    const sessionStateResult3 = (await sessionState('codex', file)).model;
+    const afterEmptySettings = (await sessionState('codex', file)).model;
 
     // Assert
-    assert.equal(sessionStateResult3, 'gpt-new');
+    assert.equal(afterEmptySettings, 'gpt-new');
 });
 
 test('an exhausted Codex account says so, and any later turn clears it', async t => {
@@ -161,46 +161,46 @@ test('an exhausted Codex account says so, and any later turn clears it', async t
     fs.writeFileSync(file, complete({ message, codex_error_info: 'usage_limit_exceeded' }) + '\n');
 
     // Act
-    const sessionStateResult = (await sessionState('codex', file)).limit;
+    const recordedLimit = (await sessionState('codex', file)).limit;
 
     // Assert
-    assert.equal(sessionStateResult, message);
+    assert.equal(recordedLimit, message);
 
     // Arrange
     const reset = Date.parse('Sep 13, 2026 6:05 PM') / 1000;
 
     // Act
-    const codexLimitResult = codexLimit(message, reset - 3 * 86400 - 16 * 3600);
-    const codexLimitResult2 = codexLimit(message, reset - 90 * 60);
+    const daysRemaining = codexLimit(message, reset - 3 * 86400 - 16 * 3600);
+    const hoursRemaining = codexLimit(message, reset - 90 * 60);
 
     // Assert
-    assert.equal(codexLimitResult, ' · limit · 3d16h');
-    assert.equal(codexLimitResult2, ' · limit · 1h30m');
+    assert.equal(daysRemaining, ' · limit · 3d16h');
+    assert.equal(hoursRemaining, ' · limit · 1h30m');
 
     // Act
     // Once the reset has passed the countdown is gone, but the turn still failed.
-    const codexLimitResult3 = codexLimit(message, reset);
+    const afterResetPassed = codexLimit(message, reset);
 
     // Assert
-    assert.equal(codexLimitResult3, ' · limit');
+    assert.equal(afterResetPassed, ' · limit');
 
     // Act
-    const codexLimitResult4 = codexLimit('out of quota, no date here');
-    const codexLimitResult5 = codexLimit(null);
+    const withoutResetDate = codexLimit('out of quota, no date here');
+    const withoutMessage = codexLimit(null);
 
     // Assert
-    assert.equal(codexLimitResult4, ' · limit');
-    assert.equal(codexLimitResult5, '');
+    assert.equal(withoutResetDate, ' · limit');
+    assert.equal(withoutMessage, '');
 
     // Arrange
     // A turn that runs at all clears the notice without waiting for the reset.
     fs.appendFileSync(file, complete(null) + '\n');
 
     // Act
-    const sessionStateResult2 = (await sessionState('codex', file)).limit;
+    const limitAfterSuccessfulTurn = (await sessionState('codex', file)).limit;
 
     // Assert
-    assert.equal(sessionStateResult2, null);
+    assert.equal(limitAfterSuccessfulTurn, null);
 });
 
 test('Copilot auto mode reports the model it routed to, and forgets it on a pinned switch', async t => {
@@ -221,20 +221,20 @@ test('Copilot auto mode reports the model it routed to, and forgets it on a pinn
     assert.equal(state.model, 'auto');
 
     // Act
-    const modelNameResult = modelName('copilot', state);
+    const routedModel = modelName('copilot', state);
 
     // Assert
-    assert.equal(modelNameResult, 'gpt-5.6-luna');
+    assert.equal(routedModel, 'gpt-5.6-luna');
 
     // Arrange
     // Auto can route elsewhere on a later turn; the newest decision wins.
     write([change('auto'), resolved('gpt-5.6-luna'), resolved('claude-sonnet-5')]);
 
     // Act
-    const modelNameResult2 = modelName('copilot', await sessionState('copilot', file));
+    const latestRouting = modelName('copilot', await sessionState('copilot', file));
 
     // Assert
-    assert.equal(modelNameResult2, 'claude-sonnet-5');
+    assert.equal(latestRouting, 'claude-sonnet-5');
 
     // Arrange
     // Pinning a model must drop the resolution rather than keep naming it.
@@ -247,27 +247,27 @@ test('Copilot auto mode reports the model it routed to, and forgets it on a pinn
     assert.equal(state.autoModel, null);
 
     // Act
-    const modelNameResult3 = modelName('copilot', state);
+    const pinnedModel = modelName('copilot', state);
 
     // Assert
-    assert.equal(modelNameResult3, 'claude-opus-5');
+    assert.equal(pinnedModel, 'claude-opus-5');
 
     // Arrange
     // Auto before its first routed turn has nothing better than the mode name.
     write([change('auto')]);
 
     // Act
-    const modelNameResult4 = modelName('copilot', await sessionState('copilot', file));
+    const autoBeforeRouting = modelName('copilot', await sessionState('copilot', file));
 
     // Assert
-    assert.equal(modelNameResult4, 'auto');
+    assert.equal(autoBeforeRouting, 'auto');
 
     // Act
     // Codex never has a resolution and must be passed through untouched.
-    const modelNameResult5 = modelName('codex', { model: 'auto', autoModel: 'gpt-5.6-luna' });
+    const codexPassedThrough = modelName('codex', { model: 'auto', autoModel: 'gpt-5.6-luna' });
 
     // Assert
-    assert.equal(modelNameResult5, 'auto');
+    assert.equal(codexPassedThrough, 'auto');
 });
 
 test('large transcript records are assembled with linear copying and preserve incomplete tails', async t => {
@@ -285,20 +285,20 @@ test('large transcript records are assembled with linear copying and preserve in
     });
 
     // Act
-    const sessionStateResult = (await sessionState('codex', file)).model;
+    const assembledModel = (await sessionState('codex', file)).model;
 
     // Assert
-    assert.equal(sessionStateResult, 'large-model');
+    assert.equal(assembledModel, 'large-model');
     assert.ok(copied <= fs.statSync(file).size * 2, 'copy volume must stay linear in record size');
 
     // Arrange
     fs.appendFileSync(file, '-model"}}\n');
 
     // Act
-    const sessionStateResult2 = (await sessionState('codex', file)).model;
+    const modelAfterCompletion = (await sessionState('codex', file)).model;
 
     // Assert
-    assert.equal(sessionStateResult2, 'next-model');
+    assert.equal(modelAfterCompletion, 'next-model');
 });
 
 test('a record streamed across many polls reads each byte only once', async t => {

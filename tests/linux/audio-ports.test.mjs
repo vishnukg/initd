@@ -101,8 +101,8 @@ test('audio CLI uses JSON pactl output and clears stale state on subprocess fail
     fs.unlinkSync(pactl);
 
     // Act
-    const runResult = run().status;
+    const withoutPactlInstalled = run().status;
 
     // Assert
-    assert.equal(runResult, 1);
+    assert.equal(withoutPactlInstalled, 1);
 });

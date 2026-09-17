@@ -329,4 +329,8 @@ main() {
   log_success "initd finished for macOS."
 }
 
-main "$@"
+# Guarded like linux/bootstrap.sh and linux/setup.sh: sourcing this file to
+# reach one helper must not run an entire bootstrap as a side effect.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
