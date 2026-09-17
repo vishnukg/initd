@@ -7,11 +7,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { readJsonFile, sameFlatObject, updateJsonFile } from '../../shared/lib/json-file.mjs';
 import { configureStatusLine } from '../../shared/lib/claude-statusline.mjs';
 import { configureDocker } from '../../macos/docker-config.mjs';
 import { profilePath, setDefaultZoom } from '../../linux/scripts/firefox-profile.mjs';
 
+const root = fileURLToPath(new URL('../..', import.meta.url));
 const temporaryDir = t => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-bootstrap-config-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -298,6 +301,44 @@ test('Docker config gains the keychain helper and appends its plugin dir', t => 
     // Assert
     assert.equal(afterAForeignCredentialHelper, true);
     assert.equal(read(file).credsStore, 'osxkeychain');
+});
+test('the Docker config command reports its result and fails loudly on a broken config', t => {
+    // Arrange
+    // ensure_docker_config runs this file as a command, so its HOME-relative
+    // default path and its exit status are the contract the bootstrap step has
+    // with it - neither is reachable through configureDocker().
+    const home = temporaryDir(t);
+    const file = path.join(home, '.docker/config.json');
+    const configure = () => spawnSync(process.execPath, [path.join(root, 'macos/docker-config.mjs')],
+        { encoding: 'utf8', env: { ...process.env, HOME: home } });
+
+    // Act
+    const firstRun = configure();
+
+    // Assert
+    assert.equal(firstRun.status, 0, firstRun.stderr);
+    assert.match(firstRun.stdout, /Docker config updated/);
+    assert.equal(read(file).credsStore, 'osxkeychain');
+
+    // Act
+    const secondRun = configure();
+
+    // Assert
+    assert.equal(secondRun.status, 0, secondRun.stderr);
+    assert.match(secondRun.stdout, /Docker config already set/);
+
+    // Arrange
+    // A config the user has broken by hand must stop the step rather than be
+    // silently replaced: it can hold registry auth material.
+    fs.writeFileSync(file, '{ not json');
+
+    // Act
+    const afterCorruption = configure();
+
+    // Assert
+    assert.equal(afterCorruption.status, 1);
+    assert.match(afterCorruption.stderr, /ERR Failed to update Docker config/);
+    assert.equal(fs.readFileSync(file, 'utf8'), '{ not json');
 });
 for (const { name, ini, expected } of [
     { name: 'per-install default wins over legacy default', ini: '[Profile1]\nName=old\nPath=abc.default\nDefault=1\n\n[Install4F96D1932A9F858E]\nDefault=xyz.default-release\nLocked=1\n', expected: 'xyz.default-release' },

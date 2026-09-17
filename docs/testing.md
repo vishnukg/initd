@@ -29,7 +29,7 @@ The individual files are organized as follows:
 | `shared/watcher-lifecycle.test.mjs` | Locks, atomic writes and real watcher takeover |
 | `linux/audio-ports.test.mjs` | Audio parsing and command-line behavior |
 | `macos/brewinstall.test.mjs` | Argument validation, Brewfile updates and failure handling |
-| `macos/bootstrap.test.mjs` | Cask stripping when an app already exists outside Homebrew |
+| `macos/bootstrap.test.mjs` | Cask stripping, font install, terminfo compile, colima service ownership, gh auth, Git identity, and `update.sh` arguments |
 | `shared/fonts.test.mjs` | Private font sync: clone, update, and every warn-and-continue path |
 | `linux/bar-logic.test.mjs` | Weather icons and colours, load colours, audio device classification, QML call sites |
 | `linux/display-menu.test.mjs` | The `hyprmoncfg status --json` contract DisplayMenu.qml parses |
@@ -59,6 +59,16 @@ runners, cache readers, battery readers, and cache cleanup. Use temporary homes
 for integration tests. Wait for observable readiness with a deadline instead of
 fixed sleeps, and retain real subprocess concurrency where races are the behavior
 being tested. Do not trade away those checks just to lower the runtime.
+
+A Bash helper is tested by sourcing its script - every bootstrap guards its
+own `main` - and shadowing only the commands that would touch the machine. A
+shell function is enough for a plain call; a command reached through `env`, or
+by absolute path, needs a real executable on `PATH`. Those stubs are symlinks
+to one script whose behaviour arrives in the environment, because macOS spends
+~250 ms scanning each newly written executable the first time it runs, and a
+script per stub costs more than the rest of the suite. Have each stub record its
+own invocation, so a step that must NOT run is asserted by absence rather than
+by the side effect it failed to leave.
 
 Name what an Act returns for the role it plays in the assertion - `legacyDefault`,
 `claimAfterHolderDied`, `afterUnregistration`. A name that only counts calls
