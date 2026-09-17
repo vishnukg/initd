@@ -31,10 +31,19 @@ The individual files are organized as follows:
 | `macos/brewinstall.test.mjs` | Argument validation, Brewfile updates and failure handling |
 | `macos/bootstrap.test.mjs` | Cask stripping when an app already exists outside Homebrew |
 | `shared/fonts.test.mjs` | Private font sync: clone, update, and every warn-and-continue path |
-| `linux/bar-logic.test.mjs` | Weather icons and colours, load colours, audio device classification |
+| `linux/bar-logic.test.mjs` | Weather icons and colours, load colours, audio device classification, QML call sites |
+| `linux/display-menu.test.mjs` | The `hyprmoncfg status --json` contract DisplayMenu.qml parses |
 
 The remaining files cover bootstrap configs, installation, Linux setup, Fish,
 night light, and enterprise quotas.
+
+Fixtures prove a parser is self-consistent; they cannot notice the day the tool
+feeding it changes its output. Parsers for another program's output therefore
+carry a **contract check** beside the unit tests: it runs the real binary, asserts
+only the shape assumptions the parser depends on (`pactl`’s port objects and
+direction prefixes, `hyprmoncfg`’s `schema_version`), and skips when the binary
+is absent. Keep those assertions to what the consumer actually reads, so a
+harmless new field in the tool never fails the suite.
 
 Checks that need a tool the host may not have are declared with `skip`, never
 left to fail at import: `tests/shared/fish-config.test.mjs` skips when Fish is
