@@ -5,9 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { claimWatcherLock, releaseWatcherLock, sweepCache, lockPath, watcherLockPath } from '../shared/configs/tmux/.config/tmux/tmux.mjs';
+import { claimWatcherLock, releaseWatcherLock, sweepCache, lockPath, watcherLockPath } from '../../shared/configs/tmux/.config/tmux/tmux.mjs';
 
-const helper = fileURLToPath(new URL('../shared/configs/tmux/.config/tmux/tmux.mjs', import.meta.url));
+const helper = fileURLToPath(new URL('../../shared/configs/tmux/.config/tmux/tmux.mjs', import.meta.url));
 
 test('concurrent writers leave one complete cache value and no temporary files', { timeout: 5000 }, async t => {
     // Arrange

@@ -5,11 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { dockerMenu } from '../linux/scripts/docker-menu.mjs';
-import { configureFirefox, findProfileDirectory } from '../linux/scripts/firefox-profile.mjs';
-import { configureLinks } from '../linux/scripts/config-links.mjs';
+import { dockerMenu } from '../../linux/scripts/docker-menu.mjs';
+import { configureFirefox, findProfileDirectory } from '../../linux/scripts/firefox-profile.mjs';
+import { configureLinks } from '../../linux/scripts/config-links.mjs';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
+const root = fileURLToPath(new URL('../..', import.meta.url));
 function fixture(t) {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-linux-review-'));
     t.after(() => fs.rmSync(home, { recursive: true, force: true }));
