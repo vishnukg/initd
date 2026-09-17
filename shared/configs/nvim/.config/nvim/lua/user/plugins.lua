@@ -28,6 +28,20 @@ return require("lazy").setup({
 		version = "*",
 		cmd = { "NvimTreeToggle", "NvimTreeFocus", "NvimTreeOpen" },
 		dependencies = { "nvim-tree/nvim-web-devicons" },
+		init = function()
+			-- netrw is disabled, so opening a directory must also load the tree.
+			-- Keep ordinary file startup lazy; after loading, nvim-tree owns
+			-- subsequent directory events through its hijack_directories handler.
+			vim.api.nvim_create_autocmd("BufEnter", {
+				group = vim.api.nvim_create_augroup("NvimTreeDirectoryLoad", { clear = true }),
+				nested = true,
+				callback = function(args)
+					if vim.fn.isdirectory(args.file) ~= 1 then return end
+					vim.api.nvim_del_autocmd(args.id)
+					require("nvim-tree.api").tree.open({ path = args.file })
+				end,
+			})
+		end,
 		config = function() require("user.nvimtree") end,
 	},
 	{
