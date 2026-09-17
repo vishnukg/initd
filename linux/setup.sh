@@ -307,6 +307,10 @@ configure_firefox() {
   mise -C "${ROOT_DIR}" exec -- node "${SCRIPTS_DIR}/firefox-profile.mjs" setup
 }
 
+configure_chrome() {
+  mise -C "${ROOT_DIR}" exec -- node "${SCRIPTS_DIR}/chrome-profile.mjs"
+}
+
 apply_gsettings_theme() {
   # GTK3 apps read gtk-3.0/settings.ini, but GTK4/libadwaita apps on Wayland
   # get their theme through xdg-desktop-portal, which reads gsettings/dconf.
@@ -378,11 +382,13 @@ restart_dunst() {
 
 usage() {
   cat <<EOF
-Usage: ${0##*/} [--firefox-only]
+Usage: ${0##*/} [--firefox-only | --chrome-only]
 
 Apply Linux system tweaks and managed configuration.
 
 Options:
+  --chrome-only  Refresh Chrome interface scaling, page zoom and font sizes.
+                  Close Chrome first to allow profile settings to be updated.
   --firefox-only  Refresh only the Firefox profile glue (userChrome.css,
                   user.js, default zoom) without the rest of setup.sh —
                   useful right after installing Firefox for the first time,
@@ -396,6 +402,14 @@ EOF
 main() {
   if [[ "$#" -gt 0 ]]; then
     case "$1" in
+      --chrome-only)
+        if [[ "$#" -ne 1 ]]; then
+          log_error "--chrome-only does not accept additional arguments."
+          exit 1
+        fi
+        configure_chrome
+        return
+        ;;
       --firefox-only)
         if [[ "$#" -ne 1 ]]; then
           log_error "--firefox-only does not accept additional arguments."
@@ -436,6 +450,7 @@ main() {
   apply_gsettings_theme
   apply_gsettings_keyboard
   configure_firefox
+  configure_chrome
   add_user_to_video_group
 
   restart_dunst
