@@ -253,8 +253,8 @@ hl.config({
     -- do not expose their own transparency setting.
     decoration = {
         rounding = 14,
-        active_opacity = 0.80,
-        inactive_opacity = 0.70,
+        active_opacity = 0.90,
+        inactive_opacity = 0.80,
         fullscreen_opacity = 1.0,
         blur = {
             enabled = true,
@@ -314,21 +314,20 @@ hl.config({
     },
 })
 
--- decoration.active_opacity multiplies the client's own alpha, so the 0.80
--- glass that suits every other window would drag Ghostty's 0.92 (set in its
--- local.conf, see the Apps section) down to 0.74 and let the wallpaper back in.
--- Exempt it; its own alpha is the only one.
+-- Rule opacity multiplies the global decoration opacity unless overridden.
+-- Ghostty also applies its own background alpha from its Linux config.
 hl.window_rule({
     name = "ghostty-opacity",
     match = { class = "com.mitchellh.ghostty" },
     opacity = "1.0 1.0",
 })
 
--- Same exemption for kitty, which carries its own 0.92 from linux.conf.
+-- Preserve Kitty's previous compositor opacity independently of the defaults.
+-- Its own background alpha continues to apply as before.
 hl.window_rule({
     name = "kitty-opacity",
     match = { class = "kitty" },
-    opacity = "1.0 1.0",
+    opacity = "0.80 override 0.70 override 1.0 override",
 })
 
 -- Blur the wallpaper behind Quickshell's translucent island while ignoring the
