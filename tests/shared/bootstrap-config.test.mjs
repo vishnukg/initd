@@ -7,10 +7,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { readJsonFile, sameFlatObject, updateJsonFile } from '../shared/lib/json-file.mjs';
-import { configureStatusLine } from '../shared/lib/claude-statusline.mjs';
-import { configureDocker } from '../macos/docker-config.mjs';
-import { profilePath, setDefaultZoom } from '../linux/scripts/firefox-profile.mjs';
+import { readJsonFile, sameFlatObject, updateJsonFile } from '../../shared/lib/json-file.mjs';
+import { configureStatusLine } from '../../shared/lib/claude-statusline.mjs';
+import { configureDocker } from '../../macos/docker-config.mjs';
+import { profilePath, setDefaultZoom } from '../../linux/scripts/firefox-profile.mjs';
 
 const temporaryDir = t => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-bootstrap-config-'));

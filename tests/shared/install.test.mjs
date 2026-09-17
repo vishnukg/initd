@@ -7,12 +7,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { managedLinks } from '../shared/lib/managed-links.mjs';
-import { configureProfile } from '../shared/lib/git-profile.mjs';
-import { backupPath, installLink } from '../shared/lib/fs.mjs';
+import { managedLinks } from '../../shared/lib/managed-links.mjs';
+import { configureProfile } from '../../shared/lib/git-profile.mjs';
+import { backupPath, installLink } from '../../shared/lib/fs.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '../..');
 const platform = process.platform === 'darwin' ? 'macos' : process.platform === 'linux' ? 'linux' : null;
 if (!platform) throw new Error(`Unsupported platform: ${process.platform}`);
 const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-install-'));

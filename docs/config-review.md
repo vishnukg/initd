@@ -94,7 +94,7 @@ symlinks are in place; Linux setup changes take effect when applied on Linux.
 Run the regression suite again with:
 
 ```sh
-INITD_TEST_TMUX=1 node --test tests/*.test.mjs
+INITD_TEST_TMUX=1 node --test tests/linux/*.test.mjs tests/macos/*.test.mjs tests/shared/*.test.mjs
 ```
 
 On Fedora, also validate the native compositor and user units before checking

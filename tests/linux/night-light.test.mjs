@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { nightLight, scheduledState } from '../linux/scripts/night-light-toggle.mjs';
+import { nightLight, scheduledState } from '../../linux/scripts/night-light-toggle.mjs';
 
 function fixture({ active = false, stray = false, stuck = false, skipStart = false, failStop = false } = {}) {
     const calls = [];
@@ -188,7 +188,7 @@ test('the scheduled night-light command finds Node without it being on PATH', t 
     // Arrange
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-night-service-'));
     t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-    const root = fileURLToPath(new URL('..', import.meta.url));
+    const root = fileURLToPath(new URL('../..', import.meta.url));
     const shim = path.join(home, '.local/share/mise/shims/node');
     fs.mkdirSync(path.dirname(shim), { recursive: true });
     fs.writeFileSync(shim, '#!/bin/sh\nexec "$INITD_NODE" "$@"\n', { mode: 0o755 });

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { refresh, createStatusPublisher } from '../shared/configs/tmux/.config/tmux/tmux.mjs';
-import { agentPill, claudeValue } from '../shared/configs/tmux/.config/tmux/status-renderer.mjs';
+import { refresh, createStatusPublisher } from '../../shared/configs/tmux/.config/tmux/tmux.mjs';
+import { agentPill, claudeValue } from '../../shared/configs/tmux/.config/tmux/status-renderer.mjs';
 
 // Decode the same argv framing tmux receives, for readable batch assertions.
 function tmuxCommands(args) {

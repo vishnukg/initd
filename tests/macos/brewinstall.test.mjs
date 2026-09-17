@@ -5,9 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { main, parseArgs } from '../macos/brewinstall.mjs';
+import { main, parseArgs } from '../../macos/brewinstall.mjs';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
+const root = fileURLToPath(new URL('../..', import.meta.url));
 
 function fixture(t) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-conversion-'));

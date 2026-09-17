@@ -66,8 +66,8 @@ Re-running is safe and idempotent.
 | Remove managed symlinks | `node shared/lib/cleanup.mjs <macos\|linux> --dry-run` |
 | Add a brew formula/cask | `macos/brewinstall <name>` |
 | Update tools | `macos/update.sh` or `linux/update.sh` |
-| Run install behavior tests | `node --test tests/install.test.mjs` |
-| Run the full regression suite | `INITD_TEST_TMUX=1 node --test tests/*.test.mjs` |
+| Run install behavior tests | `node --test tests/shared/install.test.mjs` |
+| Run the full regression suite | `INITD_TEST_TMUX=1 node --test tests/linux/*.test.mjs tests/macos/*.test.mjs tests/shared/*.test.mjs` |
 
 See [Testing](docs/testing.md) for test organization and conventions.
 
@@ -156,7 +156,7 @@ Docker comes via Colima (no Docker Desktop): the `colima`, `docker`, `docker-com
 2. macOS-only: drop under `macos/configs/<name>/`, append to `MANAGED_LINKS` in `macos/managed-links.sh`.
 3. Linux-only: drop under `linux/configs/<name>/`, append in `linux/managed-links.sh`.
 
-Then re-run `node --test tests/install.test.mjs`.
+Then re-run `node --test tests/shared/install.test.mjs`.
 
 ## Reference docs
 
