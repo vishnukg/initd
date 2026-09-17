@@ -248,23 +248,23 @@ test('switching back to personal removes only the email override', async () => {
 
     // Act
     await configureProfile([], { override, interactive: false, log() {} });
-    const runResult = run('git', ['config', '--file', override, 'user.email']).trim();
+    const workEmail = run('git', ['config', '--file', override, 'user.email']).trim();
 
     // Assert
-    assert.equal(runResult, 'work@example.com');
+    assert.equal(workEmail, 'work@example.com');
 
     // Act
     await configureProfile(['personal'], { override, interactive: false, log() {} });
-    const spawnSyncResult = spawnSync('git', ['config', '--file', override, '--get', 'user.email']).status;
+    const lookupStatus = spawnSync('git', ['config', '--file', override, '--get', 'user.email']).status;
 
     // Assert
-    assert.equal(spawnSyncResult, 1);
+    assert.equal(lookupStatus, 1);
 
     // Act
-    const runResult2 = run('git', ['config', '--file', override, 'core.editor']).trim();
+    const editor = run('git', ['config', '--file', override, 'core.editor']).trim();
 
     // Assert
-    assert.equal(runResult2, 'nvim');
+    assert.equal(editor, 'nvim');
 });
 
 test('Linux manifest installs and cleans up in an isolated home on either host', () => {

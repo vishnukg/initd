@@ -1,20 +1,21 @@
 # Tests
 
 Run commands from the repository root. The suite requires Node.js with
-`node:sqlite` support and Fish; the full integration run also requires tmux.
-There is no dependency installation or build step for the tests.
+`node:sqlite` support; Fish and tmux are needed for the integration checks and
+those checks skip without them. There is no dependency installation or build
+step for the tests.
 
 Run the full suite, including isolated tmux servers and interactive Fish shells:
 
 ```sh
-INITD_TEST_TMUX=1 node --test tests/linux/*.test.mjs tests/macos/*.test.mjs tests/shared/*.test.mjs
+INITD_TEST_TMUX=1 node --test 'tests/**/*.test.mjs'
 ```
 
 The suite lives in the `tests/` directory, organized by platform and scope:
 
 | Directory | Scope |
 | --- | --- |
-| `tests/linux/` | Linux setup, Firefox, Chrome, audio, and night-light |
+| `tests/linux/` | Linux setup, Firefox, Chrome, audio, night-light, and the Quickshell bar logic |
 | `tests/macos/` | Homebrew and macOS bootstrap helpers |
 | `tests/shared/` | Cross-platform links, Fish, tmux, status, agents, and shared config helpers |
 
@@ -28,9 +29,19 @@ The individual files are organized as follows:
 | `shared/watcher-lifecycle.test.mjs` | Locks, atomic writes and real watcher takeover |
 | `linux/audio-ports.test.mjs` | Audio parsing and command-line behavior |
 | `macos/brewinstall.test.mjs` | Argument validation, Brewfile updates and failure handling |
+| `macos/bootstrap.test.mjs` | Cask stripping when an app already exists outside Homebrew |
+| `shared/fonts.test.mjs` | Private font sync: clone, update, and every warn-and-continue path |
+| `linux/bar-logic.test.mjs` | Weather icons and colours, load colours, audio device classification |
 
 The remaining files cover bootstrap configs, installation, Linux setup, Fish,
-night light, and enterprise quotas. Run an individual file with
+night light, and enterprise quotas.
+
+Checks that need a tool the host may not have are declared with `skip`, never
+left to fail at import: `tests/shared/fish-config.test.mjs` skips when Fish is
+absent, and the tmux integration checks skip without `INITD_TEST_TMUX=1`. A
+skipped check is reported as skipped, so a green run never means "ran nothing".
+
+Run an individual file with
 `node --test tests/<platform>/<name>.test.mjs`; enable `INITD_TEST_TMUX=1` for real tmux
 and terminal integration checks. Without it those checks are explicitly skipped.
 
@@ -39,6 +50,10 @@ runners, cache readers, battery readers, and cache cleanup. Use temporary homes
 for integration tests. Wait for observable readiness with a deadline instead of
 fixed sleeps, and retain real subprocess concurrency where races are the behavior
 being tested. Do not trade away those checks just to lower the runtime.
+
+Name what an Act returns for the role it plays in the assertion - `legacyDefault`,
+`claimAfterHolderDied`, `afterUnregistration`. A name that only counts calls
+(`fooResult2`) tells a later reader nothing about what went wrong.
 
 Tests use **Arrange, Act, Assert**:
 

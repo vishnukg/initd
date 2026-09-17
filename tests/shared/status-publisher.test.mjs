@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { refresh, createStatusPublisher } from '../../shared/configs/tmux/.config/tmux/tmux.mjs';
-import { agentPill, claudeValue } from '../../shared/configs/tmux/.config/tmux/status-renderer.mjs';
+import { agentPill, claudeValue, gitPill } from '../../shared/configs/tmux/.config/tmux/status-renderer.mjs';
 
 // Decode the same argv framing tmux receives, for readable batch assertions.
 function tmuxCommands(args) {
@@ -314,3 +314,61 @@ test('publisher retries option changes after a failed tmux batch', async () => {
     // Assert
     assert.equal(attempts, 2);
 });
+
+// The pill text sits between tmux style directives, so assertions read the
+// value out of the rendered pill rather than matching the whole escape soup.
+function pillText(rendered) {
+    return rendered.match(/#\[fg=#9aa5ce\](.*?) #\[/)?.[1] ?? null;
+}
+
+test('the Git pill falls back to a detached HEAD and renders nothing outside a repository', async () => {
+    // Arrange
+    const asked = [];
+    const repository = async (_command, args) => {
+        asked.push(args[2]);
+        return args.includes('symbolic-ref') ? 'main\n' : 'abc1234\n';
+    };
+    const detached = async (_command, args) => (args.includes('symbolic-ref') ? '' : 'abc1234\n');
+    const bare = async () => '';
+
+    // Act
+    const onBranch = await gitPill('/repo', repository);
+
+    // Assert
+    assert.equal(pillText(onBranch), 'main');
+    assert.deepEqual(asked, ['symbolic-ref'], 'a named branch must not also cost a rev-parse');
+
+    // Act
+    const detachedHead = await gitPill('/repo', detached);
+
+    // Assert
+    assert.equal(pillText(detachedHead), 'abc1234');
+
+    // Act
+    const outsideRepository = await gitPill('/tmp', bare);
+
+    // Assert
+    assert.equal(outsideRepository, '', 'a directory with no HEAD gets no pill at all');
+});
+
+for (const { name, branch, expected } of [
+    { name: 'a branch at the limit is untouched', branch: 'b'.repeat(28), expected: 'b'.repeat(28) },
+    { name: 'a longer branch is elided', branch: 'b'.repeat(29), expected: 'b'.repeat(27) + '…' },
+    // [...string] counts code points, so an astral branch name is measured in
+    // characters: counting UTF-16 units would elide this one at half its length.
+    { name: 'astral characters count once each', branch: '🌱'.repeat(28), expected: '🌱'.repeat(28) },
+    { name: 'astral characters are elided whole', branch: '🌱'.repeat(29), expected: '🌱'.repeat(27) + '…' },
+    // A '#' would open a tmux format specifier inside the status line.
+    { name: 'tmux formatting is stripped before measuring', branch: '#feature/one', expected: 'feature/one' },
+]) {
+    test(`Git pill: ${name}`, async () => {
+        // Arrange
+        const runCommand = async () => `${branch}\n`;
+
+        // Act
+        const rendered = await gitPill('/repo', runCommand);
+
+        // Assert
+        assert.equal(pillText(rendered), expected);
+    });
+}

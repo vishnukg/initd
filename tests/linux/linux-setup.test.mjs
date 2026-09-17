@@ -113,19 +113,19 @@ test('Firefox discovery respects legacy roots, XDG roots, and absolute paths', t
     const options = { home, configHome, run() { assert.fail('existing profile must not launch Firefox'); } };
 
     // Act
-    const findProfileDirectoryResult = findProfileDirectory(options);
+    const legacyDefault = findProfileDirectory(options);
 
     // Assert
-    assert.equal(findProfileDirectoryResult, path.join(legacy, 'legacy'));
+    assert.equal(legacyDefault, path.join(legacy, 'legacy'));
 
     // Arrange
     fs.unlinkSync(path.join(legacy, 'profiles.ini'));
 
     // Act
-    const findProfileDirectoryResult2 = findProfileDirectory(options);
+    const absoluteXdgDefault = findProfileDirectory(options);
 
     // Assert
-    assert.equal(findProfileDirectoryResult2, absolute);
+    assert.equal(absoluteXdgDefault, absolute);
 });
 
 test('Firefox zoom is skipped when running or process status is unavailable, and database errors are nonfatal', t => {
@@ -143,10 +143,10 @@ test('Firefox zoom is skipped when running or process status is unavailable, and
     // Act
     for (const result of [{ status: 0 }, { error: new Error('pgrep missing') }, { status: 1 }]) {
         // Act
-        const configureFirefoxResult = configureFirefox({ ...options, run: () => result });
+        const profileDirectory = configureFirefox({ ...options, run: () => result });
 
         // Assert
-        assert.equal(configureFirefoxResult, profile);
+        assert.equal(profileDirectory, profile);
     }
 
     // Assert
@@ -164,17 +164,17 @@ test('an unavailable Firefox install or failed initialization leaves the profile
     const options = { home, configHome: path.join(home, '.config'), warn: message => warnings.push(message) };
 
     // Act
-    const findProfileDirectoryResult = findProfileDirectory({ ...options, run: () => ({ error: { code: 'ENOENT' } }) });
+    const withoutFirefoxInstalled = findProfileDirectory({ ...options, run: () => ({ error: { code: 'ENOENT' } }) });
 
     // Assert
-    assert.equal(findProfileDirectoryResult, null);
+    assert.equal(withoutFirefoxInstalled, null);
     assert.deepEqual(warnings, []);
 
     // Act
-    const findProfileDirectoryResult2 = findProfileDirectory({ ...options, run: () => ({ status: 1 }) });
+    const afterFailedInitialization = findProfileDirectory({ ...options, run: () => ({ status: 1 }) });
 
     // Assert
-    assert.equal(findProfileDirectoryResult2, null);
+    assert.equal(afterFailedInitialization, null);
     assert.match(warnings[0], /could not initialize/);
     assert.equal(fs.existsSync(path.join(home, '.mozilla')), false);
 });
@@ -309,17 +309,17 @@ test('Docker menu distinguishes daemon failure from an empty container list', as
     };
 
     // Act
-    const dockerMenuResult = await dockerMenu(io);
+    const onDaemonFailure = await dockerMenu(io);
 
     // Assert
-    assert.equal(dockerMenuResult, false);
+    assert.equal(onDaemonFailure, false);
     assert.match(notices[0], /daemon unavailable/);
 
     // Act
-    const dockerMenuResult2 = await dockerMenu({ ...io, run: async () => '' });
+    const onEmptyContainerList = await dockerMenu({ ...io, run: async () => '' });
 
     // Assert
-    assert.equal(dockerMenuResult2, true);
+    assert.equal(onEmptyContainerList, true);
     assert.equal(notices[1], 'No running containers');
 });
 
@@ -333,17 +333,17 @@ test('Docker menu launches logs and rejects selections outside its list', async 
     };
 
     // Act
-    const dockerMenuResult = await dockerMenu(io);
+    const afterChoosingLogs = await dockerMenu(io);
 
     // Assert
-    assert.equal(dockerMenuResult, true);
+    assert.equal(afterChoosingLogs, true);
     assert.deepEqual(launched, [['docker', 'logs', '-f', '--tail', '200', 'web']]);
 
     // Act
-    const dockerMenuResult2 = await dockerMenu({ ...io, choose: async () => '--all' });
+    const afterAnInvalidSelection = await dockerMenu({ ...io, choose: async () => '--all' });
 
     // Assert
-    assert.equal(dockerMenuResult2, false);
+    assert.equal(afterAnInvalidSelection, false);
     assert.equal(launched.length, 1, 'an invalid selection must not launch another terminal');
 });
 

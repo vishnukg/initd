@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
+import "bar-logic.mjs" as BarLogic
 
 Scope {
     id: root
@@ -74,24 +75,11 @@ Scope {
     // Order matters: HDMI and USB endpoints are ALSA devices too, so they have
     // to be recognised before the generic alsa_ test claims them as built-in.
     function deviceKind(node) {
-        const name = (node.name || "").toLowerCase();
-        if (name.indexOf("bluez") !== -1)
-            return "Bluetooth";
-        if (name.indexOf("raop") !== -1)
-            return "AirPlay";
-        if (name.indexOf("hdmi") !== -1 || name.indexOf("displayport") !== -1)
-            return "HDMI";
-        if (name.indexOf("usb") !== -1)
-            return "USB";
-        if (name.indexOf("alsa_") !== -1)
-            return "Built-in";
-        return "Virtual";
+        return BarLogic.deviceKind(node.name);
     }
 
     function kindRank(node) {
-        const order = ["Built-in", "USB", "HDMI", "Bluetooth", "AirPlay", "Virtual"];
-        const index = order.indexOf(root.deviceKind(node));
-        return index === -1 ? order.length : index;
+        return BarLogic.kindRank(node.name);
     }
 
     function deviceIcon(node, isOutput) {
