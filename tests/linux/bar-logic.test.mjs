@@ -2,11 +2,15 @@
 // so it is reachable from `node --test`. Glyphs stay as \u escapes: they are
 // Private Use Area code points that editors and terminals silently drop.
 import { test } from 'node:test';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import {
     clockMinutes, isNight, weatherIcon, weatherCelsius, weatherColor,
     loadColor, deviceKind, kindRank, KIND_ORDER,
 } from '../../linux/configs/quickshell/bar-logic.mjs';
+import * as BarLogic from '../../linux/configs/quickshell/bar-logic.mjs';
 
 const THUNDER = '\u{f0593}', THUNDER_WET = '\u{f067e}', ICE = '\u{f0592}', FOG = '\u{f0591}';
 const MIST = '\u{f0f30}', SLEET = '\u{f067f}', BLIZZARD = '\u{f0f36}', SNOW = '\u{f0598}';
@@ -249,4 +253,34 @@ test('endpoints are ranked so the built-in speaker keeps a stable position', () 
     // Assert
     assert.deepEqual(ordered, KIND_ORDER);
     assert.deepEqual(KIND_ORDER, ['Built-in', 'USB', 'HDMI', 'Bluetooth', 'AirPlay', 'Virtual']);
+});
+
+test('every BarLogic call site in the QML resolves to an export', () => {
+    // Arrange
+    // QML resolves these at call time: a renamed export fails as an undefined
+    // call in Quickshell's log, not as an error anyone sees on the bar. Nothing
+    // else in this suite reaches the QML side of the boundary.
+    const shell = fileURLToPath(new URL('../../linux/configs/quickshell', import.meta.url));
+    const exported = new Set(Object.keys(BarLogic));
+    const consumers = fs.readdirSync(shell).filter(name => name.endsWith('.qml'));
+
+    // Act
+    const called = consumers.flatMap(name => {
+        const source = fs.readFileSync(path.join(shell, name), 'utf8');
+        return [...source.matchAll(/BarLogic\.(\w+)/g)].map(match => ({ file: name, symbol: match[1] }));
+    });
+
+    // Assert
+    assert.ok(called.length > 0, 'the QML still calls into bar-logic.mjs');
+    for (const { file, symbol } of called) {
+        assert.ok(exported.has(symbol), `${file} calls BarLogic.${symbol}, which bar-logic.mjs does not export`);
+    }
+
+    // Assert: a QML file importing the module but calling nothing is a broken
+    // extraction, not a passing one.
+    for (const name of consumers) {
+        const source = fs.readFileSync(path.join(shell, name), 'utf8');
+        if (!/import\s+"bar-logic\.mjs"/.test(source)) continue;
+        assert.ok(called.some(entry => entry.file === name), `${name} imports bar-logic.mjs but calls nothing from it`);
+    }
 });

@@ -106,3 +106,79 @@ test('audio CLI uses JSON pactl output and clears stale state on subprocess fail
     // Assert
     assert.equal(withoutPactlInstalled, 1);
 });
+
+// pactl is a declared dependency of the Linux session, but a host without it
+// skips rather than failing - the same guard the Fish and tmux checks use.
+const locatedPactl = spawnSync('which', ['pactl'], { encoding: 'utf8' });
+const noPactl = locatedPactl.status !== 0 && 'pactl is not installed';
+
+test('cards whose ports arrive in an unrecognized shape are reported, not silently dropped', () => {
+    // Arrange
+    // Every other test feeds parsePorts a shape it understands. This is the
+    // drift case: pactl changes `ports` to an array, every lookup fails open,
+    // and without this warning the bar just shows every endpoint forever.
+    const cards = [{ ports: [{ name: '[Out] HDMI1' }] }, { ports: 'unexpected' }];
+    const warnings = [];
+
+    // Act
+    const ports = parsePorts(cards, message => warnings.push(message));
+
+    // Assert
+    assert.deepEqual(Object.keys(ports), []);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /2 card\(s\) carry ports in an unrecognized shape/);
+});
+
+test('a recognized card silences the drift warning even when another card is unreadable', () => {
+    // Arrange
+    const cards = [{ ports: ['unexpected'] }, { ports: { '[Out] Speaker': { availability: 'availability unknown' } } }];
+    const warnings = [];
+
+    // Act
+    const ports = parsePorts(cards, message => warnings.push(message));
+
+    // Assert
+    assert.deepEqual(Object.keys(ports), ['Speaker']);
+    assert.deepEqual(warnings, []);
+});
+
+test('the installed pactl still emits the card JSON parsePorts is written against', { skip: noPactl }, () => {
+    // Arrange
+    // The unit tests above prove the parser is self-consistent against fixtures
+    // this repo wrote. Only this one notices when a pactl update invalidates the
+    // assumptions those fixtures encode.
+    const output = spawnSync('pactl', ['--format=json', 'list', 'cards'], {
+        encoding: 'utf8', timeout: 10000, env: { ...process.env, LC_ALL: 'C' },
+    });
+
+    // Assert
+    assert.equal(output.status, 0, output.stderr);
+
+    // Act
+    const cards = JSON.parse(output.stdout);
+    const carded = cards.filter(card => card?.ports && Object.keys(card.ports).length > 0);
+
+    // Assert
+    assert.ok(Array.isArray(cards), 'the top level is still an array of cards');
+    assert.ok(carded.length > 0, 'this host exposes at least one card with ports');
+    for (const card of carded) {
+        assert.ok(!Array.isArray(card.ports), 'ports is an object keyed by port name, not an array');
+        for (const [key, port] of Object.entries(card.ports)) {
+            assert.match(key, /^\[(?:Out|In)\] /, 'port keys still carry the direction prefix parsePorts strips');
+            assert.equal(typeof port.availability, 'string', 'availability is the string "not available" is compared against');
+        }
+    }
+
+    // Act
+    const warnings = [];
+    const ports = parsePorts(cards, message => warnings.push(message));
+
+    // Assert
+    assert.deepEqual(warnings, [], 'every card on this host parses');
+    assert.ok(Object.keys(ports).length > 0, 'real output yields at least one port token');
+    for (const [token, port] of Object.entries(ports)) {
+        assert.doesNotMatch(token, /^\[/, 'the direction prefix is stripped from the joined token');
+        assert.equal(typeof port.attached, 'boolean');
+        assert.equal(typeof port.name, 'string');
+    }
+});
