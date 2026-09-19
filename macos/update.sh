@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 source "${ROOT_DIR}/shared/lib/logging.sh"
+source "${ROOT_DIR}/macos/brewfile.sh"
+BREWFILE="${ROOT_DIR}/macos/Brewfile"
+brewfile_tmp=""
 
 usage() {
   cat <<EOF
@@ -47,8 +50,12 @@ main() {
   log "Updating Homebrew metadata..."
   brew update
 
+  brewfile_tmp="$(mktemp)"
+  trap 'rm -f "${brewfile_tmp}" "${brewfile_tmp}.tmp"' EXIT
+  prepare_brewfile
+
   log "Installing any new Brewfile entries..."
-  brew bundle --file "${ROOT_DIR}/macos/Brewfile"
+  brew bundle --file "${brewfile_tmp}"
 
   log "Upgrading Homebrew formulae and casks..."
   brew upgrade
@@ -73,4 +80,6 @@ main() {
   log_success "Machine update complete."
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

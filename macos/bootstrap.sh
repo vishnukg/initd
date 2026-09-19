@@ -9,8 +9,6 @@ MACOS_DIR="${ROOT_DIR}/macos"
 SHARED_DIR="${ROOT_DIR}/shared"
 
 BREWFILE="${MACOS_DIR}/Brewfile"
-CHROME_CASK="google-chrome"
-CHROME_APP="/Applications/Google Chrome.app"
 
 # Exported so shared/lib/link.sh reuses the same timestamped folder.
 export BACKUP_ROOT="${BACKUP_ROOT:-${HOME}/.config/initd-backups/$(date +%Y%m%d%H%M%S).$$}"
@@ -19,12 +17,21 @@ export BACKUP_ROOT="${BACKUP_ROOT:-${HOME}/.config/initd-backups/$(date +%Y%m%d%
 source "${SHARED_DIR}/lib/logging.sh"
 # shellcheck disable=SC1091
 source "${SHARED_DIR}/managed-links.sh"
+# shellcheck disable=SC1091
+source "${MACOS_DIR}/brewfile.sh"
 
 brewfile_tmp=""
 
 ensure_user_context() {
   if [[ "${EUID}" == "0" ]]; then
     log_error "Do not run bootstrap with sudo. It manages files and login shell settings for your normal user."
+    exit 1
+  fi
+}
+
+ensure_supported_platform() {
+  if [[ "$(uname -s)" != Darwin || "$(uname -m)" != arm64 ]]; then
+    log_error "macOS bootstrap requires Apple Silicon in a native arm64 shell (Homebrew at /opt/homebrew)."
     exit 1
   fi
 }
@@ -120,20 +127,6 @@ ensure_gh_auth() {
   gh auth login
 }
 
-# Drop a cask from the temp Brewfile when its app already lives outside Homebrew,
-# so brew bundle doesn't fail trying to install into an already-occupied path.
-strip_cask_if_app_exists() {
-  local cask="$1" app="$2"
-
-  if [[ -d "${app}" ]] && ! brew list --cask "${cask}" >/dev/null 2>&1; then
-    log_warn "Skipping ${cask} cask: ${app} already exists outside Homebrew."
-    if grep -Ev "^[[:space:]]*cask[[:space:]]+[\"']${cask}[\"'][[:space:]]*$" \
-        "${brewfile_tmp}" > "${brewfile_tmp}.tmp" && [[ -s "${brewfile_tmp}.tmp" ]]; then
-      mv "${brewfile_tmp}.tmp" "${brewfile_tmp}"
-    fi
-  fi
-}
-
 # Two settings the docker formula needs that Docker Desktop used to provide:
 # credsStore=osxkeychain so `docker login` stores tokens in the Keychain, and
 # cliPluginsExtraDirs so the CLI finds brew-installed plugins (docker compose).
@@ -180,7 +173,7 @@ ensure_colima_service() {
 ensure_local_fonts() {
   local src_dir="${SHARED_DIR}/fonts/berkeley-mono"
   local dst_dir="${HOME}/Library/Fonts"
-  local src dst copied=0
+  local src dst temporary copied=0
 
   if [[ ! -d "${src_dir}" ]]; then
     log "No machine-local fonts to install (${src_dir} absent) — skipping."
@@ -192,8 +185,16 @@ ensure_local_fonts() {
   for src in "${src_dir}"/*.otf; do
     [[ -e "${src}" ]] || continue
     dst="${dst_dir}/$(basename "${src}")"
-    if [[ ! -f "${dst}" ]] || ! cmp -s "${src}" "${dst}"; then
-      cp "${src}" "${dst}"
+    if [[ -L "${dst}" || ! -f "${dst}" ]] || ! cmp -s "${src}" "${dst}"; then
+      # Replace old symlinks as well as stale copies. Writing directly to dst
+      # would follow the symlink and leave CoreText unable to register it.
+      temporary="$(mktemp "${dst_dir}/.initd-font.XXXXXX")"
+      if ! cp "${src}" "${temporary}" || ! chmod 644 "${temporary}" \
+          || ! mv -f "${temporary}" "${dst}"; then
+        rm -f "${temporary}"
+        log_error "Failed to install font: ${dst}"
+        return 1
+      fi
       copied=$((copied + 1))
     fi
   done
@@ -258,6 +259,7 @@ setup_git_profile() {
 
 main() {
   ensure_user_context
+  ensure_supported_platform
 
   if [[ ! -f "${BREWFILE}" ]]; then
     log_error "Brewfile not found: ${BREWFILE}"
@@ -275,8 +277,7 @@ main() {
 
   # Drop casks whose apps already exist outside Homebrew so brew bundle doesn't
   # fail trying to install into an already-occupied path.
-  cp "${BREWFILE}" "${brewfile_tmp}"
-  strip_cask_if_app_exists "${CHROME_CASK}" "${CHROME_APP}"
+  prepare_brewfile
 
   log "Installing Homebrew packages and casks..."
   brew bundle --file "${brewfile_tmp}"
@@ -296,6 +297,12 @@ main() {
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" macos
 
+  log "Trusting shared mise config."
+  mise -C "${ROOT_DIR}" trust "${SHARED_DIR}/configs/mise/.config/mise/config.toml"
+
+  log "Installing shared runtimes and LSP tooling with mise..."
+  mise -C "${ROOT_DIR}" install --yes
+
   log "Configuring Claude Code's statusLine hook for the tmux usage pill..."
   mise -C "${ROOT_DIR}" exec -- node "${SHARED_DIR}/lib/claude-statusline.mjs"
 
@@ -307,12 +314,6 @@ main() {
 
   log "Ensuring fish shell is configured..."
   ensure_fish
-
-  log "Trusting shared mise config."
-  mise trust "${SHARED_DIR}/configs/mise/.config/mise/config.toml"
-
-  log "Installing shared runtimes and LSP tooling with mise..."
-  mise -C "${ROOT_DIR}" install --yes
 
   log "Applying macOS defaults..."
   "${MACOS_DIR}/defaults.sh"

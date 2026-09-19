@@ -12,6 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // import time, which reports as an error with no indication of the cause.
 const located = spawnSync('which', ['fish'], { encoding: 'utf8' });
 const fish = located.status === 0 ? located.stdout.trim() : '';
+const noTmux = spawnSync('tmux', ['-V']).status !== 0 && 'tmux is not installed';
 const noFish = fish === '' && 'fish is not installed';
 const source = path.join(__dirname, '../../shared/configs/fish/.config/fish/config.fish');
 const plain = value => value.replace(/\x1b\[[0-9;]* q/g, '').trim();
@@ -97,7 +98,7 @@ test('non-TTY interactive shells never attempt tmux auto-attach', { skip: noFish
     // Assert
     assert.equal(shellOutput, 'ready');
 });
-test('tmux server-side selection gives concurrent clients separate sessions', { skip: noFish || process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
+test('tmux server-side selection gives concurrent clients separate sessions', { skip: noFish || noTmux || process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
     // Arrange
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-fish-tmux-'));
     const socket = path.join(root, 'socket');
@@ -175,7 +176,7 @@ async function waitUntil(predicate, description) {
         await delay(25);
     }
 }
-test('the shell closes the terminal when tmux exits cleanly', { skip: noFish || process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
+test('the shell closes the terminal when tmux exits cleanly', { skip: noFish || noTmux || process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
     // Arrange
     const tmuxScript = '#!/bin/sh\n: > "$HOME/tmux-invoked"\nexit 0\n';
 
@@ -187,7 +188,7 @@ test('the shell closes the terminal when tmux exits cleanly', { skip: noFish || 
     assert.equal(shell.tmuxWasInvoked(), true, 'the shell must exercise auto-attach before exiting');
     assert.equal(shell.alive(), false, 'killing the last tmux window must close the terminal, not drop to Fish');
 });
-test('a failed tmux leaves a usable shell rather than closing the terminal', { skip: noFish || process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
+test('a failed tmux leaves a usable shell rather than closing the terminal', { skip: noFish || noTmux || process.env.INITD_TEST_TMUX !== '1', timeout: 15000 }, async t => {
     // Arrange
     const tmuxScript = '#!/bin/sh\n: > "$HOME/tmux-invoked"\nexit 1\n';
 
