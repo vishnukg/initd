@@ -290,8 +290,8 @@ test('schema 10 is newer than schema 8, though alphabetic sorting says otherwise
 // The kernel reuses pids, so rows that predate this process are not its own,
 // and a process whose start time will not parse can never be matched at all.
 for (const { name, patch, transcript } of [
-    { name: 'a reused pid ignores rows recorded before it started', patch: { pid: 99 }, transcript: 'started' },
-    { name: 'a reused pid learns nothing from the session_init line either', patch: { pid: 99 }, transcript: 'fresh' },
+    { name: 'a reused pid ignores rows recorded before it started', patch: { start: 'Thu Sep 10 01:36:11 2026' }, transcript: 'started' },
+    { name: 'a reused pid learns nothing from the session_init line either', patch: { start: 'Thu Sep 10 01:36:11 2026' }, transcript: 'fresh' },
     { name: 'an unparseable process start time matches nothing', patch: { start: 'unknown' }, transcript: 'started' },
 ]) {
     test(`Codex SQLite fallback: ${name}`, async t => {

@@ -73,6 +73,7 @@ test('updateJsonFile preserves mtime when the config has not changed', t => {
     // Arrange
     const file = path.join(temporaryDir(t), 'config.json');
     fs.writeFileSync(file, '{"added":1}', { mode: 0o600 });
+    fs.utimesSync(file, 1_600_000_000, 1_600_000_000);
     const before = fs.statSync(file).mtimeMs;
 
     // Act

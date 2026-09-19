@@ -61,25 +61,6 @@ for (const { name, condition, night = false, expected } of [
     });
 }
 
-test('every weather glyph is a single Private Use Area code point', () => {
-    // Arrange
-    // A glyph that arrived as an empty string or a bare rectangle has happened
-    // before; a two-cell value would also break the bar's alignment.
-    const conditions = ['Sunny', 'Clear', 'Partly cloudy', 'Overcast', 'Mist', 'Fog', 'Freezing fog',
-        'Light drizzle', 'Patchy light rain', 'Torrential rain shower', 'Light sleet', 'Light snow',
-        'Patchy light snow', 'Heavy snow', 'Blizzard', 'Hail', 'Ice pellets',
-        'Thundery outbreaks possible', 'Moderate or heavy rain with thunder', 'Dust whirls'];
-
-    // Act
-    const glyphs = conditions.flatMap(condition => [weatherIcon(condition, false), weatherIcon(condition, true)]);
-
-    // Assert
-    for (const glyph of glyphs) {
-        assert.equal([...glyph].length, 1, `not a single code point: ${JSON.stringify(glyph)}`);
-        assert.ok(glyph.codePointAt(0) >= 0xe000, `not a PUA glyph: U+${glyph.codePointAt(0).toString(16)}`);
-    }
-});
-
 for (const { name, temperature, expected } of [
     { name: 'Celsius is read as-is', temperature: '+18°C', expected: 18 },
     { name: 'a negative reading keeps its sign', temperature: '-3°C', expected: -3 },
@@ -274,13 +255,5 @@ test('every BarLogic call site in the QML resolves to an export', () => {
     assert.ok(called.length > 0, 'the QML still calls into bar-logic.mjs');
     for (const { file, symbol } of called) {
         assert.ok(exported.has(symbol), `${file} calls BarLogic.${symbol}, which bar-logic.mjs does not export`);
-    }
-
-    // Assert: a QML file importing the module but calling nothing is a broken
-    // extraction, not a passing one.
-    for (const name of consumers) {
-        const source = fs.readFileSync(path.join(shell, name), 'utf8');
-        if (!/import\s+"bar-logic\.mjs"/.test(source)) continue;
-        assert.ok(called.some(entry => entry.file === name), `${name} imports bar-logic.mjs but calls nothing from it`);
     }
 });

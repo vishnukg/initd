@@ -56,6 +56,10 @@ The dispatcher runs `macos/bootstrap.sh` on Darwin and `linux/bootstrap.sh` on L
 
 Re-running is safe and idempotent.
 
+The macOS bootstrap targets **Apple Silicon**, with Homebrew at `/opt/homebrew`.
+Run it from a native arm64 shell. If Command Line Tools are missing, it launches
+their installer and asks you to rerun after installation completes.
+
 ## Common tasks
 
 | Action | Command |
@@ -67,6 +71,8 @@ Re-running is safe and idempotent.
 | Add a brew formula/cask | `macos/brewinstall <name>` |
 | Update tools | `macos/update.sh` or `linux/update.sh` |
 | Run install behavior tests | `node --test tests/shared/install.test.mjs` |
+| Run macOS + shared tests | `./macos/test.sh` |
+| Run Linux + shared tests | `./linux/test.sh` |
 | Run the full regression suite | `INITD_TEST_TMUX=1 node --test tests/linux/*.test.mjs tests/macos/*.test.mjs tests/shared/*.test.mjs` |
 
 See [Testing](docs/testing.md) for test organization and conventions.
@@ -132,6 +138,18 @@ before initd takes ownership. Nothing is deleted.
 `.gitattributes` enforces LF for `*.sh`, `*.fish`, `*.conf`, `*.ini`, etc. so commits from any host (including Windows) land as LF — the only line-ending bash and `/etc/`-style configs accept on macOS/Linux.
 
 ## macOS — Homebrew specifics
+
+Bootstrap and update leave manually installed apps in `/Applications` or
+`~/Applications` under their existing owner's control. They exclude those apps
+from a temporary Brewfile while retaining Homebrew-owned apps and all missing
+apps. This covers 1Password, BetterDisplay, Chrome, Ghostty, kitty, and iTerm;
+the repository's Brewfile stays unchanged. Such manually installed apps continue
+to use their own update mechanism.
+
+After linking configs, bootstrap trusts and installs the mise toolchain before
+configuring hooks and syncing Fish plugins. Existing font symlinks are replaced
+with real copies. Optional private fonts still require access through `gh`;
+rerun bootstrap after authenticating to install them.
 
 `macos/brewinstall <name>` detects whether the package is a formula or cask, appends it to `macos/Brewfile`, and runs `brew bundle`. This JavaScript command requires Node from the completed mise setup. Use `--formula` or `--cask` for ambiguous names. Existing entries, including lines with inline comments or options, are preserved; a failed install leaves the entry available for retry. `brew bundle dump --force --file macos/Brewfile` exports the current machine's state if you want a starting point — review carefully before committing.
 
