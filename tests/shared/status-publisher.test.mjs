@@ -165,8 +165,10 @@ test('a pane path of exactly ";" is escaped so it cannot split the command seque
 
     const commands = tmuxCommands(sent);
 
-    assert.equal(sent.filter(arg => arg === ';').length, commands.length - 1,
-        'one separator between commands, none extra');
+    assert.ok(commands.every(args => args[0] === 'set-option'),
+        'a value must not become a separate tmux command');
+    assert.deepEqual(commands.find(args => args.includes('@initd-directory')),
+        ['set-option', '-p', '-t', '%1', '@initd-directory', '\\;']);
 });
 
 test('a tmux-allocated numeric session is renamed; a chosen name is left alone', async () => {

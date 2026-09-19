@@ -1,5 +1,45 @@
 # initd configuration review — 2026-09-12
 
+## macOS bootstrap follow-up — 2026-09-19
+
+Reviewed the fresh-machine path and repeat runs on an existing Apple Silicon
+Mac. Fixed these inconsistencies:
+
+- The existing-Chrome filter did not match its inline Brewfile comment. The
+  shared Brewfile preparation helper now handles comments and all six managed
+  GUI apps in both `/Applications` and `~/Applications`. Bootstrap and update
+  use the same helper; missing apps and Homebrew-owned apps remain in the bundle.
+- Bootstrap now trusts and installs the mise toolchain immediately after linking
+  configs, before hooks and Fish plugins need those tools. This makes dependency
+  ordering explicit instead of relying on existing installations or
+  [mise's automatic installation during exec](https://mise.jdx.dev/dev-tools/).
+- Existing working or broken font symlinks now become real files through a
+  temporary copy and rename. Their old targets are not overwritten.
+- Unsupported architectures fail before installation rather than failing later
+  against the hard-coded Apple Silicon Homebrew prefix.
+
+Validation: `./macos/test.sh` passed all 207 tests with no skips, including real
+isolated tmux integration. Added behavior checks for fresh/repeat ordering,
+existing application ownership, font symlink migration, architecture checks,
+and update's temporary Brewfile cleanup. Changed shell files pass Bash syntax
+checks.
+
+Read-only checks on the existing Mac confirmed all ten managed links, satisfied
+Homebrew dependencies, no missing mise tools, Fish as the saved login shell,
+Fisher and its fzf plugin, modern tmux terminfo, all ten private font copies,
+the intended keyboard defaults, and private Docker/Claude JSON configs. Colima's
+login service and Docker are running; the default VM has 4 CPUs, 4 GiB memory,
+60 GiB disk, aarch64, and virtiofs, matching the managed template's core settings.
+
+No full bootstrap or upgrade was run against the host. A clean macOS installation
+was simulated with isolated fixtures, not provisioned as a real machine. The
+workflow still needs admin access and downloads, and missing Command Line Tools
+require finishing Apple's installer before rerunning. Private fonts depend on
+repository access. Existing Colima profiles retain their settings and data;
+the template configures new profiles rather than forcibly rebuilding old VMs.
+
+## Earlier review
+
 The available automated checks pass on the Mac after the fixes below. The
 review covers the JavaScript helpers, bootstrap/update/link/cleanup paths,
 terminal and shell configuration, Neovim, and the Linux desktop configuration.

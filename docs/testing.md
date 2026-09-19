@@ -2,10 +2,26 @@
 
 Run commands from the repository root. The suite requires Node.js with
 `node:sqlite` support; Fish and tmux are needed for the integration checks and
-those checks skip without them. There is no dependency installation or build
-step for the tests.
+those checks skip without them. The live Linux contract checks need the relevant
+audio/display session running when its binary is installed. There is no dependency
+installation or build step for the tests.
 
-Run the full suite, including isolated tmux servers and interactive Fish shells:
+Run a platform's tests together with the shared tests:
+
+```sh
+./linux/test.sh
+./macos/test.sh
+```
+
+Both scripts work from any directory and enable isolated tmux integration checks
+by default. Set `INITD_TEST_TMUX=0` to skip those checks. Extra arguments are passed
+to Node's test runner, for example:
+
+```sh
+./macos/test.sh --test-name-pattern='cache sweep'
+```
+
+Run both platforms together, including isolated tmux servers and interactive Fish shells:
 
 ```sh
 INITD_TEST_TMUX=1 node --test 'tests/**/*.test.mjs'
@@ -29,7 +45,7 @@ The individual files are organized as follows:
 | `shared/watcher-lifecycle.test.mjs` | Locks, atomic writes and real watcher takeover |
 | `linux/audio-ports.test.mjs` | Audio parsing and command-line behavior |
 | `macos/brewinstall.test.mjs` | Argument validation, Brewfile updates and failure handling |
-| `macos/bootstrap.test.mjs` | Cask stripping, font install, terminfo compile, colima service ownership, gh auth, Git identity, and `update.sh` arguments |
+| `macos/bootstrap.test.mjs` | Fresh/repeat bootstrap ordering, existing apps, font migration, terminfo, Colima service ownership, gh auth, Git identity, and update orchestration |
 | `shared/fonts.test.mjs` | Private font sync: clone, update, and every warn-and-continue path |
 | `linux/bar-logic.test.mjs` | Weather icons and colours, load colours, audio device classification, QML call sites |
 | `linux/display-menu.test.mjs` | The `hyprmoncfg status --json` contract DisplayMenu.qml parses |
@@ -40,9 +56,9 @@ night light, and enterprise quotas.
 Fixtures prove a parser is self-consistent; they cannot notice the day the tool
 feeding it changes its output. Parsers for another program's output therefore
 carry a **contract check** beside the unit tests: it runs the real binary, asserts
-only the shape assumptions the parser depends on (`pactl`’s port objects and
-direction prefixes, `hyprmoncfg`’s `schema_version`), and skips when the binary
-is absent. Keep those assertions to what the consumer actually reads, so a
+only the shape assumptions the parser depends on (`pactl`’s port objects,
+optional availability strings, and the display/profile fields read by the menu),
+and skips when the binary is absent. Keep those assertions to what the consumer actually reads, so a
 harmless new field in the tool never fails the suite.
 
 Checks that need a tool the host may not have are declared with `skip`, never
@@ -105,3 +121,18 @@ test('a non-agent command has no agent pill', () => {
     assert.equal(rendered, '');
 });
 ```
+
+A test must identify the regression it catches. Use expected values independent
+of production constants and construct fixtures that actually reach the named
+failure: a reused PID needs matching old records, not an absent PID. Assert real
+side effects as well as reported results, and require fresh publication after
+watcher takeover rather than accepting the previous owner's cached output.
+Pin file timestamps in the past when checking that a write did not happen.
+
+Remove assertions implied by stronger checks (such as checking glyph shape after
+asserting the exact glyph), and avoid prescribing implementation details with no
+observable consequence. Source checks at the QML boundary are limited wiring
+checks, not evidence that the UI runs correctly. Live contracts must allow valid
+empty profiles and hardware variations; never require fields the consumer does
+not read. When strengthening a regression test, deliberately break the relevant
+behavior in a disposable copy and confirm the test fails for the intended reason.

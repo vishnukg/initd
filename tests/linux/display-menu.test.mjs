@@ -20,23 +20,17 @@ function status() {
 }
 
 test('hyprmoncfg still speaks the status schema DisplayMenu is written against', { skip: noHyprmoncfg }, () => {
-    // Arrange
-    // hyprmoncfg versions its own output, so the cheapest possible drift alarm
-    // is to pin the number and let a bump fail here rather than in the bar.
-    const expectedSchema = 1;
-
     // Act
     const reading = status();
 
-    // Assert
-    assert.equal(reading.schema_version, expectedSchema,
-        `hyprmoncfg ${reading.version} changed its status schema; re-read DisplayMenu.qml's parse block`);
+    // Assert: schema version is not consumed by the menu; compatible additions
+    // must not fail the contract just because the producer bumps a number.
     assert.equal(typeof reading.daemon?.running, 'boolean', 'the daemon pill reads daemon.running');
     assert.ok(Array.isArray(reading.profiles), 'the Profiles section iterates status.profiles');
     assert.ok(Array.isArray(reading.monitors), 'the Displays section iterates status.monitors');
 });
 
-test('every field the Displays and Profiles sections read is present on this host', { skip: noHyprmoncfg }, () => {
+test('every field the Displays and Profiles sections read is present on this host', { skip: noHyprmoncfg }, t => {
     // Arrange
     const reading = status();
 
@@ -45,7 +39,12 @@ test('every field the Displays and Profiles sections read is present on this hos
     const profiles = reading.profiles;
 
     // Assert
-    assert.ok(monitors.length > 0, 'a running session has at least one monitor');
+    assert.ok(Array.isArray(monitors));
+    assert.ok(Array.isArray(profiles));
+    if (!monitors.length && !profiles.length) {
+        t.skip('no monitors or saved profiles to check field contracts');
+        return;
+    }
     for (const monitor of monitors) {
         // monitorLabel() falls back make -> model -> name, and the mode tag is
         // built from width/height/refresh_rate/scale.
@@ -61,12 +60,14 @@ test('every field the Displays and Profiles sections read is present on this hos
         }
     }
 
-    assert.ok(profiles.length > 0, 'at least one saved profile to switch between');
+    // An empty profile list is supported: the menu displays its setup hint.
+    if (!profiles.length) t.diagnostic('no saved profiles; profile fields were not exercised');
     for (const profile of profiles) {
         // activeProfile and the recommendation marker key off exactly these.
         assert.equal(typeof profile.name, 'string');
         assert.equal(typeof profile.active, 'boolean');
         assert.equal(typeof profile.recommended, 'boolean');
+        assert.equal(typeof profile.output_count, 'number', 'profileTag displays the output count');
     }
     assert.ok(profiles.filter(profile => profile.active).length <= 1, 'at most one profile is active');
 });

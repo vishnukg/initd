@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawn, execFileSync } from 'node:child_process';
+import { spawn, spawnSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { claimWatcherLock, releaseWatcherLock, sweepCache, lockPath, watcherLockPath } from '../../shared/configs/tmux/.config/tmux/tmux.mjs';
 
+const noTmux = spawnSync('tmux', ['-V']).status !== 0 && 'tmux is not installed';
 const helper = fileURLToPath(new URL('../../shared/configs/tmux/.config/tmux/tmux.mjs', import.meta.url));
 
 test('concurrent writers leave one complete cache value and no temporary files', { timeout: 5000 }, async t => {
@@ -161,21 +162,23 @@ test('a watcher releases only its own lock', () => {
     assert.equal(releaseAgain, false, 'releasing twice is a no-op');
 });
 
-test('the cache sweep leaves the watcher lock alone', () => {
+test('the cache sweep deletes stale files while preserving locks and live owners', () => {
     // Arrange
-    const names = ['watcher.lock', path.basename(lockPath), 'pane-1-2', 'stray-file'];
+    const names = ['watcher.lock', path.basename(lockPath), 'pane-1-2', 'pane-1-3',
+        'pane-20-4', 'pane-30-5', 'claude-20.json', 'claude-30.json', 'writing.tmp', 'stray-file'];
+    const deletions = [];
 
     // Act
     const removed = sweepCache('1', new Set(['2']), {
         readdir: () => names,
-        remove: () => {},
-        alive: () => false,
+        remove: name => deletions.push(name),
+        alive: pid => pid === 20,
     });
 
     // Assert
-    // pane-1-2 backs a live pane; stray-file is unrecognised and therefore dead.
-    assert.deepEqual(removed, ['stray-file'], 'sweeping the lock would unseat the running watcher');
-    assert.match(lockPath, /watcher-[a-f0-9]{64}\.lock$/);
+    const stale = ['pane-1-3', 'pane-30-5', 'claude-30.json', 'stray-file'];
+    assert.deepEqual(removed, stale);
+    assert.deepEqual(deletions, stale, 'locks, pending writes and live owners must survive');
 });
 
 test('separate tmux sockets elect independent owners and same-server followers idle', t => {
@@ -222,7 +225,7 @@ test('separate tmux sockets elect independent owners and same-server followers i
 });
 
 test('real watchers publish to both servers and a follower takes over after owner exit', {
-    skip: process.env.INITD_TEST_TMUX !== '1', timeout: 15000,
+    skip: noTmux || process.env.INITD_TEST_TMUX !== '1', timeout: 15000,
 }, async t => {
     // Arrange
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-watchers-'));
@@ -285,6 +288,12 @@ test('real watchers publish to both servers and a follower takes over after owne
     const follower = start(sockets[0]);
     await new Promise(resolve => { owners[0].once('exit', resolve); owners[0].kill(); });
     await waitUntil(() => holder(sockets[0]) === follower.pid);
+
+    // Act: change the pane's directory so the old owner's output cannot prove takeover.
+    execFileSync('tmux', ['-S', sockets[0], 'respawn-pane', '-k', '-t', 'review', '-c', dir, '/bin/sleep 30']);
+    await waitUntil(() => execFileSync('tmux', ['-S', sockets[0], 'display-message', '-p',
+        '-t', 'review', '#{pane_current_path}|#{@initd-directory}'], { encoding: 'utf8' })
+        .trim().split('|').every(value => value === fs.realpathSync(dir)));
 
     // Assert
     assert.equal(holder(sockets[0]), follower.pid, 'the follower owns the first server');

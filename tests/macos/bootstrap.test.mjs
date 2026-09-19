@@ -84,7 +84,7 @@ test('a cask whose app is already installed outside Homebrew is dropped from the
     const brewfile = path.join(f.home, 'Brewfile');
     const entries = [
         'brew "mise"',
-        'cask "google-chrome"',
+        'cask "google-chrome" # installed manually',
         // Same cask name inside another entry: only the whole-line entry goes.
         'cask "google-chrome-canary"',
         '# cask "google-chrome" (kept: a comment is not an entry)',
@@ -136,10 +136,10 @@ strip_cask_if_app_exists google-chrome "$HOME/Google Chrome.app"
     });
 }
 
-test('stripping the only entry keeps the Brewfile rather than emptying it', t => {
+test('stripping the only conflicting cask leaves an empty Brewfile', t => {
     // Arrange
-    // grep removes the last line, and an empty Brewfile would make `brew bundle`
-    // a silent no-op that uninstalls nothing but installs nothing either.
+    // Keeping this entry would make brew bundle try the conflicting install
+    // even though bootstrap just reported that it was skipped.
     const f = fixture(t);
     const brewfile = path.join(f.home, 'Brewfile');
     fs.writeFileSync(brewfile, 'cask "google-chrome"\n');
@@ -154,9 +154,26 @@ strip_cask_if_app_exists google-chrome "$HOME/Google Chrome.app"
 
     // Assert
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(fs.readFileSync(brewfile, 'utf8'), 'cask "google-chrome"\n');
-    assert.equal(fs.existsSync(`${brewfile}.tmp`), true,
-        'the scratch file is cleaned up by the bootstrap EXIT trap, not by the helper');
+    assert.equal(fs.readFileSync(brewfile, 'utf8'), '');
+    assert.equal(fs.existsSync(`${brewfile}.tmp`), false);
+});
+
+test('a failed cask filter preserves the Brewfile and reports failure', t => {
+    const f = fixture(t);
+    const brewfile = path.join(f.home, 'Brewfile');
+    const entries = 'brew "mise"\ncask "google-chrome"\n';
+    fs.writeFileSync(brewfile, entries);
+
+    const result = f.run(`
+brew() { return 1; }
+grep() { return 2; }
+brewfile_tmp="${brewfile}"
+mkdir -p "$HOME/Google Chrome.app"
+strip_cask_if_app_exists google-chrome "$HOME/Google Chrome.app"
+`);
+
+    assert.equal(result.status, 2, result.stderr);
+    assert.equal(fs.readFileSync(brewfile, 'utf8'), entries);
 });
 
 // --- ensure_local_fonts -----------------------------------------------------
@@ -256,6 +273,28 @@ test('a fonts directory holding no OTFs installs nothing, not a file named *.otf
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(fs.readdirSync(fonts.installed), []);
 });
+
+for (const broken of [false, true]) {
+    test(`a ${broken ? 'broken' : 'working'} font symlink is replaced by a real copy`, t => {
+        const f = fixture(t);
+        const fonts = fontsRepo(f, { 'BerkeleyMono-Regular.otf': 'font bytes' });
+        fs.mkdirSync(fonts.installed, { recursive: true });
+        const installed = path.join(fonts.installed, 'BerkeleyMono-Regular.otf');
+        const target = path.join(f.home, 'old-font.otf');
+        if (!broken) fs.writeFileSync(target, 'font bytes');
+        fs.symlinkSync(target, installed);
+
+        const result = f.run(installFonts(fonts.shared));
+
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(fs.lstatSync(installed).isFile(), true);
+        assert.equal(fs.readFileSync(installed, 'utf8'), 'font bytes');
+        assert.equal(fs.statSync(installed).mode & 0o777, 0o644);
+        assert.deepEqual(fs.readdirSync(fonts.installed), ['BerkeleyMono-Regular.otf']);
+        if (broken) assert.equal(fs.existsSync(target), false);
+        else assert.equal(fs.readFileSync(target, 'utf8'), 'font bytes');
+    });
+}
 
 // --- ensure_tmux_terminfo ---------------------------------------------------
 // macOS's system tmux-256color predates Smulx, so Neovim inside tmux degrades
@@ -527,8 +566,8 @@ test('a non-interactive bootstrap leaves the Git identity to a later run', t => 
 });
 
 // --- macos/update.sh --------------------------------------------------------
-// update.sh runs main unconditionally, so only the argument handling that
-// precedes ensure_homebrew_env can be exercised without touching the machine.
+// CLI argument checks exit before any machine setup; the guarded main also
+// permits testing update orchestration with command stubs.
 
 function update(...args) {
     return spawnSync('bash', [path.join(root, 'macos/update.sh'), ...args],
@@ -560,4 +599,126 @@ test('update.sh rejects an unknown argument before running a single update', () 
     assert.match(result.stderr, /Unknown argument: upgrade/);
     assert.match(result.stderr, /Usage: update\.sh/);
     assert.doesNotMatch(result.stdout, /Updating Homebrew metadata/);
+});
+
+for (const existing of [false, true]) {
+    test(`the Brewfile copy handles ${existing ? 'existing apps in both install locations' : 'a fresh Mac'}`, t => {
+        const f = fixture(t);
+        const applications = path.join(f.home, 'system-apps');
+        const original = fs.readFileSync(path.join(root, 'macos/Brewfile'), 'utf8');
+        const output = path.join(f.home, 'Brewfile');
+        f.stub('brew', '[[ "$*" == "list --cask ghostty" ]]');
+        if (existing) {
+            for (const name of ['1Password.app', 'BetterDisplay.app', 'Google Chrome.app']) {
+                fs.mkdirSync(path.join(applications, name), { recursive: true });
+            }
+            for (const name of ['Ghostty.app', 'kitty.app', 'iTerm.app']) {
+                fs.mkdirSync(path.join(f.home, 'Applications', name), { recursive: true });
+            }
+        }
+
+        const result = f.run(`brewfile_tmp="${output}"\nprepare_brewfile "${applications}"`);
+
+        assert.equal(result.status, 0, result.stderr);
+        const prepared = fs.readFileSync(output, 'utf8');
+        assert.equal(fs.readFileSync(path.join(root, 'macos/Brewfile'), 'utf8'), original);
+        if (!existing) {
+            assert.equal(prepared, original);
+            assert.deepEqual(f.calls(), []);
+        } else {
+            const casks = [...prepared.matchAll(/^cask "([^"]+)"/gm)].map(match => match[1]);
+            assert.deepEqual(casks, ['ghostty', 'font-fira-code', 'font-fira-code-nerd-font', 'font-symbols-only-nerd-font']);
+            assert.match(prepared, /^brew "mise"/m);
+        }
+    });
+}
+
+for (const arch of ['arm64', 'x86_64']) {
+    test(`macOS bootstrap validates ${arch} before any installation`, t => {
+        const f = fixture(t);
+        const result = f.run(`
+uname() { if [[ "$1" == -s ]]; then echo Darwin; else echo ${arch}; fi; }
+ensure_supported_platform
+printf 'supported\\n'
+`);
+        assert.equal(result.status, arch === 'arm64' ? 0 : 1, result.stderr);
+        if (arch === 'arm64') assert.equal(result.stdout, 'supported\n');
+        else assert.match(result.stderr, /requires Apple Silicon/);
+    });
+}
+
+test('fresh bootstrap installs trusted runtimes before hooks and Fish plugins, and can be rerun', t => {
+    const f = fixture(t);
+    const shared = path.join(f.home, 'shared');
+    const macos = path.join(f.home, 'macos');
+    fs.mkdirSync(path.join(shared, 'lib'), { recursive: true });
+    fs.mkdirSync(macos);
+    for (const [file, event] of [
+        [path.join(shared, 'lib/fonts.sh'), 'fonts'],
+        [path.join(shared, 'lib/link.sh'), 'links'],
+        [path.join(macos, 'defaults.sh'), 'defaults'],
+    ]) {
+        fs.writeFileSync(file, `#!/bin/sh\nprintf '%s\\n' '${event}' >> "$HOME/order"\n`, { mode: 0o755 });
+    }
+    f.stub('mise', `
+case "$3" in
+  trust) printf 'trust\\n' >> "$HOME/order"; touch "$HOME/trusted" ;;
+  install) [[ -f "$HOME/trusted" ]] || exit 90; printf 'install\\n' >> "$HOME/order"; touch "$HOME/installed" ;;
+  exec) [[ -f "$HOME/installed" ]] || exit 91; printf 'hook\\n' >> "$HOME/order" ;;
+  *) exit 92 ;;
+esac
+`);
+    const code = `
+SHARED_DIR="${shared}"
+MACOS_DIR="${macos}"
+ensure_user_context() { :; }
+ensure_supported_platform() { :; }
+ensure_xcode_clt() { :; }
+ensure_homebrew() { :; }
+ensure_gh_auth() { :; }
+prepare_brewfile() { cp "$BREWFILE" "$brewfile_tmp"; }
+brew() { :; }
+ensure_local_fonts() { :; }
+ensure_tmux_terminfo() { :; }
+ensure_fish() { [[ -f "$HOME/installed" ]] || return 93; printf 'fish\\n' >> "$HOME/order"; }
+setup_git_profile() { :; }
+ensure_docker_config() { :; }
+ensure_colima_service() { :; }
+main
+`;
+
+    const first = f.run(code);
+    const repeated = f.run(code);
+
+    assert.equal(first.status, 0, first.stderr);
+    assert.equal(repeated.status, 0, repeated.stderr);
+    const cycle = ['fonts', 'links', 'trust', 'install', 'hook', 'fish', 'defaults'];
+    assert.deepEqual(fs.readFileSync(path.join(f.home, 'order'), 'utf8').trim().split('\n'), [...cycle, ...cycle]);
+});
+
+test('updates install from the prepared Brewfile and remove the temporary copy', t => {
+    const f = fixture(t);
+    const prepared = path.join(f.home, 'prepared-path');
+    f.stub('brew', `
+if [[ "$1" == bundle && "$2" == --file ]]; then
+  printf '%s' "$3" > "${prepared}"
+  [[ "$(cat "$3")" == 'brew "mise"' ]] || exit 91
+fi
+`);
+    f.stub('mise');
+    f.stub('fish', 'exit 1');
+
+    const result = f.run(`
+source "${path.join(root, 'macos/update.sh')}"
+ensure_homebrew_env() { :; }
+prepare_brewfile() { printf 'brew "mise"\\n' > "$brewfile_tmp"; }
+main
+`);
+
+    assert.equal(result.status, 0, result.stderr);
+    const temporary = fs.readFileSync(prepared, 'utf8');
+    assert.notEqual(temporary, path.join(root, 'macos/Brewfile'));
+    assert.equal(fs.existsSync(temporary), false);
+    assert.ok(f.calls().includes('brew update'));
+    assert.ok(f.calls().includes('brew upgrade'));
 });

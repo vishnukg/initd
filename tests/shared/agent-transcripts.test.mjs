@@ -50,11 +50,9 @@ test('Codex reads the latest account quota snapshot, ignoring unrelated limits a
 
     // Act
     const latestRateLimits = (await sessionState('codex', file)).rateLimits;
-    const latestUsedPercent = (await sessionState('codex', file)).rateLimits.primary.used_percent;
 
     // Assert
     assert.deepEqual(latestRateLimits, latest);
-    assert.equal(latestUsedPercent, 31);
 });
 
 test('Codex account limits are taken under either id, and a per-model one is ignored', async t => {
