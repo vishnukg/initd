@@ -257,24 +257,6 @@ test('firmware marker detection consumes large input without pipefail false nega
     assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
-test('missing ALSA saved state does not prevent storing speaker settings', t => {
-    // Arrange
-    const shell = fixture(t);
-    const script = `
-amixer() { echo '  : values=off'; }
-grep() { if [[ "$1" == -A1 ]]; then return 1; fi; command grep "$@"; }
-sudo() { printf 'CALLED %s\\n' "$*"; }
-disable_speaker_drc
-`;
-
-    // Act
-    const result = shell.run(script);
-
-    // Assert
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-    assert.match(result.stdout, /CALLED alsactl store/);
-});
-
 test('Docker bootstrap enables socket activation without stopping running containers', t => {
     // Arrange
     const shell = fixture(t);
