@@ -161,9 +161,7 @@ enable_xps13_sidecar_amps() {
     return
   fi
 
-  local module
-  module="$(modinfo -n snd_soc_sof_sdw 2>/dev/null || true)"
-  if [[ -n "${module}" ]] && sof_sdw_module_has_dell_quirk "${module}"; then
+  if sof_sdw_kernel_has_dell_quirk; then
     if [[ -f "${conf}" ]]; then
       sudo rm -f "${conf}"
       log_success "Kernel carries the XPS 13 sidecar amp quirk itself; removed ${conf}."
@@ -188,8 +186,24 @@ EOF
   log_warn "Reboot to enable the XPS 13 sidecar speaker amplifiers."
 }
 
-# True when the running kernel's snd_soc_sof_sdw already lists the Dell XPS
-# WCL/PTL SKUs in its quirk table (the strings the upstream entry carries).
+# The fix is in stable Linux 7.2 and later. Fedora can compile out PCI quirk
+# names, so the module's absence of "Dell XPS WCL" does not mean it lacks
+# the fix. Keep the string check as a positive fallback for older backports.
+# Conservatively retain the override on release candidates without the marker.
+sof_sdw_kernel_has_dell_quirk() {
+  local release major minor module
+  release="$(uname -r)"
+  if [[ "${release}" =~ ^([0-9]+)\.([0-9]+) ]] && [[ "${release}" != *rc* ]]; then
+    major=$((10#${BASH_REMATCH[1]}))
+    minor=$((10#${BASH_REMATCH[2]}))
+    if (( major > 7 || (major == 7 && minor >= 2) )); then
+      return 0
+    fi
+  fi
+  module="$(modinfo -n snd_soc_sof_sdw 2>/dev/null || true)"
+  [[ -n "${module}" ]] && sof_sdw_module_has_dell_quirk "${module}"
+}
+
 sof_sdw_module_has_dell_quirk() {
   local module="$1"
   case "${module}" in
