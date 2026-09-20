@@ -14,8 +14,6 @@ set -euo pipefail
 #   - Firefox profile glue (profile path is dynamic)
 #   - Speaker amps: sof_sdw quirk override for the XPS 13's CS35L56 sidecar
 #     amplifiers on kernels older than 7.2 (self-retiring)
-#   - Speaker DRC: switches off SOF's default speaker compressor (stored in
-#     the ALSA state file so udev's boot-time restore keeps it off)
 #
 # Wayland/Hyprland only — the old X11 fixes (xorg TearFree, autorandr, picom,
 # xsettingsd, Xresources) are gone; Hyprland handles compositing, monitors and
@@ -212,40 +210,6 @@ sof_sdw_module_has_dell_quirk() {
     *)     cat "${module}" ;;
   # Consume all input: grep -q can SIGPIPE the decompressor under pipefail.
   esac 2>/dev/null | grep -a 'Dell XPS WCL' >/dev/null
-}
-
-disable_speaker_drc() {
-  # Intel's SOF speaker topology enables a dynamic-range compressor on the
-  # speaker pipeline by default ("Post Mixer Speaker Playback DRC"). It is a
-  # generic loudness leveller, not a tuning for this laptop, and it flattens
-  # the mix — quiet instruments get pumped up and down with the vocal. The
-  # Cirrus amp firmware does its own speaker protection, so switching it off
-  # is safe; it is an ordinary ALSA mixer control, same as alsamixer would set.
-  # Fedora's udev rule re-applies /var/lib/alsa/asound.state to the card on
-  # every boot, so the live change has to be stored there too or it reverts.
-  local control='Post Mixer Speaker Playback DRC switch'
-  local state=/var/lib/alsa/asound.state
-  # By card name, not index: with pipewire-alsa installed `amixer -c 0`
-  # resolves to PipeWire's "sysdefault" plug device, which cannot find the
-  # hardware controls by name, so the step would silently skip.
-  local dev=hw:sofsoundwire
-
-  if ! amixer -D "${dev}" cget name="${control}" >/dev/null 2>&1; then
-    return   # not this sound card / topology
-  fi
-
-  local live stored
-  live="$(amixer -D "${dev}" cget name="${control}" | grep -oE 'values=(on|off)' | cut -d= -f2)"
-  stored="$(grep -A1 -F "name '${control}'" "${state}" 2>/dev/null | grep -oE 'value (true|false)' | cut -d' ' -f2 || true)"
-
-  if [[ "${live}" == "off" && "${stored}" == "false" ]]; then
-    log_success "Speaker DRC already off (live and stored)."
-    return
-  fi
-
-  [[ "${live}" == "off" ]] || amixer -D "${dev}" cset name="${control}" off >/dev/null
-  sudo alsactl store
-  log_success "Speaker DRC switched off and stored in ${state}."
 }
 
 # ── Hyprland session ──────────────────────────────────────────────────────────
@@ -453,7 +417,6 @@ main() {
   install_symbols_nerd_font
   disable_unused_daemons
   enable_xps13_sidecar_amps
-  disable_speaker_drc
   check_hyprland_session
   mask_desktop_user_units
   # The schedule's ExecStart must exist before its service/timer is started.
