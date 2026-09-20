@@ -222,6 +222,29 @@ disable_unused_daemons
     assert.doesNotMatch(result.stderr, /unexpected sudo/);
 });
 
+test('sidecar fix detection accepts stable fixed kernels without compiled-in quirk names', t => {
+    const shell = fixture(t);
+    for (const [release, expected] of [
+        ['7.2.4-200.fc44.x86_64', 0], ['7.2.5-200.fc44.x86_64', 0],
+        ['7.2.0', 0], ['7.10.0', 0], ['8.0.0', 0],
+        ['7.1.13-200.fc44.x86_64', 1], ['6.18.0', 1], ['7.2.0-rc4', 1],
+    ]) {
+        const result = shell.run(`uname() { echo '${release}'; }
+modinfo() { return 1; }
+sof_sdw_kernel_has_dell_quirk`);
+        assert.equal(result.status, expected, `${release}: ${result.stderr}`);
+    }
+});
+
+test('sidecar fix detection recognises older backports with a quirk marker', t => {
+    const shell = fixture(t);
+    fs.writeFileSync(path.join(shell.home, 'module.ko'), 'Dell XPS WCL\n');
+    const result = shell.run(`uname() { echo '7.1.13'; }
+modinfo() { echo "$HOME/module.ko"; }
+sof_sdw_kernel_has_dell_quirk`);
+    assert.equal(result.status, 0, result.stderr);
+});
+
 test('firmware marker detection consumes large input without pipefail false negatives', t => {
     // Arrange
     const shell = fixture(t);
@@ -360,6 +383,7 @@ test('desktop helpers handle missing executables without uncaught spawn errors',
     });
 
     // Assert
+    assert.ifError(result.error);
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Docker action failed:.*rofi.*ENOENT/);
     assert.doesNotMatch(result.stderr, /Unhandled 'error'/);
@@ -372,6 +396,7 @@ test('desktop helpers handle missing executables without uncaught spawn errors',
     });
 
     // Assert
+    assert.ifError(weather.error);
     assert.equal(weather.status, 0);
     assert.match(weather.stderr, /notify-send:.*ENOENT/);
     assert.doesNotMatch(weather.stderr, /Unhandled 'error'/);
