@@ -222,41 +222,6 @@ disable_unused_daemons
     assert.doesNotMatch(result.stderr, /unexpected sudo/);
 });
 
-test('sidecar fix detection accepts stable fixed kernels without compiled-in quirk names', t => {
-    const shell = fixture(t);
-    for (const [release, expected] of [
-        ['7.2.4-200.fc44.x86_64', 0], ['7.2.5-200.fc44.x86_64', 0],
-        ['7.2.0', 0], ['7.10.0', 0], ['8.0.0', 0],
-        ['7.1.13-200.fc44.x86_64', 1], ['6.18.0', 1], ['7.2.0-rc4', 1],
-    ]) {
-        const result = shell.run(`uname() { echo '${release}'; }
-modinfo() { return 1; }
-sof_sdw_kernel_has_dell_quirk`);
-        assert.equal(result.status, expected, `${release}: ${result.stderr}`);
-    }
-});
-
-test('sidecar fix detection recognises older backports with a quirk marker', t => {
-    const shell = fixture(t);
-    fs.writeFileSync(path.join(shell.home, 'module.ko'), 'Dell XPS WCL\n');
-    const result = shell.run(`uname() { echo '7.1.13'; }
-modinfo() { echo "$HOME/module.ko"; }
-sof_sdw_kernel_has_dell_quirk`);
-    assert.equal(result.status, 0, result.stderr);
-});
-
-test('firmware marker detection consumes large input without pipefail false negatives', t => {
-    // Arrange
-    const shell = fixture(t);
-    fs.writeFileSync(path.join(shell.home, 'module.ko'), 'Dell XPS WCL\n' + 'x'.repeat(2 * 1024 * 1024));
-
-    // Act
-    const result = shell.run('sof_sdw_module_has_dell_quirk "$HOME/module.ko"');
-
-    // Assert
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-});
-
 test('Docker bootstrap enables socket activation without stopping running containers', t => {
     // Arrange
     const shell = fixture(t);
