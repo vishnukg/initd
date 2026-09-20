@@ -12,8 +12,6 @@ set -euo pipefail
 #     kept in sync with hyprland.lua so GNOME and Hyprland feel the same
 #   - Session scripts linked to absolute ~/.config/ paths (the shell uses them)
 #   - Firefox profile glue (profile path is dynamic)
-#   - Speaker amps: sof_sdw quirk override for the XPS 13's CS35L56 sidecar
-#     amplifiers on kernels older than 7.2 (self-retiring)
 #
 # Wayland/Hyprland only — the old X11 fixes (xorg TearFree, autorandr, picom,
 # xsettingsd, Xresources) are gone; Hyprland handles compositing, monitors and
@@ -135,81 +133,6 @@ disable_unused_daemons() {
     sudo systemctl mask --now packagekit.service >/dev/null 2>&1
     log_success "Masked packagekit."
   fi
-}
-
-enable_xps13_sidecar_amps() {
-  # Dell XPS 13 DX13260 (DMI SKU 0E53) has two Cirrus CS35L56 "sidecar" speaker
-  # amplifiers on SPI next to the cs42l43 codec. sof_sdw only wires them into
-  # the sound card when the board quirk SOC_SDW_SIDECAR_AMPS (BIT(16) = 65536)
-  # is set; upstream adds this SKU to the quirk table in commit efd80de2de9d,
-  # which first ships in Linux 7.2-rc5. On older kernels the amps bind to their
-  # driver but never join the card (no cs35l56 mixer controls, firmware
-  # "patched=0") and the codec's tiny built-in amp drives the speakers alone —
-  # thin and harsh. This is the same workaround Omarchy ships as its
-  # dell-xps13-sidecar-amps package: a module option override. The module is
-  # not in Fedora's initramfs, so /etc/modprobe.d is enough; it takes effect on
-  # the next boot. Self-retiring: once the running kernel's module carries the
-  # quirk entry itself, the drop-in is removed.
-  local conf=/etc/modprobe.d/dell-xps13-sidecar-amps.conf
-  local want='options snd_soc_sof_sdw quirk=65536'
-
-  local sku
-  sku="$(cat /sys/class/dmi/id/product_sku 2>/dev/null || true)"
-  if [[ "${sku^^}" != "0E53" ]] || ! grep -qi "DX13260" /sys/class/dmi/id/product_name 2>/dev/null; then
-    return
-  fi
-
-  if sof_sdw_kernel_has_dell_quirk; then
-    if [[ -f "${conf}" ]]; then
-      sudo rm -f "${conf}"
-      log_success "Kernel carries the XPS 13 sidecar amp quirk itself; removed ${conf}."
-    else
-      log_success "Kernel carries the XPS 13 sidecar amp quirk itself; no override needed."
-    fi
-    return
-  fi
-
-  if [[ -f "${conf}" ]] && grep -qxF "${want}" "${conf}"; then
-    log_success "XPS 13 sidecar amp override already in place."
-    return
-  fi
-
-  log "Enabling the XPS 13 CS35L56 sidecar speaker amplifiers (sof_sdw quirk override)..."
-  sudo tee "${conf}" >/dev/null <<EOF
-# Dell XPS 13 DX13260 (1028:0e53): enable the CS35L56 sidecar speaker amps.
-# Managed by initd linux/setup.sh; removed automatically once the kernel's
-# sof_sdw carries this quirk itself (Linux 7.2+, commit efd80de2de9d).
-${want}
-EOF
-  log_warn "Reboot to enable the XPS 13 sidecar speaker amplifiers."
-}
-
-# The fix is in stable Linux 7.2 and later. Fedora can compile out PCI quirk
-# names, so the module's absence of "Dell XPS WCL" does not mean it lacks
-# the fix. Keep the string check as a positive fallback for older backports.
-# Conservatively retain the override on release candidates without the marker.
-sof_sdw_kernel_has_dell_quirk() {
-  local release major minor module
-  release="$(uname -r)"
-  if [[ "${release}" =~ ^([0-9]+)\.([0-9]+) ]] && [[ "${release}" != *rc* ]]; then
-    major=$((10#${BASH_REMATCH[1]}))
-    minor=$((10#${BASH_REMATCH[2]}))
-    if (( major > 7 || (major == 7 && minor >= 2) )); then
-      return 0
-    fi
-  fi
-  module="$(modinfo -n snd_soc_sof_sdw 2>/dev/null || true)"
-  [[ -n "${module}" ]] && sof_sdw_module_has_dell_quirk "${module}"
-}
-
-sof_sdw_module_has_dell_quirk() {
-  local module="$1"
-  case "${module}" in
-    *.xz)  xz -dc "${module}" ;;
-    *.zst) zstd -dc "${module}" ;;
-    *)     cat "${module}" ;;
-  # Consume all input: grep -q can SIGPIPE the decompressor under pipefail.
-  esac 2>/dev/null | grep -a 'Dell XPS WCL' >/dev/null
 }
 
 # ── Hyprland session ──────────────────────────────────────────────────────────
@@ -416,7 +339,6 @@ main() {
   install_firacode_nerd_font
   install_symbols_nerd_font
   disable_unused_daemons
-  enable_xps13_sidecar_amps
   check_hyprland_session
   mask_desktop_user_units
   # The schedule's ExecStart must exist before its service/timer is started.
