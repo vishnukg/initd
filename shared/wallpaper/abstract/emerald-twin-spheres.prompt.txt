@@ -1,0 +1,4 @@
+Tool: built-in image_gen
+Reference: purple-spheres-5k.jpg
+
+Edit the reference wallpaper into a dark green version. Change only the purple/violet hue to deep forest green and emerald, with restrained pale sage-green highlights. Preserve the exact composition, two huge vertically aligned spheres cropped at the top and bottom, their sizes and positions, narrow central gap, soft rim lighting, delicate grain and particle texture, smooth gradients, very dark exposure, and nearly pure black negative space at both sides. Keep the image minimalist and as close as possible to the original. No new objects, no text, no logos, no bright neon, no teal or blue cast. Desktop wallpaper, 16:9 landscape, highest available resolution, ideally 3840x2160.
