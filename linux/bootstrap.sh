@@ -96,6 +96,29 @@ ensure_coprs() {
   done
 }
 
+ensure_video_codecs() {
+  # Fedora's Intel driver omits H.264/HEVC. RPM Fusion supplies the full
+  # driver and FFmpeg codecs; keep replacements scoped to these packages.
+  local release channel package
+  release="$(rpm -E %fedora)"
+  for channel in free nonfree; do
+    package="rpmfusion-${channel}-release"
+    if ! rpm -q "${package}" >/dev/null 2>&1; then
+      sudo dnf install -y "https://mirrors.rpmfusion.org/${channel}/fedora/${package}-${release}.noarch.rpm"
+    fi
+  done
+  sudo dnf config-manager setopt rpmfusion-free.enabled=1 rpmfusion-free-updates.enabled=1 \
+    rpmfusion-nonfree.enabled=1 rpmfusion-nonfree-updates.enabled=1
+
+  if rpm -q libva-intel-media-driver >/dev/null 2>&1; then
+    sudo dnf swap -y libva-intel-media-driver intel-media-driver
+  elif ! rpm -q intel-media-driver >/dev/null 2>&1; then
+    sudo dnf install -y --setopt=install_weak_deps=False intel-media-driver
+  fi
+  sudo dnf install -y --setopt=install_weak_deps=False ffmpeg-free libavcodec-freeworld libva-utils
+  log_success "Intel video codecs installed. Restart Firefox after package changes."
+}
+
 install_packages() {
   [[ -f "${PACKAGES_FILE}" ]] || { log_error "Missing ${PACKAGES_FILE}"; exit 1; }
 
@@ -290,6 +313,7 @@ main() {
   log "Starting initd bootstrap for Linux."
 
   install_packages
+  ensure_video_codecs
   ensure_gh
   ensure_1password
   ensure_google_chrome

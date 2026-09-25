@@ -248,6 +248,34 @@ ensure_docker
     assert.equal(fs.existsSync(path.join(shell.home, 'stopped')), false);
 });
 
+for (const state of ['fresh', 'restricted', 'configured']) {
+    test(`video codecs handle a ${state} Fedora install`, t => {
+        const f = fixture(t);
+        const result = f.run(`
+rpm() {
+    if [[ "$1" == -E ]]; then echo 44; return; fi
+    case "$2" in
+        rpmfusion-*-release) [[ '${state}' != fresh ]] ;;
+        libva-intel-media-driver) [[ '${state}' == restricted ]] ;;
+        intel-media-driver) [[ '${state}' == configured ]] ;;
+        *) return 1 ;;
+    esac
+}
+sudo() { printf '%s\\n' "$*" >> "$HOME/codec-calls"; }
+ensure_video_codecs
+`, 'bootstrap.sh');
+        assert.equal(result.status, 0, result.stderr || result.stdout);
+        const calls = fs.readFileSync(path.join(f.home, 'codec-calls'), 'utf8');
+        assert.equal(calls.includes('rpmfusion-free-release-44.noarch.rpm'), state === 'fresh');
+        assert.equal(calls.includes('rpmfusion-nonfree-release-44.noarch.rpm'), state === 'fresh');
+        assert.match(calls, /config-manager setopt rpmfusion-free.enabled=1/);
+        assert.equal(calls.includes('swap -y libva-intel-media-driver intel-media-driver'), state === 'restricted');
+        assert.equal(calls.includes('install -y --setopt=install_weak_deps=False intel-media-driver'), state === 'fresh');
+        assert.match(calls, /install -y --setopt=install_weak_deps=False ffmpeg-free libavcodec-freeworld libva-utils/);
+        assert.doesNotMatch(calls, /--allowerasing/);
+    });
+}
+
 test('Docker menu reports a failed stop instead of announcing success', async () => {
     // Arrange
     const notices = [];

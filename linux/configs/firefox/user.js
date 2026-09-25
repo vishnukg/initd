@@ -40,8 +40,9 @@ user_pref("general.smoothScroll.msdPhysics.enabled", true);
 // linux/scripts/firefox-profile.mjs:setDefaultZoom — that's the mechanism Firefox's
 // own Zoom UI actually reads; a pref here can't drive it.
 
-// Hardware video decode via the libva-intel-media-driver installed in
-// packages.txt. force-enabled bypasses Mozilla's hardware allowlist, which
+// Hardware video decode via RPM Fusion's intel-media-driver and
+// libavcodec-freeworld installed by bootstrap's ensure_video_codecs().
+// force-enabled bypasses Mozilla's hardware allowlist, which
 // is unlikely to already recognize this machine's iGPU.
 user_pref("media.hardware-video-decoding.force-enabled", true);
 
