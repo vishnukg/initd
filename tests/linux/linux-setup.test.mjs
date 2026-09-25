@@ -394,3 +394,26 @@ test('desktop helpers handle missing executables without uncaught spawn errors',
     assert.match(weather.stderr, /notify-send:.*ENOENT/);
     assert.doesNotMatch(weather.stderr, /Unhandled 'error'/);
 });
+
+test('fisher is not left waiting on a scripted bootstrap stdin that never closes', t => {
+    // Arrange
+    // fisher reads plugin names from any non-tty stdin until EOF. The stub fish
+    // reads stdin the same way, and the fifo keeps a writer open, so without
+    // the redirect this run would block until the spawn timeout.
+    const f = fixture(t);
+
+    // Act
+    const result = f.run(`
+fish() { cat > /dev/null; printf 'fisher-synced\\n'; }
+getent() { printf '%s:x:1000:1000::/home/u:fish\\n' "$2"; }
+sudo() { :; }
+gh() { return 1; }
+mkfifo "$HOME/stdin"
+exec 3<> "$HOME/stdin" 0< "$HOME/stdin"
+ensure_fish
+`, 'bootstrap.sh');
+
+    // Assert
+    assert.equal(result.status, 0, result.error?.message ?? result.stderr);
+    assert.match(result.stdout, /fisher-synced/);
+});

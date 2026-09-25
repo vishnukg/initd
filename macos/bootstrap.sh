@@ -22,6 +22,14 @@ source "${MACOS_DIR}/brewfile.sh"
 
 brewfile_tmp=""
 
+# node comes only from mise, and `mise exec` installs it on demand for the steps
+# that run before `mise install`. Name the tool: once ~/.config/mise is linked, a
+# bare `mise exec --` installs every missing tool in the global config first, so
+# the first node step would silently become the whole toolchain install.
+run_node() {
+  mise -C "${ROOT_DIR}" exec node@lts -- node "$@"
+}
+
 ensure_user_context() {
   if [[ "${EUID}" == "0" ]]; then
     log_error "Do not run bootstrap with sudo. It manages files and login shell settings for your normal user."
@@ -99,6 +107,8 @@ ensure_fish() {
     log_success "fish is already the default shell."
   fi
 
+  # stdin is /dev/null because fisher reads plugin names from any non-tty stdin
+  # and waits for EOF: a piped or scripted bootstrap would hang here forever.
   log "Syncing fisher plugins..."
   GITHUB_TOKEN="$(gh auth token 2>/dev/null || true)" fish -c "
     if not functions -q fisher
@@ -106,7 +116,7 @@ ensure_fish() {
       fisher install jorgebucaran/fisher
     end
     fisher update
-  "
+  " </dev/null
 }
 
 ensure_gh_auth() {
@@ -133,10 +143,8 @@ ensure_gh_auth() {
 ensure_docker_config() {
   require_command docker-credential-osxkeychain "after brew bundle"
 
-  # Merges rather than overwrites, and reports its own result. Invoked through
-  # `mise exec` like every other node step here: node comes only from mise, and
-  # mise installs one on demand for the steps that run before `mise install`.
-  mise -C "${ROOT_DIR}" exec -- node "${MACOS_DIR}/docker-config.mjs" \
+  # Merges rather than overwrites, and reports its own result.
+  run_node "${MACOS_DIR}/docker-config.mjs" \
     || { log_error "Failed to update ${HOME}/.docker/config.json"; exit 1; }
 }
 
@@ -243,7 +251,7 @@ setup_git_profile() {
   existing_email="$(git config --file "${local_gitconfig}" user.email 2>/dev/null || true)"
 
   if [[ -n "${existing_email}" ]]; then
-    log_success "Git identity already configured (override email: ${existing_email})."
+    log_success "Git identity already configured (email: ${existing_email})."
     return
   fi
 
@@ -254,7 +262,7 @@ setup_git_profile() {
   fi
 
   log "Setting up Git identity..."
-  mise -C "${ROOT_DIR}" exec -- node "${SHARED_DIR}/lib/git-profile.mjs"
+  run_node "${SHARED_DIR}/lib/git-profile.mjs"
 }
 
 main() {
@@ -304,7 +312,7 @@ main() {
   mise -C "${ROOT_DIR}" install --yes
 
   log "Configuring Claude Code's statusLine hook for the tmux usage pill..."
-  mise -C "${ROOT_DIR}" exec -- node "${SHARED_DIR}/lib/claude-statusline.mjs"
+  run_node "${SHARED_DIR}/lib/claude-statusline.mjs"
 
   log "Installing licensed fonts into ~/Library/Fonts..."
   ensure_local_fonts

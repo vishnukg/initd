@@ -69,7 +69,8 @@ main() {
 
   if command -v fish &>/dev/null && fish -c "type -q fisher" 2>/dev/null; then
     log "Updating fish plugins..."
-    fish -c "fisher update"
+    # fisher reads plugin names from a non-tty stdin; /dev/null keeps it from waiting.
+    fish -c "fisher update" </dev/null
   fi
 
   # Report only: surfaces packages installed outside the Brewfile so the machine

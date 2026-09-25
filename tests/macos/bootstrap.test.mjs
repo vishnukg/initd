@@ -544,7 +544,7 @@ test('an existing work override is reported rather than asked for again', t => {
 
     // Assert
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /already configured \(override email: engineer@work\.example\)/);
+    assert.match(result.stdout, /already configured \(email: engineer@work\.example\)/);
     assert.deepEqual(f.calls(), []);
 });
 
@@ -563,6 +563,50 @@ test('a non-interactive bootstrap leaves the Git identity to a later run', t => 
     assert.match(result.stderr, /Git identity needs setup/);
     assert.match(result.stdout, /git-profile\.mjs personal or work later/, 'the next step goes to stdout; only the warning is on stderr');
     assert.deepEqual(f.calls(), []);
+});
+
+// --- node steps -------------------------------------------------------------
+
+test('node steps name node@lts so mise never installs the whole toolchain first', t => {
+    // Arrange
+    // A bare `mise exec --` installs every missing tool in the linked global
+    // config before running node; naming the tool installs node alone.
+    const f = fixture(t);
+    f.stub('mise');
+    f.stub('docker-credential-osxkeychain');
+
+    // Act
+    const result = f.run('ensure_docker_config');
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(f.calls(), [`mise -C ${root.replace(/\/$/, '')} exec node@lts -- node ${path.join(root, 'macos/docker-config.mjs')}`]);
+});
+
+// --- ensure_fish ------------------------------------------------------------
+
+test('fisher is not left waiting on a scripted bootstrap stdin that never closes', t => {
+    // Arrange
+    // fisher reads plugin names from any non-tty stdin until EOF. The stub fish
+    // reads stdin the same way, and the fifo keeps a writer open, so without
+    // the redirect this run would block until the spawn timeout.
+    const f = fixture(t);
+    f.stub('fish', 'cat > /dev/null');
+    f.stub('dscl', 'echo "UserShell: $(command -v fish)"');
+    f.stub('sudo');
+    f.stub('gh', 'exit 1');
+
+    // Act
+    const result = f.run(`
+mkfifo "$HOME/stdin"
+exec 3<> "$HOME/stdin" 0< "$HOME/stdin"
+ensure_fish
+`);
+
+    // Assert
+    assert.equal(result.status, 0, result.error?.message ?? result.stderr);
+    assert.match(result.stdout, /fish is already the default shell/);
+    assert.ok(f.calls().some(call => call.startsWith('fish -c')), 'fisher sync ran');
 });
 
 // --- macos/update.sh --------------------------------------------------------

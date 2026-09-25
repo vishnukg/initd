@@ -58,7 +58,7 @@ shared/lib/link.sh macos    # or: linux
 # (needs gh auth; warns and skips otherwise — safe to re-run any time)
 shared/lib/fonts.sh
 
-# Set the Git identity (personal = default email; work = write override to local.gitconfig)
+# Set the Git identity (both write this machine's email into local.gitconfig)
 node shared/lib/git-profile.mjs personal
 node shared/lib/git-profile.mjs work
 
@@ -173,7 +173,7 @@ The single array `MANAGED_LINKS` is built in two steps:
 
 Entry format: `"home path:repo path"`. `shared/lib/managed-links.mjs` reads NUL-separated manifest entries and returns `{ home, source }` objects to the JavaScript installer and cleanup helper.
 
-`~/.gitconfig` is an ordinary `MANAGED_LINKS` entry pointing at the single `shared/configs/git/gitconfig`. That base config bakes in the default (personal) Git email and `[include]`s `shared/configs/git/local.gitconfig` *after* the `[user]` block, so a work email written there overrides the default. `shared/lib/git-profile.mjs personal|work` only decides whether that override file gets written — it no longer switches what `~/.gitconfig` links to.
+`~/.gitconfig` is an ordinary `MANAGED_LINKS` entry pointing at the single `shared/configs/git/gitconfig`. That base config carries the name but **no email**, sets `user.useConfigOnly = true`, and `[include]`s `shared/configs/git/local.gitconfig`. Every machine, personal included, gets its email from that file: `shared/lib/git-profile.mjs personal` writes the personal address, `work` prompts for the work one. There is deliberately no fallback — a machine with no `local.gitconfig` refuses to commit (`useConfigOnly`) rather than committing as the wrong identity, and the interactive prompt has no default, so pressing Enter on a work machine picks nothing.
 
 **Adding a managed config:**
 - Cross-platform: add to `MANAGED_LINKS` in `shared/managed-links.sh` and place the source under `shared/configs/<name>/`.
@@ -187,7 +187,7 @@ These paths are gitignored and never committed:
 
 | Path | Purpose |
 |---|---|
-| `shared/configs/git/local.gitconfig` | Work (or other) Git email override; absent on personal machines |
+| `shared/configs/git/local.gitconfig` | This machine's Git email (personal or work); git refuses to commit without it |
 | `shared/configs/fish/.config/fish/local.env.fish` | Machine-specific environment variables, loaded by every Fish shell before tmux auto-attach |
 | `shared/configs/fish/.config/fish/local.fish` | Interactive-only aliases and preferences |
 | `shared/fonts/` | Clone of the PRIVATE `vishnukg/fonts` repo (Berkeley Mono — paid, per-user licensed; this repo is public, so committing the OTFs would redistribute them). Synced by `shared/lib/fonts.sh`, which warns-and-skips without `gh` auth |
@@ -219,7 +219,7 @@ Every Node script here is `.mjs` with no build step, no `package.json`, and no `
 
 **There is no `python3` anywhere in the bootstrap path, and it should stay that way.** Four steps used to shell out to embedded python heredocs — the two JSON merges (`~/.claude/settings.json`, `~/.docker/config.json`), Firefox's `profiles.ini` parse, and the `content-prefs.sqlite` zoom write — which made python an undeclared runtime dependency of a repo that otherwise needs only bash, node and mise. All four are `.mjs` now: `shared/lib/json-file.mjs` holds the merge-don't-own invariant for both JSON callers, and `linux/scripts/firefox-profile.mjs` does the INI parse by hand and the sqlite write through `node:sqlite`. Anything new that needs to parse or edit structured data belongs in a tested `.mjs`, not in a heredoc.
 
-The `shared/lib/link.sh` launcher uses **`mise exec node@lts -- node <script>`** because it runs before the managed mise configuration exists. Both bootstraps install mise first. The Linux bootstrap and `setup.sh` reach node the same way (their `run_node` helpers), never a bare `node` and never a bare `mise exec -- node`: once `~/.config/mise` is linked, an exec with no tool named installs *every* missing tool in the global config first, which would turn the statusLine step into a silent full toolchain install that aborts bootstrap if any one tool fails. (macOS still uses the bare form.) `node` comes only from mise (`node = "lts"` in the mise config; it is in neither the Brewfile nor `packages.txt`), so on a fresh machine there is no node on `PATH` until `mise install --yes` — and `linux/setup.sh` and the statusLine step both run before that. `mise exec` installs a missing tool on demand, and sends its install progress to stderr, so it works at any point in the sequence and a `$(...)` capture of the script's stdout stays clean.
+The `shared/lib/link.sh` launcher uses **`mise exec node@lts -- node <script>`** because it runs before the managed mise configuration exists. Both bootstraps install mise first. Both bootstraps and `linux/setup.sh` reach node the same way (their `run_node` helpers), never a bare `node` and never a bare `mise exec -- node`: once `~/.config/mise` is linked, an exec with no tool named installs *every* missing tool in the global config first, which would turn the statusLine step into a silent full toolchain install that aborts bootstrap if any one tool fails. `node` comes only from mise (`node = "lts"` in the mise config; it is in neither the Brewfile nor `packages.txt`), so on a fresh machine there is no node on `PATH` until `mise install --yes` — and `linux/setup.sh` and the statusLine step both run before that. `mise exec` installs a missing tool on demand, and sends its install progress to stderr, so it works at any point in the sequence and a `$(...)` capture of the script's stdout stays clean.
 
 This was briefly TypeScript, run through Node 24's type stripping. It got reverted, and the reasoning is worth keeping so it isn't re-litigated: of the three bugs that actually shipped in `createStatusPublisher`, `tsc` caught exactly one (`pill` used but never imported) and any linter's `no-undef` catches that same one. The two that needed real finding — a missing `set-option` verb, and a doubled cache read whose fallback lacked the try/catch of the call above it — were invisible to it. **The test caught those, and the test is what earned its keep.** Against one linter-grade catch, TypeScript wanted a `node_modules`, a Node ≥22.18 floor, ~30 non-null assertions, and a handful of `x === undefined` guards that are dead at runtime because `Number.isFinite(undefined)` is already false. It also added a silent failure mode this repo did not have: a non-erasable construct (an `enum`, say) throws at load, `main()` swallows it, and the status line just goes blank.
 
