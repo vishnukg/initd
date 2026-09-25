@@ -96,27 +96,53 @@ ensure_coprs() {
   done
 }
 
+has_intel_gpu() {
+  grep -qx 0x8086 /sys/class/drm/card*/device/vendor 2>/dev/null
+}
+
 ensure_video_codecs() {
   # Fedora's Intel driver omits H.264/HEVC. RPM Fusion supplies the full
   # driver and FFmpeg codecs; keep replacements scoped to these packages.
-  local release channel package
+  # Every step is checked first, so a re-run on a configured machine makes
+  # no sudo/dnf calls at all.
+  local release channel package codecs=() changed=0
   release="$(rpm -E %fedora)"
   for channel in free nonfree; do
     package="rpmfusion-${channel}-release"
     if ! rpm -q "${package}" >/dev/null 2>&1; then
       sudo dnf install -y "https://mirrors.rpmfusion.org/${channel}/fedora/${package}-${release}.noarch.rpm"
+      changed=1
     fi
   done
-  sudo dnf config-manager setopt rpmfusion-free.enabled=1 rpmfusion-free-updates.enabled=1 \
-    rpmfusion-nonfree.enabled=1 rpmfusion-nonfree-updates.enabled=1
+  if [[ "$(dnf repo list --enabled 2>/dev/null | grep -cE '^rpmfusion-(free|nonfree)(-updates)? ')" != 4 ]]; then
+    sudo dnf config-manager setopt rpmfusion-free.enabled=1 rpmfusion-free-updates.enabled=1 \
+      rpmfusion-nonfree.enabled=1 rpmfusion-nonfree-updates.enabled=1
+  fi
 
-  if rpm -q libva-intel-media-driver >/dev/null 2>&1; then
+  # The Intel driver only helps Intel graphics; other GPUs still get the
+  # FFmpeg codecs below.
+  if ! has_intel_gpu; then
+    log_info "No Intel GPU detected — skipping intel-media-driver."
+  elif rpm -q libva-intel-media-driver >/dev/null 2>&1; then
     sudo dnf swap -y libva-intel-media-driver intel-media-driver
+    changed=1
   elif ! rpm -q intel-media-driver >/dev/null 2>&1; then
     sudo dnf install -y --setopt=install_weak_deps=False intel-media-driver
+    changed=1
   fi
-  sudo dnf install -y --setopt=install_weak_deps=False ffmpeg-free libavcodec-freeworld libva-utils
-  log_success "Intel video codecs installed. Restart Firefox after package changes."
+  for package in ffmpeg-free libavcodec-freeworld libva-utils; do
+    rpm -q "${package}" >/dev/null 2>&1 || codecs+=("${package}")
+  done
+  if [[ "${#codecs[@]}" -gt 0 ]]; then
+    sudo dnf install -y --setopt=install_weak_deps=False "${codecs[@]}"
+    changed=1
+  fi
+
+  if [[ "${changed}" == 1 ]]; then
+    log_success "Video codecs installed. Restart Firefox after package changes."
+  else
+    log_success "Video codecs already installed."
+  fi
 }
 
 install_packages() {
@@ -164,6 +190,9 @@ install_packages() {
 }
 
 ensure_mise() {
+  # mise.run installs to ~/.local/bin. Put it on PATH before the check so a
+  # re-run from a shell that lacks it doesn't reinstall over the existing one.
+  export PATH="${HOME}/.local/bin:${PATH}"
   if command -v mise >/dev/null 2>&1; then
     log_success "mise already installed."
     return
@@ -172,9 +201,6 @@ ensure_mise() {
   require_command curl "to install mise"
   log "Installing mise from mise.run..."
   curl -fsSL --max-time 60 https://mise.run | sh
-
-  # mise installs to ~/.local/bin by default — make it usable for the rest of this run.
-  export PATH="${HOME}/.local/bin:${PATH}"
   require_command mise "after mise.run install"
 }
 
@@ -184,8 +210,12 @@ ensure_gh() {
     return
   fi
   log "Installing gh CLI from official dnf repo..."
-  # Per https://github.com/cli/cli/blob/trunk/docs/install_linux.md
-  sudo dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
+  # Per https://github.com/cli/cli/blob/trunk/docs/install_linux.md. dnf5's
+  # addrepo refuses to overwrite an existing repo file, so skip it when gh was
+  # removed but its repo left behind — otherwise bootstrap aborts here.
+  if [[ ! -f /etc/yum.repos.d/gh-cli.repo ]]; then
+    sudo dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
+  fi
   sudo dnf install -y gh
   log_success "gh CLI installed."
 }
@@ -286,6 +316,14 @@ ensure_fish() {
   "
 }
 
+# node@lts is named explicitly, as in shared/lib/link.sh: a bare
+# `mise exec --` first installs every missing tool in the global config, so
+# the statusLine step would silently become the whole toolchain install, and
+# one failing tool would abort bootstrap before setup.sh and fish ever ran.
+run_node() {
+  mise -C "${ROOT_DIR}" exec node@lts -- node "$@"
+}
+
 setup_git_profile() {
   local local_gitconfig="${SHARED_DIR}/configs/git/local.gitconfig"
   local existing_email
@@ -302,7 +340,7 @@ setup_git_profile() {
   fi
 
   log "Setting up Git identity..."
-  mise -C "${ROOT_DIR}" exec -- node "${SHARED_DIR}/lib/git-profile.mjs"
+  run_node "${SHARED_DIR}/lib/git-profile.mjs"
 }
 
 main() {
@@ -336,7 +374,7 @@ main() {
   "${SHARED_DIR}/lib/link.sh" linux
 
   log "Configuring Claude Code's statusLine hook for the tmux usage pill..."
-  mise -C "${ROOT_DIR}" exec -- node "${SHARED_DIR}/lib/claude-statusline.mjs"
+  run_node "${SHARED_DIR}/lib/claude-statusline.mjs"
 
   log "Running Linux system tweaks..."
   "${LINUX_DIR}/setup.sh"
