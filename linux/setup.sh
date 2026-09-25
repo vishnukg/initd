@@ -199,17 +199,25 @@ enable_night_light_schedule() {
   log_success "Night-light schedule enabled (warm 19:00-07:00)."
 }
 
-# Filesystem work runs through mise even before Node is on PATH.
+# Filesystem work runs through mise even before Node is on PATH. node@lts is
+# named explicitly, as in shared/lib/link.sh: a bare `mise exec --` installs
+# every missing tool in the global config first, so on a fresh machine this
+# step would silently run the whole toolchain install (and abort setup if any
+# one tool failed) long before bootstrap's own `mise install`.
+run_node() {
+  mise -C "${ROOT_DIR}" exec node@lts -- node "$@"
+}
+
 configure_links() {
-  mise -C "${ROOT_DIR}" exec -- node "${SCRIPTS_DIR}/config-links.mjs"
+  run_node "${SCRIPTS_DIR}/config-links.mjs"
 }
 
 configure_firefox() {
-  mise -C "${ROOT_DIR}" exec -- node "${SCRIPTS_DIR}/firefox-profile.mjs" setup
+  run_node "${SCRIPTS_DIR}/firefox-profile.mjs" setup
 }
 
 configure_chrome() {
-  mise -C "${ROOT_DIR}" exec -- node "${SCRIPTS_DIR}/chrome-profile.mjs"
+  run_node "${SCRIPTS_DIR}/chrome-profile.mjs"
 }
 
 apply_gsettings_theme() {

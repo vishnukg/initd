@@ -189,8 +189,8 @@ test('Firefox-only setup calls the JavaScript setup workflow through mise', t =>
     // Act
     const result = f.run(`
 mise() {
-  [[ "$1" == -C && "$2" == "$ROOT_DIR" && "$3" == exec && "$4" == -- && "$5" == node ]] || return 98
-  shift 5
+  [[ "$1" == -C && "$2" == "$ROOT_DIR" && "$3" == exec && "$4" == node@lts && "$5" == -- && "$6" == node ]] || return 98
+  shift 6
   "$INITD_NODE" "$@"
 }
 main --firefox-only
@@ -248,29 +248,47 @@ ensure_docker
     assert.equal(fs.existsSync(path.join(shell.home, 'stopped')), false);
 });
 
-for (const state of ['fresh', 'restricted', 'configured']) {
+for (const state of ['fresh', 'restricted', 'configured', 'non-intel']) {
     test(`video codecs handle a ${state} Fedora install`, t => {
+        // Arrange
         const f = fixture(t);
+        const installed = state === 'configured';
+
+        // Act
         const result = f.run(`
 rpm() {
     if [[ "$1" == -E ]]; then echo 44; return; fi
     case "$2" in
         rpmfusion-*-release) [[ '${state}' != fresh ]] ;;
         libva-intel-media-driver) [[ '${state}' == restricted ]] ;;
-        intel-media-driver) [[ '${state}' == configured ]] ;;
+        intel-media-driver|ffmpeg-free|libavcodec-freeworld|libva-utils) ${installed} ;;
         *) return 1 ;;
     esac
 }
+dnf() {
+    ${installed} && printf '%s\\n' rpmfusion-free rpmfusion-free-updates rpmfusion-nonfree rpmfusion-nonfree-updates \\
+        | sed 's/$/ RPM Fusion/'
+}
+has_intel_gpu() { [[ '${state}' != non-intel ]]; }
 sudo() { printf '%s\\n' "$*" >> "$HOME/codec-calls"; }
+touch "$HOME/codec-calls"
 ensure_video_codecs
 `, 'bootstrap.sh');
+
+        // Assert
         assert.equal(result.status, 0, result.stderr || result.stdout);
         const calls = fs.readFileSync(path.join(f.home, 'codec-calls'), 'utf8');
+        if (installed) {
+            assert.equal(calls, '');
+            assert.match(result.stdout, /Video codecs already installed/);
+            return;
+        }
         assert.equal(calls.includes('rpmfusion-free-release-44.noarch.rpm'), state === 'fresh');
         assert.equal(calls.includes('rpmfusion-nonfree-release-44.noarch.rpm'), state === 'fresh');
         assert.match(calls, /config-manager setopt rpmfusion-free.enabled=1/);
         assert.equal(calls.includes('swap -y libva-intel-media-driver intel-media-driver'), state === 'restricted');
         assert.equal(calls.includes('install -y --setopt=install_weak_deps=False intel-media-driver'), state === 'fresh');
+        assert.equal(calls.includes('intel-media-driver'), state !== 'non-intel');
         assert.match(calls, /install -y --setopt=install_weak_deps=False ffmpeg-free libavcodec-freeworld libva-utils/);
         assert.doesNotMatch(calls, /--allowerasing/);
     });

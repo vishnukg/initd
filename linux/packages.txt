@@ -33,7 +33,6 @@ grim
 slurp
 wl-clipboard
 gammastep
-gnome-software
 ghostty
 kitty
 
