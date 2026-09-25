@@ -108,17 +108,34 @@ test('install backs up unmanaged configs before linking', () => {
     }
 });
 
-test('personal Git profile does not write an absent override', async () => {
+test('personal Git profile writes the personal email into local.gitconfig', async () => {
     // Arrange
+    // The shared gitconfig carries no email, so personal machines read theirs
+    // from local.gitconfig exactly as work machines do.
     const override = path.join(newHome('personal'), 'local.gitconfig');
     const output = [];
 
     // Act
-    await configureProfile(['personal'], { override, log: line => output.push(line) });
+    await configureProfile(['personal'], { override, interactive: false, log: line => output.push(line) });
+    await configureProfile(['personal'], { override, interactive: false, log: line => output.push(line) });
 
     // Assert
-    assert.match(output.join('\n'), /using the default git email/);
-    assert.equal(fs.existsSync(override), false);
+    assert.equal(run('git', ['config', '--file', override, 'user.email']).trim(), 'vishnukg@gmail.com');
+    assert.match(output[0], /Personal git email set to/);
+    assert.match(output[1], /Personal git email already set/);
+});
+
+test('the shared gitconfig names no email and refuses to guess one', () => {
+    // Arrange
+    const config = path.join(root, 'shared/configs/git/gitconfig');
+
+    // Act
+    const email = spawnSync('git', ['config', '--file', config, '--get', 'user.email']);
+    const configOnly = run('git', ['config', '--file', config, '--bool', 'user.useConfigOnly']).trim();
+
+    // Assert
+    assert.equal(email.status, 1, 'a machine without local.gitconfig must not inherit an identity');
+    assert.equal(configOnly, 'true');
 });
 
 test('reusing a backup directory preserves older files, directories and broken symlinks', () => {
@@ -228,7 +245,7 @@ test('interactive profile selection preserves unrelated config and quotes email'
     assert.equal(repeatPrompts, 0);
 });
 
-for (const args of [['personal'], [], ['work'], ['--help']]) {
+for (const args of [[], ['work'], ['--help']]) {
     test(`noninteractive Git profile ${args.join(' ') || '(default)'} does not create an override`, async () => {
         // Arrange
         const override = path.join(newHome('no-profile'), 'local.gitconfig');
@@ -241,7 +258,7 @@ for (const args of [['personal'], [], ['work'], ['--help']]) {
     });
 }
 
-test('switching back to personal removes only the email override', async () => {
+test('switching back to personal replaces only the email', async () => {
     // Arrange
     const override = path.join(newHome('switch-profile'), 'local.gitconfig');
     fs.writeFileSync(override, '[user]\nemail = work@example.com\n[core]\neditor = nvim\n');
@@ -255,16 +272,42 @@ test('switching back to personal removes only the email override', async () => {
 
     // Act
     await configureProfile(['personal'], { override, interactive: false, log() {} });
-    const lookupStatus = spawnSync('git', ['config', '--file', override, '--get', 'user.email']).status;
+    const personalEmail = run('git', ['config', '--file', override, 'user.email']).trim();
 
     // Assert
-    assert.equal(lookupStatus, 1);
+    assert.equal(personalEmail, 'vishnukg@gmail.com');
 
     // Act
     const editor = run('git', ['config', '--file', override, 'core.editor']).trim();
 
     // Assert
     assert.equal(editor, 'nvim');
+});
+
+test('pressing Enter at the machine-type prompt picks no identity', async () => {
+    // Arrange
+    // No default: a work machine answered with Enter must not become personal.
+    const override = path.join(newHome('no-answer'), 'local.gitconfig');
+    const output = [];
+
+    // Act
+    await configureProfile([], { override, interactive: true, ask: async () => '', log: line => output.push(line) });
+
+    // Assert
+    assert.throws(() => fs.lstatSync(override), { code: 'ENOENT' });
+    assert.match(output.join('\n'), /No Git email set/);
+});
+
+test('choosing work on a machine set to personal asks for the work email', async () => {
+    // Arrange
+    const override = path.join(newHome('personal-to-work'), 'local.gitconfig');
+    fs.writeFileSync(override, '[user]\nemail = vishnukg@gmail.com\n');
+
+    // Act
+    await configureProfile(['work'], { override, interactive: true, ask: async () => 'me@work.example', log() {} });
+
+    // Assert
+    assert.equal(run('git', ['config', '--file', override, 'user.email']).trim(), 'me@work.example');
 });
 
 test('Linux manifest installs and cleans up in an isolated home on either host', () => {

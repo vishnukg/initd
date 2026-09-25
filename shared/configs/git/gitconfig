@@ -3,11 +3,12 @@
 
 [user]
 	name = Vishnu Ganesan
-	email = vishnukg@gmail.com
+	; No email here: every machine sets its own in the gitignored local.gitconfig
+	; (shared/lib/git-profile.mjs personal|work). useConfigOnly makes git refuse
+	; to commit without one instead of guessing, so a machine never falls back
+	; to the wrong identity.
+	useConfigOnly = true
 
-; Personal machines need nothing more — the email above is the default.
-; Work (or any other) machines drop a different email into the gitignored
-; local.gitconfig; because this include comes after [user], it overrides.
 [include]
 	path = ~/.config/initd/shared/configs/git/local.gitconfig
 

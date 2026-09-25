@@ -52,7 +52,7 @@ The dispatcher runs `macos/bootstrap.sh` on Darwin and `linux/bootstrap.sh` on L
 - link managed configs into `$HOME`, backing up unmanaged files to `~/.config/initd-backups/<timestamp>/`
 - set fish as the login shell (`dscl` on macOS, `chsh` on Linux), then sync fisher plugins
 - run `mise install` for shared runtimes and LSP tooling
-- prompt for `personal`/`work` Git identity on first run (work stores a separate email in `local.gitconfig`)
+- prompt for `personal`/`work` Git identity on first run (both write this machine's email into `local.gitconfig`)
 
 Re-running is safe and idempotent.
 
@@ -93,7 +93,7 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 | `~/.config/nvim` | `shared/configs/nvim/.config/nvim` |
 | `~/.config/starship.toml` | `shared/configs/starship/.config/starship.toml` |
 | `~/.config/tmux` | `shared/configs/tmux/.config/tmux` |
-| `~/.gitconfig` | `shared/configs/git/gitconfig` (work email override via `local.gitconfig`) |
+| `~/.gitconfig` | `shared/configs/git/gitconfig` (per-machine email via `local.gitconfig`) |
 | `~/.local/share/wallpapers` | `shared/wallpaper` |
 
 ### Linux-only
@@ -118,7 +118,7 @@ Gitignored paths — used if present, silently skipped if absent.
 
 | Path | Purpose |
 |---|---|
-| `shared/configs/git/local.gitconfig` | Work (or other) Git email override — absent on personal machines |
+| `shared/configs/git/local.gitconfig` | This machine's Git email (personal or work) — git refuses to commit without it |
 | `shared/configs/fish/.config/fish/local.env.fish` | Machine-specific environment variables, loaded by every Fish shell; set `INITD_TMUX_AUTO_ATTACH=0` here to opt out of tmux |
 | `shared/configs/fish/.config/fish/local.fish` | Interactive-only aliases and preferences |
 | `shared/fonts/` | Clone of the PRIVATE `vishnukg/fonts` repo (Berkeley Mono — paid, per-user licensed, so a public repo can't carry the OTFs). Synced by `shared/lib/fonts.sh`, which warns and skips without `gh` auth |

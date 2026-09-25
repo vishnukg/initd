@@ -29,7 +29,7 @@ Read the small config helpers before the long-running tmux watcher:
 | `shared/lib/fs.mjs` | Back up paths, install links, and remove only owned links |
 | `shared/lib/link.mjs` | Install the selected platform's managed links |
 | `shared/lib/cleanup.mjs` | Remove only symlinks pointing at their expected managed source |
-| `shared/lib/git-profile.mjs` | Select a Git email override while preserving unrelated config |
+| `shared/lib/git-profile.mjs` | Write this machine's Git email while preserving unrelated config |
 | `shared/lib/claude-statusline.mjs` | Configure the Claude status-line hook |
 | `macos/docker-config.mjs` | Configure Docker credentials and plugin search paths |
 | `macos/brewinstall`, `macos/brewinstall.mjs` | Validate a package, update Brewfile, and run Homebrew |

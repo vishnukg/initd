@@ -8,6 +8,10 @@ import { fileURLToPath } from 'node:url';
 const filename = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(filename), '../..');
 const usage = 'Usage: git-profile.mjs [personal|work]';
+// The shared gitconfig carries no email: every machine, personal included, gets
+// its identity from local.gitconfig, and user.useConfigOnly refuses to commit
+// without one.
+const personalEmail = 'vishnukg@gmail.com';
 
 function writeOverride(override, args) {
     fs.mkdirSync(path.dirname(override), { recursive: true });
@@ -39,22 +43,29 @@ export async function configureProfile(args, {
         return prompt.question(text);
     });
     try {
-        const profile = args[0] || (interactive
-            ? (await question(':: Machine type [personal/work] (default: personal): ')).trim() || 'personal'
-            : 'personal');
-        if (!['personal', 'work'].includes(profile)) throw new Error(usage);
         const existing = spawnSync('git', ['config', '--file', override, '--get', 'user.email'], { encoding: 'utf8' });
         if (existing.error) throw existing.error;
         if (![0, 1].includes(existing.status)) throw new Error('Cannot read Git identity configuration');
-        if (profile === 'personal') {
-            if (existing.status === 0) {
-                // An unattended run without a selection must not change identity.
-                if (!args.length && !interactive) return log('OK Existing Git identity unchanged.');
-                writeOverride(override, ['--unset-all', 'user.email']);
-            }
-            return log('OK Personal machine — using the default git email; no override needed.');
+        const current = existing.stdout.trim();
+
+        // No default profile: pressing Enter on a work machine must not quietly
+        // commit as the personal identity.
+        const profile = args[0] || (interactive
+            ? (await question(':: Machine type [personal/work]: ')).trim()
+            : '');
+        if (!profile) {
+            return log(current
+                ? 'OK Existing Git identity unchanged.'
+                : '!! No Git email set — run shared/lib/git-profile.mjs personal or work to configure it.');
         }
-        if (existing.stdout.trim()) return log(`OK Work git email already set: ${existing.stdout.trim()}`);
+        if (!['personal', 'work'].includes(profile)) throw new Error(usage);
+
+        if (profile === 'personal') {
+            if (current === personalEmail) return log(`OK Personal git email already set: ${current}`);
+            writeOverride(override, ['user.email', personalEmail]);
+            return log(`OK Personal git email set to: ${personalEmail}`);
+        }
+        if (current && current !== personalEmail) return log(`OK Work git email already set: ${current}`);
         if (!interactive) return log('!! No work git email set — run shared/lib/git-profile.mjs work interactively to configure it.');
         const email = (await question(':: Work git email for this machine: ')).trim();
         if (!email) return log('!! No email entered — work identity unchanged.');
