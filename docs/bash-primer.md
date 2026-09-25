@@ -18,7 +18,7 @@ developer can follow like a checklist.
 | `linux/setup.sh` | Linux system tweaks (fonts, GTK theme, session-script links, Firefox profile glue). |
 | `shared/lib/link.sh` | Obtain Node through mise and launch `link.mjs`. Takes a platform argument. |
 | `shared/lib/cleanup.mjs` | Remove only the symlinks that initd created. Takes platform arg. |
-| `shared/lib/git-profile.mjs` | Set the Git identity: personal uses the default email; work writes an override to `local.gitconfig`. |
+| `shared/lib/git-profile.mjs` | Set the Git identity: personal and work both write this machine's email to `local.gitconfig`. |
 | `macos/brewinstall` | JavaScript entry point: add a formula or cask to the curated Brewfile and apply it locally; requires Node. |
 | `shared/lib/fs.mjs` | JavaScript filesystem helpers shared by installation, cleanup, and Linux config setup. |
 | `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` array. |
@@ -228,7 +228,7 @@ checks the four core behaviors:
 
 1. **Clean install** — all managed paths are symlinked on a fresh home
 2. **Backup of unmanaged configs** — existing user files are moved to the backup dir
-3. **Git identity** — the personal path reports the baked-in default email; a work override goes into `local.gitconfig` without touching the linked base config
+3. **Git identity** — personal and work each write their email into `local.gitconfig` without touching the linked base config, which carries no email
 4. **Cleanup** — only initd-owned symlinks are removed; unrelated symlinks and real files are left alone
 
 These behave like integration tests, which is the right choice for setup scripts

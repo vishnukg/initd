@@ -306,6 +306,8 @@ ensure_fish() {
     log_success "fish is already the default shell."
   fi
 
+  # stdin is /dev/null because fisher reads plugin names from any non-tty stdin
+  # and waits for EOF: a piped or scripted bootstrap would hang here forever.
   log "Syncing fisher plugins..."
   GITHUB_TOKEN="$(gh auth token 2>/dev/null || true)" fish -c "
     if not functions -q fisher
@@ -313,7 +315,7 @@ ensure_fish() {
       fisher install jorgebucaran/fisher
     end
     fisher update
-  "
+  " </dev/null
 }
 
 # node@lts is named explicitly, as in shared/lib/link.sh: a bare
@@ -330,7 +332,7 @@ setup_git_profile() {
   existing_email="$(git config --file "${local_gitconfig}" user.email 2>/dev/null || true)"
 
   if [[ -n "${existing_email}" ]]; then
-    log_success "Git identity already configured (override email: ${existing_email})."
+    log_success "Git identity already configured (email: ${existing_email})."
     return
   fi
   if [[ ! -t 0 ]]; then
