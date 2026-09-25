@@ -31,7 +31,7 @@ hl.config({
     input = {
         -- setxkbmap -option ctrl:nocaps
         kb_options = "ctrl:nocaps",
-        -- xset r rate 350 30
+        -- Start repeating after 350 ms, at 30 repeats per second.
         repeat_delay = 350,
         repeat_rate = 30,
 
