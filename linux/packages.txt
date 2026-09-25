@@ -38,9 +38,8 @@ ghostty
 kitty
 
 # ── System utilities ──────────────────────────────────────────────────────────
-# VA-API driver for Intel iGPU video decode (Firefox media.ffmpeg.vaapi.enabled
-# silently falls back to CPU decoding without it).
-libva-intel-media-driver
+# Intel VA-API and H.264/HEVC codecs are installed by ensure_video_codecs()
+# from RPM Fusion, including migration from Fedora's restricted driver.
 pulseaudio-utils
 pavucontrol
 brightnessctl
