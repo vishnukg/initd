@@ -28,6 +28,11 @@ go        = "latest"
 node      = "lts"
 npm       = "latest"
 python    = "latest"
+# Rust via rustup (mise's core backend drives it; RUSTUP_HOME/CARGO_HOME stay
+# at ~/.rustup and ~/.cargo, so a repo's rust-toolchain.toml still overrides).
+# rust-analyzer is a rustup component rather than a separate mise tool so it
+# always matches the toolchain it analyses; rust-src is what it reads std from.
+rust      = { version = "stable", components = "rust-analyzer,rust-src,clippy,rustfmt" }
 terraform = "latest"
 yarn      = ["latest", "1.22.22"]
 
@@ -97,3 +102,12 @@ yarn      = ["latest", "1.22.22"]
 "go:github.com/cweill/gotests/gotests"     = "latest"
 "go:olexsmir.xyz/json2go/cmd/json2go"      = "latest"
 "github:github/copilot-cli"     = "latest" # GitHub Copilot CLI
+
+# ── Rust cargo subcommands ─────────────────────────────────────────────
+# cargo-binstall first: mise's cargo: backend uses it when present, so the
+# rest download prebuilt release binaries instead of compiling from source.
+"cargo-binstall"     = "latest"
+"cargo:cargo-nextest" = "latest" # faster test runner (cargo nextest run)
+"cargo:bacon"         = "latest" # background check/clippy/test watcher
+"cargo:cargo-expand"  = "latest" # macro expansion
+"cargo:cargo-edit"    = "latest" # cargo upgrade / set-version (cargo add is built in)
