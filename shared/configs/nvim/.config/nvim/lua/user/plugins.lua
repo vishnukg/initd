@@ -171,6 +171,7 @@ return require("lazy").setup({
 			"fredrikaverpil/neotest-golang",
 			"nsidorenco/neotest-vstest",
 			"nvim-neotest/neotest-python",
+			"mrcjkb/rustaceanvim",
 		},
 		config = function() require("user.neotest") end,
 	},
@@ -233,6 +234,10 @@ return require("lazy").setup({
 		-- mise tools, like every other nvim dependency — no :GoInstallDeps build step.
 		config = function() require("user.gopher") end,
 	},
+
+	-- Rust: owns the rust-analyzer client (lsp/servers.lua passes it capabilities).
+	-- Not lazy-loaded — it is already a filetype plugin, per its README.
+	{ "mrcjkb/rustaceanvim", version = "^9", lazy = false },
 
 	-- Surround — manipulate surrounding characters (ys, cs, ds)
 	{
