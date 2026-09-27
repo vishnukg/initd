@@ -20,6 +20,7 @@ require("neotest").setup({
 		require("neotest-vstest")({}),
 		-- Uses the project's own pytest (venv / mise / system python), not a mise tool.
 		require("neotest-python")({ runner = "pytest" }),
+		require("rustaceanvim.neotest"),
 		require("neotest-vitest")({
 			filter_dir = filter_dir,
 			vitestConfigFile = function(path)
