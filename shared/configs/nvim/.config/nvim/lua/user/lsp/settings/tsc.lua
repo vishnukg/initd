@@ -25,9 +25,11 @@ local code_lens = {
 	},
 }
 
+-- TypeScript 7 reads one shared "js/ts" section, not the typescript/javascript
+-- pair tsserver used. Under the old keys these settings were silently ignored
+-- and lspconfig's defaults (every type hint on) applied instead.
 return {
 	settings = {
-		typescript = vim.tbl_extend("force", { inlayHints = inlay_hints }, code_lens),
-		javascript = vim.tbl_extend("force", { inlayHints = inlay_hints }, code_lens),
+		["js/ts"] = vim.tbl_extend("force", { inlayHints = inlay_hints }, code_lens),
 	},
 }
