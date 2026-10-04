@@ -34,7 +34,3 @@ for _, server in ipairs(lsp_servers) do
 	vim.lsp.config(server, opts)
 	vim.lsp.enable(server)
 end
-
--- rust-analyzer is started by rustaceanvim (see plugins.lua), not enabled here —
--- enabling it too would attach a second client. rustaceanvim merges this config.
-vim.lsp.config("rust-analyzer", { capabilities = handlers.capabilities })

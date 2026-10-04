@@ -315,7 +315,6 @@ There is no fixed parser allow-list: any language in nvim-treesitter's parser re
 
 | Language | Highlights | Notes |
 |----------|-----------|-------|
-| Rust | ✓ | Add `rust_analyzer` to `mise/.config/mise/config.toml` + `lsp_servers` to enable LSP |
 | GraphQL | ✓ | — |
 | C | ✓ | Add `clangd` to `mise/.config/mise/config.toml` + `lsp_servers` to enable LSP |
 | XML | ✓ | — |
