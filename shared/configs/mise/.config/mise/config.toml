@@ -25,6 +25,7 @@ UV_MANAGED_PYTHON = "1"
 uv        = "latest"              # required for pipx: backend with pipx.uvx (yamllint)
 dotnet    = ["latest", "8"]
 go        = "latest"
+java      = "temurin-25"            # Eclipse Temurin, current LTS (bare "latest" tracks short-lived non-LTS OpenJDK builds)
 node      = "lts"
 npm       = "latest"
 python    = "latest"
