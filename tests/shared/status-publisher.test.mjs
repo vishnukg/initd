@@ -112,6 +112,7 @@ test('publisher renders every pill and sends well-formed set-option commands', a
     const sent = [];
     const runCommand = async (command, args) => {
         if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
+        if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
         if (command === 'tmux' && args[0] === 'list-sessions') return '';
         if (command === 'git' && args.includes('symbolic-ref')) return 'main\n';
         if (command === 'tmux') sent.push(args);
@@ -141,6 +142,7 @@ test('publisher renders every pill and sends well-formed set-option commands', a
     assert.match(option('@initd-agent-pill'), /Opus 5 · 12%/);
     assert.match(option('@initd-git-pill'), /main/);
     assert.deepEqual(commands.find(args => args.includes('@initd-agent'))?.slice(0, 4), ['set-option', '-p', '-t', '%1']);
+    assert.match(option('@emoji'), /\p{Emoji}/u);
 });
 
 test('a pane path of exactly ";" is escaped so it cannot split the command sequence', async () => {
@@ -148,6 +150,7 @@ test('a pane path of exactly ";" is escaped so it cannot split the command seque
     let sent = [];
     const runCommand = async (command, args) => {
         if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t;\t1\n';
+        if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
         if (command === 'tmux') sent = args;
         return '';
     };
@@ -173,6 +176,7 @@ test('a tmux-allocated numeric session is renamed; a chosen name is left alone',
     let sent = [];
     const runCommand = async (command, args) => {
         if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
+        if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
         if (command === 'tmux' && args[0] === 'list-sessions') return '$0 nova\n$1 1\n$2 2\n$3 notes\n';
         if (command === 'tmux') sent = args;
         return '';
@@ -198,6 +202,7 @@ test('session renaming stops when every name is taken rather than reusing one', 
         'lyra', 'titan', 'pluto', 'orion'];
     const runCommand = async (command, args) => {
         if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
+        if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
         if (command === 'tmux' && args[0] === 'list-sessions') {
             return taken.map((name, index) => `$${index} ${name}`).join('\n') + `\n$${taken.length} ${taken.length}\n`;
         }
@@ -286,6 +291,7 @@ test('publisher skips unchanged writes, caches Git, and refreshes new directorie
     await publish(1030);
 
     // Assert
+    assert.ok(calls.some(([, action]) => action === 'list-windows'));
     assert.ok(calls.some(([, action]) => action === 'list-sessions'));
 });
 

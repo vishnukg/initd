@@ -364,6 +364,12 @@ async function refresh(io = { run: runAsync, processes: async () => processes(aw
 // rule here covers sessions created by Fish, tmux commands, and keybindings.
 const sessionNames = ['nova', 'vega', 'io', 'sol', 'luna', 'mars',
     'lyra', 'titan', 'pluto', 'orion'];
+const emojis = [
+    '🧬', '🧪', '⚗️', '🔬', '🔭',
+    '🧮', '📐', '🧩', '♾️', '🎲',
+    '🚀', '🛸', '🛰️', '🪐', '☄️',
+    '🦕', '🎮', '👾', '🤖', '💎', '🧲',
+];
 // Each attached tmux client starts a watcher. One owner per socket publishes
 // the shared pane options; followers idle and take over if the owner exits.
 function watcherLockPath(socket) {
@@ -496,6 +502,16 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
         set('-g', '@initd-battery', batteryValue ? pill('\u{f0079}', batteryValue, '#4ec994') : '');
         const checkNames = now - namesAt >= 30;
         if (checkNames) {
+            const windows = (await runCommand('tmux', ['list-windows', '-a', '-F', '#{window_id} #{@emoji}'])).trim().split('\n').map(line => line.split(' '));
+            const used = new Set(windows.map(([, emoji]) => emoji));
+            for (const [id, existing] of windows) {
+                if (!/^@\d+$/.test(id) || emojis.includes(existing)) continue;
+                const available = emojis.filter(emoji => !used.has(emoji));
+                const choices = available.length ? available : emojis;
+                const emoji = choices[Math.floor(Math.random() * choices.length)];
+                used.add(emoji);
+                commands.push(['set-option', '-w', '-t', id, '@emoji', emoji]);
+            }
             const sessions = (await runCommand('tmux', ['list-sessions', '-F', '#{session_id} #{session_name}']))
                 .split('\n').filter(Boolean).map(line => {
                     const separator = line.indexOf(' ');
@@ -531,8 +547,9 @@ async function main() {
         return;
     }
     const publish = createStatusPublisher();
-    // `once` is the after-new-session hook and runs alone, so it never defers
-    // to the lock - a new session would otherwise wait out a tick for its name.
+    // `once` is the after-new-window/after-new-session hook and runs alone, so
+    // it never defers to the lock - a new window would otherwise wait out a tick
+    // for its emoji.
     const watching = process.argv[2] === 'watch';
     if (watching) {
         const socket = run('tmux', ['display-message', '-p', '#{socket_path}']).trim();
