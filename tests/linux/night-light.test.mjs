@@ -202,10 +202,11 @@ test('the scheduled night-light command finds Node without it being on PATH', t 
     const service = fs.readFileSync(path.join(root, 'linux/configs/systemd/user/night-light-schedule.service'), 'utf8');
     const [command, ...args] = service.match(/^ExecStart=(.+)$/m)[1].split(' ').map(arg => arg.replaceAll('%h', home));
 
-    // Act
+    // Act: 20s is a ceiling, not a wait - a healthy run takes ~150ms, but a
+    // loaded parallel suite once pushed it past 5s.
     const result = spawnSync(command, args, {
         env: { ...process.env, HOME: home, PATH: bin, INITD_NODE: process.execPath, NIGHT_LIGHT_HOUR: '07' },
-        encoding: 'utf8', timeout: 5000,
+        encoding: 'utf8', timeout: 20000,
     });
 
     // Assert

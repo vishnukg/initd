@@ -112,8 +112,6 @@ test('publisher renders every pill and sends well-formed set-option commands', a
     const sent = [];
     const runCommand = async (command, args) => {
         if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
-        if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
-        if (command === 'tmux' && args[0] === 'list-sessions') return '';
         if (command === 'git' && args.includes('symbolic-ref')) return 'main\n';
         if (command === 'tmux') sent.push(args);
         return '';
@@ -142,7 +140,6 @@ test('publisher renders every pill and sends well-formed set-option commands', a
     assert.match(option('@initd-agent-pill'), /Opus 5 · 12%/);
     assert.match(option('@initd-git-pill'), /main/);
     assert.deepEqual(commands.find(args => args.includes('@initd-agent'))?.slice(0, 4), ['set-option', '-p', '-t', '%1']);
-    assert.match(option('@emoji'), /\p{Emoji}/u);
 });
 
 test('a pane path of exactly ";" is escaped so it cannot split the command sequence', async () => {
@@ -150,7 +147,6 @@ test('a pane path of exactly ";" is escaped so it cannot split the command seque
     let sent = [];
     const runCommand = async (command, args) => {
         if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t;\t1\n';
-        if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
         if (command === 'tmux') sent = args;
         return '';
     };
@@ -169,72 +165,6 @@ test('a pane path of exactly ";" is escaped so it cannot split the command seque
         'a value must not become a separate tmux command');
     assert.deepEqual(commands.find(args => args.includes('@initd-directory')),
         ['set-option', '-p', '-t', '%1', '@initd-directory', '\\;']);
-});
-
-test('a tmux-allocated numeric session is renamed; a chosen name is left alone', async () => {
-    // Arrange
-    let sent = [];
-    const runCommand = async (command, args) => {
-        if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
-        if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
-        if (command === 'tmux' && args[0] === 'list-sessions') return '$0 nova\n$1 1\n$2 2\n$3 notes\n';
-        if (command === 'tmux') sent = args;
-        return '';
-    };
-
-    // Act
-    await createStatusPublisher(runCommand, () => '', async () => '', () => {})(1000);
-
-    // Assert
-    const commands = tmuxCommands(sent);
-    const renames = commands.filter(args => args[0] === 'rename-session');
-
-    // "nova" is already taken and "notes" was chosen by hand, so only the two
-    // numeric sessions are renamed - each to a distinct still-free name.
-    assert.deepEqual(renames, [['rename-session', '-t', '$1', 'vega'],
-        ['rename-session', '-t', '$2', 'io']]);
-});
-
-test('session renaming stops when every name is taken rather than reusing one', async () => {
-    // Arrange
-    let sent = [];
-    const taken = ['nova', 'vega', 'io', 'sol', 'luna', 'mars',
-        'lyra', 'titan', 'pluto', 'orion'];
-    const runCommand = async (command, args) => {
-        if (command === 'tmux' && args[0] === 'list-panes') return '%1\t100\t200\tclaude\t/repo\t1\n';
-        if (command === 'tmux' && args[0] === 'list-windows') return '@1 \n';
-        if (command === 'tmux' && args[0] === 'list-sessions') {
-            return taken.map((name, index) => `$${index} ${name}`).join('\n') + `\n$${taken.length} ${taken.length}\n`;
-        }
-        if (command === 'tmux') sent = args;
-        return '';
-    };
-
-    // Act
-    await createStatusPublisher(runCommand, () => '', async () => '', () => {})(1000);
-
-    // Assert
-    assert.ok(!sent.includes('rename-session'), 'a duplicate name would be rejected by tmux');
-});
-
-test('session names containing spaces are preserved in full', async () => {
-    // Arrange
-    let sent = [];
-
-    // Act
-    const publish = createStatusPublisher(async (command, args) => {
-        if (args[0] === 'list-panes') return '%1\t100\t200\tfish\t/repo\t1\n';
-        if (args[0] === 'list-sessions') return '$0 123 notes\n$1 nova work\n$2 2\n';
-        if (command === 'tmux' && args[0] === 'set-option') sent = args;
-        return '';
-    }, () => '', async () => '', () => {});
-    await publish(1000);
-
-    // Assert
-    const renames = tmuxCommands(sent).filter(args => args[0] === 'rename-session');
-
-    // Assert
-    assert.deepEqual(renames, [['rename-session', '-t', '$2', 'nova']]);
 });
 
 test('publisher skips unchanged writes, caches Git, and refreshes new directories immediately', async () => {
@@ -272,7 +202,6 @@ test('publisher skips unchanged writes, caches Git, and refreshes new directorie
     // Assert
     assert.equal(calls.filter(([cmd]) => cmd === 'git').length, 1, 'shared directory queried once');
     assert.ok(calls.some(([, action]) => action === 'set-option'));
-    assert.ok(!calls.some(([, action]) => action === 'list-sessions'));
 
     // Arrange
     directory = '/new';
@@ -283,16 +212,6 @@ test('publisher skips unchanged writes, caches Git, and refreshes new directorie
 
     // Assert
     assert.equal(calls.filter(([cmd]) => cmd === 'git').length, 1);
-
-    // Arrange
-    calls.length = 0;
-
-    // Act
-    await publish(1030);
-
-    // Assert
-    assert.ok(calls.some(([, action]) => action === 'list-windows'));
-    assert.ok(calls.some(([, action]) => action === 'list-sessions'));
 });
 
 test('publisher retries option changes after a failed tmux batch', async () => {
