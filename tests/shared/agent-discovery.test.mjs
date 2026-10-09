@@ -407,8 +407,10 @@ function hookFixture(t, rows) {
         },
         run: data => spawnSync(process.execPath,
             [path.join(root, 'shared/configs/tmux/.config/tmux/claude-statusline-hook.mjs')], {
-                input: JSON.stringify(data), env: { HOME: home, PATH: bin },
-                encoding: 'utf8', timeout: 10000,
+                // The hook's own command limit is 3s; a busy parallel suite can
+                // exceed that for even this fake ps, so both get headroom.
+                input: JSON.stringify(data), env: { HOME: home, PATH: bin, INITD_COMMAND_TIMEOUT_MS: '15000' },
+                encoding: 'utf8', timeout: 30000,
             }),
     };
 }
