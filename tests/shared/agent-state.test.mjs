@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { agentPill } from '../../shared/configs/tmux/.config/tmux/status-renderer.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const tmuxDir = path.join(root, 'shared/configs/tmux/.config/tmux');
@@ -185,6 +186,22 @@ test('the status pill counts agents per state across every session', options, as
     // Assert
     assert.match(pill(), /\u{F012C} 1 /u);
     assert.doesNotMatch(pill(), /\u{F0028}|\u{F051F}/u);
+});
+
+test('watcher pills keep their % and palette colours when status-right expands them', options, async t => {
+    // Arrange: the same E: expansion status-right applies to @initd-agent-pill.
+    // It resolves #{@c-amber} but also runs strftime, which eats a bare '%'.
+    const { tmux } = await server(t);
+    const now = Math.floor(Date.now() / 1000);
+    tmux('set-option', '-g', '@initd-agent-pill', agentPill('claude', `${now}\nclaude\nOpus 5 · 12% · 1h\n`, now));
+
+    // Act
+    const rendered = tmux('display-message', '-p', '#{E:@initd-agent-pill}');
+
+    // Assert
+    assert.match(rendered, /Opus 5 · 12% · 1h/);
+    assert.match(rendered, /fg=#e0af68,bg=#111116,bold/);
+    assert.doesNotMatch(rendered, /#\{@c-/);
 });
 
 test('picker rows survive spaces in session and directory names', options, async t => {
