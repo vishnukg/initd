@@ -117,11 +117,11 @@ Claude Code hooks (merged into `~/.claude/settings.json` by `shared/lib/claude-s
 
 | Dot | State | Set by |
 |---|---|---|
-| red `●` | **blocked**: waiting on you | permission prompt, MCP elicitation, `AskUserQuestion` |
-| amber `●` | **working** | prompt submitted, any tool finishing |
+| red alert (`nf-md-alert_circle`) | **blocked**: waiting on you | permission prompt, MCP elicitation, `AskUserQuestion` |
+| amber hourglass (`nf-md-timer_sand`) | **working** | prompt submitted, any tool finishing |
 | green check (`nf-md-check_bold`) | **done**: finished, not yet looked at | `Stop`, or ~60s idle after an Esc interrupt |
 
-"Done" means *unseen*: an agent that finishes in the pane you are looking at goes straight back to idle, and a check elsewhere clears as soon as you arrive at that pane (a `pane-focus-in` hook). The tabs only cover the current session, so the status line also carries a red **`● N waiting`** pill counting blocked agents across every session; it disappears at zero.
+"Done" means *unseen*: an agent that finishes in the pane you are looking at goes straight back to idle, and a check elsewhere clears as soon as you arrive at that pane (a `pane-focus-in` hook). The tabs only cover the current session, so the status line also carries a red **alert-icon `N waiting`** pill counting blocked agents across every session; it disappears at zero.
 
 | What | Keys |
 |---|---|
