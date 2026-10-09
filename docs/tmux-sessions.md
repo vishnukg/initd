@@ -23,10 +23,8 @@ The session name shows in the bottom-left of your status bar in purple. The
 bottom-right shows the active pane's git branch (only inside a repository),
 battery, and the active agent's model/usage pill.
 
-Window tabs show the index, an icon for the running program (its name when it
-has no icon, or your name for a window you renamed - the list is `@prog-icon`
-in `tmux.conf`), the directory basename, and a randomly assigned emoji. The
-current 21-icon pool is:
+Window tabs show the index, command (or custom window name), directory basename,
+and a randomly assigned emoji. The current 21-icon pool is:
 
 - Science: 🧬 🧪 ⚗️ 🔬 🔭
 - Maths and puzzles: 🧮 📐 🧩 ♾️ 🎲
