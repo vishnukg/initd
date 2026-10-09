@@ -140,14 +140,14 @@ test('each tab shows its most urgent agent, and nothing for a dead one', options
     tmux('set-option', '-p', '-t', split, '@agent-state', 'blocked');
 
     // Assert: a blocked state on a pane that is not running claude is ignored.
-    assert.match(dot(nova0), /fg=#e0af68\]●/);
+    assert.match(dot(nova0), /fg=#e0af68\]#\[bold\]\u{F051F}/u);
     assert.match(dot(nova1), /\u{F012C}/u);
 
     // Act: blocked outranks done within one window.
     hook(nova1, 'blocked');
 
     // Assert
-    assert.match(dot(nova1), /fg=#f7768e\]●/);
+    assert.match(dot(nova1), /fg=#f7768e\]#\[bold\]\u{F0028}/u);
 
     // Act: the agent dies without SessionEnd, leaving its state behind.
     tmux('respawn-pane', '-k', '-t', nova0, 'sh');
