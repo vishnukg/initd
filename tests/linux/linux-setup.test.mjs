@@ -370,9 +370,10 @@ test('desktop helpers handle missing executables without uncaught spawn errors',
     fs.mkdirSync(bin);
     fs.writeFileSync(path.join(bin, 'docker'), '#!/bin/sh\nprintf "web\\tUp\\n"\n', { mode: 0o755 });
 
-    // Act
+    // Act: 20s spawn limits are a ceiling, not a wait - a healthy run takes
+    // ~80ms, but a loaded parallel suite once pushed one past 5s.
     const result = spawnSync(process.execPath, [path.join(root, 'linux/scripts/docker-menu.mjs')], {
-        env: { ...process.env, PATH: bin }, encoding: 'utf8', timeout: 5000,
+        env: { ...process.env, PATH: bin }, encoding: 'utf8', timeout: 20000,
     });
 
     // Assert
@@ -385,7 +386,7 @@ test('desktop helpers handle missing executables without uncaught spawn errors',
     const weather = spawnSync(process.execPath, ['--input-type=module', '-e',
         'globalThis.fetch = async () => ({ok:true,text:async()=>"City|Clear"}); await import(process.env.INITD_WEATHER);'], {
         env: { ...process.env, PATH: bin, INITD_WEATHER: path.join(root, 'linux/scripts/weather-popup.mjs') },
-        encoding: 'utf8', timeout: 5000,
+        encoding: 'utf8', timeout: 20000,
     });
 
     // Assert

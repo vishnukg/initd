@@ -225,7 +225,7 @@ test('separate tmux sockets elect independent owners and same-server followers i
 });
 
 test('real watchers publish to both servers and a follower takes over after owner exit', {
-    skip: noTmux || process.env.INITD_TEST_TMUX !== '1', timeout: 15000,
+    skip: noTmux || process.env.INITD_TEST_TMUX !== '1', timeout: 30000,
 }, async t => {
     // Arrange
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-watchers-'));
@@ -243,7 +243,9 @@ test('real watchers publish to both servers and a follower takes over after owne
         fs.rmSync(dir, { recursive: true, force: true });
     });
     const waitUntil = async predicate => {
-        const end = Date.now() + 5000;
+        // 15s: two real watchers each start node and scan ps every tick, which a
+        // loaded parallel suite once slowed past a 5s deadline.
+        const end = Date.now() + 15000;
         while (!predicate()) {
             if (Date.now() >= end) for (const socket of sockets) {
                 t.diagnostic(execFileSync('tmux', ['-S', socket, 'list-panes', '-a', '-F', '#{pane_current_command}|#{@initd-agent}|#{pane_current_path}|#{@initd-directory}'], { encoding: 'utf8' }));
