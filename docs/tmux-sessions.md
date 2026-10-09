@@ -112,7 +112,7 @@ Claude Code hooks (merged into `~/.claude/settings.json` by `shared/lib/claude-s
 | amber hourglass (`nf-md-timer_sand`) | **working** | prompt submitted, any tool finishing |
 | green check (`nf-md-check_bold`) | **done**: finished, not yet looked at | `Stop`, or ~60s idle after an Esc interrupt |
 
-"Done" means *unseen*: an agent that finishes in the pane you are looking at goes straight back to idle, and a check elsewhere clears as soon as you arrive at that pane (a `pane-focus-in` hook). The tabs only cover the current session, so the status line also carries a red **alert-icon `N waiting`** pill counting blocked agents across every session; it disappears at zero.
+"Done" means *unseen*: an agent that finishes in the pane you are looking at goes straight back to idle, and a check elsewhere clears as soon as you arrive at that pane (a `pane-focus-in` hook). The tabs only cover the current session, so the status line also carries a pill on the right counting agents in **every** session per state - e.g. alert 1, hourglass 2, check 1 - in the same icons and colours. States at zero are left out, and the pill disappears when no agent is running.
 
 | What | Keys |
 |---|---|
