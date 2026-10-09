@@ -28,7 +28,9 @@ const AGENT_STATE = '~/.config/tmux/agent-state.sh';
 // flips it back once you answer. idle_prompt only settles a turn that Esc
 // interrupted, since Stop never fires for one (see agent-state.sh).
 const AGENT_HOOKS = {
-    SessionStart: [[null, 'clear']],
+    // Not "compact": auto-compaction can land mid-turn, and clearing there
+    // would blank a working agent until its next tool call.
+    SessionStart: [['startup|resume|clear', 'clear']],
     UserPromptSubmit: [[null, 'working']],
     PreToolUse: [['AskUserQuestion', 'blocked']],
     PostToolUse: [[null, 'working']],
