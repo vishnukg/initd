@@ -19,6 +19,17 @@ set -u
 
 agent_filter='#{==:#{pane_current_command},claude}'
 
+# Colours come from tmux.conf's @c-* palette - the one place they are defined -
+# read in a single call rather than copied here.
+palette() {
+    read -r c_red c_amber c_green c_muted c_text c_fg c_purple c_green_bg c_border <<< \
+        "$(tmux display-message -p '#{@c-red} #{@c-amber} #{@c-green} #{@c-muted} #{@c-text} #{@c-fg} #{@c-purple} #{@c-green-bg} #{@c-border}')"
+}
+# rgb '#f7768e' -> 247;118;142, for a truecolor escape (macOS awk has no strtonum).
+rgb() {
+    printf '%d;%d;%d' "0x${1:1:2}" "0x${1:3:2}" "0x${1:5:2}" 2>/dev/null
+}
+
 # True when you are looking at the pane right now: it is the active pane of its
 # session's active window, and a client showing that session has terminal focus
 # (tmux tracks it with focus-events on).
@@ -79,17 +90,19 @@ case "${1:-}" in
         # spaces, which would shift every later column.
         now=$(date +%s)
         tab=$'\t'
+        palette
         tmux list-panes -a -f "$agent_filter" \
             -F "#{?#{==:#{@agent-state},blocked},0,#{?#{==:#{@agent-state},working},1,2}}${tab}#{e|+:0,#{@agent-since}}${tab}#{pane_id}${tab}#{session_name}:#{window_index}${tab}#{?#{@agent-state},#{@agent-state},idle}${tab}#{b:pane_current_path}" |
             sort -t "$tab" -k1,1n -k2,2n |
-            awk -F '\t' -v now="$now" '{
+            awk -F '\t' -v now="$now" -v red="$(rgb "$c_red")" -v amber="$(rgb "$c_amber")" \
+                -v green="$(rgb "$c_green")" -v muted="$(rgb "$c_muted")" '{
                 age = $2 ? now - $2 : 0
                 ago = age >= 3600 ? int(age / 3600) "h" : age >= 60 ? int(age / 60) "m" : age "s"
-                # Same glyphs and truecolor hues as the tab dots in tmux.conf.
-                dot = $5 == "blocked" ? "\033[1;38;2;247;118;142m\363\260\200\250" \
-                    : $5 == "working" ? "\033[1;38;2;224;175;104m\363\260\224\237" \
-                    : $5 == "done" ? "\033[1;38;2;78;201;148m\363\260\204\254" : "\033[38;2;114;113;105m·"
-                printf "%s\t%s %-8s\033[0m %-12s \033[38;2;114;113;105m%-4s\033[0m %s\n", $3, dot, $5, $4, ($2 ? ago : ""), $6
+                # Same glyphs and palette colours as the tab icons in tmux.conf.
+                dot = $5 == "blocked" ? "\033[1;38;2;" red "m\363\260\200\250" \
+                    : $5 == "working" ? "\033[1;38;2;" amber "m\363\260\224\237" \
+                    : $5 == "done" ? "\033[1;38;2;" green "m\363\260\204\254" : "\033[38;2;" muted "m·"
+                printf "%s\t%s %-8s\033[0m %-12s \033[38;2;%sm%-4s\033[0m %s\n", $3, dot, $5, $4, muted, ($2 ? ago : ""), $6
             }'
         ;;
     pick)
@@ -98,17 +111,17 @@ case "${1:-}" in
         # switch-client picks the most recently active client - the one that
         # just pressed C-a g.
         rows=$("$0" list)
+        palette
         if [ -z "$rows" ]; then
-            printf '\n  \033[38;2;114;113;105mNo agents running.\033[0m'; read -r -s -n 1 -t 2; exit 0
+            printf '\n  \033[38;2;%smNo agents running.\033[0m' "$(rgb "$c_muted")"; read -r -s -n 1 -t 2; exit 0
         fi
-        # The tmux.conf palette: text #9aa5ce, accent/selection #4ec994 on
-        # #1c3a2e (the message bar), borders #1a1a22 (pane borders), muted
-        # #727169. tmux draws the outer border, so fzf draws none.
+        # Selection is green on green-bg like the message bar, lines are the pane
+        # border colour. tmux draws the outer border, so fzf draws none.
         target=$(printf '%s\n' "$rows" | fzf --ansi --delimiter='\t' --with-nth=2 --no-sort \
             --reverse --no-scrollbar --bind=ctrl-n:down,ctrl-p:up --info=inline-right --prompt='❯ ' --pointer='▌' --gutter=' ' \
-            --color='fg:#9aa5ce,bg:-1,hl:#bb9af7,fg+:#4ec994,bg+:#1c3a2e,hl+:#bb9af7,gutter:-1' \
-            --color='query:#dcd7ba,prompt:#4ec994,pointer:#4ec994,info:#727169,spinner:#4ec994' \
-            --color='border:#1a1a22,separator:#1a1a22,preview-border:#1a1a22,label:#727169' \
+            --color="fg:$c_text,bg:-1,hl:$c_purple,fg+:$c_green,bg+:$c_green_bg,hl+:$c_purple,gutter:-1" \
+            --color="query:$c_fg,prompt:$c_green,pointer:$c_green,info:$c_muted,spinner:$c_green" \
+            --color="border:$c_border,separator:$c_border,preview-border:$c_border,label:$c_muted" \
             --preview='tmux capture-pane -ep -t {1} | tail -n "$FZF_PREVIEW_LINES"' \
             --preview-window=down,65%,border-top | cut -f1)
         [ -n "$target" ] && tmux switch-client -t "$target"
