@@ -363,16 +363,6 @@ async function refresh(io = { run: runAsync, processes: async () => processes(aw
         (io.atomic || atomic)(path.join(cacheDir, `pane-${server}-${root}`), `${Math.floor(Date.now() / 1000)}\n${agent}\n${value}\n`);
     }));
 }
-// Replace numeric defaults with the first free space-themed name. Keeping the
-// rule here covers sessions created by Fish, tmux commands, and keybindings.
-const sessionNames = ['nova', 'vega', 'io', 'sol', 'luna', 'mars',
-    'lyra', 'titan', 'pluto', 'orion'];
-const emojis = [
-    '🧬', '🧪', '⚗️', '🔬', '🔭',
-    '🧮', '📐', '🧩', '♾️', '🎲',
-    '🚀', '🛸', '🛰️', '🪐', '☄️',
-    '🦕', '🎮', '👾', '🤖', '💎', '🧲',
-];
 // Each attached tmux client starts a watcher. One owner per socket publishes
 // the shared pane options; followers idle and take over if the owner exits.
 function watcherLockPath(socket) {
@@ -446,13 +436,12 @@ function sweepCache(server, livePanes, io = {}) {
     }
     return removed;
 }
-// Agent values remain responsive; Git is cached for 3s, naming and battery for
-// 30s. Creation hooks run their own first publish immediately.
+// Agent values remain responsive; Git is cached for 3s and battery for 30s.
+// Window emojis and session names are names.sh's, run from tmux hooks.
 function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane) => readAgentCache(cacheDir, server, pane), readBattery = battery, sweep = sweepCache) {
     let batteryAt = -Infinity;
     let batteryValue = '';
     let sweptAt = -Infinity;
-    let namesAt = -Infinity;
     const branches = new Map();
     let published = new Map();
     return async (now = Date.now() / 1000, snapshot) => {
@@ -503,34 +492,6 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
         set('-g', '@initd-agent-pill', activePill);
         set('-g', '@initd-git-pill', activeBranch);
         set('-g', '@initd-battery', batteryValue ? pill('\u{f0079}', batteryValue, '#4ec994') : '');
-        const checkNames = now - namesAt >= 30;
-        if (checkNames) {
-            const windows = (await runCommand('tmux', ['list-windows', '-a', '-F', '#{window_id} #{@emoji}'])).trim().split('\n').map(line => line.split(' '));
-            const used = new Set(windows.map(([, emoji]) => emoji));
-            for (const [id, existing] of windows) {
-                if (!/^@\d+$/.test(id) || emojis.includes(existing)) continue;
-                const available = emojis.filter(emoji => !used.has(emoji));
-                const choices = available.length ? available : emojis;
-                const emoji = choices[Math.floor(Math.random() * choices.length)];
-                used.add(emoji);
-                commands.push(['set-option', '-w', '-t', id, '@emoji', emoji]);
-            }
-            const sessions = (await runCommand('tmux', ['list-sessions', '-F', '#{session_id} #{session_name}']))
-                .split('\n').filter(Boolean).map(line => {
-                    const separator = line.indexOf(' ');
-                    return [line.slice(0, separator), line.slice(separator + 1)];
-                });
-            const takenNames = new Set(sessions.map(([, name]) => name));
-            for (const [id, name] of sessions) {
-                // Treat numeric names as allocated defaults; preserve other names.
-                if (!/^\$\d+$/.test(id) || !/^\d+$/.test(name)) continue;
-                const free = sessionNames.find(candidate => !takenNames.has(candidate));
-                if (!free) break;
-                takenNames.add(free);
-                // Not a set-option, so it is pushed rather than going through set().
-                commands.push(['rename-session', '-t', id, free]);
-            }
-        }
         // One tmux invocation for the whole tick, as a command sequence. Three
         // panes is 18 option changes, and a process each is the bulk of a
         // publish. Only a standalone ';' argument separates commands, so an
@@ -540,34 +501,26 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
             (index ? [';'] : []).concat(args.map(arg => arg === ';' ? '\\;' : arg))), true);
         // Commit only after tmux accepts the batch, so a failed write is retried.
         published = nextPublished;
-        if (checkNames) namesAt = now;
     };
 }
 async function main() {
-    if (!['watch', 'once'].includes(process.argv[2])) {
-        console.error('Usage: tmux.mjs <watch|once>');
+    if (process.argv[2] !== 'watch') {
+        console.error('Usage: tmux.mjs watch');
         process.exitCode = 1;
         return;
     }
     const publish = createStatusPublisher();
-    // `once` is the after-new-window/after-new-session hook and runs alone, so
-    // it never defers to the lock - a new window would otherwise wait out a tick
-    // for its emoji.
-    const watching = process.argv[2] === 'watch';
-    if (watching) {
-        const socket = run('tmux', ['display-message', '-p', '#{socket_path}']).trim();
-        if (!socket) return;
-        lockPath = watcherLockPath(socket);
-    }
+    const socket = run('tmux', ['display-message', '-p', '#{socket_path}']).trim();
+    if (!socket) return;
+    lockPath = watcherLockPath(socket);
     process.stdout.on('error', () => process.exit(0)); // tmux closed its job pipe
-    process.on('exit', () => { if (watching) releaseWatcherLock(); });
+    process.on('exit', () => releaseWatcherLock());
     do {
-        if (!watching || claimWatcherLock()) {
+        if (claimWatcherLock()) {
             const panes = await readPanes();
             try { await refresh(undefined, panes); } catch {}
             try { await publish(undefined, panes); } catch {}
         }
-        if (!watching) return;
         // Blank by design: the pills are read from the @initd-* options, not
         // from this job's output. The write is what keeps tmux's pipe alive.
         process.stdout.write('\n');

@@ -34,7 +34,9 @@ and a randomly assigned emoji. The current 21-icon pool is:
 New windows choose an unused icon across the server's windows; repeats are
 allowed once the pool is exhausted. Existing windows keep their icon while it
 remains in the pool. Edit `emojis` in
-`shared/configs/tmux/.config/tmux/tmux.mjs` to change the set. Each entry is a
+`shared/configs/tmux/.config/tmux/names.sh` to change the set; the same script
+gives numbered sessions their space names, run from tmux's new-window and
+new-session hooks. Each entry is a
 complete emoji string so variation selectors stay attached to their symbols.
 
 ---

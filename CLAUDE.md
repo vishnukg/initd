@@ -37,6 +37,7 @@ for f in bootstrap.sh \
   shared/lib/link.sh shared/lib/fonts.sh \
   shared/managed-links.sh \
   shared/configs/tmux/.config/tmux/agent-state.sh \
+  shared/configs/tmux/.config/tmux/names.sh \
   macos/bootstrap.sh macos/defaults.sh macos/update.sh macos/managed-links.sh \
   linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh \
   linux/scripts/*.sh; do
