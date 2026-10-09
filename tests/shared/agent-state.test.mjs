@@ -1,5 +1,5 @@
 // agent-state.sh and the tmux.conf pieces that read it: hook transitions, tab
-// dots, the cross-session "waiting" pill, "done" clearing once seen, C-a a and
+// icons, the cross-session status pill, "done" clearing once seen, C-a a and
 // the C-a g picker. Every test runs its own tmux server on a private socket with
 // a temporary HOME whose ~/.config/tmux links back to this repo, so the real
 // bindings and hooks are what is exercised.
@@ -157,21 +157,32 @@ test('each tab shows its most urgent agent, and nothing for a dead one', options
     assert.equal(dot(nova0), '');
 });
 
-test('the waiting pill counts blocked agents in every session and hides at zero', options, async t => {
+test('the status pill counts agents per state across every session', options, async t => {
     // Arrange
     const { hook, tmux, panes: { nova0, nova1, vega0 } } = await server(t);
-    const pill = () => tmux('display-message', '-p', '-t', 'nova', '#{E:@agent-blocked-pill}');
+    const pill = () => tmux('display-message', '-p', '-t', 'nova', '#{E:@agent-pill}')
+        .replace(/#\[[^\]]*\]/g, '');
 
     // Act
     const none = pill();
     hook(nova0, 'blocked');
     hook(vega0, 'blocked');
     hook(nova1, 'working');
-    const two = pill();
+    const mixed = pill();
+
+    // Assert: blocked in two sessions, one working, and no done segment at zero.
+    assert.equal(none, '');
+    assert.match(mixed, /\u{F0028} 2 \u{F051F} 1 /u);
+    assert.doesNotMatch(mixed, /\u{F012C}/u);
+
+    // Act
+    hook(nova1, 'done');
+    hook(nova0, 'clear');
+    hook(vega0, 'clear');
 
     // Assert
-    assert.equal(none, '');
-    assert.match(two, /2 waiting/);
+    assert.match(pill(), /\u{F012C} 1 /u);
+    assert.doesNotMatch(pill(), /\u{F0028}|\u{F051F}/u);
 });
 
 test('C-a a visits blocked agents oldest first and skips the one you are in', options, async t => {
