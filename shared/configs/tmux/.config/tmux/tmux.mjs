@@ -19,6 +19,9 @@ const cacheDir = path.join(process.env.HOME, '.cache/initd-tmux');
 // Match tmux's once-per-second redraw instead of scanning between redraws.
 const STATUS_REFRESH_MS = 1000;
 const MAX_PENDING_BYTES = 64 * 1024;
+// A hung ps/lsof/git must not stall the status line. Tests raise this: under a
+// loaded parallel suite even a fake one-line `ps` can take longer than 3s.
+const COMMAND_TIMEOUT_MS = Number(process.env.INITD_COMMAND_TIMEOUT_MS) || 3000;
 const transcriptCache = new Map();
 const sourceVersion = () => [filename, fileURLToPath(new URL('./status-renderer.mjs', import.meta.url))]
     .map(file => fs.statSync(file).mtimeMs).join(':');
@@ -28,7 +31,7 @@ function run(command, args) {
     try {
         return execFileSync(command, args, {
             encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' },
-            timeout: 3000, killSignal: 'SIGKILL', maxBuffer: 8 * 1024 * 1024,
+            timeout: COMMAND_TIMEOUT_MS, killSignal: 'SIGKILL', maxBuffer: 8 * 1024 * 1024,
             stdio: ['ignore', 'pipe', 'ignore'],
         });
     } catch {
@@ -40,7 +43,7 @@ function runAsync(command, args, checked = false) {
     // still returning complete records for the other processes.
     return new Promise((resolve, reject) => execFile(command, args, {
         encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' },
-        timeout: 3000, killSignal: 'SIGKILL', maxBuffer: 8 * 1024 * 1024,
+        timeout: COMMAND_TIMEOUT_MS, killSignal: 'SIGKILL', maxBuffer: 8 * 1024 * 1024,
     }, (error, stdout) => {
         if (error && checked) return reject(error);
         resolve(error && !(command === 'lsof' && error.code === 1) ? '' : stdout);
