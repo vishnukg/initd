@@ -112,7 +112,11 @@ set -g fish_cursor_replace_one block
 set -g fish_cursor_replace block
 set -g fish_cursor_visual block
 set -g fish_cursor_external block
-fish_vi_key_bindings
+# Select vi mode by variable rather than calling fish_vi_key_bindings here:
+# fish installs $fish_key_bindings itself when the first prompt is drawn, so a
+# direct call built every vi binding twice - ~4ms at startup, then ~10ms again
+# from __fish_reload_key_bindings (measured with fish --profile, fish 4.9).
+set -g fish_key_bindings fish_vi_key_bindings
 # Restore Ctrl+A/E for line start/end in insert mode (ergonomic with vi mode)
 bind -M insert \ca beginning-of-line
 bind -M insert \ce end-of-line
@@ -177,6 +181,12 @@ function __initd_tool_init
 end
 __initd_tool_init zoxide init fish
 __initd_tool_init starship init fish --print-full-init
+# starship.toml sets no right_format, but starship's init always defines
+# fish_right_prompt, which launched a whole second starship process on every
+# prompt to print nothing: ~31ms per prompt, measured. An empty function keeps
+# fish from autoloading anything in its place. If starship.toml ever gains a
+# right_format, delete this line.
+function fish_right_prompt; end
 # Interactive-only mise activation: prepends real tool bins to PATH via a
 # prompt hook so shims are only the non-interactive fallback.
 #
