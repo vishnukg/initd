@@ -491,7 +491,7 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
         // there as well as pane-scoped values used by callers inspecting panes.
         set('-g', '@initd-agent-pill', activePill);
         set('-g', '@initd-git-pill', activeBranch);
-        set('-g', '@initd-battery', batteryValue ? pill('\u{f0079}', batteryValue, '#4ec994') : '');
+        set('-g', '@initd-battery', batteryValue ? pill('\u{f0079}', batteryValue, '#{@c-green}') : '');
         // One tmux invocation for the whole tick, as a command sequence. Three
         // panes is 18 option changes, and a process each is the bulk of a
         // publish. Only a standalone ';' argument separates commands, so an

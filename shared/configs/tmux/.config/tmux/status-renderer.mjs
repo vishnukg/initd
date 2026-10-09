@@ -7,18 +7,26 @@ const STATUS_CACHE_TTL_SECONDS = 3;
 // Glyphs stay as \u escapes: they are Private Use Area code points that editors
 // and terminals silently drop, which has turned a pill into a bare rectangle
 // before now.
+// Colours are tmux.conf's @c-* palette, referenced rather than copied: the pills
+// are expanded by status-right (#{E:...}), so #{@c-amber} becomes the hex there.
+// clean() strips '#' from every value, so no branch or model name can inject a
+// format into that expansion.
 const styles = {
-    claude: ['#e0af68', '\u{f06a9}'],
-    copilot: ['#7aa2f7', '\uf4b8'],
-    codex: ['#f7768e', '\uf477'],
+    claude: ['#{@c-amber}', '\u{f06a9}'],
+    copilot: ['#{@c-blue}', '\uf4b8'],
+    codex: ['#{@c-red}', '\uf477'],
 };
 
 function clean(value) {
     return String(value).replace(/[\x00-\x1f\x7f#]/g, '').slice(0, 140);
 }
 
+// status-right expands the pills (#{E:...}) so the palette references resolve,
+// and that expansion also runs strftime: a bare '%' is consumed ("89%" renders
+// "89"), so it is doubled here - not in clean(), which also feeds Claude's own
+// status line.
 function pill(icon, value, color) {
-    return `#[fg=#111116,bg=default]\ue0b6#[fg=${color},bg=#111116,bold] ${icon} #[fg=#9aa5ce]${clean(value)} #[fg=#111116,bg=default,nobold]\ue0b4 `;
+    return `#[fg=#{@c-pill},bg=default]\ue0b6#[fg=${color},bg=#{@c-pill},bold] ${icon} #[fg=#{@c-text}]${clean(value).replaceAll('%', '%%')} #[fg=#{@c-pill},bg=default,nobold]\ue0b4 `;
 }
 
 export function agentPill(agent, record = '', now = Date.now() / 1000) {
@@ -51,7 +59,7 @@ export async function gitPill(directory, runCommand) {
         || await runCommand('git', ['-C', directory, 'rev-parse', '--short', 'HEAD'])).trim();
     if (!branch) return '';
     const shortened = [...clean(branch)];
-    return pill('\u{f062c}', shortened.length > 28 ? shortened.slice(0, 27).join('') + '…' : shortened.join(''), '#bb9af7');
+    return pill('\u{f062c}', shortened.length > 28 ? shortened.slice(0, 27).join('') + '…' : shortened.join(''), '#{@c-purple}');
 }
 
 export function readAgentCache(cacheDir, server, pane) {

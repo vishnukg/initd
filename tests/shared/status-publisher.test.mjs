@@ -239,7 +239,7 @@ test('publisher retries option changes after a failed tmux batch', async () => {
 // The pill text sits between tmux style directives, so assertions read the
 // value out of the rendered pill rather than matching the whole escape soup.
 function pillText(rendered) {
-    return rendered.match(/#\[fg=#9aa5ce\](.*?) #\[/)?.[1] ?? null;
+    return rendered.match(/#\[fg=#\{@c-text\}\](.*?) #\[/)?.[1] ?? null;
 }
 
 test('the Git pill falls back to a detached HEAD and renders nothing outside a repository', async () => {
