@@ -45,7 +45,9 @@ async function server(t) {
     delete env.TMUX_PANE;
     t.after(() => {
         for (const s of [outer, socket]) spawnSync('tmux', ['-S', s, 'kill-server'], { stdio: 'ignore' });
-        fs.rmSync(dir, { recursive: true, force: true });
+        // kill-server returns before the server has unlinked its socket here,
+        // so the delete can race it: retry rather than fail on ENOTEMPTY.
+        fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     });
 
     const tmux = (...args) => execFileSync('tmux', ['-S', socket, ...args], { encoding: 'utf8', env }).trimEnd();
