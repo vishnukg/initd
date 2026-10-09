@@ -223,13 +223,71 @@ test('the Claude statusLine hook is configured without disturbing other settings
     // A key reshuffle by Claude Code is not a change worth a write.
     fs.writeFileSync(file, JSON.stringify({ statusLine: {
         refreshInterval: 60, command: '~/.config/tmux/claude-statusline-hook.mjs', type: 'command',
-    } }));
+    }, hooks: read(file).hooks }));
 
     // Act
     const afterAKeyReshuffle = configureStatusLine({ file, log });
 
     // Assert
     assert.equal(afterAKeyReshuffle, false);
+});
+test('agent-state hooks are merged beside the user\'s own hooks', t => {
+    // Arrange
+    const file = path.join(temporaryDir(t), 'settings.json');
+    const theirs = { matcher: 'Bash', hooks: [{ type: 'command', command: 'audit.sh' }] };
+    const stale = { type: 'command', command: '~/.config/tmux/agent-state.sh retired' };
+    fs.writeFileSync(file, JSON.stringify({ hooks: {
+        PreToolUse: [theirs],
+        // A shared group: our stale handler goes, their handler stays.
+        Stop: [{ hooks: [stale, { type: 'command', command: 'say done' }] }],
+        // An event that is only ours is removed outright.
+        PreCompact: [{ hooks: [stale] }],
+    } }));
+    const agentState = hooks => hooks.flatMap(group => group.hooks)
+        .map(hook => hook.command).filter(command => command.startsWith('~/.config/tmux/agent-state.sh '));
+
+    // Act
+    const firstRun = configureStatusLine({ file, log() {} });
+
+    // Assert
+    assert.equal(firstRun, true);
+    const { hooks } = read(file);
+    assert.deepEqual(hooks.PreToolUse[0], theirs);
+    assert.deepEqual(hooks.PreToolUse[1], {
+        matcher: 'AskUserQuestion',
+        hooks: [{ type: 'command', command: '~/.config/tmux/agent-state.sh blocked' }],
+    });
+    assert.deepEqual(hooks.Stop[0], { hooks: [{ type: 'command', command: 'say done' }] });
+    assert.deepEqual(agentState(hooks.Stop), ['~/.config/tmux/agent-state.sh done']);
+    assert.equal(hooks.PreCompact, undefined);
+    assert.deepEqual(agentState(hooks.UserPromptSubmit), ['~/.config/tmux/agent-state.sh working']);
+    assert.deepEqual(agentState(hooks.SessionEnd), ['~/.config/tmux/agent-state.sh clear']);
+    assert.deepEqual(hooks.Notification.map(group => group.matcher), [
+        'permission_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input', 'idle_prompt',
+    ]);
+
+    // Act
+    const secondRun = configureStatusLine({ file, log() {} });
+
+    // Assert
+    assert.equal(secondRun, false);
+    assert.deepEqual(read(file).hooks, hooks);
+});
+test('agent-state.sh stays silent and harmless outside tmux', () => {
+    // Arrange: hook stdout from UserPromptSubmit/SessionStart becomes model context.
+    const script = path.join(root, 'shared/configs/tmux/.config/tmux/agent-state.sh');
+    const env = { ...process.env };
+    delete env.TMUX;
+    delete env.TMUX_PANE;
+
+    for (const state of ['working', 'blocked', 'done', 'settle', 'clear']) {
+        // Act
+        const result = spawnSync(script, [state], { env, encoding: 'utf8' });
+
+        // Assert
+        assert.equal(result.status, 0, state);
+        assert.equal(result.stdout + result.stderr, '', state);
+    }
 });
 test('Docker config gains the keychain helper and appends its plugin dir', t => {
     // Arrange

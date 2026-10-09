@@ -14,8 +14,9 @@ INITD_TEST_TMUX=1 node --test 'tests/**/*.test.mjs'
 # Run install behavior tests (auto-detects host OS; uses temporary home directories)
 node --test tests/shared/install.test.mjs
 
-# Agent status: process/session isolation, model switches, concurrent writes
-node --test tests/shared/agent-*.test.mjs tests/shared/status-publisher.test.mjs tests/shared/watcher-lifecycle.test.mjs tests/shared/enterprise-quota.test.mjs
+# Agent status: process/session isolation, model switches, concurrent writes, and
+# agent-state.sh (tab dots, waiting pill, C-a a / C-a g) on isolated tmux servers
+INITD_TEST_TMUX=1 node --test tests/shared/agent-*.test.mjs tests/shared/status-publisher.test.mjs tests/shared/watcher-lifecycle.test.mjs tests/shared/enterprise-quota.test.mjs
 
 # Config files bootstrap merges into rather than owns (~/.claude/settings.json,
 # ~/.docker/config.json) plus the Firefox profile glue
@@ -35,6 +36,7 @@ for f in bootstrap.sh \
   shared/lib/logging.sh \
   shared/lib/link.sh shared/lib/fonts.sh \
   shared/managed-links.sh \
+  shared/configs/tmux/.config/tmux/agent-state.sh \
   macos/bootstrap.sh macos/defaults.sh macos/update.sh macos/managed-links.sh \
   linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh \
   linux/scripts/*.sh; do

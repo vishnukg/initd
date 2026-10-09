@@ -111,6 +111,25 @@ Notes:
 
 In the session picker (`C-a s`): navigate with `j/k`, expand/collapse with `Enter`, switch with `Enter` on a session, kill with `x`.
 
+### Agents
+
+Claude Code hooks (merged into `~/.claude/settings.json` by `shared/lib/claude-statusline.mjs`) call `~/.config/tmux/agent-state.sh`, which sets `@agent-state` on the agent's own pane. Each window tab shows its most urgent pane:
+
+| Dot | State | Set by |
+|---|---|---|
+| red `●` | **blocked**: waiting on you | permission prompt, MCP elicitation, `AskUserQuestion` |
+| amber `●` | **working** | prompt submitted, any tool finishing |
+| green check (`nf-md-check_bold`) | **done**: finished, not yet looked at | `Stop`, or ~60s idle after an Esc interrupt |
+
+"Done" means *unseen*: an agent that finishes in the pane you are looking at goes straight back to idle, and a check elsewhere clears as soon as you arrive at that pane (a `pane-focus-in` hook). The tabs only cover the current session, so the status line also carries a red **`● N waiting`** pill counting blocked agents across every session; it disappears at zero.
+
+| What | Keys |
+|---|---|
+| Jump to the agent that has waited longest | `C-a a` (again for the next one) |
+| Pick any agent (blocked first, live preview; `C-n`/`C-p` to move, Enter to jump) | `C-a g` |
+
+Only Claude Code reports state; Codex and Copilot panes keep their model pill but get no dot.
+
 ---
 
 ## Typical workflow
@@ -146,6 +165,10 @@ Session
   C-a )  /  C-a (             next / prev session
   C-a $                       rename session
   C-a d                       detach
+
+Agents
+  C-a a                       jump to the longest-blocked agent
+  C-a g                       agent picker (blocked first)
 
 Window
   C-a c                       new window
