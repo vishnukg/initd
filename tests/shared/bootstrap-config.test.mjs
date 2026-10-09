@@ -262,6 +262,8 @@ test('agent-state hooks are merged beside the user\'s own hooks', t => {
     assert.equal(hooks.PreCompact, undefined);
     assert.deepEqual(agentState(hooks.UserPromptSubmit), ['~/.config/tmux/agent-state.sh working']);
     assert.deepEqual(agentState(hooks.SessionEnd), ['~/.config/tmux/agent-state.sh clear']);
+    // Not on compact: auto-compaction can land mid-turn.
+    assert.equal(hooks.SessionStart.at(-1).matcher, 'startup|resume|clear');
     assert.deepEqual(hooks.Notification.map(group => group.matcher), [
         'permission_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input', 'idle_prompt',
     ]);
