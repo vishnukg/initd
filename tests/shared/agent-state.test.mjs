@@ -204,6 +204,24 @@ test('watcher pills keep their % and palette colours when status-right expands t
     assert.doesNotMatch(rendered, /#\{@c-/);
 });
 
+test('tabs show the program icon, a name for unknown programs, and a manual name', options, async t => {
+    // Arrange
+    const { tmux, panes: { nova0 } } = await server(t);
+    const shell = tmux('new-window', '-P', '-F', '#{pane_id}', '-t', 'nova', 'sh');
+    const unknown = tmux('new-window', '-P', '-F', '#{pane_id}', '-t', 'nova', 'sleep 600');
+    const renamed = tmux('new-window', '-P', '-F', '#{pane_id}', '-t', 'nova', 'sleep 600');
+    tmux('rename-window', '-t', renamed, 'notes');
+    await waitUntil(() => tmux('display-message', '-p', '-t', unknown, '#{pane_current_command}') === 'sleep', 'sleep to start');
+    const tab = pane => tmux('display-message', '-p', '-t', pane, '#{E:window-status-format}')
+        .replace(/#\[[^\]]*\]/g, '').match(/\d+:(.*?):/)?.[1];
+
+    // Act
+    const tabs = { agent: tab(nova0), shell: tab(shell), unknown: tab(unknown), renamed: tab(renamed) };
+
+    // Assert
+    assert.deepEqual(tabs, { agent: '\u{F06A9}', shell: '\u{F489}', unknown: 'sleep', renamed: 'notes' });
+});
+
 test('picker rows survive spaces in session and directory names', options, async t => {
     // Arrange
     const { hook, tmux, agent } = await server(t);
