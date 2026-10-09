@@ -75,11 +75,14 @@ case "${1:-}" in
         ;;
     list)
         # blocked, then working, then done/idle; oldest transition first.
+        # Tab-separated throughout: session and directory names may contain
+        # spaces, which would shift every later column.
         now=$(date +%s)
+        tab=$'\t'
         tmux list-panes -a -f "$agent_filter" \
-            -F '#{?#{==:#{@agent-state},blocked},0,#{?#{==:#{@agent-state},working},1,2}} #{e|+:0,#{@agent-since}} #{pane_id} #{session_name}:#{window_index} #{?#{@agent-state},#{@agent-state},idle} #{b:pane_current_path}' |
-            sort -k1,1n -k2,2n |
-            awk -v now="$now" '{
+            -F "#{?#{==:#{@agent-state},blocked},0,#{?#{==:#{@agent-state},working},1,2}}${tab}#{e|+:0,#{@agent-since}}${tab}#{pane_id}${tab}#{session_name}:#{window_index}${tab}#{?#{@agent-state},#{@agent-state},idle}${tab}#{b:pane_current_path}" |
+            sort -t "$tab" -k1,1n -k2,2n |
+            awk -F '\t' -v now="$now" '{
                 age = $2 ? now - $2 : 0
                 ago = age >= 3600 ? int(age / 3600) "h" : age >= 60 ? int(age / 60) "m" : age "s"
                 # Same glyphs and truecolor hues as the tab dots in tmux.conf.

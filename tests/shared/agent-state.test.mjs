@@ -59,7 +59,7 @@ async function server(t) {
     const serverPid = tmux('display-message', '-p', '#{pid}');
 
     return {
-        tmux, panes: { nova0, nova1, vega0 },
+        tmux, agent, panes: { nova0, nova1, vega0 },
         // What a Claude Code hook does: run the script with the agent's own
         // $TMUX/$TMUX_PANE inherited.
         hook(pane, state) {
@@ -183,6 +183,25 @@ test('the status pill counts agents per state across every session', options, as
     // Assert
     assert.match(pill(), /\u{F012C} 1 /u);
     assert.doesNotMatch(pill(), /\u{F0028}|\u{F051F}/u);
+});
+
+test('picker rows survive spaces in session and directory names', options, async t => {
+    // Arrange
+    const { hook, tmux, agent } = await server(t);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd agent '));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    tmux('rename-session', '-t', 'nova', 'side quest');
+    const pane = tmux('new-window', '-P', '-F', '#{pane_id}', '-c', dir, '-t', 'side quest', agent);
+    await waitUntil(() => tmux('display-message', '-p', '-t', pane, '#{pane_current_command}') === 'claude', 'the agent');
+    hook(pane, 'blocked');
+
+    // Act
+    const rows = tmux('run-shell', `${script} list`).replace(/\x1b\[[0-9;]*m/g, '').split('\n');
+    const row = rows.find(line => line.startsWith(`${pane}\t`));
+
+    // Assert: the state column is still the state, and both names are whole.
+    assert.match(row, /\u{F0028} blocked +side quest:\d+ /u);
+    assert.ok(row.endsWith(path.basename(dir)), row);
 });
 
 test('C-a a visits blocked agents oldest first and skips the one you are in', options, async t => {
