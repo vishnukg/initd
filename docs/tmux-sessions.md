@@ -23,10 +23,19 @@ The session name shows in the bottom-left of your status bar in purple. The
 bottom-right shows the active pane's git branch (only inside a repository),
 battery, and the active agent's model/usage pill.
 
-Window tabs read `index:command:directory` - the command, or the custom name
-once a window is renamed, then the directory basename - followed by the agent
-state icon when a Claude Code agent runs there (see [Agents](#agents)), e.g.
-`1:claude:initd` and then the amber hourglass while that agent works.
+Window tabs show the index, command (or custom window name), directory basename,
+and a randomly assigned emoji. The current 21-icon pool is:
+
+- Science: 🧬 🧪 ⚗️ 🔬 🔭
+- Maths and puzzles: 🧮 📐 🧩 ♾️ 🎲
+- Space: 🚀 🛸 🛰️ 🪐 ☄️
+- Nerdy extras: 🦕 🎮 👾 🤖 💎 🧲
+
+New windows choose an unused icon across the server's windows; repeats are
+allowed once the pool is exhausted. Existing windows keep their icon while it
+remains in the pool. Edit `emojis` in
+`shared/configs/tmux/.config/tmux/tmux.mjs` to change the set. Each entry is a
+complete emoji string so variation selectors stay attached to their symbols.
 
 ---
 
