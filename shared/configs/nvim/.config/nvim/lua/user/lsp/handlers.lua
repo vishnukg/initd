@@ -92,14 +92,13 @@ end
 --   grr      → show references
 --   gri      → go to implementation
 --   grt      → go to type definition
---   grx      → run codelens (grl below is a second binding for it)
+--   grx      → run codelens
 --   gO       → list document symbols
 --   <C-S>    → signature help (insert + select mode)
 local function lsp_keymaps(bufnr)
 	local opts = { noremap = true, silent = true, buffer = bufnr }
 	vim.keymap.set("n", "gd",  vim.lsp.buf.definition,    vim.tbl_extend("force", opts, { desc = "LSP: go to definition" }))
 	vim.keymap.set("n", "gD",  vim.lsp.buf.declaration,   vim.tbl_extend("force", opts, { desc = "LSP: go to declaration" }))
-	vim.keymap.set("n", "grl", vim.lsp.codelens.run,      vim.tbl_extend("force", opts, { desc = "LSP: run codelens" }))
 	vim.keymap.set("n", "gl",  vim.diagnostic.open_float, vim.tbl_extend("force", opts, { desc = "LSP: open diagnostic float" }))
 	vim.keymap.set("n", "gch", vim.lsp.buf.incoming_calls,vim.tbl_extend("force", opts, { desc = "LSP: incoming calls" }))
 	vim.keymap.set("n", "gth", function() vim.lsp.buf.typehierarchy("supertypes") end,

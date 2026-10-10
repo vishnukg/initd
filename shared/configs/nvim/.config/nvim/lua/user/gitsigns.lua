@@ -26,8 +26,8 @@ require("gitsigns").setup({
 	},
 	current_line_blame_formatter = "<author>, <author_time:%R> - <summary>",
 	max_file_length = 40000,
+	-- No border: the float inherits vim.o.winborder ("rounded", options.lua).
 	preview_config = {
-		border = "single",
 		style = "minimal",
 		relative = "cursor",
 		row = 0,
