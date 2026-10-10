@@ -87,11 +87,7 @@ cmp.setup({
 		{ name = "buffer" },
 		{ name = "path" },
 	},
-	window = {
-		documentation = {
-			border = { "╭", "─", "╮", "│", "╯", "─", "╰", "│" },
-		},
-	},
+	-- No window.*.border: nvim-cmp defaults both menus to vim.o.winborder.
 	experimental = {
 		ghost_text = false,
 	},
