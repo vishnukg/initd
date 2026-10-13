@@ -46,7 +46,7 @@ or containers — it just frees the CPU/RAM the VM was holding.
 Colima's built-in defaults are modest (2 CPU / 2GiB memory / 100GiB disk,
 `qemu` VM type). This repo manages the *template* Colima reads when
 creating a brand-new profile, so `colima start` on a fresh machine already
-comes up sized at 4 CPU / 8GiB memory / 60GiB disk, using `vz` (Apple's
+comes up sized at 4 CPU / 6GiB memory / 60GiB disk, using `vz` (Apple's
 native Virtualization.framework, macOS 13+) instead of `qemu` — faster,
 no extra Homebrew dependency, and pairs with `virtiofs` for the fastest
 mount driver. Rosetta is also enabled for amd64 emulation. No flags needed.
