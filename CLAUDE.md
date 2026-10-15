@@ -297,3 +297,4 @@ The Linux desktop is **Wayland-only**: Hyprland installed alongside Fedora's sto
 - `docs/linux-monitors.md` — monitor hotplug/lid switching, manual per-monitor overrides, per-monitor scale
 - `docs/tmux-nvim.md` — tmux and Neovim workspace concepts
 - `docs/tmux-sessions.md` — tmux session/window/pane workflow and keybindings
+- `docs/remote-dev-box.md` — the exe.dev dev box (`ssh dev`): how it fits together, setting up a new personal machine, rebuilding the VM
