@@ -372,6 +372,9 @@ main() {
   log "Syncing licensed fonts from private repo..."
   "${SHARED_DIR}/lib/fonts.sh"
 
+  # Before linking: ~/.ssh/config is linked only on a personal profile.
+  setup_git_profile
+
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" linux
 
@@ -389,8 +392,6 @@ main() {
 
   log "Installing shared runtimes and LSP tooling with mise..."
   mise -C "${ROOT_DIR}" install --yes
-
-  setup_git_profile
 
   echo
   log_success "initd finished for Linux."

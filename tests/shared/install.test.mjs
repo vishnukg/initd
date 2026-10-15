@@ -429,3 +429,30 @@ test('backups outside HOME stay beneath backupRoot', () => {
     assert.ok(backup.startsWith(backupRoot + path.sep));
     assert.equal(fs.readFileSync(backup, 'utf8'), 'keep');
 });
+
+test('the SSH config is linked on a personal profile only', () => {
+    // Arrange: a copy of the link manifests whose local.gitconfig we control.
+    const copy = newHome('profile-root');
+    for (const file of ['shared/managed-links.sh', `${platform}/managed-links.sh`]) {
+        fs.mkdirSync(path.join(copy, path.dirname(file)), { recursive: true });
+        fs.copyFileSync(path.join(root, file), path.join(copy, file));
+    }
+    const localConfig = path.join(copy, 'shared/configs/git/local.gitconfig');
+    fs.mkdirSync(path.dirname(localConfig), { recursive: true });
+    const home = path.join(testRoot, 'profile-home');
+    const linksSsh = email => {
+        if (email) fs.writeFileSync(localConfig, `[user]\n\temail = ${email}\n`);
+        else fs.rmSync(localConfig, { force: true });
+        return managedLinks(copy, platform, home).some(entry => entry.home === path.join(home, '.ssh/config'));
+    };
+
+    // Act
+    const personal = linksSsh('vishnukg@gmail.com');
+    const work = linksSsh('vishnu@work.example');
+    const unset = linksSsh(null);
+
+    // Assert
+    assert.equal(personal, true);
+    assert.equal(work, false, 'a work machine keeps its own ~/.ssh/config');
+    assert.equal(unset, false);
+});
