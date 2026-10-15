@@ -203,3 +203,4 @@ Then re-run `node --test tests/shared/install.test.mjs`.
 - `docs/git-branching-conflicts.md` — Git branching and conflict resolution
 - `docs/tmux-nvim.md` — tmux and Neovim workspace concepts
 - `docs/tmux-sessions.md` — tmux session/window/pane workflow and keybindings
+- `docs/remote-dev-box.md` — the exe.dev dev box (`ssh dev`): setup on a new personal machine, rebuilding the VM
