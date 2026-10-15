@@ -430,7 +430,7 @@ test('backups outside HOME stay beneath backupRoot', () => {
     assert.equal(fs.readFileSync(backup, 'utf8'), 'keep');
 });
 
-test('the SSH config is linked on a personal profile only', () => {
+test('dev box links (SSH config, kitty shortcuts) are made on a personal profile only', () => {
     // Arrange: a copy of the link manifests whose local.gitconfig we control.
     const copy = newHome('profile-root');
     for (const file of ['shared/managed-links.sh', `${platform}/managed-links.sh`]) {
@@ -440,19 +440,20 @@ test('the SSH config is linked on a personal profile only', () => {
     const localConfig = path.join(copy, 'shared/configs/git/local.gitconfig');
     fs.mkdirSync(path.dirname(localConfig), { recursive: true });
     const home = path.join(testRoot, 'profile-home');
-    const linksSsh = email => {
+    const devBox = [path.join(home, '.ssh/config'), path.join(home, '.config/kitty-dev-box.conf')];
+    const devBoxLinks = email => {
         if (email) fs.writeFileSync(localConfig, `[user]\n\temail = ${email}\n`);
         else fs.rmSync(localConfig, { force: true });
-        return managedLinks(copy, platform, home).some(entry => entry.home === path.join(home, '.ssh/config'));
+        return managedLinks(copy, platform, home).map(entry => entry.home).filter(file => devBox.includes(file));
     };
 
     // Act
-    const personal = linksSsh('vishnukg@gmail.com');
-    const work = linksSsh('vishnu@work.example');
-    const unset = linksSsh(null);
+    const personal = devBoxLinks('vishnukg@gmail.com');
+    const work = devBoxLinks('vishnu@work.example');
+    const unset = devBoxLinks(null);
 
     // Assert
-    assert.equal(personal, true);
-    assert.equal(work, false, 'a work machine keeps its own ~/.ssh/config');
-    assert.equal(unset, false);
+    assert.deepEqual(personal, devBox);
+    assert.deepEqual(work, [], 'a work machine gets nothing dev-box related');
+    assert.deepEqual(unset, []);
 });

@@ -237,9 +237,7 @@ provision: []
 # Modify ~/.ssh/config automatically to include a SSH config for the virtual machine.
 # SSH config will still be generated in $COLIMA_HOME/ssh_config regardless.
 # Default: true
-# Off: ~/.ssh/config is an initd-managed symlink, so Colima would be editing
-# the repo. `colima ssh` does not need it.
-sshConfig: false
+sshConfig: true
 
 # The port number for the SSH server for the virtual machine.
 # When set to 0, a random available port is used.

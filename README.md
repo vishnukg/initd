@@ -107,6 +107,7 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 | `~/.config/starship.toml` | `shared/configs/starship/.config/starship.toml` |
 | `~/.config/tmux` | `shared/configs/tmux/.config/tmux` |
 | `~/.ssh/config` | `shared/configs/ssh/.ssh/config` (exe.dev dev box; personal profile only, never on the VM) |
+| `~/.config/kitty-dev-box.conf` | `shared/configs/kitty/dev-box.conf` (kitty `ctrl+shift+d` / `cmd+shift+d` → dev box; personal profile only) |
 | `~/.gitconfig` | `shared/configs/git/gitconfig` (per-machine email via `local.gitconfig`) |
 | `~/.local/share/wallpapers` | `shared/wallpaper` |
 

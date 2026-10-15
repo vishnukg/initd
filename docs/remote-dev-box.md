@@ -20,6 +20,11 @@ personal laptops. Work machines are deliberately left out.
 - **Keys:** each machine has its own exe.dev key, `~/.ssh/id_ed25519_exe`,
   kept separate from the GitHub key `~/.ssh/id_ed25519`. The VM has its own
   GitHub key, registered on GitHub as "videv (exe.dev)".
+- **Personal machines only.** Both dev box files are linked only when
+  `local.gitconfig` holds the personal email: the SSH config, and
+  `~/.config/kitty-dev-box.conf` (the kitty shortcuts, from
+  `shared/configs/kitty/dev-box.conf`). A work machine gets neither; its
+  `~/.ssh/config` stays its own, and kitty skips the missing include.
 - **One tmux:** the kitty shortcut runs `ssh dev` in a new OS window without
   starting fish, so the laptop's tmux never starts in it. Typing `ssh dev`
   inside the local tmux nests two tmuxes on the same `C-a` prefix instead.
@@ -35,9 +40,8 @@ them except registering the key in step 5.
 2. Confirm the profile is personal:
    `git config --file shared/configs/git/local.gitconfig user.email` must
    print `vishnukg@gmail.com`. If not: `node shared/lib/git-profile.mjs personal`.
-3. **macOS only:** stop an existing Colima VM writing into the linked SSH config
-   (the template's `sshConfig: false` only reaches newly created ones):
-   `sed -i '' 's/^sshConfig: true/sshConfig: false/' ~/.colima/default/colima.yaml`
+3. Nothing to do for Colima: the linked SSH config already carries its
+   `Include ~/.colima/ssh_config`, so Colima finds it and never writes there.
 4. Link the configs with `shared/lib/link.sh macos` (or `linux`). Any existing
    `~/.ssh/config` is moved to `~/.config/initd-backups/`. Check it for hosts
    still in use and add them to `shared/configs/ssh/.ssh/config`.
