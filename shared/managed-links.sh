@@ -26,9 +26,9 @@ MANAGED_LINKS=(
   "${HOME}/.local/share/wallpapers:${ROOT_DIR}/shared/wallpaper"
 )
 
-# The exe.dev dev box - SSH client config and kitty's shortcuts to it: personal
-# machines only. A work machine gets nothing dev-box related and keeps its own
-# ~/.ssh/config untouched. "Personal" is the email
+# The exe.dev dev box - SSH client config and Ghostty as its terminal:
+# personal machines only. A work machine gets nothing
+# dev-box related and keeps its own ~/.ssh/config untouched. "Personal" is the email
 # git-profile.mjs wrote into local.gitconfig, so bootstraps set the Git
 # profile BEFORE linking.
 # Global/system git config are ignored: git parses them even with --file,
@@ -36,6 +36,6 @@ MANAGED_LINKS=(
 if [[ "$(GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git config --file "${ROOT_DIR}/shared/configs/git/local.gitconfig" user.email 2>/dev/null || true)" == "vishnukg@gmail.com" ]]; then
   MANAGED_LINKS+=(
     "${HOME}/.ssh/config:${ROOT_DIR}/shared/configs/ssh/.ssh/config"
-    "${HOME}/.config/kitty-dev-box.conf:${ROOT_DIR}/shared/configs/kitty/dev-box.conf"
+    "${HOME}/.config/ghostty-dev-box.conf:${ROOT_DIR}/shared/configs/ghostty/dev-box.conf"
   )
 fi
