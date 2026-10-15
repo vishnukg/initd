@@ -163,3 +163,61 @@ test('ensure_fish_ppa keeps an installed fish 4 and replaces fish 3', () => {
     assert.ok(legacy.calls().includes('add-apt-repository -y ppa:fish-shell/release-4'));
     assert.ok(legacy.calls().includes('apt-get install -y -q --no-install-recommends fish'));
 });
+
+function githubFixture({ fingerprint = 'SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU', greeting = '' } = {}) {
+    const env = fixture();
+    env.stub('ssh-keygen', [
+        'case "$1" in',
+        '  -F) exit 1 ;;',
+        `  -lf) echo "256 ${fingerprint} github.com (ED25519)" ;;`,
+        '  -q) touch "${@: -1}" "${@: -1}.pub" ;;',
+        'esac',
+    ].join('\n'));
+    env.stub('ssh-keyscan', `echo 'github.com ssh-ed25519 AAAAscanned'`);
+    env.stub('ssh', `echo '${greeting}'; exit 1`);
+    env.stub('gh');
+    env.stub('git', `if [[ "$*" == *'get-url origin' ]]; then echo https://github.com/vishnukg/initd; fi`);
+    return env;
+}
+
+test('ensure_github_ssh refuses a github.com host key with the wrong fingerprint', () => {
+    // Arrange
+    const env = githubFixture({ fingerprint: 'SHA256:attacker' });
+
+    // Act
+    const result = env.run('ensure_github_ssh');
+
+    // Assert
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr + result.stdout, /does not match GitHub's published one/);
+    assert.equal(env.calls().some(call => call.startsWith('ssh ')), false, 'must not connect to an unverified host');
+    assert.equal(env.calls().some(call => call.startsWith('gh ')), false);
+});
+
+test('ensure_github_ssh trusts the verified key, keeps a working key, and moves origin to SSH', () => {
+    // Arrange
+    const env = githubFixture({ greeting: 'Hi vishnukg! You have successfully authenticated' });
+
+    // Act
+    const result = env.run('ensure_github_ssh; cat "$HOME/.ssh/known_hosts"');
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /github\.com ssh-ed25519 AAAAscanned/);
+    assert.equal(env.calls().some(call => call.startsWith('gh ssh-key add')), false);
+    assert.ok(env.calls().includes('gh config set git_protocol ssh'));
+    assert.ok(env.calls().some(call => /^git -C \S+ remote set-url origin git@github\.com:vishnukg\/initd\.git$/.test(call)));
+});
+
+test('ensure_github_ssh only warns about an unregistered key when nobody is at the keyboard', () => {
+    // Arrange
+    const env = githubFixture({ greeting: 'Permission denied (publickey).' });
+
+    // Act
+    const result = env.run('ensure_github_ssh');
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout + result.stderr, /not on GitHub/);
+    assert.equal(env.calls().some(call => call.startsWith('gh auth refresh') || call.startsWith('gh ssh-key')), false);
+});
