@@ -15,6 +15,10 @@ cursor-color = #ffffff
 cursor-text = #141414
 
 macos-titlebar-style = transparent
+# No title text. A fixed title also makes Ghostty ignore the ones programs set
+# (tmux's "#S · #W", nvim), and a single space is the blank that still counts as
+# set - "" would mean unset and let them through again.
+title = " "
 # Make Option behave as terminal Alt on every keyboard layout so Neovim's
 # Alt-arrow resize mappings and other Meta bindings match Linux.
 macos-option-as-alt = true
