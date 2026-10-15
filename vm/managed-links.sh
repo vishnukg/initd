@@ -12,6 +12,7 @@ VM_SKIPPED_LINKS=(
   "${HOME}/.colima/_templates/default.yaml"
   "${HOME}/.config/ghostty"
   "${HOME}/.config/kitty"
+  "${HOME}/.config/kitty-dev-box.conf"
   "${HOME}/.local/share/wallpapers"
   # The laptop's config for reaching the VM; the VM has no use for it.
   "${HOME}/.ssh/config"
