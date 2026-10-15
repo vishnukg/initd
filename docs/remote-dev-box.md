@@ -45,8 +45,9 @@ them except registering the key in step 5.
 4. Link the configs with `shared/lib/link.sh macos` (or `linux`). Any existing
    `~/.ssh/config` is moved to `~/.config/initd-backups/`. Check it for hosts
    still in use and add them to `shared/configs/ssh/.ssh/config`.
-5. Create this machine's exe.dev key, unless `~/.ssh/id_ed25519_exe` already exists:
-   `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_exe -N "" -C "$(hostname) exe.dev"`
+5. Create this machine's exe.dev key: `shared/lib/exe-dev-key.sh`. Bootstrap runs it
+   right after linking, so a bootstrapped machine already has
+   `~/.ssh/id_ed25519_exe`; it does nothing without the personal SSH config link.
    Then register it with the existing account, any one of:
    - **From this machine:** run `ssh exe.dev` and, when it asks you to
      register, give the same email (`vishnukg@gmail.com`). That adds the key
