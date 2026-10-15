@@ -19,10 +19,10 @@ cursor-text = #141414
 custom-shader = shaders/cursor-trail.glsl
 
 macos-titlebar-style = transparent
-# No title text. A fixed title also makes Ghostty ignore the ones programs set
-# (tmux's "#S · #W", nvim), and a single space is the blank that still counts as
-# set - "" would mean unset and let them through again.
-title = " "
+# Just the ghost as the title. A fixed title also makes Ghostty ignore the ones
+# programs set (tmux's "#S · #W", nvim). An emoji, not a Nerd Font glyph: the
+# titlebar draws in the system font, which has no Private Use Area icons.
+title = "👻"
 # Make Option behave as terminal Alt on every keyboard layout so Neovim's
 # Alt-arrow resize mappings and other Meta bindings match Linux.
 macos-option-as-alt = true
