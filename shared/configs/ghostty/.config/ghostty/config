@@ -64,7 +64,16 @@ font-style-bold = Bold
 font-style-italic = Oblique
 font-style-bold-italic = Bold Oblique
 font-size = 16
-font-thicken = false
+# macOS stem darkening, Ghostty's equivalent of kitty's text_composition_strategy
+# platform (macos.conf). Off, the same face drew visibly thinner than kitty's.
+# A no-op on Linux.
+font-thicken = true
+# kitty rounds its cell UP to whole pixels; Ghostty rounds to nearest. Same 16pt
+# glyphs, but measured through tmux's client_cell_* on a Retina Mac kitty's cell
+# was 20x39 px and Ghostty's 19x38 - tighter tracking and line spacing that
+# reads as smaller text. One pixel each way puts Ghostty on kitty's grid.
+adjust-cell-width = 1
+adjust-cell-height = 1
 # Berkeley carries no Nerd Font icons. Send the Private Use Area to Symbols Nerd
 # Font, as kitty's symbol_map does, rather than leaving it to fallback discovery
 # (which finds the same font today - this pins it). Powerline separators
