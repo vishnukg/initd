@@ -34,7 +34,7 @@ INITD_TEST_TMUX=1 node --test tests/shared/fish-config.test.mjs
 # "passes" without checking anything past the first file.
 for f in bootstrap.sh \
   shared/lib/logging.sh \
-  shared/lib/link.sh shared/lib/fonts.sh \
+  shared/lib/link.sh shared/lib/fonts.sh shared/lib/exe-dev-key.sh \
   shared/managed-links.sh \
   shared/configs/tmux/.config/tmux/agent-state.sh \
   shared/configs/tmux/.config/tmux/names.sh \
@@ -139,6 +139,7 @@ macos/bootstrap.sh
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ setup_git_profile                        # before linking: ~/.ssh/config links on a personal profile only
   ├─ shared/lib/link.sh macos                 # symlinks
+  ├─ shared/lib/exe-dev-key.sh                # personal only (keys off the ~/.ssh/config link): creates ~/.ssh/id_ed25519_exe; registering stays manual
   ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ ensure_local_fonts                       # COPIES OTFs → ~/Library/Fonts (macOS won't register symlinked fonts)
   ├─ ensure_tmux_terminfo                     # compiles Homebrew ncurses's tmux-256color into ~/.terminfo (system entry lacks Smulx → no nvim undercurl inside tmux)
@@ -161,6 +162,7 @@ linux/bootstrap.sh
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ setup_git_profile                        # before linking: ~/.ssh/config links on a personal profile only
   ├─ shared/lib/link.sh linux                 # symlinks (incl. shared/fonts/berkeley-mono → ~/.local/share/fonts)
+  ├─ shared/lib/exe-dev-key.sh                # personal only: creates the exe.dev key
   ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ linux/setup.sh                           # fonts/theme + config glue
   ├─ ensure_fish (chsh)

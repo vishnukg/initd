@@ -308,6 +308,9 @@ main() {
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" macos
 
+  # After linking: it keys off the ~/.ssh/config link, so personal machines only.
+  "${SHARED_DIR}/lib/exe-dev-key.sh"
+
   log "Trusting shared mise config."
   mise -C "${ROOT_DIR}" trust "${SHARED_DIR}/configs/mise/.config/mise/config.toml"
 
