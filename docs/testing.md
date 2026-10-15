@@ -34,6 +34,7 @@ The suite lives in the `tests/` directory, organized by platform and scope:
 | `tests/linux/` | Linux setup, Firefox, Chrome, audio, night-light, and the Quickshell bar logic |
 | `tests/macos/` | Homebrew and macOS bootstrap helpers |
 | `tests/shared/` | Cross-platform links, Fish, tmux, status, agents, and shared config helpers |
+| `tests/vm/` | Headless VM links and the apt helpers of `vm/bootstrap.sh` (runs on any host) |
 
 The individual files are organized as follows:
 

@@ -40,7 +40,8 @@ for f in bootstrap.sh \
   shared/configs/tmux/.config/tmux/names.sh \
   macos/bootstrap.sh macos/defaults.sh macos/update.sh macos/managed-links.sh \
   linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh \
-  linux/scripts/*.sh; do
+  linux/scripts/*.sh \
+  vm/bootstrap.sh vm/update.sh vm/managed-links.sh; do
   bash -n "$f" && echo "OK   $f" || echo "FAIL $f"
 done
 
@@ -54,8 +55,11 @@ done
 # Full bootstrap (dispatches by uname)
 bash bootstrap.sh
 
+# Headless Ubuntu VM (e.g. exe.dev) — never reached via the dispatcher
+bash vm/bootstrap.sh
+
 # Re-apply managed symlinks only
-shared/lib/link.sh macos    # or: linux
+shared/lib/link.sh macos    # or: linux, vm
 
 # Sync licensed fonts from the private vishnukg/fonts repo into shared/fonts/
 # (needs gh auth; warns and skips otherwise — safe to re-run any time)
@@ -77,11 +81,12 @@ macos/brewinstall --formula <package>
 # Update tools (per platform)
 macos/update.sh
 linux/update.sh
+vm/update.sh
 ```
 
 ## Architecture
 
-Runtime code lives in three intentionally decoupled directories: `shared/`, `macos/`, and `linux/`. Tests live in the root `tests/` directory; see `docs/testing.md` for test organization and Arrange/Act/Assert conventions. The contract: `shared/` must not branch on OS; if it would need to, push that branch into the platform script.
+Runtime code lives in four intentionally decoupled directories: `shared/`, `macos/`, `linux/`, and `vm/`. Tests live in the root `tests/` directory; see `docs/testing.md` for test organization and Arrange/Act/Assert conventions. The contract: `shared/` must not branch on OS; if it would need to, push that branch into the platform script.
 
 ```
 initd/
@@ -102,16 +107,21 @@ initd/
 │   ├── docker-config.mjs     # credsStore + brew cli-plugins dir → ~/.docker/config.json
 │   ├── managed-links.sh      # appends macOS-only links to MANAGED_LINKS
 │   └── update.sh
-└── linux/                    # self-contained — `rm -rf linux/` and macOS still works
-    ├── bootstrap.sh          # targets Fedora Workstation 44+ (dnf5); some packages come from COPR
-    ├── packages.txt          # dnf package list (one per line) — Wayland/Hyprland stack
-    ├── setup.sh              # system fixes (fonts, theme/config glue)
-    ├── managed-links.sh      # appends the Linux-only links to MANAGED_LINKS
-    ├── update.sh
-    ├── scripts/              # session scripts invoked by Hyprland/Quickshell, plus
-    │                         #   firefox-profile.mjs (a setup.sh helper)
-    └── configs/              # hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig,
-                              #   systemd, gtk-3.0, ghostty, firefox, …
+├── linux/                    # self-contained — `rm -rf linux/` and macOS still works
+│   ├── bootstrap.sh          # targets Fedora Workstation 44+ (dnf5); some packages come from COPR
+│   ├── packages.txt          # dnf package list (one per line) — Wayland/Hyprland stack
+│   ├── setup.sh              # system fixes (fonts, theme/config glue)
+│   ├── managed-links.sh      # appends the Linux-only links to MANAGED_LINKS
+│   ├── update.sh
+│   ├── scripts/              # session scripts invoked by Hyprland/Quickshell, plus
+│   │                         #   firefox-profile.mjs (a setup.sh helper)
+│   └── configs/              # hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig,
+│                             #   systemd, gtk-3.0, ghostty, firefox, …
+└── vm/                       # self-contained headless dev box (Ubuntu 24.04+, apt) — no desktop
+    ├── bootstrap.sh          # run directly; the dispatcher sends all Linux to linux/
+    ├── packages.txt          # apt list: CLI tools + mise build deps
+    ├── managed-links.sh      # FILTERS the shared list (drops terminals, Colima, wallpapers)
+    └── update.sh
 ```
 
 ### Execution flow
@@ -155,6 +165,17 @@ linux/bootstrap.sh
   ├─ ensure_fish (chsh)
   ├─ mise trust + mise install
   └─ setup_git_profile
+
+vm/bootstrap.sh                               # run directly, never via the dispatcher
+  ├─ ensure_user_context, ensure_ubuntu
+  ├─ install_packages (vm/packages.txt via apt), ensure_fish_ppa (fish 4 — Ubuntu 24.04 ships 3.7)
+  ├─ ensure_docker (skipped when present, as on exeuntu), ensure_gh (official apt repo), ensure_mise
+  ├─ ensure_gh_auth                           # before mise install: credential_command is `gh auth token`
+  ├─ shared/lib/link.sh vm
+  ├─ shared/lib/claude-statusline.mjs
+  ├─ ensure_fish (chsh + fisher)
+  ├─ mise trust + mise install
+  └─ setup_git_profile
 ```
 
 ### Script sourcing chain
@@ -172,7 +193,7 @@ shared/managed-links.sh         ← MANAGED_LINKS (shared); requires ROOT_DIR
 The single array `MANAGED_LINKS` is built in two steps:
 
 1. `shared/managed-links.sh` defines the cross-platform entries (Git, Colima, fish, Ghostty, kitty, mise, Neovim, Starship, tmux, and wallpapers).
-2. `<platform>/managed-links.sh` appends OS-only entries (currently nothing on macOS; hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig, gtk-3.0, the `initd-hyprland-session.service` user unit, the `hyprmoncfgd.service.d` drop-in and the three `night-light*` user units — plus, conditionally, `shared/fonts/berkeley-mono` when present — on Linux). Fonts are deliberately NOT linked on macOS: CoreText refuses to register a font reached through a symlink, so `macos/bootstrap.sh:ensure_local_fonts` copies them instead.
+2. `<platform>/managed-links.sh` appends OS-only entries — except `vm/managed-links.sh`, which instead *removes* the desktop-side shared entries (ghostty, kitty, Colima template, wallpapers) since the laptop's terminal renders the VM's tmux (currently nothing on macOS; hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig, gtk-3.0, the `initd-hyprland-session.service` user unit, the `hyprmoncfgd.service.d` drop-in and the three `night-light*` user units — plus, conditionally, `shared/fonts/berkeley-mono` when present — on Linux). Fonts are deliberately NOT linked on macOS: CoreText refuses to register a font reached through a symlink, so `macos/bootstrap.sh:ensure_local_fonts` copies them instead.
 
 Entry format: `"home path:repo path"`. `shared/lib/managed-links.mjs` reads NUL-separated manifest entries and returns `{ home, source }` objects to the JavaScript installer and cleanup helper.
 
