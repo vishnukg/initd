@@ -29,7 +29,7 @@ personal laptops. Work machines are deliberately left out.
 ## Set up a new personal Mac (or Linux laptop)
 
 Run these from `~/.config/initd` on the new machine. An agent can do all of
-them except step 5's registration.
+them except registering the key in step 5.
 
 1. `git pull`
 2. Confirm the profile is personal:
@@ -43,13 +43,16 @@ them except step 5's registration.
    still in use and add them to `shared/configs/ssh/.ssh/config`.
 5. Create this machine's exe.dev key, unless `~/.ssh/id_ed25519_exe` already exists:
    `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_exe -N "" -C "$(hostname) exe.dev"`
-   **Registration needs an already-registered machine.** exe.dev accepts a
-   new key only from a key it already knows. Running `ssh exe.dev` with an
-   unknown key starts a *new account* signup, so don't. Copy the `.pub` line to
-   a registered machine and run there:
-   `echo '<pub key line>' | ssh exe.dev ssh-key add`
-6. Verify: `ssh dev hostname` prints `videv`. Then reload kitty
-   (`ctrl+shift+F5`) and try `cmd+shift+d`.
+   Then register it with the existing account, any one of:
+   - **From this machine:** run `ssh exe.dev` and, when it asks you to
+     register, give the same email (`vishnukg@gmail.com`). That adds the key
+     to the existing account; a *different* email creates a new one.
+   - **On the web:** paste the `.pub` line into https://exe.dev/user/security.
+   - **From a registered machine:**
+     `echo '<pub key line>' | ssh exe.dev ssh-key add`
+6. Verify: `ssh dev hostname` prints `videv`. The first connection asks to
+   trust the VM's host key; accept it. Then reload kitty (`ctrl+shift+F5`) and
+   try `cmd+shift+d`.
 
 ## Rebuild the VM from scratch
 
