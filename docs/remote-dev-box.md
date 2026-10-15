@@ -8,7 +8,7 @@ personal laptops. Work machines are deliberately left out.
 | Provider | [exe.dev](https://exe.dev), Personal plan, region `syd` |
 | VM name | `videv` (`videv.exe.xyz`), image `exeuntu` (Ubuntu 24.04) |
 | Login user | `exedev`, passwordless sudo |
-| Local shortcut | `ssh dev`, or kitty `ctrl+shift+d` / `cmd+shift+d` |
+| Local shortcut | Any Ghostty window (Ghostty is the dev box terminal, kitty stays local) |
 | Web | `https://videv.exe.xyz` (port 8000); ports 3000–9999 at `https://videv.exe.xyz:<port>/`, private by default |
 
 ## How it fits together
@@ -20,13 +20,18 @@ personal laptops. Work machines are deliberately left out.
 - **Keys:** each machine has its own exe.dev key, `~/.ssh/id_ed25519_exe`,
   kept separate from the GitHub key `~/.ssh/id_ed25519`. The VM has its own
   GitHub key, registered on GitHub as "videv (exe.dev)".
-- **Personal machines only.** Both dev box files are linked only when
-  `local.gitconfig` holds the personal email: the SSH config, and
-  `~/.config/kitty-dev-box.conf` (the kitty shortcuts, from
-  `shared/configs/kitty/dev-box.conf`). A work machine gets neither; its
-  `~/.ssh/config` stays its own, and kitty skips the missing include.
-- **One tmux:** the kitty shortcut runs `ssh dev` in a new OS window without
-  starting fish, so the laptop's tmux never starts in it. Typing `ssh dev`
+- **Personal machines only.** The dev box files are linked only when
+  `local.gitconfig` holds the personal email: the SSH config and
+  `~/.config/ghostty-dev-box.conf` (from `shared/configs/ghostty/dev-box.conf`).
+  A work machine gets neither; its `~/.ssh/config` stays its own, and its
+  Ghostty skips the missing include and stays a local terminal.
+- **Ghostty is the dev box terminal, kitty stays local.** On personal machines
+  every Ghostty window and tab runs `ssh dev` (`command = ssh dev`) instead of a
+  shell, so `cmd+tab` moves between local (kitty) and remote (Ghostty). Both
+  run the same font (Berkeley Mono 16); the blue tmux pill marks the box. The
+  window closes when the connection ends; the box's tmux keeps the session.
+- **One tmux:** Ghostty runs `ssh dev` without starting fish, so the
+  laptop's tmux never starts in it. Typing `ssh dev`
   inside the local tmux nests two tmuxes on the same `C-a` prefix instead.
 - **The VM itself** is built by `vm/bootstrap.sh`: CLI tools, fish 4, the
   shared configs, the full mise toolchain, gh auth and the GitHub SSH key.
@@ -56,8 +61,8 @@ them except registering the key in step 5.
    - **From a registered machine:**
      `echo '<pub key line>' | ssh exe.dev ssh-key add`
 6. Verify: `ssh dev hostname` prints `videv`. The first connection asks to
-   trust the VM's host key; accept it. Then reload kitty (`ctrl+shift+F5`) and
-   try `cmd+shift+d`.
+   trust the VM's host key; accept it. Then open a Ghostty window (reload its
+   config first with `cmd+shift+,` if it was already running).
 
 ## Rebuild the VM from scratch
 

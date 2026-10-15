@@ -19,10 +19,11 @@ lsof
 ca-certificates
 curl
 unzip
-# Terminfo for the laptop's terminal. kitty's ctrl+shift+d window runs ssh
-# outside the local tmux, so TERM arrives as xterm-kitty, and without its entry
-# the box's tmux refuses to start ("missing or unsuitable terminal"). Ubuntu
-# splits that entry out of ncurses-term into its own package.
+# Terminfo for the laptop's terminals. An ssh run outside the local tmux sends
+# the terminal's own TERM - xterm-ghostty from the dev box Ghostty (in
+# ncurses-term), xterm-kitty from a bare kitty ssh - and without its entry the
+# box's tmux refuses to start ("missing or unsuitable terminal"). Ubuntu splits
+# the kitty entry out of ncurses-term into its own package.
 kitty-terminfo
 ncurses-term
 

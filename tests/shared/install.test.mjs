@@ -430,7 +430,7 @@ test('backups outside HOME stay beneath backupRoot', () => {
     assert.equal(fs.readFileSync(backup, 'utf8'), 'keep');
 });
 
-test('dev box links (SSH config, kitty shortcuts) are made on a personal profile only', () => {
+test('dev box links (SSH config, Ghostty) are made on a personal profile only', () => {
     // Arrange: a copy of the link manifests whose local.gitconfig we control.
     const copy = newHome('profile-root');
     for (const file of ['shared/managed-links.sh', `${platform}/managed-links.sh`]) {
@@ -440,7 +440,7 @@ test('dev box links (SSH config, kitty shortcuts) are made on a personal profile
     const localConfig = path.join(copy, 'shared/configs/git/local.gitconfig');
     fs.mkdirSync(path.dirname(localConfig), { recursive: true });
     const home = path.join(testRoot, 'profile-home');
-    const devBox = [path.join(home, '.ssh/config'), path.join(home, '.config/kitty-dev-box.conf')];
+    const devBox = ['.ssh/config', '.config/ghostty-dev-box.conf'].map(file => path.join(home, file));
     const devBoxLinks = email => {
         if (email) fs.writeFileSync(localConfig, `[user]\n\temail = ${email}\n`);
         else fs.rmSync(localConfig, { force: true });
