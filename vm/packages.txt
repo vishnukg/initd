@@ -19,8 +19,11 @@ lsof
 ca-certificates
 curl
 unzip
-# Terminfo for xterm-kitty and friends, so the shell outside tmux (and tmux's
-# own outer-terminal detection) knows the laptop's terminal.
+# Terminfo for the laptop's terminal. kitty's ctrl+shift+d window runs ssh
+# outside the local tmux, so TERM arrives as xterm-kitty, and without its entry
+# the box's tmux refuses to start ("missing or unsuitable terminal"). Ubuntu
+# splits that entry out of ncurses-term into its own package.
+kitty-terminfo
 ncurses-term
 
 # ── Build dependencies for mise-managed Python / Node and nvim treesitter ────
