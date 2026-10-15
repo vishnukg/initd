@@ -193,8 +193,8 @@ shared/managed-links.sh         ← MANAGED_LINKS (shared); requires ROOT_DIR
 
 The single array `MANAGED_LINKS` is built in two steps:
 
-1. `shared/managed-links.sh` defines the cross-platform entries (Git, Colima, fish, Ghostty, kitty, mise, Neovim, Starship, tmux, and wallpapers).
-2. `<platform>/managed-links.sh` appends OS-only entries — except `vm/managed-links.sh`, which instead *removes* the desktop-side shared entries (ghostty, kitty, Colima template, wallpapers) since the laptop's terminal renders the VM's tmux (currently nothing on macOS; hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig, gtk-3.0, the `initd-hyprland-session.service` user unit, the `hyprmoncfgd.service.d` drop-in and the three `night-light*` user units — plus, conditionally, `shared/fonts/berkeley-mono` when present — on Linux). Fonts are deliberately NOT linked on macOS: CoreText refuses to register a font reached through a symlink, so `macos/bootstrap.sh:ensure_local_fonts` copies them instead.
+1. `shared/managed-links.sh` defines the cross-platform entries (Git, Colima, fish, Ghostty, kitty, mise, Neovim, Starship, tmux, the SSH client config, and wallpapers).
+2. `<platform>/managed-links.sh` appends OS-only entries — except `vm/managed-links.sh`, which instead *removes* the desktop-side shared entries (ghostty, kitty, Colima template, wallpapers, ~/.ssh/config) since the laptop's terminal renders the VM's tmux (currently nothing on macOS; hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig, gtk-3.0, the `initd-hyprland-session.service` user unit, the `hyprmoncfgd.service.d` drop-in and the three `night-light*` user units — plus, conditionally, `shared/fonts/berkeley-mono` when present — on Linux). Fonts are deliberately NOT linked on macOS: CoreText refuses to register a font reached through a symlink, so `macos/bootstrap.sh:ensure_local_fonts` copies them instead.
 
 Entry format: `"home path:repo path"`. `shared/lib/managed-links.mjs` reads NUL-separated manifest entries and returns `{ home, source }` objects to the JavaScript installer and cleanup helper.
 

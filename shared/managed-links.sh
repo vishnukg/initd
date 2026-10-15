@@ -19,6 +19,7 @@ MANAGED_LINKS=(
   "${HOME}/.config/nvim:${ROOT_DIR}/shared/configs/nvim/.config/nvim"
   "${HOME}/.config/starship.toml:${ROOT_DIR}/shared/configs/starship/.config/starship.toml"
   "${HOME}/.config/tmux:${ROOT_DIR}/shared/configs/tmux/.config/tmux"
+  "${HOME}/.ssh/config:${ROOT_DIR}/shared/configs/ssh/.ssh/config"
   # Not a config, but the wallpapers are platform-neutral art and hyprpaper
   # needs a stable path to them. Linking them to the XDG data dir beats the
   # old ~/.config/hypr/../wallpaper/ hop, which only resolved because the
