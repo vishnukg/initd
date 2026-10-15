@@ -72,7 +72,7 @@ test('vm links keep the shell and editor configs and drop the desktop ones', () 
     for (const kept of ['.gitconfig', '.config/fish', '.config/mise', '.config/nvim', '.config/starship.toml', '.config/tmux']) {
         assert.ok(homes.includes(kept), `missing ${kept}`);
     }
-    for (const dropped of ['.config/kitty', '.config/ghostty', '.colima/_templates/default.yaml', '.local/share/wallpapers']) {
+    for (const dropped of ['.config/kitty', '.config/ghostty', '.colima/_templates/default.yaml', '.local/share/wallpapers', '.ssh/config']) {
         assert.equal(homes.includes(dropped), false, `desktop link leaked: ${dropped}`);
     }
 });

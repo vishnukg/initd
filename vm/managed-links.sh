@@ -13,6 +13,8 @@ VM_SKIPPED_LINKS=(
   "${HOME}/.config/ghostty"
   "${HOME}/.config/kitty"
   "${HOME}/.local/share/wallpapers"
+  # The laptop's config for reaching the VM; the VM has no use for it.
+  "${HOME}/.ssh/config"
 )
 
 vm_links=()
