@@ -137,6 +137,7 @@ macos/bootstrap.sh
   ├─ brew bundle --file macos/Brewfile
   ├─ ensure_gh_auth                           # before the fonts sync, so a fresh machine gets fonts in one run
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
+  ├─ setup_git_profile                        # before linking: ~/.ssh/config links on a personal profile only
   ├─ shared/lib/link.sh macos                 # symlinks
   ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ ensure_local_fonts                       # COPIES OTFs → ~/Library/Fonts (macOS won't register symlinked fonts)
@@ -144,7 +145,6 @@ macos/bootstrap.sh
   ├─ ensure_fish (dscl)
   ├─ mise trust + mise install
   ├─ macos/defaults.sh
-  ├─ setup_git_profile (uses shared/lib/git-profile.mjs)
   ├─ ensure_docker_config                 # runs macos/docker-config.mjs: merges credsStore=osxkeychain + brew cliPluginsExtraDirs into ~/.docker/config.json
   └─ ensure_colima_service                # brew services start colima (login autostart)
 
@@ -159,12 +159,12 @@ linux/bootstrap.sh
   │  dnf repo), ensure_mise (curl mise.run)
   ├─ ensure_gh_auth                           # before the fonts sync, so a fresh machine gets fonts in one run
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
+  ├─ setup_git_profile                        # before linking: ~/.ssh/config links on a personal profile only
   ├─ shared/lib/link.sh linux                 # symlinks (incl. shared/fonts/berkeley-mono → ~/.local/share/fonts)
   ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ linux/setup.sh                           # fonts/theme + config glue
   ├─ ensure_fish (chsh)
-  ├─ mise trust + mise install
-  └─ setup_git_profile
+  └─ mise trust + mise install
 
 vm/bootstrap.sh                               # run directly, never via the dispatcher
   ├─ ensure_user_context, ensure_ubuntu
@@ -193,7 +193,7 @@ shared/managed-links.sh         ← MANAGED_LINKS (shared); requires ROOT_DIR
 
 The single array `MANAGED_LINKS` is built in two steps:
 
-1. `shared/managed-links.sh` defines the cross-platform entries (Git, Colima, fish, Ghostty, kitty, mise, Neovim, Starship, tmux, the SSH client config, and wallpapers).
+1. `shared/managed-links.sh` defines the cross-platform entries (Git, Colima, fish, Ghostty, kitty, mise, Neovim, Starship, tmux, and wallpapers — plus `~/.ssh/config`, appended only when `local.gitconfig` holds the personal email, so a work machine's SSH config is never touched).
 2. `<platform>/managed-links.sh` appends OS-only entries — except `vm/managed-links.sh`, which instead *removes* the desktop-side shared entries (ghostty, kitty, Colima template, wallpapers, ~/.ssh/config) since the laptop's terminal renders the VM's tmux (currently nothing on macOS; hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig, gtk-3.0, the `initd-hyprland-session.service` user unit, the `hyprmoncfgd.service.d` drop-in and the three `night-light*` user units — plus, conditionally, `shared/fonts/berkeley-mono` when present — on Linux). Fonts are deliberately NOT linked on macOS: CoreText refuses to register a font reached through a symlink, so `macos/bootstrap.sh:ensure_local_fonts` copies them instead.
 
 Entry format: `"home path:repo path"`. `shared/lib/managed-links.mjs` reads NUL-separated manifest entries and returns `{ home, source }` objects to the JavaScript installer and cleanup helper.

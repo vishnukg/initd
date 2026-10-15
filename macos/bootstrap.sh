@@ -302,6 +302,9 @@ main() {
   log "Syncing licensed fonts from private repo..."
   "${SHARED_DIR}/lib/fonts.sh"
 
+  # Before linking: ~/.ssh/config is linked only on a personal profile.
+  setup_git_profile
+
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" macos
 
@@ -325,8 +328,6 @@ main() {
 
   log "Applying macOS defaults..."
   "${MACOS_DIR}/defaults.sh"
-
-  setup_git_profile
 
   log "Configuring Docker CLI (credentials, plugins)..."
   ensure_docker_config

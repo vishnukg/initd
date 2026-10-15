@@ -106,7 +106,7 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 | `~/.config/nvim` | `shared/configs/nvim/.config/nvim` |
 | `~/.config/starship.toml` | `shared/configs/starship/.config/starship.toml` |
 | `~/.config/tmux` | `shared/configs/tmux/.config/tmux` |
-| `~/.ssh/config` | `shared/configs/ssh/.ssh/config` (exe.dev dev box; not linked on the VM) |
+| `~/.ssh/config` | `shared/configs/ssh/.ssh/config` (exe.dev dev box; personal profile only, never on the VM) |
 | `~/.gitconfig` | `shared/configs/git/gitconfig` (per-machine email via `local.gitconfig`) |
 | `~/.local/share/wallpapers` | `shared/wallpaper` |
 
