@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { managedLinks } from './managed-links.mjs';
+import { PLATFORMS, managedLinks } from './managed-links.mjs';
 import { removeLink } from './fs.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const usage = 'Usage: cleanup.mjs <macos|linux> [--dry-run]';
+const usage = 'Usage: cleanup.mjs <macos|linux|vm> [--dry-run]';
 function main(args) {
     if (args.includes('-h') || args.includes('--help')) {
         console.log(usage);
         return;
     }
     const [platform, ...options] = args;
-    if (!['macos', 'linux'].includes(platform) || options.some(arg => arg !== '--dry-run')) {
+    if (!PLATFORMS.includes(platform) || options.some(arg => arg !== '--dry-run')) {
         throw new Error(usage);
     }
     const dryRun = options.includes('--dry-run');

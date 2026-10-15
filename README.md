@@ -1,6 +1,6 @@
 # initd
 
-`initd` bootstraps a fresh development machine from one repo and one shell script. It supports both **macOS** and **Fedora Workstation** Linux from the same codebase.
+`initd` bootstraps a fresh development machine from one repo and one shell script. It supports **macOS**, **Fedora Workstation** Linux, and headless **Ubuntu VMs** (a remote dev box with the toolchain and no desktop) from the same codebase.
 
 It owns both:
 
@@ -9,7 +9,7 @@ It owns both:
 
 ## Layout
 
-Runtime code lives in three directories: `shared/`, `macos/`, and `linux/`. Behavior tests live in `tests/`; documentation lives in `docs/`. The platform directories are decoupled — `rm -rf macos/` or `rm -rf linux/` and the other platform keeps working.
+Runtime code lives in four directories: `shared/`, `macos/`, `linux/`, and `vm/`. Behavior tests live in `tests/`; documentation lives in `docs/`. The platform directories are decoupled — `rm -rf macos/`, `linux/` or `vm/` and the others keep working.
 
 ```text
 initd/
@@ -27,15 +27,20 @@ initd/
 │   ├── defaults.sh              # macOS defaults write …
 │   ├── managed-links.sh
 │   └── update.sh
-└── linux/                       # self-contained Linux bootstrap
-    ├── bootstrap.sh              # targets Fedora Workstation 44+ (dnf5)
-    ├── packages.txt             # dnf package list (some via COPR — see below)
-    ├── setup.sh                 # fonts/theme/Firefox profile glue, system fixes
-    ├── managed-links.sh
-    ├── update.sh
-    ├── scripts/                 # session scripts invoked by hyprland.lua/Quickshell
-    └── configs/                 # hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig,
-                                 #   systemd, gtk-3.0, ghostty, firefox
+├── linux/                       # self-contained Linux bootstrap
+│   ├── bootstrap.sh              # targets Fedora Workstation 44+ (dnf5)
+│   ├── packages.txt             # dnf package list (some via COPR — see below)
+│   ├── setup.sh                 # fonts/theme/Firefox profile glue, system fixes
+│   ├── managed-links.sh
+│   ├── update.sh
+│   ├── scripts/                 # session scripts invoked by hyprland.lua/Quickshell
+│   └── configs/                 # hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig,
+│                                #   systemd, gtk-3.0, ghostty, firefox
+└── vm/                          # self-contained headless VM bootstrap (Ubuntu 24.04+, apt)
+    ├── bootstrap.sh             # run directly: bash vm/bootstrap.sh
+    ├── packages.txt             # apt package list: CLI tools + build deps, no desktop
+    ├── managed-links.sh         # drops the desktop-side shared links (terminals, Colima, wallpapers)
+    └── update.sh
 ```
 
 ## Usage
@@ -57,7 +62,15 @@ The dispatcher runs `macos/bootstrap.sh` on Darwin and `linux/bootstrap.sh` on L
 Re-running is safe and idempotent.
 
 The macOS bootstrap targets **Apple Silicon**, with Homebrew at `/opt/homebrew`.
-Run it from a native arm64 shell. If Command Line Tools are missing, it launches
+On a headless Ubuntu VM (e.g. an exe.dev box), run the VM bootstrap directly instead —
+the dispatcher sends every Linux host to the Fedora desktop bootstrap:
+
+```bash
+git clone https://github.com/vishnukg/initd ~/.config/initd
+bash ~/.config/initd/vm/bootstrap.sh
+```
+
+On macOS, run it from a native arm64 shell. If Command Line Tools are missing, it launches
 their installer and asks you to rerun after installation completes.
 
 ## Common tasks
@@ -65,15 +78,15 @@ their installer and asks you to rerun after installation completes.
 | Action | Command |
 |---|---|
 | Full bootstrap | `bash bootstrap.sh` |
-| Re-apply links only | `shared/lib/link.sh <macos\|linux>` |
+| Re-apply links only | `shared/lib/link.sh <macos\|linux\|vm>` |
 | Set Git identity | `node shared/lib/git-profile.mjs personal` / `work` |
-| Remove managed symlinks | `node shared/lib/cleanup.mjs <macos\|linux> --dry-run` |
+| Remove managed symlinks | `node shared/lib/cleanup.mjs <macos\|linux\|vm> --dry-run` |
 | Add a brew formula/cask | `macos/brewinstall <name>` |
-| Update tools | `macos/update.sh` or `linux/update.sh` |
+| Update tools | `macos/update.sh`, `linux/update.sh` or `vm/update.sh` |
 | Run install behavior tests | `node --test tests/shared/install.test.mjs` |
 | Run macOS + shared tests | `./macos/test.sh` |
 | Run Linux + shared tests | `./linux/test.sh` |
-| Run the full regression suite | `INITD_TEST_TMUX=1 node --test tests/linux/*.test.mjs tests/macos/*.test.mjs tests/shared/*.test.mjs` |
+| Run the full regression suite | `INITD_TEST_TMUX=1 node --test 'tests/**/*.test.mjs'` |
 
 See [Testing](docs/testing.md) for test organization and conventions.
 
@@ -81,7 +94,7 @@ See [Testing](docs/testing.md) for test organization and conventions.
 
 Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **inside `initd`**, not at the live paths.
 
-### Cross-platform (both OSes)
+### Cross-platform (both OSes; the VM keeps all but colima, ghostty, kitty and wallpapers)
 
 | Runtime path | Source |
 |---|---|

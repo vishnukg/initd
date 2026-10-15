@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { managedLinks } from './managed-links.mjs';
+import { PLATFORMS, managedLinks } from './managed-links.mjs';
 import { defaultBackupRoot, installLink } from './fs.mjs';
 
 const filename = fileURLToPath(import.meta.url);
@@ -20,8 +20,8 @@ export function installManagedLinks(platform, {
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === filename) {
     try {
         const args = process.argv.slice(2);
-        if (args.length !== 1 || !['macos', 'linux'].includes(args[0])) {
-            throw new Error('Usage: link.mjs <macos|linux>');
+        if (args.length !== 1 || !PLATFORMS.includes(args[0])) {
+            throw new Error('Usage: link.mjs <macos|linux|vm>');
         }
         installManagedLinks(args[0]);
     } catch (error) {

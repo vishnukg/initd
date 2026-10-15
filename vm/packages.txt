@@ -1,0 +1,35 @@
+# apt packages installed by vm/bootstrap.sh.
+# One package per line, comments start with #.
+# Targets headless Ubuntu 24.04+ — exe.dev's default "exeuntu" image in
+# particular. No desktop, no fonts, no terminals: the laptop renders, the VM
+# only runs the shell, editor, toolchains and agents.
+#
+# fish is NOT listed here: Ubuntu 24.04 ships fish 3.7, while the shared config
+# is written against fish 4. ensure_fish_ppa() installs it from the fish
+# project's own release-4 PPA instead. Neovim is deliberately absent for the
+# same reason as on Fedora — mise installs and pins it.
+
+# ── Dev tools (equivalents of the Fedora packages.txt dev section) ───────────
+tmux
+tig
+git
+gnupg
+btop
+lsof
+ca-certificates
+curl
+unzip
+# Terminfo for xterm-kitty and friends, so the shell outside tmux (and tmux's
+# own outer-terminal detection) knows the laptop's terminal.
+ncurses-term
+
+# ── Build dependencies for mise-managed Python / Node and nvim treesitter ────
+build-essential
+libssl-dev
+libreadline-dev
+libyaml-dev
+libgmp-dev
+zlib1g-dev
+libffi-dev
+libxml2-dev
+libxslt1-dev

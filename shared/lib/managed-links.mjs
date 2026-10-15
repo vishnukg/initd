@@ -1,8 +1,10 @@
 import { execFileSync } from 'node:child_process';
 
+export const PLATFORMS = ['macos', 'linux', 'vm'];
+
 // Returns { home, source } per link: the path in $HOME and its target in the repo.
 export function managedLinks(root, platform, home) {
-    if (!['macos', 'linux'].includes(platform)) throw new Error(`Unsupported platform: ${platform}`);
+    if (!PLATFORMS.includes(platform)) throw new Error(`Unsupported platform: ${platform}`);
     const script = [
         'set -euo pipefail',
         'ROOT_DIR=$1',
