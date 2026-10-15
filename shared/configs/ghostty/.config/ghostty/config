@@ -13,6 +13,10 @@ cursor-style = block
 cursor-style-blink = false
 cursor-color = #ffffff
 cursor-text = #141414
+# Cursor trail on jumps, matching kitty's cursor_trail. The path is relative to
+# this file. The default custom-shader-animation = true runs a render loop
+# only while the window is focused, which the trail needs to animate.
+custom-shader = shaders/cursor-trail.glsl
 
 macos-titlebar-style = transparent
 # No title text. A fixed title also makes Ghostty ignore the ones programs set
