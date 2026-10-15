@@ -171,6 +171,7 @@ vm/bootstrap.sh                               # run directly, never via the disp
   ├─ install_packages (vm/packages.txt via apt), ensure_fish_ppa (fish 4 — Ubuntu 24.04 ships 3.7)
   ├─ ensure_docker (skipped when present, as on exeuntu), ensure_gh (official apt repo), ensure_mise
   ├─ ensure_gh_auth                           # before mise install: credential_command is `gh auth token`
+  ├─ ensure_github_ssh                        # per-box key (verified github.com host key), gh ssh-key add, origin → SSH
   ├─ shared/lib/link.sh vm
   ├─ shared/lib/claude-statusline.mjs
   ├─ ensure_fish (chsh + fisher)

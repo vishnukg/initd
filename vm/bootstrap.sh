@@ -170,6 +170,61 @@ ensure_gh_auth() {
   gh auth login
 }
 
+# GitHub's published ed25519 host key fingerprint:
+# https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
+GITHUB_ED25519_FINGERPRINT="SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"
+
+# Git over SSH with a key that belongs to this box alone, so it can be revoked
+# on GitHub without touching any other machine. `gh auth login` alone is not
+# enough: ~/.gitconfig is the tracked shared config, so gh's credential helper
+# never lands in it and HTTPS git stays read-only.
+ensure_github_ssh() {
+  local key="${HOME}/.ssh/id_ed25519"
+  mkdir -p -m 700 "${HOME}/.ssh"
+
+  if [[ ! -f "${key}" ]]; then
+    log "Generating this VM's GitHub SSH key..."
+    ssh-keygen -q -t ed25519 -N "" -C "${USER:-$(id -un)}@$(hostname) github" -f "${key}"
+  fi
+
+  if ! ssh-keygen -F github.com >/dev/null 2>&1; then
+    local scanned fingerprint
+    scanned="$(ssh-keyscan -t ed25519 github.com 2>/dev/null)"
+    fingerprint="$(ssh-keygen -lf - <<< "${scanned}" | awk '{print $2}')"
+    if [[ "${fingerprint}" != "${GITHUB_ED25519_FINGERPRINT}" ]]; then
+      log_error "github.com host key fingerprint ${fingerprint:-<none>} does not match GitHub's published one."
+      return 1
+    fi
+    printf '%s\n' "${scanned}" >> "${HOME}/.ssh/known_hosts"
+    log_success "Trusted github.com's verified host key."
+  fi
+
+  # GitHub answers -T with exit 1 either way; only the greeting proves the key
+  # works. Captured first, not piped: under pipefail ssh's 1 would sink grep's 0.
+  local greeting
+  greeting="$(ssh -T -o BatchMode=yes git@github.com </dev/null 2>&1 || true)"
+  if [[ "${greeting}" == *'successfully authenticated'* ]]; then
+    log_success "GitHub accepts this VM's SSH key."
+  elif [[ ! -t 0 ]]; then
+    log_warn "This VM's SSH key is not on GitHub, and bootstrap is not running interactively."
+    log_info "Add ${key}.pub at github.com/settings/keys, then re-run vm/bootstrap.sh."
+    return
+  else
+    log "Adding this VM's SSH key to GitHub (gh asks once for the admin:public_key scope)..."
+    gh auth refresh -h github.com -s admin:public_key
+    gh ssh-key add "${key}.pub" --title "$(hostname) (initd vm)" --type authentication
+  fi
+
+  gh config set git_protocol ssh
+  local origin
+  origin="$(git -C "${ROOT_DIR}" remote get-url origin 2>/dev/null || true)"
+  if [[ "${origin}" == https://github.com/* ]]; then
+    origin="${origin#https://github.com/}"
+    git -C "${ROOT_DIR}" remote set-url origin "git@github.com:${origin%.git}.git"
+    log_success "Switched the initd checkout's origin to SSH."
+  fi
+}
+
 ensure_fish() {
   require_command fish "after the fish install"
 
@@ -246,6 +301,9 @@ main() {
   # Before mise install: github.credential_command is `gh auth token`.
   log "Checking gh CLI authentication..."
   ensure_gh_auth
+
+  log "Checking GitHub SSH access..."
+  ensure_github_ssh
 
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" vm
