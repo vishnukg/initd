@@ -1,0 +1,21 @@
+; Commit and tag signing with the "GitHub" 1Password SSH key, so GitHub marks
+; them Verified. Linked to ~/.config/git/signing.gitconfig on personal Macs
+; only (macos/managed-links.sh); the shared gitconfig includes that path, and
+; git skips a missing include, so the VM and work machines simply don't sign.
+; macOS-only because op-ssh-sign lives inside the app bundle here.
+[gpg]
+	format = ssh
+
+[gpg "ssh"]
+	; 1Password signs through its agent, with the same Touch ID approval as SSH.
+	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
+
+[user]
+	; The public half ssh-keys.sh writes; the private key never leaves 1Password.
+	signingkey = ~/.ssh/id_ed25519_github.pub
+
+[commit]
+	gpgsign = true
+
+[tag]
+	gpgsign = true

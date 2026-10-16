@@ -329,7 +329,7 @@ main() {
   ensure_1password_agent_link
 
   # After linking: it keys off the ~/.ssh/config link, so personal machines only.
-  "${SHARED_DIR}/lib/exe-dev-key.sh"
+  "${SHARED_DIR}/lib/ssh-keys.sh"
 
   log "Trusting shared mise config."
   mise -C "${ROOT_DIR}" trust "${SHARED_DIR}/configs/mise/.config/mise/config.toml"

@@ -11,6 +11,10 @@
 
 [include]
 	path = ~/.config/initd/shared/configs/git/local.gitconfig
+	; Commit signing via 1Password, linked on personal Macs only
+	; (macos/configs/git/signing.gitconfig). Elsewhere the file is absent,
+	; git skips the include, and commits stay unsigned.
+	path = ~/.config/git/signing.gitconfig
 
 [interactive]
 	diffFilter = delta --color-only

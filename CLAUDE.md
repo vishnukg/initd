@@ -34,7 +34,7 @@ INITD_TEST_TMUX=1 node --test tests/shared/fish-config.test.mjs
 # "passes" without checking anything past the first file.
 for f in bootstrap.sh \
   shared/lib/logging.sh \
-  shared/lib/link.sh shared/lib/fonts.sh shared/lib/exe-dev-key.sh \
+  shared/lib/link.sh shared/lib/fonts.sh shared/lib/ssh-keys.sh \
   shared/managed-links.sh \
   shared/configs/tmux/.config/tmux/agent-state.sh \
   shared/configs/tmux/.config/tmux/names.sh \
@@ -140,7 +140,7 @@ macos/bootstrap.sh
   ├─ setup_git_profile                        # before linking: ~/.ssh/config links on a personal profile only
   ├─ shared/lib/link.sh macos                 # symlinks
   ├─ ensure_1password_agent_link              # ~/.1password/agent.sock → the app's Group Container socket (Linux's path)
-  ├─ shared/lib/exe-dev-key.sh                # personal only (keys off the ~/.ssh/config link): copies the exe.dev PUBLIC key out of 1Password's SSH agent; the private key never leaves 1Password
+  ├─ shared/lib/ssh-keys.sh                # personal only (keys off the ~/.ssh/config link): copies the exe.dev and GitHub PUBLIC keys out of 1Password's SSH agent; the private keys never leave 1Password
   ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ ensure_local_fonts                       # COPIES OTFs → ~/Library/Fonts (macOS won't register symlinked fonts)
   ├─ ensure_tmux_terminfo                     # compiles Homebrew ncurses's tmux-256color into ~/.terminfo (system entry lacks Smulx → no nvim undercurl inside tmux)
@@ -163,7 +163,7 @@ linux/bootstrap.sh
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ setup_git_profile                        # before linking: ~/.ssh/config links on a personal profile only
   ├─ shared/lib/link.sh linux                 # symlinks (incl. shared/fonts/berkeley-mono → ~/.local/share/fonts)
-  ├─ shared/lib/exe-dev-key.sh                # personal only: copies the exe.dev public key out of 1Password's agent
+  ├─ shared/lib/ssh-keys.sh                # personal only: copies the exe.dev and GitHub public keys out of 1Password's agent
   ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ linux/setup.sh                           # fonts/theme + config glue
   ├─ ensure_fish (chsh)
@@ -197,7 +197,7 @@ shared/managed-links.sh         ← MANAGED_LINKS (shared); requires ROOT_DIR
 The single array `MANAGED_LINKS` is built in two steps:
 
 1. `shared/managed-links.sh` defines the cross-platform entries (Git, Colima, fish, Ghostty, kitty, mise, Neovim, Starship, tmux, and wallpapers — plus the dev box pair `~/.ssh/config` and `~/.config/ghostty-dev-box.conf` (`command = ssh dev`: Ghostty is the dev box terminal, kitty stays local; pulled in by an optional include Ghostty skips when missing), appended only when `local.gitconfig` holds the personal email, so a work machine gets nothing dev-box related and its SSH config is never touched).
-2. `<platform>/managed-links.sh` appends OS-only entries — except `vm/managed-links.sh`, which instead *removes* the desktop-side shared entries (ghostty, kitty, ghostty-dev-box.conf, Colima template, wallpapers, ~/.ssh/config) since the laptop's terminal renders the VM's tmux (currently nothing on macOS; hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig, gtk-3.0, the `initd-hyprland-session.service` user unit, the `hyprmoncfgd.service.d` drop-in and the three `night-light*` user units — plus, conditionally, `shared/fonts/berkeley-mono` when present — on Linux). Fonts are deliberately NOT linked on macOS: CoreText refuses to register a font reached through a symlink, so `macos/bootstrap.sh:ensure_local_fonts` copies them instead.
+2. `<platform>/managed-links.sh` appends OS-only entries — except `vm/managed-links.sh`, which instead *removes* the desktop-side shared entries (ghostty, kitty, ghostty-dev-box.conf, Colima template, wallpapers, ~/.ssh/config) since the laptop's terminal renders the VM's tmux (on macOS, only `~/.config/git/signing.gitconfig` — commit signing through 1Password, personal machines only, the gitconfig's include of it is skipped where it is absent; hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig, gtk-3.0, the `initd-hyprland-session.service` user unit, the `hyprmoncfgd.service.d` drop-in and the three `night-light*` user units — plus, conditionally, `shared/fonts/berkeley-mono` when present — on Linux). Fonts are deliberately NOT linked on macOS: CoreText refuses to register a font reached through a symlink, so `macos/bootstrap.sh:ensure_local_fonts` copies them instead.
 
 Entry format: `"home path:repo path"`. `shared/lib/managed-links.mjs` reads NUL-separated manifest entries and returns `{ home, source }` objects to the JavaScript installer and cleanup helper.
 
