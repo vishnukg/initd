@@ -9,6 +9,10 @@
 [gpg "ssh"]
 	; 1Password signs through its agent, with the same Touch ID approval as SSH.
 	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
+	; Which key may sign as which email, for LOCAL verification (`git log
+	; --show-signature`, %G?); GitHub verifies against the key on the account.
+	; Public keys only. Rotating the GitHub key means updating this line too.
+	allowedSignersFile = ~/.config/initd/macos/configs/git/allowed_signers
 
 [user]
 	; The public half ssh-keys.sh writes; the private key never leaves 1Password.
