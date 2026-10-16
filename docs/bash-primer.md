@@ -12,7 +12,7 @@ developer can follow like a checklist.
 
 | File | Purpose |
 |---|---|
-| `bootstrap.sh` | Dispatcher: detects `uname -s` and execs the platform bootstrap. |
+| `bootstrap.sh` | Dispatcher: execs `<platform>/bootstrap.sh` for `macos`, `linux` or `vm`, or detects the OS from `uname -s` when none is named. |
 | `macos/bootstrap.sh` | macOS setup: Xcode CLT → Homebrew → Brewfile → links → fish → mise → macOS defaults. |
 | `linux/bootstrap.sh` | Linux setup: dnf packages (+ COPRs) → gh/1Password/Docker/mise → links → linux/setup.sh → fish → mise → git profile. |
 | `linux/setup.sh` | Linux system tweaks (fonts, GTK theme, session-script links, Firefox profile glue). |

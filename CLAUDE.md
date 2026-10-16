@@ -52,11 +52,11 @@ for f in shared/configs/tmux/.config/tmux/*.mjs shared/lib/*.mjs \
   node --check "$f" && echo "OK   $f" || echo "FAIL $f"
 done
 
-# Full bootstrap (dispatches by uname)
-bash bootstrap.sh
+# Full bootstrap: name the platform, or omit it to detect macos/linux by uname
+bash bootstrap.sh macos      # or: linux, vm
 
-# Headless Ubuntu VM (e.g. exe.dev) — never reached via the dispatcher
-bash vm/bootstrap.sh
+# Headless Ubuntu VM (e.g. exe.dev) — must be named; uname alone says "linux"
+bash bootstrap.sh vm
 
 # Re-apply managed symlinks only
 shared/lib/link.sh macos    # or: linux, vm
@@ -90,7 +90,7 @@ Runtime code lives in four intentionally decoupled directories: `shared/`, `maco
 
 ```
 initd/
-├── bootstrap.sh              # ~20-line dispatcher: uname -s → macos|linux
+├── bootstrap.sh              # dispatcher: [macos|linux|vm] → <platform>/bootstrap.sh; no arg = uname -s → macos|linux
 ├── tests/                    # behavior tests and isolated integration tests
 ├── docs/                     # configuration guides and testing conventions
 ├── shared/                   # cross-platform — sourced by both bootstraps
@@ -118,7 +118,7 @@ initd/
 │   └── configs/              # hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig,
 │                             #   systemd, gtk-3.0, ghostty, firefox, …
 └── vm/                       # self-contained headless dev box (Ubuntu 24.04+, apt) — no desktop
-    ├── bootstrap.sh          # run directly; the dispatcher sends all Linux to linux/
+    ├── bootstrap.sh          # bash bootstrap.sh vm (with no platform, all Linux goes to linux/)
     ├── packages.txt          # apt list: CLI tools + mise build deps
     ├── managed-links.sh      # FILTERS the shared list (drops terminals, Colima, wallpapers)
     └── update.sh
@@ -127,9 +127,10 @@ initd/
 ### Execution flow
 
 ```
-bootstrap.sh
-  └─ exec macos/bootstrap.sh                  # if uname=Darwin
-  └─ exec linux/bootstrap.sh                  # if uname=Linux
+bootstrap.sh [macos|linux|vm]                # refuses a platform that does not match uname -s
+  └─ exec macos/bootstrap.sh                  # macos, or no arg on Darwin
+  └─ exec linux/bootstrap.sh                  # linux, or no arg on Linux
+  └─ exec vm/bootstrap.sh                     # vm only - never picked by uname alone
 
 macos/bootstrap.sh
   ├─ ensure_xcode_clt
@@ -169,7 +170,7 @@ linux/bootstrap.sh
   ├─ ensure_fish (chsh)
   └─ mise trust + mise install
 
-vm/bootstrap.sh                               # run directly, never via the dispatcher
+vm/bootstrap.sh                               # bash bootstrap.sh vm — never picked by uname alone
   ├─ ensure_user_context, ensure_ubuntu
   ├─ install_packages (vm/packages.txt via apt), ensure_fish_ppa (fish 4 — Ubuntu 24.04 ships 3.7)
   ├─ ensure_docker (skipped when present, as on exeuntu), ensure_gh (official apt repo), ensure_mise

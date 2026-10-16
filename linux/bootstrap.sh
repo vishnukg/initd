@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Linux platform bootstrap. Invoked by the top-level dispatcher when uname=Linux.
+# Linux platform bootstrap. Invoked by the top-level dispatcher for `linux`,
+# or on Linux when no platform is named.
 # Targets Fedora Workstation 44+ (dnf5). Several packages (Hyprland ecosystem,
 # hyprmoncfg, and Ghostty) aren't in Fedora's official repos and are pulled
 # from COPR; see the ensure_* / install_packages functions below for which.

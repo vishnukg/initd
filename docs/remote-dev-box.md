@@ -86,7 +86,7 @@ them except registering the key in step 5.
 ```bash
 ssh exe.dev "new --name=videv --disk=60GB --no-email"   # names: 5+ chars, globally unique
 ssh dev 'git clone https://github.com/vishnukg/initd ~/.config/initd'
-ssh -t dev 'bash ~/.config/initd/vm/bootstrap.sh'     # interactive: gh login, git email, GitHub key
+ssh -t dev 'bash ~/.config/initd/bootstrap.sh vm'     # interactive: gh login, git email, GitHub key
 ```
 
 Then remove the old VM's GitHub key ("videv (exe.dev)") from

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# macOS platform bootstrap. Invoked by the top-level dispatcher when uname=Darwin.
+# macOS platform bootstrap. Invoked by the top-level dispatcher for `macos`,
+# or on macOS when no platform is named.
 # Anything macOS-specific stays inside this directory.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

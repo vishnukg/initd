@@ -13,7 +13,7 @@ Runtime code lives in four directories: `shared/`, `macos/`, `linux/`, and `vm/`
 
 ```text
 initd/
-├── bootstrap.sh                 # dispatcher: detects uname -s and execs the platform bootstrap
+├── bootstrap.sh                 # dispatcher: bootstrap.sh [macos|linux|vm]; detects the OS when none is named
 ├── tests/                       # behavior tests and isolated integration tests
 ├── docs/                        # configuration guides and testing conventions
 ├── shared/                      # cross-platform
@@ -37,7 +37,7 @@ initd/
 │   └── configs/                 # hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig,
 │                                #   systemd, gtk-3.0, ghostty, firefox
 └── vm/                          # self-contained headless VM bootstrap (Ubuntu 24.04+, apt)
-    ├── bootstrap.sh             # run directly: bash vm/bootstrap.sh
+    ├── bootstrap.sh             # bash bootstrap.sh vm
     ├── packages.txt             # apt package list: CLI tools + build deps, no desktop
     ├── managed-links.sh         # drops the desktop-side shared links (terminals, Colima, wallpapers)
     └── update.sh
@@ -46,11 +46,14 @@ initd/
 ## Usage
 
 ```bash
-git clone <repo-url> ~/.config/initd
-bash ~/.config/initd/bootstrap.sh
+git clone https://github.com/vishnukg/initd ~/.config/initd
+bash ~/.config/initd/bootstrap.sh macos    # or: linux, vm
 ```
 
-The dispatcher runs `macos/bootstrap.sh` on Darwin and `linux/bootstrap.sh` on Linux. Both:
+The dispatcher runs `<platform>/bootstrap.sh` for the platform you name, and refuses a
+platform that doesn't match the OS (`macos` on Linux, say) before installing anything.
+With no platform it picks `macos` on macOS and `linux` on Linux, so a headless VM
+must always be named. The macOS and Linux desktop bootstraps both:
 
 - install required packages (Homebrew or dnf, enabling COPRs on Linux where Fedora's own repos don't carry a package)
 - install mise and gh (dnf repo on Linux, brew on macOS)
@@ -62,12 +65,12 @@ The dispatcher runs `macos/bootstrap.sh` on Darwin and `linux/bootstrap.sh` on L
 Re-running is safe and idempotent.
 
 The macOS bootstrap targets **Apple Silicon**, with Homebrew at `/opt/homebrew`.
-On a headless Ubuntu VM (e.g. an exe.dev box), run the VM bootstrap directly instead —
-the dispatcher sends every Linux host to the Fedora desktop bootstrap:
+On a headless Ubuntu VM (e.g. an exe.dev box), name `vm` — with no platform, every
+Linux host gets the Fedora desktop bootstrap:
 
 ```bash
 git clone https://github.com/vishnukg/initd ~/.config/initd
-bash ~/.config/initd/vm/bootstrap.sh
+bash ~/.config/initd/bootstrap.sh vm
 ```
 
 On macOS, run it from a native arm64 shell. If Command Line Tools are missing, it launches
@@ -77,7 +80,7 @@ their installer and asks you to rerun after installation completes.
 
 | Action | Command |
 |---|---|
-| Full bootstrap | `bash bootstrap.sh` |
+| Full bootstrap | `bash bootstrap.sh <macos\|linux\|vm>` |
 | Re-apply links only | `shared/lib/link.sh <macos\|linux\|vm>` |
 | Set Git identity | `node shared/lib/git-profile.mjs personal` / `work` |
 | Remove managed symlinks | `node shared/lib/cleanup.mjs <macos\|linux\|vm> --dry-run` |
