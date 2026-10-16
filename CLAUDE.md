@@ -148,7 +148,7 @@ macos/bootstrap.sh
   ├─ ensure_fish (dscl)
   ├─ mise trust + mise install
   ├─ macos/defaults.sh
-  ├─ ensure_docker_config                 # runs macos/docker-config.mjs: merges credsStore=osxkeychain + brew cliPluginsExtraDirs into ~/.docker/config.json
+  ├─ ensure_docker_config                 # runs macos/docker-config.mjs: merges credsStore=osxkeychain + brew cliPluginsExtraDirs into ~/.docker/config.json, drops Docker Desktop's leftover CLI hooks
   └─ ensure_colima_service                # brew services start colima (login autostart)
 
 linux/bootstrap.sh
