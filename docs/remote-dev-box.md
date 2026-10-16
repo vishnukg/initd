@@ -61,7 +61,10 @@ them except registering the key in step 5.
    - **From a registered machine:**
      `echo '<pub key line>' | ssh exe.dev ssh-key add`
 6. Verify: `ssh dev hostname` prints `videv`. The first connection asks to
-   trust the VM's host key; accept it. Then open a Ghostty window (reload its
+   trust the host key. exe.dev's SSH proxy answers for `exe.dev` and every
+   `*.exe.xyz` VM with the same RSA key, so accept it only if the fingerprint is
+   `SHA256:JJOP/lwiBGOMilfONPWZCXUrfK154cnJFXcqlsi6lPo` (recorded 2026-10-16).
+   If it differs, stop: the key changed or someone is in the path. Then open a Ghostty window (reload its
    config first with `cmd+shift+,` if it was already running).
 
 ## Rebuild the VM from scratch
