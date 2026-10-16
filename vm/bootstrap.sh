@@ -2,11 +2,11 @@
 set -euo pipefail
 
 # Headless VM bootstrap: the dev toolchain with no desktop. Targets Ubuntu
-# 24.04+ (apt) — exe.dev's default "exeuntu" image in particular. Not reached
-# through the top-level dispatcher, which sends every Linux host to the Fedora
-# desktop bootstrap; run it directly:
+# 24.04+ (apt) — exe.dev's default "exeuntu" image in particular. The
+# top-level dispatcher only runs it when named, since a VM and the Fedora
+# desktop are both just Linux to uname:
 #
-#   bash vm/bootstrap.sh
+#   bash bootstrap.sh vm      # or directly: bash vm/bootstrap.sh
 #
 # Run it interactively (`ssh -t`), so gh auth and the Git identity can prompt:
 # mise resolves its ~50 GitHub-hosted tools through `gh auth token`, and an
