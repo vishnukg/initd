@@ -156,7 +156,7 @@ linux/bootstrap.sh
   │                                               paolino/hyprmoncfg, and scottames/ghostty COPRs,
   │                                               then dnf-installs
   │                                               packages.txt + the C Development Tools group
-  ├─ ensure_gh (official dnf repo), ensure_1password (app + op CLI, official dnf repo),
+  ├─ ensure_gh (official dnf repo), ensure_1password (official dnf repo),
   │  ensure_google_chrome (official dnf repo), ensure_docker (Docker's official
   │  dnf repo), ensure_mise (curl mise.run)
   ├─ ensure_gh_auth                           # before the fonts sync, so a fresh machine gets fonts in one run

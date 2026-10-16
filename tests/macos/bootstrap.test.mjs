@@ -671,7 +671,7 @@ for (const existing of [false, true]) {
             assert.deepEqual(f.calls(), []);
         } else {
             const casks = [...prepared.matchAll(/^cask "([^"]+)"/gm)].map(match => match[1]);
-            assert.deepEqual(casks, ['1password-cli', 'ghostty', 'font-fira-code', 'font-fira-code-nerd-font', 'font-symbols-only-nerd-font']);
+            assert.deepEqual(casks, ['ghostty', 'font-fira-code', 'font-fira-code-nerd-font', 'font-symbols-only-nerd-font']);
             assert.match(prepared, /^brew "mise"/m);
         }
     });

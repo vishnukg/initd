@@ -221,21 +221,18 @@ ensure_gh() {
 }
 
 ensure_1password() {
-  # The app (its SSH agent holds the exe.dev key) and its CLI, `op`. Checked
-  # separately so a machine that predates the CLI still picks it up.
-  if command -v 1password >/dev/null 2>&1 && command -v op >/dev/null 2>&1; then
-    log_success "1Password and its CLI already installed."
+  if command -v 1password >/dev/null 2>&1; then
+    log_success "1Password already installed."
     return
   fi
 
   # 1Password is proprietary — not in Fedora's repos. Official dnf repo per
-  # https://support.1password.com/install-linux/#rhel-fedora-or-centos,
-  # which carries both packages.
+  # https://support.1password.com/install-linux/#rhel-fedora-or-centos
   log "Installing 1Password from the official dnf repo..."
   require_command curl "to fetch the 1Password signing key"
 
   sudo rpm --import https://downloads.1password.com/linux/keys/1password.asc
-  [[ -f /etc/yum.repos.d/1password.repo ]] || sudo tee /etc/yum.repos.d/1password.repo >/dev/null <<'EOF'
+  sudo tee /etc/yum.repos.d/1password.repo >/dev/null <<'EOF'
 [1password]
 name=1Password Stable Channel
 baseurl=https://downloads.1password.com/linux/rpm/stable/$basearch
@@ -245,7 +242,7 @@ repo_gpgcheck=1
 gpgkey="https://downloads.1password.com/linux/keys/1password.asc"
 EOF
 
-  sudo dnf install -y 1password 1password-cli
+  sudo dnf install -y 1password
   log_success "1Password installed."
 }
 
