@@ -767,3 +767,29 @@ main
     assert.ok(f.calls().includes('brew update'));
     assert.ok(f.calls().includes('brew upgrade'));
 });
+
+for (const personal of [true, false]) {
+    test(`${personal ? 'a personal Mac gets' : 'a work Mac does not get'} the 1Password agent socket link`, t => {
+        // Arrange: personal is whatever made link.sh link ~/.ssh/config to the
+        // repo's SSH config; a work Mac keeps its own file there.
+        const f = fixture(t);
+        fs.mkdirSync(path.join(f.home, '.ssh'));
+        const config = path.join(f.home, '.ssh/config');
+        if (personal) fs.symlinkSync(path.join(root, 'shared/configs/ssh/.ssh/config'), config);
+        else fs.writeFileSync(config, 'Host work\n');
+
+        // Act
+        const result = f.run('ensure_1password_agent_link');
+
+        // Assert
+        assert.equal(result.status, 0, result.stderr);
+        const link = path.join(f.home, '.1password/agent.sock');
+        if (personal) {
+            assert.equal(fs.readlinkSync(link),
+                path.join(f.home, 'Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock'));
+        } else {
+            assert.equal(fs.existsSync(path.join(f.home, '.1password')), false);
+            assert.equal(result.stdout + result.stderr, '');
+        }
+    });
+}

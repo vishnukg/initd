@@ -140,7 +140,7 @@ macos/bootstrap.sh
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ setup_git_profile                        # before linking: ~/.ssh/config links on a personal profile only
   ├─ shared/lib/link.sh macos                 # symlinks
-  ├─ ensure_1password_agent_link              # ~/.1password/agent.sock → the app's Group Container socket (Linux's path)
+  ├─ ensure_1password_agent_link              # personal only: ~/.1password/agent.sock → the app's Group Container socket (Linux's path)
   ├─ shared/lib/ssh-keys.sh                # personal only (keys off the ~/.ssh/config link): copies the exe.dev and GitHub PUBLIC keys out of 1Password's SSH agent; the private keys never leave 1Password
   ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ ensure_local_fonts                       # COPIES OTFs → ~/Library/Fonts (macOS won't register symlinked fonts)
