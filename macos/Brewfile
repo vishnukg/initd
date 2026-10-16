@@ -22,6 +22,7 @@ brew "presenterm"
 
 # Apps
 cask "1password"
+cask "1password-cli"  # op: scripts reach the vault through the app
 cask "betterdisplay"
 cask "google-chrome" # bootstrap skips this cask when Chrome already exists outside brew
 cask "ghostty"       # fallback terminal
