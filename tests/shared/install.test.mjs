@@ -430,7 +430,7 @@ test('backups outside HOME stay beneath backupRoot', () => {
     assert.equal(fs.readFileSync(backup, 'utf8'), 'keep');
 });
 
-test('dev box links (SSH config, Ghostty) are made on a personal profile only', () => {
+test('personal links (SSH config, Ghostty dev box, commit signing) are made on a personal profile only', () => {
     // Arrange: a copy of the link manifests whose local.gitconfig we control.
     const copy = newHome('profile-root');
     for (const file of ['shared/managed-links.sh', `${platform}/managed-links.sh`]) {
@@ -440,7 +440,9 @@ test('dev box links (SSH config, Ghostty) are made on a personal profile only', 
     const localConfig = path.join(copy, 'shared/configs/git/local.gitconfig');
     fs.mkdirSync(path.dirname(localConfig), { recursive: true });
     const home = path.join(testRoot, 'profile-home');
-    const devBox = ['.ssh/config', '.config/ghostty-dev-box.conf'].map(file => path.join(home, file));
+    // macOS also signs commits through 1Password, behind the same gate.
+    const devBox = ['.ssh/config', '.config/ghostty-dev-box.conf',
+        ...(platform === 'macos' ? ['.config/git/signing.gitconfig'] : [])].map(file => path.join(home, file));
     const devBoxLinks = email => {
         if (email) fs.writeFileSync(localConfig, `[user]\n\temail = ${email}\n`);
         else fs.rmSync(localConfig, { force: true });
@@ -454,6 +456,6 @@ test('dev box links (SSH config, Ghostty) are made on a personal profile only', 
 
     // Assert
     assert.deepEqual(personal, devBox);
-    assert.deepEqual(work, [], 'a work machine gets nothing dev-box related');
+    assert.deepEqual(work, [], 'a work machine gets nothing personal');
     assert.deepEqual(unset, []);
 });

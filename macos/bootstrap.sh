@@ -177,9 +177,13 @@ ensure_colima_service() {
 # where the Linux app puts it. The macOS app keeps it inside its sandboxed
 # Group Container (a path with a space in it), so link it to the Linux one.
 # Dangles harmlessly until Settings > Developer > Use the SSH agent is on.
+# Personal machines only, by the same gate as ssh-keys.sh: the managed SSH
+# config is linked on a personal profile alone, so a work Mac gets no link.
 ensure_1password_agent_link() {
   local target="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
   local link="${HOME}/.1password/agent.sock"
+
+  [[ "$(readlink "${HOME}/.ssh/config" 2>/dev/null || true)" == "${SHARED_DIR}/configs/ssh/.ssh/config" ]] || return 0
 
   if [[ "$(readlink "${link}" 2>/dev/null || true)" == "${target}" ]]; then
     log_success "1Password SSH agent socket already linked."
