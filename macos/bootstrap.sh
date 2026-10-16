@@ -172,6 +172,24 @@ ensure_colima_service() {
     || { log_error "Failed to start colima via brew services — check /opt/homebrew/var/log/colima.log"; exit 1; }
 }
 
+# The shared SSH config names 1Password's agent as ~/.1password/agent.sock,
+# where the Linux app puts it. The macOS app keeps it inside its sandboxed
+# Group Container (a path with a space in it), so link it to the Linux one.
+# Dangles harmlessly until Settings > Developer > Use the SSH agent is on.
+ensure_1password_agent_link() {
+  local target="${HOME}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+  local link="${HOME}/.1password/agent.sock"
+
+  if [[ "$(readlink "${link}" 2>/dev/null || true)" == "${target}" ]]; then
+    log_success "1Password SSH agent socket already linked."
+    return
+  fi
+
+  mkdir -p -m 700 "${HOME}/.1password"
+  ln -sfn "${target}" "${link}"
+  log_success "Linked 1Password's SSH agent socket to ${link}."
+}
+
 # Fonts that live in the repo (gitignored, machine-local — currently Berkeley
 # Mono, see .gitignore) must be COPIED into ~/Library/Fonts: macOS silently
 # refuses to register fonts reached through a symlink, whether the link is the
@@ -307,6 +325,8 @@ main() {
 
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" macos
+
+  ensure_1password_agent_link
 
   # After linking: it keys off the ~/.ssh/config link, so personal machines only.
   "${SHARED_DIR}/lib/exe-dev-key.sh"

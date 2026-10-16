@@ -139,7 +139,8 @@ macos/bootstrap.sh
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ setup_git_profile                        # before linking: ~/.ssh/config links on a personal profile only
   ├─ shared/lib/link.sh macos                 # symlinks
-  ├─ shared/lib/exe-dev-key.sh                # personal only (keys off the ~/.ssh/config link): creates ~/.ssh/id_ed25519_exe; registering stays manual
+  ├─ ensure_1password_agent_link              # ~/.1password/agent.sock → the app's Group Container socket (Linux's path)
+  ├─ shared/lib/exe-dev-key.sh                # personal only (keys off the ~/.ssh/config link): copies the exe.dev PUBLIC key out of 1Password's SSH agent; the private key never leaves 1Password
   ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ ensure_local_fonts                       # COPIES OTFs → ~/Library/Fonts (macOS won't register symlinked fonts)
   ├─ ensure_tmux_terminfo                     # compiles Homebrew ncurses's tmux-256color into ~/.terminfo (system entry lacks Smulx → no nvim undercurl inside tmux)
@@ -155,14 +156,14 @@ linux/bootstrap.sh
   │                                               paolino/hyprmoncfg, and scottames/ghostty COPRs,
   │                                               then dnf-installs
   │                                               packages.txt + the C Development Tools group
-  ├─ ensure_gh (official dnf repo), ensure_1password (official dnf repo),
+  ├─ ensure_gh (official dnf repo), ensure_1password (app + op CLI, official dnf repo),
   │  ensure_google_chrome (official dnf repo), ensure_docker (Docker's official
   │  dnf repo), ensure_mise (curl mise.run)
   ├─ ensure_gh_auth                           # before the fonts sync, so a fresh machine gets fonts in one run
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ setup_git_profile                        # before linking: ~/.ssh/config links on a personal profile only
   ├─ shared/lib/link.sh linux                 # symlinks (incl. shared/fonts/berkeley-mono → ~/.local/share/fonts)
-  ├─ shared/lib/exe-dev-key.sh                # personal only: creates the exe.dev key
+  ├─ shared/lib/exe-dev-key.sh                # personal only: copies the exe.dev public key out of 1Password's agent
   ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
   ├─ linux/setup.sh                           # fonts/theme + config glue
   ├─ ensure_fish (chsh)

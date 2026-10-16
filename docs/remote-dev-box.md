@@ -15,11 +15,19 @@ personal laptops. Work machines are deliberately left out.
 
 - **`~/.ssh/config`** is linked from `shared/configs/ssh/.ssh/config`, on
   machines whose `local.gitconfig` holds the personal email only. It maps
-  `dev` → `videv.exe.xyz`, uses `~/.ssh/id_ed25519_exe`, and shares one
-  connection, so new windows open in ~0.06s.
-- **Keys:** each machine has its own exe.dev key, `~/.ssh/id_ed25519_exe`,
-  kept separate from the GitHub key `~/.ssh/id_ed25519`. The VM has its own
-  GitHub key, registered on GitHub as "videv (exe.dev)".
+  `dev` → `videv.exe.xyz`, signs in through 1Password's SSH agent, and shares
+  one connection, so new windows open in ~0.06s.
+- **Key:** one exe.dev key for every personal machine, the `exe.dev` SSH Key
+  item in 1Password's Private vault. The private half never touches disk: the
+  app's SSH agent signs each login after Touch ID (or the app's own unlock on
+  Linux), and only while 1Password is unlocked. With the shared connection
+  that is one approval per 10 minutes of use, not one per window. Only the
+  public half is on disk, at `~/.ssh/id_ed25519_exe.pub`, so ssh asks the
+  agent for that one key and never offers exe.dev another vault key or the
+  GitHub key `~/.ssh/id_ed25519`. The agent socket is `~/.1password/agent.sock`
+  on both platforms; macOS bootstrap links it there from the app's Group
+  Container. The VM has its own GitHub key, registered on GitHub as
+  "videv (exe.dev)".
 - **Personal machines only.** The dev box files are linked only when
   `local.gitconfig` holds the personal email: the SSH config and
   `~/.config/ghostty-dev-box.conf` (from `shared/configs/ghostty/dev-box.conf`).
@@ -50,16 +58,15 @@ them except registering the key in step 5.
 4. Link the configs with `shared/lib/link.sh macos` (or `linux`). Any existing
    `~/.ssh/config` is moved to `~/.config/initd-backups/`. Check it for hosts
    still in use and add them to `shared/configs/ssh/.ssh/config`.
-5. Create this machine's exe.dev key: `shared/lib/exe-dev-key.sh`. Bootstrap runs it
-   right after linking, so a bootstrapped machine already has
-   `~/.ssh/id_ed25519_exe`; it does nothing without the personal SSH config link.
-   Then register it with the existing account, any one of:
-   - **From this machine:** run `ssh exe.dev` and, when it asks you to
-     register, give the same email (`vishnukg@gmail.com`). That adds the key
-     to the existing account; a *different* email creates a new one.
-   - **On the web:** paste the `.pub` line into https://exe.dev/user/security.
-   - **From a registered machine:**
-     `echo '<pub key line>' | ssh exe.dev ssh-key add`
+5. Sign in to 1Password and turn on **Settings → Developer → Use the SSH
+   agent**. The key is already registered with exe.dev and syncs down with the
+   vault, so there is nothing to generate or register per machine. Bootstrap
+   runs `shared/lib/exe-dev-key.sh`, which copies the public half out of the
+   agent into `~/.ssh/id_ed25519_exe.pub`; if the agent was not on yet, re-run
+   it. It does nothing without the personal SSH config link.
+   If the app offers to edit `~/.ssh/config`, decline: that file is this
+   repo's, and the `Host *` block it adds would route every SSH login, not
+   just exe.dev, through 1Password.
 6. Verify: `ssh dev hostname` prints `videv`. The first connection asks to
    trust the host key. exe.dev's SSH proxy answers for `exe.dev` and every
    `*.exe.xyz` VM with the same RSA key, so accept it only if the fingerprint is
