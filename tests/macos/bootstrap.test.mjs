@@ -700,7 +700,7 @@ test('fresh bootstrap installs trusted runtimes before hooks and Fish plugins, a
     for (const [file, event] of [
         [path.join(shared, 'lib/fonts.sh'), 'fonts'],
         [path.join(shared, 'lib/link.sh'), 'links'],
-        [path.join(shared, 'lib/exe-dev-key.sh'), 'exe-dev-key'],
+        [path.join(shared, 'lib/ssh-keys.sh'), 'ssh-keys'],
         [path.join(macos, 'defaults.sh'), 'defaults'],
     ]) {
         fs.writeFileSync(file, `#!/bin/sh\nprintf '%s\\n' '${event}' >> "$HOME/order"\n`, { mode: 0o755 });
@@ -737,7 +737,7 @@ main
 
     assert.equal(first.status, 0, first.stderr);
     assert.equal(repeated.status, 0, repeated.stderr);
-    const cycle = ['fonts', 'links', 'exe-dev-key', 'trust', 'install', 'hook', 'fish', 'defaults'];
+    const cycle = ['fonts', 'links', 'ssh-keys', 'trust', 'install', 'hook', 'fish', 'defaults'];
     assert.deepEqual(fs.readFileSync(path.join(f.home, 'order'), 'utf8').trim().split('\n'), [...cycle, ...cycle]);
 });
 

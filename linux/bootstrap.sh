@@ -379,7 +379,7 @@ main() {
   "${SHARED_DIR}/lib/link.sh" linux
 
   # After linking: it keys off the ~/.ssh/config link, so personal machines only.
-  "${SHARED_DIR}/lib/exe-dev-key.sh"
+  "${SHARED_DIR}/lib/ssh-keys.sh"
 
   log "Configuring Claude Code's statusLine hook for the tmux usage pill..."
   run_node "${SHARED_DIR}/lib/claude-statusline.mjs"

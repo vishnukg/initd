@@ -17,17 +17,20 @@ personal laptops. Work machines are deliberately left out.
   machines whose `local.gitconfig` holds the personal email only. It maps
   `dev` → `videv.exe.xyz`, signs in through 1Password's SSH agent, and shares
   one connection, so new windows open in ~0.06s.
-- **Key:** one exe.dev key for every personal machine, the `exe.dev` SSH Key
-  item in 1Password's Private vault. The private half never touches disk: the
-  app's SSH agent signs each login after Touch ID (or the app's own unlock on
-  Linux), and only while 1Password is unlocked. With the shared connection
-  that is one approval per 10 minutes of use, not one per window. Only the
-  public half is on disk, at `~/.ssh/id_ed25519_exe.pub`, so ssh asks the
-  agent for that one key and never offers exe.dev another vault key or the
-  GitHub key `~/.ssh/id_ed25519`. The agent socket is `~/.1password/agent.sock`
-  on both platforms; macOS bootstrap links it there from the app's Group
-  Container. The VM has its own GitHub key, registered on GitHub as
-  "videv (exe.dev)".
+- **Keys:** two SSH Key items in 1Password's Private vault, each shared by
+  every personal machine: `exe.dev` for the dev box and `GitHub` for pushes,
+  pulls and commit signing. No private key is on disk: the app's SSH agent
+  signs each use after Touch ID (or the app's own unlock on Linux), and only
+  while 1Password is unlocked. With the shared connection that is one approval
+  per 10 minutes of dev box use, not one per window. Only the public halves are
+  on disk, at `~/.ssh/id_ed25519_exe.pub` and `~/.ssh/id_ed25519_github.pub`,
+  so ssh asks the agent for that one key and never offers a host any other
+  vault key. The agent socket is `~/.1password/agent.sock` on both platforms;
+  macOS bootstrap links it there from the app's Group Container. On personal
+  Macs, `macos/configs/git/signing.gitconfig` makes git sign commits and tags
+  with the GitHub key through 1Password's `op-ssh-sign`, so GitHub shows them
+  as Verified; the VM and work machines don't sign. The VM has its own GitHub
+  key, registered on GitHub as "videv (exe.dev)".
 - **Personal machines only.** The dev box files are linked only when
   `local.gitconfig` holds the personal email: the SSH config and
   `~/.config/ghostty-dev-box.conf` (from `shared/configs/ghostty/dev-box.conf`).
@@ -59,11 +62,15 @@ them except registering the key in step 5.
    `~/.ssh/config` is moved to `~/.config/initd-backups/`. Check it for hosts
    still in use and add them to `shared/configs/ssh/.ssh/config`.
 5. Sign in to 1Password and turn on **Settings → Developer → Use the SSH
-   agent**. The key is already registered with exe.dev and syncs down with the
-   vault, so there is nothing to generate or register per machine. Bootstrap
-   runs `shared/lib/exe-dev-key.sh`, which copies the public half out of the
-   agent into `~/.ssh/id_ed25519_exe.pub`; if the agent was not on yet, re-run
-   it. It does nothing without the personal SSH config link.
+   agent**. Both keys are already registered (exe.dev, and GitHub for
+   authentication and signing) and sync down with the vault, so there is
+   nothing to generate or register per machine. Bootstrap runs
+   `shared/lib/ssh-keys.sh`, which copies the public halves out of the agent
+   into `~/.ssh/id_ed25519_exe.pub` and `~/.ssh/id_ed25519_github.pub`; if
+   the agent was not on yet, re-run it. It does nothing without the personal
+   SSH config link. If the machine still has a pre-1Password key
+   (`~/.ssh/id_ed25519_exe`, `~/.ssh/id_ed25519`), the script says so: remove
+   it from exe.dev or GitHub, then delete the file.
    If the app offers to edit `~/.ssh/config`, decline: that file is this
    repo's, and the `Host *` block it adds would route every SSH login, not
    just exe.dev, through 1Password.
