@@ -363,6 +363,60 @@ test('Docker config gains the keychain helper and appends its plugin dir', t => 
     assert.equal(afterAForeignCredentialHelper, true);
     assert.equal(read(file).credsStore, 'osxkeychain');
 });
+test('Docker config drops the CLI hooks Docker Desktop leaves behind, and nothing else', t => {
+    // Arrange: what Desktop left in a real config, plus a plugin setting of
+    // the user's own that must survive.
+    const dir = temporaryDir(t);
+    const file = path.join(dir, 'config.json');
+    const log = () => {};
+    const brewPlugins = '/opt/homebrew/lib/docker/cli-plugins';
+    fs.writeFileSync(file, JSON.stringify({
+        auths: { 'https://index.docker.io/v1/': {} },
+        credsStore: 'osxkeychain',
+        currentContext: 'colima',
+        cliPluginsExtraDirs: [brewPlugins],
+        plugins: {
+            '-x-cli-hints': { enabled: 'true' },
+            ai: { hooks: 'build,buildx build,run,compose' },
+            compose: { hooks: 'logs,compose logs,compose attach,compose up' },
+            debug: { hooks: 'exec' },
+            scout: { hooks: 'pull,buildx build', mine: 'keep' },
+            buildx: { other: 'keep' },
+        },
+        features: { hooks: 'true', other: 'keep' },
+    }));
+
+    // Act
+    const firstRun = configureDocker({ file, log });
+    const secondRun = configureDocker({ file, log });
+
+    // Assert
+    assert.equal(firstRun, true);
+    assert.equal(secondRun, false);
+    assert.deepEqual(read(file), {
+        auths: { 'https://index.docker.io/v1/': {} },
+        credsStore: 'osxkeychain',
+        currentContext: 'colima',
+        cliPluginsExtraDirs: [brewPlugins],
+        plugins: { scout: { mine: 'keep' }, buildx: { other: 'keep' } },
+        features: { other: 'keep' },
+    });
+
+    // Arrange: with only Desktop's keys there, the emptied objects go too.
+    fs.writeFileSync(file, JSON.stringify({
+        credsStore: 'osxkeychain',
+        cliPluginsExtraDirs: [brewPlugins],
+        plugins: { '-x-cli-hints': { enabled: 'true' }, debug: { hooks: 'exec' } },
+        features: { hooks: 'true' },
+    }));
+
+    // Act
+    const desktopOnly = configureDocker({ file, log });
+
+    // Assert
+    assert.equal(desktopOnly, true);
+    assert.deepEqual(read(file), { credsStore: 'osxkeychain', cliPluginsExtraDirs: [brewPlugins] });
+});
 test('the Docker config command reports its result and fails loudly on a broken config', t => {
     // Arrange
     // ensure_docker_config runs this file as a command, so its HOME-relative
