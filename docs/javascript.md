@@ -13,7 +13,8 @@ Read the small config helpers before the long-running tmux watcher:
    replacing it would lose the user's settings. Config symlinks are preserved.
 2. `macos/docker-config.mjs` shows a concrete caller: change two managed
    settings while preserving other keys. `shared/lib/claude-statusline.mjs`
-   follows the same pattern for one hook setting.
+   and `shared/lib/agy-statusline.mjs` follow the same pattern for one hook
+   setting each.
 3. `linux/scripts/audio-ports.mjs` separates parsing from running a command.
    The parser is easy to exercise with an ordinary array in a test.
 4. `linux/scripts/docker-menu.mjs` shows `async`/`await`: list containers,
@@ -31,6 +32,7 @@ Read the small config helpers before the long-running tmux watcher:
 | `shared/lib/cleanup.mjs` | Remove only symlinks pointing at their expected managed source |
 | `shared/lib/git-profile.mjs` | Write this machine's Git email while preserving unrelated config |
 | `shared/lib/claude-statusline.mjs` | Configure the Claude status-line hook |
+| `shared/lib/agy-statusline.mjs` | Configure the Antigravity CLI status-line hook |
 | `macos/docker-config.mjs` | Configure Docker credentials and plugin search paths |
 | `macos/brewinstall`, `macos/brewinstall.mjs` | Validate a package, update Brewfile, and run Homebrew |
 | `linux/scripts/audio-ports.mjs` | Read sound-card port availability |
@@ -43,6 +45,7 @@ Read the small config helpers before the long-running tmux watcher:
 | `shared/configs/tmux/.config/tmux/tmux.mjs` | Discover agent sessions, maintain caches, and publish tmux options |
 | `shared/configs/tmux/.config/tmux/status-renderer.mjs` | Format status pills, quotas, Git branches, and battery values |
 | `shared/configs/tmux/.config/tmux/claude-statusline-hook.mjs` | Pass Claude's stdin JSON to the hook handler |
+| `shared/configs/tmux/.config/tmux/agy-statusline-hook.mjs` | Pass agy's stdin JSON to the same handler |
 | `tests/{linux,macos,shared}/*.test.mjs` | Behavior tests grouped by platform and shared scope, using temporary files, command substitutes, and isolated tmux servers |
 
 ## Following a tmux update
@@ -50,9 +53,10 @@ Read the small config helpers before the long-running tmux watcher:
 Start at `main()` at the bottom of `tmux.mjs`. The owning watcher runs
 `refresh()` and then the function returned by `createStatusPublisher()`.
 
-`refresh()` identifies each pane's Claude process through its process
-ancestry and reads the model and quota that Claude's status line hook cached
-for that process. The renderer turns those fields into text, which is saved
+`refresh()` identifies each pane's agent process (Claude or agy) through its
+process ancestry and reads the model and quota that agent's status line hook
+cached for that process. `AGENTS` in `tmux.mjs` maps each agent to its
+renderer and the payload keys its hook keeps. The renderer turns those fields into text, which is saved
 in a short-lived pane cache.
 
 The watcher waits one second after each cycle; tmux redraws once per second.

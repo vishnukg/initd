@@ -245,16 +245,28 @@ tmux socket publishes pane options; other clients’ watchers idle until the
 owner exits. Each cycle waits one second after its work finishes. tmux
 repaints once per second.
 
-Only Claude Code panes get a pill. Claude's status line hook records its
-model and rate limits against the owning process and start time. The
-five-hour window is preferred. A fuller week or budget can take its place
-after reaching 50%; without five-hour data, an available slower window is
-shown.
+Claude Code and Antigravity CLI (`agy`) panes get a pill. Each agent's own
+status line hook records its model and quota against the owning process and
+start time: `claude-statusline-hook.mjs` (wired into `~/.claude/settings.json`
+by `shared/lib/claude-statusline.mjs`) and `agy-statusline-hook.mjs` (wired
+into `~/.gemini/antigravity-cli/settings.json` by
+`shared/lib/agy-statusline.mjs`). Both hooks also print the same summary,
+with context usage appended, as that agent's own status line.
 
-An unknown or ambiguous session shows only the agent icon, an amber robot.
-Percentages describe account usage, not context usage. Budgets carry a
-`budget` label. Missing data is omitted, and expired usage snapshots are
-suppressed. Without any Claude panes, agent refresh skips the process scan.
+The five-hour window is preferred. A fuller week or budget can take its place
+after reaching 50%; without five-hour data, an available slower window is
+shown. Antigravity reports quota per provider as a remaining fraction: Gemini
+models read the `gemini-5h`/`gemini-weekly` windows, any other model the
+`3p-5h`/`3p-weekly` ones.
+
+An unknown or ambiguous session shows only the agent icon: an amber robot for
+Claude, a blue rocket for agy. Percentages describe account usage, not context
+usage. Budgets carry a `budget` label. Missing data is omitted, and expired
+usage snapshots are suppressed. Without any agent panes, agent refresh skips
+the process scan.
+
+The blocked/working/done dots on the tabs are still Claude-only: they come
+from Claude Code hooks, and agy panes do not get them.
 
 Pane caches expire after three seconds without refresh. Git branches are
 cached for three seconds, battery and naming checks for thirty seconds.

@@ -165,7 +165,7 @@ test('a watcher releases only its own lock', () => {
 test('the cache sweep deletes stale files while preserving locks and live owners', () => {
     // Arrange
     const names = ['watcher.lock', path.basename(lockPath), 'pane-1-2', 'pane-1-3',
-        'pane-20-4', 'pane-30-5', 'claude-20.json', 'claude-30.json', 'writing.tmp', 'stray-file'];
+        'pane-20-4', 'pane-30-5', 'claude-20.json', 'claude-30.json', 'agy-20.json', 'agy-30.json', 'writing.tmp', 'stray-file'];
     const deletions = [];
 
     // Act
@@ -176,7 +176,7 @@ test('the cache sweep deletes stale files while preserving locks and live owners
     });
 
     // Assert
-    const stale = ['pane-1-3', 'pane-30-5', 'claude-30.json', 'stray-file'];
+    const stale = ['pane-1-3', 'pane-30-5', 'claude-30.json', 'agy-30.json', 'stray-file'];
     assert.deepEqual(removed, stale);
     assert.deepEqual(deletions, stale, 'locks, pending writes and live owners must survive');
 });

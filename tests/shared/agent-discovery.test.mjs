@@ -83,7 +83,7 @@ test('idle watcher skips process scans and all expensive data work', async () =>
 // the hook is exercised the same way: a real subprocess, a fake `ps` on PATH and
 // a temporary HOME. Its own ppid is this test file's pid, which is what the fake
 // process table is built around.
-function hookFixture(t, rows) {
+function hookFixture(t, rows, agent = 'claude') {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-hook-'));
     t.after(() => fs.rmSync(home, { recursive: true, force: true }));
     const bin = path.join(home, 'bin');
@@ -95,13 +95,13 @@ function hookFixture(t, rows) {
     fs.writeFileSync(path.join(bin, 'ps'), `#!/bin/sh\necho '${table}'\n`, { mode: 0o755 });
     return {
         home,
-        cache: pid => path.join(home, '.cache/initd-tmux', `claude-${pid}.json`),
+        cache: pid => path.join(home, '.cache/initd-tmux', `${agent}-${pid}.json`),
         cached: () => {
             try { return fs.readdirSync(path.join(home, '.cache/initd-tmux')); }
             catch { return []; }
         },
         run: data => spawnSync(process.execPath,
-            [path.join(root, 'shared/configs/tmux/.config/tmux/claude-statusline-hook.mjs')], {
+            [path.join(root, `shared/configs/tmux/.config/tmux/${agent}-statusline-hook.mjs`)], {
                 // The hook's own command limit is 3s; a busy parallel suite can
                 // exceed that for even this fake ps, so both get headroom.
                 input: JSON.stringify(data), env: { HOME: home, PATH: bin, INITD_COMMAND_TIMEOUT_MS: '15000' },
@@ -137,6 +137,33 @@ test('the Claude hook caches its own agent process and appends the context windo
     assert.deepEqual(JSON.parse(fs.readFileSync(hook.cache(claudePid), 'utf8')), {
         start: 'Thu Sep 10 01:35:11 2026',
         data: { model: { display_name: 'Opus 5' }, rate_limits: rateLimits },
+    });
+});
+
+test('the agy hook caches its own process, keeping the quota map with its absolute reset times', t => {
+    // Arrange
+    const agyPid = 424244;
+    const hook = hookFixture(t, [
+        [process.pid, agyPid, 'node'],
+        [agyPid, 1, 'agy'],
+        // A Claude higher up the tree is not this hook's agent.
+        [1, 0, 'claude'],
+    ], 'agy');
+    const quota = { 'gemini-5h': {
+        remaining_fraction: 0.7, reset_in_seconds: 7200,
+        reset_time: new Date(Date.now() + 7200 * 1000).toISOString(),
+    } };
+    const model = { id: 'Gemini 3.8 Flash (Medium)', display_name: 'Gemini 3.8 Flash (Medium)' };
+
+    // Act
+    const result = hook.run({ model, quota, context_window: { used_percentage: 2.4 }, cwd: '/repo' });
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /^Gemini 3\.8 Flash \(Medium\) · 30% · \d+h\d+m · 2% ctx$/);
+    assert.deepEqual(hook.cached(), [`agy-${agyPid}.json`]);
+    assert.deepEqual(JSON.parse(fs.readFileSync(hook.cache(agyPid), 'utf8')), {
+        start: 'Thu Sep 10 01:35:11 2026', data: { model, quota },
     });
 });
 
@@ -181,6 +208,40 @@ test('the Claude hook terminates on a cyclic process table instead of hanging', 
     assert.equal(result.signal, null, 'a timed-out hook is killed by signal');
     assert.equal(result.stdout, 'Opus 5');
     assert.deepEqual(hook.cached(), []);
+});
+
+test('refresh renders each agent from its own hook cache, never the other agent\'s', async t => {
+    // Arrange
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-refresh-'));
+    t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+    const script = path.join(root, 'shared/configs/tmux/.config/tmux/tmux.mjs');
+    const start = 'Thu Sep 10 01:35:11 2026';
+    const cache = path.join(home, '.cache/initd-tmux');
+    fs.mkdirSync(cache, { recursive: true });
+    fs.writeFileSync(path.join(cache, 'agy-11.json'), JSON.stringify({ start, data: { model: { display_name: 'Gemini Pro' } } }));
+    // Same pid under the other agent's name: must not be read for the agy pane.
+    fs.writeFileSync(path.join(cache, 'claude-11.json'), JSON.stringify({ start, data: { model: { display_name: 'Opus 5' } } }));
+    // tmux.mjs fixes its cache directory from HOME at load, so it runs in a
+    // child with the temporary HOME rather than being imported here.
+    const program = `
+        const { refresh } = await import(${JSON.stringify(script)});
+        const writes = [];
+        await refresh({
+            run: async () => '',
+            processes: async () => [{ pid: 11, parent: 10, agent: 'agy', start: ${JSON.stringify(start)} }],
+            atomic: (file, value) => writes.push(value),
+        }, [['%1', '1', '10', 'agy', '/repo', '1'], ['%2', '1', '20', 'agy', '/repo', '0']]);
+        process.stdout.write(JSON.stringify(writes));`;
+
+    // Act
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', program], {
+        env: { ...process.env, HOME: home }, encoding: 'utf8',
+    });
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    const writes = JSON.parse(result.stdout).map(value => value.split('\n').slice(1, 3));
+    assert.deepEqual(writes.sort(), [['agy', 'Gemini Pro'], ['agy', 'agy']]);
 });
 
 // Every other refresh test hands in a snapshot, which skips the list-panes

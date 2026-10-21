@@ -737,7 +737,8 @@ main
 
     assert.equal(first.status, 0, first.stderr);
     assert.equal(repeated.status, 0, repeated.stderr);
-    const cycle = ['fonts', 'links', 'ssh-keys', 'trust', 'install', 'hook', 'fish', 'defaults'];
+    // Two status-line hooks, one `run_node` each: Claude's, then agy's.
+    const cycle = ['fonts', 'links', 'ssh-keys', 'trust', 'install', 'hook', 'hook', 'fish', 'defaults'];
     assert.deepEqual(fs.readFileSync(path.join(f.home, 'order'), 'utf8').trim().split('\n'), [...cycle, ...cycle]);
 });
 

@@ -345,6 +345,9 @@ main() {
   log "Configuring Claude Code's statusLine hook for the tmux usage pill..."
   run_node "${SHARED_DIR}/lib/claude-statusline.mjs"
 
+  log "Configuring the Antigravity CLI statusLine hook for the tmux usage pill..."
+  run_node "${SHARED_DIR}/lib/agy-statusline.mjs"
+
   log "Installing licensed fonts into ~/Library/Fonts..."
   ensure_local_fonts
 

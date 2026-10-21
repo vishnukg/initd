@@ -11,6 +11,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readJsonFile, sameFlatObject, updateJsonFile } from '../../shared/lib/json-file.mjs';
 import { configureStatusLine } from '../../shared/lib/claude-statusline.mjs';
+import { configureAgyStatusLine } from '../../shared/lib/agy-statusline.mjs';
 import { configureDocker } from '../../macos/docker-config.mjs';
 import { profilePath, setDefaultZoom } from '../../linux/scripts/firefox-profile.mjs';
 
@@ -230,6 +231,42 @@ test('the Claude statusLine hook is configured without disturbing other settings
 
     // Assert
     assert.equal(afterAKeyReshuffle, false);
+});
+test('the agy statusLine is configured idempotently without disturbing other settings', t => {
+    // Arrange
+    const home = temporaryDir(t);
+    const file = path.join(home, '.gemini/antigravity-cli/settings.json');
+    const log = () => {};
+    const wanted = { type: 'command', command: path.join(home, '.config/tmux/agy-statusline-hook.mjs'), enabled: true };
+
+    // Act
+    // agy creates the directory only on first sign-in; the merge must not need it.
+    const firstRun = configureAgyStatusLine({ home, log });
+
+    // Assert
+    assert.equal(firstRun, true);
+    assert.deepEqual(read(file).statusLine, wanted);
+    assert.equal(mode(file), 0o600);
+
+    // Arrange
+    // agy's own save: other keys added, statusLine keys reordered.
+    fs.writeFileSync(file, JSON.stringify({ model: 'gemini-pro', statusLine: { enabled: true, command: wanted.command, type: 'command' } }));
+
+    // Act
+    const afterAgySaved = configureAgyStatusLine({ home, log });
+
+    // Assert
+    assert.equal(afterAgySaved, false);
+
+    // Arrange
+    fs.writeFileSync(file, JSON.stringify({ model: 'gemini-pro', statusLine: { type: 'command', command: 'other.sh' } }));
+
+    // Act
+    const afterAForeignStatusLine = configureAgyStatusLine({ home, log });
+
+    // Assert
+    assert.equal(afterAForeignStatusLine, true);
+    assert.deepEqual(read(file), { model: 'gemini-pro', statusLine: wanted });
 });
 test('agent-state hooks are merged beside the user\'s own hooks', t => {
     // Arrange
