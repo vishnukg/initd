@@ -260,7 +260,7 @@ models read the `gemini-5h`/`gemini-weekly` windows, any other model the
 `3p-5h`/`3p-weekly` ones.
 
 An unknown or ambiguous session shows only the agent icon: an amber robot for
-Claude, a blue rocket for agy. Percentages describe account usage, not context
+Claude, a blue arch for agy. Percentages describe account usage, not context
 usage. Budgets carry a `budget` label. Missing data is omitted, and expired
 usage snapshots are suppressed. Without any agent panes, agent refresh skips
 the process scan.
