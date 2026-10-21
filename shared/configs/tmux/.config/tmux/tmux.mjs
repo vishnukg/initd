@@ -1,28 +1,24 @@
-// Bind status to the pane's process and its open transcript, never log recency.
+// Bind status to the pane's own Claude process, never log recency.
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFile, execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
-    agentPill, battery, clean, gitPill, pill, readAgentCache,
-    claudeValue, codexUsage, codexLimit, copilotUsage,
+    agentPill, battery, gitPill, pill, readAgentCache, claudeValue,
 } from './status-renderer.mjs';
 
 // Process rows: { pid, parent, start, agent, command }.
-// Transcript state: { model, id, autoModel?, rateLimits?, limit?, quota?, sessionId? }.
-// External log formats can change. Unknown data leaves the agent icon visible;
-// models and quotas must come from that pane's process and its open files.
+// The model and quota come from the Claude hook's cache for that pane's
+// process; anything unknown leaves the agent icon visible.
 
 const filename = fileURLToPath(import.meta.url);
 const cacheDir = path.join(process.env.HOME, '.cache/initd-tmux');
 // Match tmux's once-per-second redraw instead of scanning between redraws.
 const STATUS_REFRESH_MS = 1000;
-const MAX_PENDING_BYTES = 64 * 1024;
-// A hung ps/lsof/git must not stall the status line. Tests raise this: under a
+// A hung ps/git must not stall the status line. Tests raise this: under a
 // loaded parallel suite even a fake one-line `ps` can take longer than 3s.
 const COMMAND_TIMEOUT_MS = Number(process.env.INITD_COMMAND_TIMEOUT_MS) || 3000;
-const transcriptCache = new Map();
 const sourceVersion = () => [filename, fileURLToPath(new URL('./status-renderer.mjs', import.meta.url))]
     .map(file => fs.statSync(file).mtimeMs).join(':');
 const loadedVersion = sourceVersion();
@@ -39,34 +35,13 @@ function run(command, args) {
     }
 }
 function runAsync(command, args, checked = false) {
-    // lsof may return 1 when one requested process has just exited, while
-    // still returning complete records for the other processes.
     return new Promise((resolve, reject) => execFile(command, args, {
         encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' },
         timeout: COMMAND_TIMEOUT_MS, killSignal: 'SIGKILL', maxBuffer: 8 * 1024 * 1024,
     }, (error, stdout) => {
         if (error && checked) return reject(error);
-        resolve(error && !(command === 'lsof' && error.code === 1) ? '' : stdout);
+        resolve(error ? '' : stdout);
     }));
-}
-function openFilesByPid(output) {
-    const files = new Map();
-    let pid;
-    for (const line of output.split('\n')) {
-        if (/^p\d+$/.test(line)) {
-            pid = Number(line.slice(1));
-            files.set(pid, '');
-        } else if (pid && line.startsWith('n')) {
-            files.set(pid, files.get(pid) + line + '\n');
-        }
-    }
-    return files;
-}
-function fileNames(output) {
-    const names = output.split('\n')
-        .filter(line => line.startsWith('n'))
-        .map(line => line.slice(1));
-    return [...new Set(names)];
 }
 function readJSON(file) {
     try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
@@ -81,8 +56,8 @@ function atomic(file, value) {
         try { fs.unlinkSync(tmp); } catch { /* Already renamed or removed. */ }
     }
 }
-// Match both comm and argv[0]: Copilot may rename comm to MainThread, and
-// macOS and Linux tmux differ in which name pane_current_command reports.
+// Match both comm and argv[0]: a process may rename its comm, and macOS and
+// Linux tmux differ in which name pane_current_command reports.
 const PS_FORMAT = 'pid=,ppid=,lstart=,comm=,args=';
 function processes(output = run('ps', ['-axo', PS_FORMAT])) {
     return output.trim().split('\n').flatMap(line => {
@@ -109,187 +84,6 @@ function findAgent(procs, root, agent) {
     }
     return null;
 }
-function sessionFile(agent, output) {
-    const pattern = agent === 'codex' ? /\/rollout-[^/]+\.jsonl$/ : /\/session-state\/[^/]+\/events\.jsonl$/;
-    const files = fileNames(output).filter(file => pattern.test(file));
-    return files.length === 1 ? files[0] : null;
-}
-async function copilotProcessState(output, pid) {
-    // Copilot closes events.jsonl between writes, but keeps its own process log
-    // open. Resolve only that PID's log and its latest foreground registration.
-    const pattern = new RegExp(`^process-\\d+-${Number(pid)}\\.log$`);
-    const files = fileNames(output).filter(file => path.basename(path.dirname(file)) === 'logs'
-        && pattern.test(path.basename(file)));
-    if (files.length !== 1) return null;
-    try {
-        const state = await sessionState('copilot-process', files[0]);
-        return { ...state, file: state.sessionId ? path.join(path.dirname(files[0]), '..', 'session-state', state.sessionId, 'events.jsonl') : null };
-    } catch { return null; }
-}
-async function copilotSessionFile(output, pid) {
-    return (await copilotProcessState(output, pid))?.file ?? null;
-}
-// Codex may not create a rollout until its first turn. Its open SQLite
-// databases provide a fallback model; quotas still require transcript events.
-let sqlite;
-// Opened and closed per read: these are another process's live databases, and
-// nothing here is hot enough to justify holding a handle across ticks.
-async function readRows(file, sql, ...values) {
-    // Hosts without node:sqlite retain transcript-only status.
-    if (sqlite === undefined) sqlite = await import('node:sqlite').catch(() => null);
-    if (!sqlite) return [];
-    let db;
-    try { db = new sqlite.DatabaseSync(file, { readOnly: true }); } catch { return []; }
-    try { return db.prepare(sql).all(...values); } catch { return []; }
-    finally { try { db.close(); } catch {} }
-}
-async function codexSqliteState(openFiles, proc) {
-    const files = fileNames(openFiles);
-    const newest = pattern => files.filter(file => pattern.test(file))
-        .sort((a, b) => a.localeCompare(b, 'en', { numeric: true })).pop();
-    const logs = newest(/\/logs_\d+\.sqlite$/);
-    const state = newest(/\/state_\d+\.sqlite$/);
-    if (!logs || !state) return null;
-    // process_uuid is "pid:<pid>:<uuid>" and we know only the pid, which the
-    // kernel reuses, so require the row to postdate this process's own start.
-    const started = Date.parse(proc.start) / 1000;
-    if (!Number.isFinite(started)) return null;
-    // Logs contain both turn IDs and thread IDs. Only IDs present in threads
-    // can identify a session; query them together and prefer the latest one.
-    const since = Math.floor(started);
-    const mine = `pid:${proc.pid}:%`;
-    const candidates = await readRows(logs,
-        'select thread_id, max(id) as last from logs where process_uuid like ? and thread_id is not null and ts >= ? group by thread_id order by last desc limit 200',
-        mine, since);
-    // One query for every candidate rather than one per candidate: the turn ids
-    // just do not come back, and a session's turns are what makes the list long.
-    const rows = candidates.length ? await readRows(state,
-        `select id, model from threads where id in (${candidates.map(() => '?').join(',')})`,
-        ...candidates.map(row => row.thread_id)) : [];
-    const threads = new Map(rows.map(row => [row.id, row.model]));
-    for (const { thread_id: thread } of candidates) {
-        if (threads.has(thread) && threads.get(thread)) return { id: thread, model: threads.get(thread) };
-    }
-    // Before the first turn there may be no threads row. The session-init
-    // message can name the initial model, but never overrides a threads row.
-    const init = await readRows(logs,
-        "select feedback_log_body as body from logs where process_uuid like ? and ts >= ? and feedback_log_body like '%Configuring session: model=%' order by id desc limit 1",
-        mine, since);
-    const model = String(init[0]?.body ?? '').match(/Configuring session: model=([^\s;]+)/)?.[1];
-    // Reached only before the first turn, so every id logged so far came from
-    // thread/start and the newest is the thread's own rather than a turn's.
-    if (model) return { id: candidates[0]?.thread_id ?? null, model };
-    // A thread known with no model anywhere is still worth reporting as known;
-    // the caller keeps the bare agent name rather than inventing a model.
-    for (const { thread_id: thread } of candidates) {
-        if (threads.has(thread)) return { id: thread, model: null };
-    }
-    return null;
-}
-// Accept account-wide limits under either observed ID. Per-model limits and
-// credit balances do not describe subscription usage.
-const ACCOUNT_LIMIT_IDS = new Set(['codex', 'premium']);
-// Apply only foreground model and quota events. Auxiliary model calls do not
-// change the displayed model. Each recognized event updates the state in place.
-function applyEvent(agent, state, event) {
-    if (agent === 'codex') {
-        if (event.type === 'turn_context') state.model = event.payload?.model || null;
-        if (event.type !== 'event_msg') return;
-        const payload = event.payload;
-        switch (payload?.type) {
-            case 'thread_settings_applied':
-                state.model = payload.thread_settings?.model || state.model;
-                break;
-            case 'token_count': {
-                const limits = payload.rate_limits;
-                if (limits && (!limits.limit_id || ACCOUNT_LIMIT_IDS.has(limits.limit_id))) {
-                    state.rateLimits = limits;
-                }
-                break;
-            }
-            case 'task_complete':
-                // Any later completed turn clears an earlier limit notice.
-                state.limit = payload.error?.codex_error_info === 'usage_limit_exceeded'
-                    ? payload.error.message : null;
-                break;
-        }
-    } else if (agent === 'copilot') {
-        switch (event.type) {
-            case 'session.model_change':
-                state.model = event.data?.newModel || null;
-                if (state.model !== 'auto') state.autoModel = null;
-                break;
-            case 'session.auto_mode_resolved':
-                state.autoModel = event.data?.chosenModel || null;
-                break;
-            case 'model.model_call_success':
-                if (event.data?.quotaSnapshots) state.quota = event.data;
-                break;
-        }
-    }
-}
-// Only auto mode has something to resolve; a pinned model is already the answer,
-// and a session that has not routed a turn yet has nothing better than the mode.
-function modelName(agent, state) {
-    if (agent === 'copilot' && state.model === 'auto' && state.autoModel) return state.autoModel;
-    return state.model;
-}
-async function sessionState(agent, file) {
-    const stat = fs.statSync(file);
-    const key = `${agent}:${file}`;
-    const version = `${stat.ino}:${stat.size}:${stat.mtimeMs}`;
-    const cached = transcriptCache.get(key);
-    if (cached?.version === version) return cached.state;
-    // Logs are append-only. Retain unfinished bytes (including split UTF-8)
-    // so a streaming record is not reread from its start on every tick.
-    // Oversized tails fall back to rereading rather than retaining huge payloads.
-    const append = cached && cached.ino === stat.ino && stat.size > cached.size;
-    const state = append ? { ...cached.state } : {
-        model: null, id: agent === 'codex' ? path.basename(file, '.jsonl') : path.basename(path.dirname(file)),
-    };
-    const start = append ? cached.readOffset : 0;
-    const input = stat.size > start ? fs.createReadStream(file, { start, end: stat.size - 1 }) : null;
-    // Keep chunk fragments until a newline arrives. Repeatedly concatenating
-    // an unfinished record copies large tool/image payloads quadratically.
-    let fragments = append ? [...cached.fragments] : [];
-    let pendingBytes = append ? cached.pendingBytes : 0;
-    try {
-        if (input) for await (const chunk of input) {
-            let start = 0;
-            let newline;
-            while ((newline = chunk.indexOf(10, start)) !== -1) {
-                const tail = chunk.subarray(start, newline);
-                const line = fragments.length ? Buffer.concat([...fragments, tail], pendingBytes + tail.length) : tail;
-                fragments = [];
-                pendingBytes = 0;
-                start = newline + 1;
-                if (agent === 'copilot-process') {
-                    const text = line.toString('utf8');
-                    const match = text.match(/^\S+ \[INFO\] (Registering|Unregistering) foreground session: ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*$/i);
-                    if (match?.[1] === 'Registering') state.sessionId = match[2];
-                    else if (match && state.sessionId === match[2]) state.sessionId = null;
-                    continue;
-                }
-                try {
-                    applyEvent(agent, state, JSON.parse(line.toString('utf8')));
-                } catch { /* Ignore malformed records; later records may be valid. */ }
-            }
-            if (start < chunk.length) {
-                const tail = chunk.subarray(start);
-                fragments.push(tail);
-                pendingBytes += tail.length;
-            }
-        }
-    } finally { input?.destroy(); }
-    if (transcriptCache.size > 100) transcriptCache.clear();
-    const retain = pendingBytes <= MAX_PENDING_BYTES;
-    transcriptCache.set(key, {
-        version, state, ino: stat.ino, size: stat.size,
-        readOffset: retain ? stat.size : stat.size - pendingBytes,
-        fragments: retain ? fragments : [], pendingBytes: retain ? pendingBytes : 0,
-    });
-    return state;
-}
 function hook(data) {
     const procs = processes();
     let proc = procs.find(p => p.pid === process.ppid);
@@ -312,53 +106,18 @@ async function readPanes(runCommand = runAsync) {
 }
 async function refresh(io = { run: runAsync, processes: async () => processes(await runAsync('ps', ['-axo', PS_FORMAT])), atomic }, snapshot) {
     const panes = (snapshot ?? await readPanes(io.run))
-        .filter(([, , , agent]) => ['claude', 'codex', 'copilot'].includes(agent));
-    // No process scans, open-file queries or transcript reads while idle.
+        .filter(([, server, root, agent]) => agent === 'claude' && /^\d+$/.test(server) && /^\d+$/.test(root));
+    // No process scan while idle.
     if (!panes.length) return;
     const procs = await io.processes();
-    const targets = panes.flatMap(pane => {
+    await Promise.allSettled(panes.map(async pane => {
         const [, server, root, agent] = pane;
-        if (!/^\d+$/.test(server) || !/^\d+$/.test(root)) return [];
         const proc = findAgent(procs, root, agent);
         if (process.argv.includes('--verbose')) process.stdout.write(JSON.stringify({ pane, proc, processCount: procs.length }) + '\n');
-        return [{ server, root, agent, proc }];
-    });
-    const pids = [...new Set(targets.filter(t => t.proc && t.agent !== 'claude').map(t => t.proc.pid))];
-    // One asynchronous, time-bounded lsof scan for every relevant PID: adding
-    // panes cannot multiply the timeout or spawn an unbounded number of children.
-    const filesPromise = pids.length
-        ? Promise.resolve(io.run('lsof', ['-a', '-p', pids.join(','), '-Fn'])).then(openFilesByPid)
-        : Promise.resolve(new Map());
-    await Promise.allSettled(targets.map(async ({ server, root, agent, proc }) => {
         let value = agent;
         if (proc) {
-            if (agent === 'claude') {
-                const cached = readJSON(path.join(cacheDir, `claude-${proc.pid}.json`));
-                if (cached?.data && cached.start === proc.start) value = claudeValue(cached.data);
-            } else {
-                const openFiles = (await filesPromise).get(proc.pid) || '';
-                const copilot = agent === 'copilot' ? await copilotProcessState(openFiles, proc.pid) : null;
-                const file = sessionFile(agent, openFiles)
-                    || copilot?.file;
-                if (process.argv.includes('--verbose')) process.stdout.write(JSON.stringify({ agent, file }) + '\n');
-                let model = null;
-                let usage = '';
-                if (file) {
-                    try {
-                        const state = await sessionState(agent, file);
-                        model = modelName(agent, state);
-                        if (agent === 'codex') usage = codexUsage(state.rateLimits) || codexLimit(state.limit);
-                        if (agent === 'copilot') usage = copilotUsage(state.quota);
-                    } catch { /* The session may exit while its log is read. */ }
-                }
-                // A rollout that exists but has recorded no turn_context names no
-                // model either, so the database answers for both cases - not just
-                // for the missing-rollout one. The quota is never in there.
-                if (!model && agent === 'codex') {
-                    model = (await codexSqliteState(openFiles, proc).catch(() => null))?.model || null;
-                }
-                value = (model ? clean(model) : agent) + usage;
-            }
+            const cached = readJSON(path.join(cacheDir, `claude-${proc.pid}.json`));
+            if (cached?.data && cached.start === proc.start) value = claudeValue(cached.data);
         }
         (io.atomic || atomic)(path.join(cacheDir, `pane-${server}-${root}`), `${Math.floor(Date.now() / 1000)}\n${agent}\n${value}\n`);
     }));
@@ -476,7 +235,7 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
         let activeBranch = '';
         for (const [id, server, root, agent, directory, active] of panes) {
             let record = '';
-            if (['claude', 'copilot', 'codex'].includes(agent) && /^\d+$/.test(server) && /^\d+$/.test(root)) {
+            if (agent === 'claude' && /^\d+$/.test(server) && /^\d+$/.test(root)) {
                 record = readRecord(server, root);
             }
             const agentValue = agentPill(agent, record, now);
@@ -531,9 +290,7 @@ async function main() {
     } while (true);
 }
 export {
-    processes, findAgent, sessionFile, copilotSessionFile, sessionState,
-    codexSqliteState, modelName, atomic, refresh, openFilesByPid,
-    createStatusPublisher, hook, claimWatcherLock, releaseWatcherLock,
+    processes, findAgent, atomic, refresh, createStatusPublisher, hook, claimWatcherLock, releaseWatcherLock,
     sweepCache, lockPath, watcherLockPath,
 };
 let invokedDirectly = false;

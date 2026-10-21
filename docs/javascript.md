@@ -50,14 +50,14 @@ Read the small config helpers before the long-running tmux watcher:
 Start at `main()` at the bottom of `tmux.mjs`. The owning watcher runs
 `refresh()` and then the function returned by `createStatusPublisher()`.
 
-`refresh()` identifies each pane's agent through its process ancestry and
-open files. `sessionState()` reads complete new log records; `applyEvent()`
-updates the model and quota fields. The renderer turns those fields into
-text, which is saved in a short-lived pane cache.
+`refresh()` identifies each pane's Claude process through its process
+ancestry and reads the model and quota that Claude's status line hook cached
+for that process. The renderer turns those fields into text, which is saved
+in a short-lived pane cache.
 
 The watcher waits one second after each cycle; tmux redraws once per second.
 Agent discovery and status publishing share one pane snapshot per cycle;
-process and open-file checks stay fresh on every cycle that has an agent.
+process checks stay fresh on every cycle that has an agent.
 
 The publisher reads those caches, combines them with Git and battery values,
 and sends changed options to tmux in one command batch. Its returned function
@@ -67,23 +67,16 @@ between calls without needing a class or global state.
 ## Efficiency boundaries
 
 Only one watcher per tmux socket performs status work. Idle panes skip agent
-process scans and transcript reads. Agent discovery shares one asynchronous
-`lsof` call across relevant processes, and transcript reads resume at the last
-complete record rather than rereading the whole log each cycle. Git results
+process scans. Git results
 are shared per directory for three seconds; battery and naming checks run
 every thirty seconds, with creation hooks assigning names and icons sooner.
-
-Records spanning several read chunks retain their byte fragments until a newline
-arrives, then concatenate once. This keeps copying proportional to record size
-even when a transcript contains large tool output or image payloads.
 
 Setup helpers use synchronous filesystem and subprocess calls where the next
 step depends on the previous one. They run on demand, so converting them all
 to async would not by itself reduce work. Desktop menu and weather helpers
 also run on demand; weather requests and status subprocesses have timeouts.
 
-Large initial transcripts and Codex's SQLite fallback can still make a status
-cycle slower. The refresh interval is a delay after work, not a guarantee of
+The refresh interval is a delay after work, not a guarantee of
 one update every second. Profile a reproducibly slow workload before adding
 more caches or concurrency.
 
