@@ -13,7 +13,7 @@ const STATUS_CACHE_TTL_SECONDS = 3;
 // format into that expansion.
 const styles = {
     claude: ['#{@c-amber}', '\u{f06a9}'],
-    agy: ['#{@c-blue}', '\u{f14de}'],
+    agy: ['#{@c-blue}', '\ue90c'],
 };
 
 function clean(value) {
