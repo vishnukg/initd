@@ -73,7 +73,6 @@ yarn      = ["latest", "1.22.22"]
 "github:openfga/openfga" = "latest"
 "tree-sitter"         = "latest" # required by nvim treesitter parser compilation
 "claude-code"            = "latest" # native binary via mise registry; the npm package needs a postinstall step mise doesn't run
-"aqua:openai/codex"      = "latest" # prebuilt binary from GitHub releases, not the npm wrapper
 "agy"                    = "latest" # Antigravity CLI; prebuilt binary via aqua, not the curl | bash installer
 
 # ── linters / formatters (consumed by nvim/.../user/lsp/null-ls.lua) ───
@@ -99,4 +98,3 @@ yarn      = ["latest", "1.22.22"]
 "go:github.com/koron/iferr"                = "latest"
 "go:github.com/cweill/gotests/gotests"     = "latest"
 "go:olexsmir.xyz/json2go/cmd/json2go"      = "latest"
-"github:github/copilot-cli"     = "latest" # GitHub Copilot CLI
