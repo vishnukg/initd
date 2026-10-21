@@ -109,8 +109,10 @@ export function claudeValue(data, now = Date.now() / 1000) {
 // absolute reset_time is used rather than reset_in_seconds, which is relative
 // to when the payload was written and goes stale in the cache.
 export function agyValue(data, now = Date.now() / 1000) {
-    const model = clean(data.model?.display_name || 'agy');
-    const family = /gemini/i.test(data.model?.id || data.model?.display_name || '') ? 'gemini' : '3p';
+    const raw = clean(data.model?.display_name || '');
+    const model = raw.replace(/^Gemini\s+(?:(\d+(?:\.\d+)?)\s+([^(]+?)(?=\s*\(|$))?/i,
+        (_, version, name) => version ? `${name} ${version}` : '') || 'agy';
+    const family = /gemini/i.test(data.model?.id || raw) ? 'gemini' : '3p';
     return withQuota(model, [['5h', ''], ['weekly', ' week']].map(([window, label]) => {
         const quota = data.quota?.[`${family}-${window}`];
         const fraction = quota?.remaining_fraction;
