@@ -19,7 +19,7 @@ node --test tests/shared/install.test.mjs
 INITD_TEST_TMUX=1 node --test tests/shared/agent-*.test.mjs tests/shared/status-publisher.test.mjs tests/shared/watcher-lifecycle.test.mjs tests/shared/enterprise-quota.test.mjs
 
 # Config files bootstrap merges into rather than owns (~/.claude/settings.json,
-# ~/.docker/config.json) plus the Firefox profile glue
+# ~/.gemini/antigravity-cli/settings.json, ~/.docker/config.json) plus the Firefox profile glue
 node --test tests/shared/bootstrap-config.test.mjs
 
 # Fish startup (isolated configuration and mock tools; requires fish and node)
@@ -95,7 +95,7 @@ initd/
 ├── docs/                     # configuration guides and testing conventions
 ├── shared/                   # cross-platform — sourced by both bootstraps
 │   ├── lib/                  # Bash bootstrap helpers plus cleanup.mjs, git-profile.mjs,
-│   │                         #   claude-statusline.mjs and json-file.mjs
+│   │                         #   claude-statusline.mjs, agy-statusline.mjs and json-file.mjs
 │   ├── managed-links.sh      # MANAGED_LINKS for shared configs + git helpers
 │   ├── configs/              # colima, fish, git, ghostty, kitty, mise, nvim, starship, tmux
 │   └── fonts/                # gitignored clone of the PRIVATE vishnukg/fonts repo (Berkeley Mono)
@@ -143,6 +143,7 @@ macos/bootstrap.sh
   ├─ ensure_1password_agent_link              # personal only: ~/.1password/agent.sock → the app's Group Container socket (Linux's path)
   ├─ shared/lib/ssh-keys.sh                # personal only (keys off the ~/.ssh/config link): copies the exe.dev and GitHub PUBLIC keys out of 1Password's SSH agent; the private keys never leave 1Password
   ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
+  ├─ shared/lib/agy-statusline.mjs            # merges ~/.gemini/antigravity-cli/settings.json's statusLine key → tmux agy pill
   ├─ ensure_local_fonts                       # COPIES OTFs → ~/Library/Fonts (macOS won't register symlinked fonts)
   ├─ ensure_tmux_terminfo                     # compiles Homebrew ncurses's tmux-256color into ~/.terminfo (system entry lacks Smulx → no nvim undercurl inside tmux)
   ├─ ensure_fish (dscl)
@@ -166,6 +167,7 @@ linux/bootstrap.sh
   ├─ shared/lib/link.sh linux                 # symlinks (incl. shared/fonts/berkeley-mono → ~/.local/share/fonts)
   ├─ shared/lib/ssh-keys.sh                # personal only: copies the exe.dev and GitHub public keys out of 1Password's agent
   ├─ shared/lib/claude-statusline.mjs         # merges ~/.claude/settings.json's statusLine key → tmux Claude pill
+  ├─ shared/lib/agy-statusline.mjs            # merges ~/.gemini/antigravity-cli/settings.json's statusLine key → tmux agy pill
   ├─ linux/setup.sh                           # fonts/theme + config glue
   ├─ ensure_fish (chsh)
   └─ mise trust + mise install
@@ -178,6 +180,7 @@ vm/bootstrap.sh                               # bash bootstrap.sh vm — never p
   ├─ ensure_github_ssh                        # per-box key (verified github.com host key), gh ssh-key add, origin → SSH
   ├─ shared/lib/link.sh vm
   ├─ shared/lib/claude-statusline.mjs
+  ├─ shared/lib/agy-statusline.mjs
   ├─ ensure_fish (chsh + fisher)
   ├─ mise trust + mise install
   └─ setup_git_profile

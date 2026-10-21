@@ -13,6 +13,7 @@ const STATUS_CACHE_TTL_SECONDS = 3;
 // format into that expansion.
 const styles = {
     claude: ['#{@c-amber}', '\u{f06a9}'],
+    agy: ['#{@c-blue}', '\u{f14de}'],
 };
 
 function clean(value) {
@@ -76,23 +77,47 @@ function remaining(mins) {
 // Prefer the five-hour window. A week or budget can take its place once it
 // reaches 50% and is fuller; with no five-hour data, use an available window.
 const ESCALATE_AT_PERCENT = 50;
-export function claudeValue(data, now = Date.now() / 1000) {
-    const model = clean(data.model?.display_name || 'claude');
-    const windows = [['spend_limit', ' budget'], ['five_hour', ''], ['seven_day', ' week']]
-        .map(([key, label]) => ({ key, label, limit: data.rate_limits?.[key] }))
-        .filter(({ limit }) => Number.isFinite(limit?.used_percentage) && limit.used_percentage >= 0
-            && Number.isFinite(limit.resets_at) && limit.resets_at > now);
+// windows: [{ label, fiveHour, used, resetsAt }], used in percent and resetsAt
+// in epoch seconds. Expired or malformed windows are dropped here.
+function withQuota(model, windows, now) {
+    const live = windows.filter(({ used, resetsAt }) => Number.isFinite(used) && used >= 0
+        && Number.isFinite(resetsAt) && resetsAt > now);
     // The threshold is a floor on escalation rather than a priority: a slower
     // window has to clear it AND be the fuller one to take the slot, so a 5h
     // window about to stop the next turn is never hidden behind a week that
     // merely looks busy.
-    const chosen = windows
-        .filter(({ key, limit }) => key === 'five_hour' || limit.used_percentage >= ESCALATE_AT_PERCENT)
-        .sort((a, b) => b.limit.used_percentage - a.limit.used_percentage)[0]
+    const chosen = live
+        .filter(({ fiveHour, used }) => fiveHour || used >= ESCALATE_AT_PERCENT)
+        .sort((a, b) => b.used - a.used)[0]
         // Nothing qualified, so there is no 5h window here to hold the slot; a
         // quiet slower one still beats showing a bare model name.
-        || windows[0];
+        || live[0];
     if (!chosen) return model;
-    const left = remaining(Math.ceil((chosen.limit.resets_at - now) / 60));
-    return `${model} · ${Math.round(chosen.limit.used_percentage)}%${chosen.label} · ${left}`;
+    const left = remaining(Math.ceil((chosen.resetsAt - now) / 60));
+    return `${model} · ${Math.round(chosen.used)}%${chosen.label} · ${left}`;
+}
+export function claudeValue(data, now = Date.now() / 1000) {
+    const model = clean(data.model?.display_name || 'claude');
+    return withQuota(model, [['spend_limit', ' budget'], ['five_hour', ''], ['seven_day', ' week']]
+        .map(([key, label]) => {
+            const limit = data.rate_limits?.[key];
+            return { label, fiveHour: key === 'five_hour', used: limit?.used_percentage, resetsAt: limit?.resets_at };
+        }), now);
+}
+// Antigravity reports quota as a map of remaining fractions, one family per
+// model provider: gemini-* for Gemini models, 3p-* for third-party ones. The
+// absolute reset_time is used rather than reset_in_seconds, which is relative
+// to when the payload was written and goes stale in the cache.
+export function agyValue(data, now = Date.now() / 1000) {
+    const model = clean(data.model?.display_name || 'agy');
+    const family = /gemini/i.test(data.model?.id || data.model?.display_name || '') ? 'gemini' : '3p';
+    return withQuota(model, [['5h', ''], ['weekly', ' week']].map(([window, label]) => {
+        const quota = data.quota?.[`${family}-${window}`];
+        const fraction = quota?.remaining_fraction;
+        return {
+            label, fiveHour: window === '5h',
+            used: Number.isFinite(fraction) && fraction <= 1 ? (1 - fraction) * 100 : NaN,
+            resetsAt: Date.parse(quota?.reset_time) / 1000,
+        };
+    }), now);
 }

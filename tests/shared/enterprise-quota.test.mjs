@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { claudeValue } from '../../shared/configs/tmux/.config/tmux/status-renderer.mjs';
+import { agyValue, claudeValue } from '../../shared/configs/tmux/.config/tmux/status-renderer.mjs';
 
 for (const { name, rateLimits, now, expected } of [
     { name: 'enterprise budget includes overage', now: 0, expected: 'Sonnet · 125% budget · 1d1h', rateLimits: {
@@ -24,6 +24,41 @@ for (const { name, rateLimits, now, expected } of [
 
         // Act
         const rendered = claudeValue(data, now);
+
+        // Assert
+        assert.equal(rendered, expected);
+    });
+}
+
+const at = seconds => new Date(seconds * 1000).toISOString();
+for (const { name, model = 'Gemini 3.8 Flash', quota, now = 0, expected } of [
+    { name: 'five-hour window from the remaining fraction', expected: 'Gemini 3.8 Flash · 75% · 1h0m', quota: {
+        'gemini-5h': { remaining_fraction: 0.25, reset_time: at(3600) },
+        'gemini-weekly': { remaining_fraction: 0.9, reset_time: at(90000) },
+    } },
+    { name: 'a fuller weekly window past 50 percent takes the slot', expected: 'Gemini 3.8 Flash · 80% week · 1d1h', quota: {
+        'gemini-5h': { remaining_fraction: 0.7, reset_time: at(3600) },
+        'gemini-weekly': { remaining_fraction: 0.2, reset_time: at(90000) },
+    } },
+    { name: 'a third-party model reads the 3p windows', model: 'Claude Opus 5', expected: 'Claude Opus 5 · 40% · 1h0m', quota: {
+        'gemini-5h': { remaining_fraction: 0, reset_time: at(3600) },
+        '3p-5h': { remaining_fraction: 0.6, reset_time: at(3600) },
+    } },
+    { name: 'an expired reset leaves only the model', now: 3600, expected: 'Gemini 3.8 Flash', quota: {
+        'gemini-5h': { remaining_fraction: 0.25, reset_time: at(3600) },
+    } },
+    { name: 'a malformed fraction or reset time is ignored', expected: 'Gemini 3.8 Flash', quota: {
+        'gemini-5h': { remaining_fraction: 1.5, reset_time: at(3600) },
+        'gemini-weekly': { remaining_fraction: 0.1, reset_time: 'soon' },
+    } },
+    { name: 'no quota at all', expected: 'Gemini 3.8 Flash', quota: undefined },
+]) {
+    test(`agy quota: ${name}`, () => {
+        // Arrange
+        const data = { model: { id: model, display_name: model }, quota };
+
+        // Act
+        const rendered = agyValue(data, now);
 
         // Assert
         assert.equal(rendered, expected);

@@ -1,16 +1,23 @@
-// Bind status to the pane's own Claude process, never log recency.
+// Bind status to the pane's own agent process, never log recency.
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFile, execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
-    agentPill, battery, gitPill, pill, readAgentCache, claudeValue,
+    agentPill, battery, gitPill, pill, readAgentCache, claudeValue, agyValue,
 } from './status-renderer.mjs';
 
 // Process rows: { pid, parent, start, agent, command }.
-// The model and quota come from the Claude hook's cache for that pane's
-// process; anything unknown leaves the agent icon visible.
+// The model and quota come from the agent's own status-line hook, cached per
+// agent process; anything unknown leaves the agent icon visible.
+
+// Keyed by pane_current_command: each agent's renderer, and the payload keys
+// its hook caches. Both payloads share Claude's shape apart from the quota.
+const AGENTS = {
+    claude: { value: claudeValue, keys: ['model', 'rate_limits'] },
+    agy: { value: agyValue, keys: ['model', 'quota'] },
+};
 
 const filename = fileURLToPath(import.meta.url);
 const cacheDir = path.join(process.env.HOME, '.cache/initd-tmux');
@@ -84,20 +91,21 @@ function findAgent(procs, root, agent) {
     }
     return null;
 }
-function hook(data) {
+function hook(data, agent = 'claude') {
+    const { value, keys } = AGENTS[agent];
     const procs = processes();
     let proc = procs.find(p => p.pid === process.ppid);
     const seen = new Set();
-    while (proc && !named(proc, 'claude') && !seen.has(proc.pid)) {
+    while (proc && !named(proc, agent) && !seen.has(proc.pid)) {
         seen.add(proc.pid);
         proc = procs.find(p => p.pid === proc.parent);
     }
-    if (proc && named(proc, 'claude')) atomic(path.join(cacheDir, `claude-${proc.pid}.json`), JSON.stringify({
+    if (proc && named(proc, agent)) atomic(path.join(cacheDir, `${agent}-${proc.pid}.json`), JSON.stringify({
         start: proc.start,
-        data: { model: data.model, rate_limits: data.rate_limits },
+        data: Object.fromEntries(keys.map(key => [key, data[key]])),
     }));
     const ctx = data.context_window?.used_percentage;
-    process.stdout.write(claudeValue(data) + (Number.isFinite(ctx) ? ` · ${Math.round(ctx)}% ctx` : ''));
+    process.stdout.write(value(data) + (Number.isFinite(ctx) ? ` · ${Math.round(ctx)}% ctx` : ''));
 }
 async function readPanes(runCommand = runAsync) {
     const rows = await runCommand('tmux', ['list-panes', '-a', '-F', '#{pane_id}\t#{pid}\t#{pane_pid}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_active}']);
@@ -106,7 +114,7 @@ async function readPanes(runCommand = runAsync) {
 }
 async function refresh(io = { run: runAsync, processes: async () => processes(await runAsync('ps', ['-axo', PS_FORMAT])), atomic }, snapshot) {
     const panes = (snapshot ?? await readPanes(io.run))
-        .filter(([, server, root, agent]) => agent === 'claude' && /^\d+$/.test(server) && /^\d+$/.test(root));
+        .filter(([, server, root, agent]) => Object.hasOwn(AGENTS, agent) && /^\d+$/.test(server) && /^\d+$/.test(root));
     // No process scan while idle.
     if (!panes.length) return;
     const procs = await io.processes();
@@ -116,8 +124,8 @@ async function refresh(io = { run: runAsync, processes: async () => processes(aw
         if (process.argv.includes('--verbose')) process.stdout.write(JSON.stringify({ pane, proc, processCount: procs.length }) + '\n');
         let value = agent;
         if (proc) {
-            const cached = readJSON(path.join(cacheDir, `claude-${proc.pid}.json`));
-            if (cached?.data && cached.start === proc.start) value = claudeValue(cached.data);
+            const cached = readJSON(path.join(cacheDir, `${agent}-${proc.pid}.json`));
+            if (cached?.data && cached.start === proc.start) value = AGENTS[agent].value(cached.data);
         }
         (io.atomic || atomic)(path.join(cacheDir, `pane-${server}-${root}`), `${Math.floor(Date.now() / 1000)}\n${agent}\n${value}\n`);
     }));
@@ -183,12 +191,12 @@ function sweepCache(server, livePanes, io = {}) {
         if (name.endsWith('.tmp')) continue; // an atomic write in flight
         if (name === 'watcher.lock' || /^watcher-[a-f0-9]{64}\.lock$/.test(name)) continue;
         const pane = name.match(/^pane-(\d+)-(\d+)$/);
-        const claude = name.match(/^claude-(\d+)\.json$/);
+        const owner = name.match(/^(?:claude|agy)-(\d+)\.json$/);
         let dead = true;
         if (pane) {
             dead = pane[1] === server ? !livePanes.has(pane[2]) : !alive(Number(pane[1]));
-        } else if (claude) {
-            dead = !alive(Number(claude[1]));
+        } else if (owner) {
+            dead = !alive(Number(owner[1]));
         }
         if (!dead) continue;
         try { remove(name); removed.push(name); } catch { /* raced another sweep */ }
@@ -235,7 +243,7 @@ function createStatusPublisher(runCommand = runAsync, readRecord = (server, pane
         let activeBranch = '';
         for (const [id, server, root, agent, directory, active] of panes) {
             let record = '';
-            if (agent === 'claude' && /^\d+$/.test(server) && /^\d+$/.test(root)) {
+            if (Object.hasOwn(AGENTS, agent) && /^\d+$/.test(server) && /^\d+$/.test(root)) {
                 record = readRecord(server, root);
             }
             const agentValue = agentPill(agent, record, now);
