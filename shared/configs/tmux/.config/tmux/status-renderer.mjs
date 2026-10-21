@@ -13,8 +13,6 @@ const STATUS_CACHE_TTL_SECONDS = 3;
 // format into that expansion.
 const styles = {
     claude: ['#{@c-amber}', '\u{f06a9}'],
-    copilot: ['#{@c-blue}', '\uf4b8'],
-    codex: ['#{@c-red}', '\uf477'],
 };
 
 function clean(value) {
@@ -70,52 +68,10 @@ export function readAgentCache(cacheDir, server, pane) {
 export { clean, pill };
 
 // Days once past 24h, because a weekly or multi-day reset reads as nonsense in
-// hours. codexUsage keeps its own hours-only form: its primary window is 5h.
+// hours.
 function remaining(mins) {
     return mins >= 1440 ? `${Math.floor(mins / 1440)}d${Math.floor(mins % 1440 / 60)}h`
         : `${Math.floor(mins / 60)}h${mins % 60}m`;
-}
-export function codexUsage(limits, now = Date.now() / 1000) {
-    const primary = limits?.primary;
-    if (!Number.isFinite(primary?.used_percent) || primary.used_percent < 0 || primary.used_percent > 100) return '';
-    const reset = primary.resets_at;
-    // A passed reset makes this snapshot stale; wait for fresh server data.
-    if (Number.isFinite(reset) && reset <= now) return '';
-    let value = ` · ${Math.round(primary.used_percent)}%`;
-    if (Number.isFinite(reset)) {
-        const mins = Math.ceil((reset - now) / 60);
-        value += ` · ${Math.floor(mins / 60)}h${mins % 60}m`;
-    }
-    return value;
-}
-// Usage-limit errors sometimes carry a reset date only in their message.
-// Keep the limit notice even if the date is absent, unparseable, or past.
-export function codexLimit(message, now = Date.now() / 1000) {
-    if (!message) return '';
-    const at = message.match(/try again at ([A-Za-z]{3,}\s+\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4}),?\s+(\d{1,2}:\d{2}\s*[AP]M)/i);
-    const reset = at ? Date.parse(`${at[1]}, ${at[2]} ${at[3]}`) / 1000 : NaN;
-    if (!Number.isFinite(reset) || reset <= now) return ' · limit';
-    return ` · limit · ${remaining(Math.ceil((reset - now) / 60))}`;
-}
-// Copilot's model-call events carry the session's own quota snapshot.
-export function copilotUsage(data, now = Date.now() / 1000) {
-    const snapshots = data?.quotaSnapshots;
-    for (const key of ['premium_interactions', 'chat']) {
-        const quota = snapshots?.[key];
-        if (!quota || quota.hasQuota === false) continue;
-        const label = quota.tokenBasedBilling ? 'credits' : key === 'chat' ? 'chat' : 'requests';
-        if (quota.isUnlimitedEntitlement || quota.entitlementRequests === -1) return ` · ${label} ∞`;
-        if (!(quota.entitlementRequests > 0) || !Number.isFinite(quota.remainingPercentage)) continue;
-        if (quota.remainingPercentage < 0 || quota.remainingPercentage > 100) continue;
-        let value = ` · ${Math.round(100 - quota.remainingPercentage)}% ${label}`;
-        const reset = Date.parse(quota.resetDate) / 1000;
-        // Some runtimes substitute the fetch time when no reset date is known.
-        if (reset > now) {
-            value += ` · ${remaining(Math.ceil((reset - now) / 60))}`;
-        }
-        return value;
-    }
-    return '';
 }
 // Prefer the five-hour window. A week or budget can take its place once it
 // reaches 50% and is fuller; with no five-hour data, use an available window.

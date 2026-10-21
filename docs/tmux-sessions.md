@@ -130,8 +130,6 @@ Claude Code hooks (merged into `~/.claude/settings.json` by `shared/lib/claude-s
 | Jump to the agent that has waited longest | `C-a a` (again for the next one) |
 | Pick any agent (blocked first, live preview; `C-n`/`C-p` to move, Enter to jump) | `C-a g` |
 
-Only Claude Code reports state; Codex and Copilot panes keep their model pill but get no dot.
-
 ---
 
 ## Typical workflow
@@ -247,31 +245,16 @@ tmux socket publishes pane options; other clients’ watchers idle until the
 owner exits. Each cycle waits one second after its work finishes. tmux
 repaints once per second.
 
-- **Claude:** the hook records its model and rate limits against the owning
-  process and start time. The five-hour window is preferred. A fuller week or
-  budget can take its place after reaching 50%; without five-hour data, an
-  available slower window is shown.
-- **Codex:** model changes and account limits come from the open rollout.
-  Open SQLite databases provide a fallback model before a rollout is available.
-  Usage-limit errors show a notice, with a countdown when their message
-  contains a recognizable reset date.
-- **Copilot:** model selections, automatic routing decisions, and quotas come
-  from session events. When that file is closed, its process log identifies
-  the latest foreground session. Quotas come from model-call events; the
-  watcher makes no account RPC requests.
+Only Claude Code panes get a pill. Claude's status line hook records its
+model and rate limits against the owning process and start time. The
+five-hour window is preferred. A fuller week or budget can take its place
+after reaching 50%; without five-hour data, an available slower window is
+shown.
 
-Unknown or ambiguous sessions show only the agent icon: an amber robot for
-Claude, a blue face for Copilot, and a coral Hubot for Codex. Percentages
-describe account usage, not context usage. Budgets and Copilot entitlements
-carry labels such as `budget`, `credits`, or `requests`. Missing data is omitted.
-Claude and Codex suppress expired usage snapshots. Copilot retains the last
-reported percentage and omits a countdown after its reported reset date.
-
-Transcript reads resume after the last complete newline, including when a
-writer splits a UTF-8 character. Truncation or file replacement resets the
-reader. One asynchronous `lsof` scan serves all relevant processes with a
-three-second timeout. Claude does not wait for it. Without any agent panes,
-agent refresh skips process and transcript work.
+An unknown or ambiguous session shows only the agent icon, an amber robot.
+Percentages describe account usage, not context usage. Budgets carry a
+`budget` label. Missing data is omitted, and expired usage snapshots are
+suppressed. Without any Claude panes, agent refresh skips the process scan.
 
 Pane caches expire after three seconds without refresh. Git branches are
 cached for three seconds, battery and naming checks for thirty seconds.

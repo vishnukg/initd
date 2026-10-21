@@ -40,8 +40,8 @@ The individual files are organized as follows:
 
 | File | Scope |
 | --- | --- |
-| `shared/agent-transcripts.test.mjs` | Models, quota events, streaming reads, truncation and rotation |
-| `shared/agent-discovery.test.mjs` | Process ownership, open-file binding and SQLite fallback |
+| `shared/agent-discovery.test.mjs` | Process ownership and the Claude status line hook |
+| `shared/enterprise-quota.test.mjs` | Claude quota window selection |
 | `shared/status-publisher.test.mjs` | Rendering, publication, caching and session names |
 | `shared/tmux-names.test.mjs` | `names.sh`: window emojis and space-themed session names, including the real tmux.conf hooks |
 | `shared/agent-state.test.mjs` | Agent hook transitions, tab dots, the cross-session waiting pill, done-until-seen, `C-a a` and the `C-a g` picker, driven through real tmux clients |
