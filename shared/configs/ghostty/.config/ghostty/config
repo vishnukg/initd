@@ -161,7 +161,8 @@ keybind = super+arrow_right=text:\x1b[F
 # values win. Gitignored — see .gitignore.
 config-file = ?linux.conf
 
-# Personal machines: Ghostty is the dev box terminal (command = ssh dev). The
+# Personal machines: Ghostty is the dev box terminal (ssh dev in a reconnect
+# loop, see dev-box.conf). The
 # file is linked there alone; the `?` makes it a no-op everywhere else. It sits
 # outside ~/.config/ghostty so the link never lands inside this repo dir.
 config-file = ?~/.config/ghostty-dev-box.conf
