@@ -180,7 +180,7 @@ test('a work machine gets no key, no ~/.ssh and no output', t => {
     assert.deepEqual(fs.readdirSync(path.join(f.home, '.ssh')), ['config']);
 });
 
-test('dev box SSH config resolves a 20s keepalive budget for videv', () => {
+test('dev box SSH config resolves a 10s keepalive budget for videv', () => {
     // Arrange
     const sshConfig = path.join(root, 'shared/configs/ssh/.ssh/config');
 
@@ -193,11 +193,12 @@ test('dev box SSH config resolves a 20s keepalive budget for videv', () => {
     // Assert
     assert.equal(resolved.status, 0, resolved.stderr);
     assert.equal(options.hostname, 'videv.exe.xyz');
-    assert.equal(options.serveraliveinterval, '10');
+    assert.equal(options.serveraliveinterval, '5');
     assert.equal(options.serveralivecountmax, '2');
+    assert.equal(options.connecttimeout, '10');
 });
 
-test('Ghostty dev box command reconnects on 255 drops and exits on clean detach or interrupted sleep', t => {
+test('Ghostty dev box command reconnects on 255 drops with capped backoff and exits on clean detach or interrupted sleep', t => {
     // Arrange
     const conf = fs.readFileSync(path.join(root, 'shared/configs/ghostty/dev-box.conf'), 'utf8');
     const match = conf.match(/^command\s*=\s*(.+)$/m);
@@ -232,6 +233,7 @@ test('Ghostty dev box command reconnects on 255 drops and exits on clean detach 
 
     // Act
     const reconnectThenDetach = runLoop('reconnect', { INITD_DROPS: '2', INITD_SLEEP_EXIT: '0' });
+    const persistentFailure = runLoop('backoff', { INITD_DROPS: '7', INITD_SLEEP_EXIT: '0' });
     const interruptedSleep = runLoop('interrupt', { INITD_DROPS: '5', INITD_SLEEP_EXIT: '130' });
 
     // Assert
@@ -240,9 +242,13 @@ test('Ghostty dev box command reconnects on 255 drops and exits on clean detach 
         'ssh dev',
         'sleep 1',
         'ssh dev',
-        'sleep 1',
+        'sleep 2',
         'ssh dev',
     ]);
+    assert.deepEqual(
+        persistentFailure.calls.filter(call => call.startsWith('sleep')),
+        ['sleep 1', 'sleep 2', 'sleep 4', 'sleep 8', 'sleep 16', 'sleep 30', 'sleep 30'],
+    );
     assert.deepEqual(interruptedSleep.calls, [
         'ssh dev',
         'sleep 1',
