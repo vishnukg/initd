@@ -89,6 +89,7 @@ return require("lazy").setup({
 	{
 		"akinsho/toggleterm.nvim",
 		keys = {
+			{ [[<c-\>]], desc = "Toggle floating terminal" },
 			{ "<leader>tv", desc = "Toggle vertical terminal" },
 			{ "<leader>th", desc = "Toggle horizontal terminal" },
 			{ "<leader>gt", desc = "Toggle lazygit" },
@@ -131,7 +132,6 @@ return require("lazy").setup({
 			"hrsh7th/cmp-buffer",
 			"hrsh7th/cmp-path",
 			"hrsh7th/cmp-nvim-lsp",
-			"hrsh7th/cmp-nvim-lua",
 		},
 		config = function() require("user.cmp") end,
 	},

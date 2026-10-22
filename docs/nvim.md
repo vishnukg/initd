@@ -686,8 +686,6 @@ The current nvim-treesitter main branch does not support lazy-loading, so its pl
    - **Parser already on runtimepath** (including one bundled with Neovim): `vim.treesitter.start()` enables highlighting, folding, and supported indentation.
    - **Parser missing but available in the registry**: Treesitter installs it asynchronously and attaches if the originating buffer still exists.
 
-Folding switches temporarily to manual mode during insert mode to avoid per-keystroke fold recomputation, then returns to Treesitter expression folds on `InsertLeave`.
-
 ### Auto-reload when an external process edits a file
 
 When an external tool (Claude, Copilot, a code generator) edits a file that's already open in Neovim, Neovim doesn't know the file changed — it keeps showing the stale in-memory buffer. This setup makes Neovim reload silently and automatically.
