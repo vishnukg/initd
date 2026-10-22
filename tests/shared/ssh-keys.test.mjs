@@ -179,3 +179,72 @@ test('a work machine gets no key, no ~/.ssh and no output', t => {
     assert.equal(own.stdout + own.stderr, '');
     assert.deepEqual(fs.readdirSync(path.join(f.home, '.ssh')), ['config']);
 });
+
+test('dev box SSH config resolves a 10s keepalive budget for videv', () => {
+    // Arrange
+    const sshConfig = path.join(root, 'shared/configs/ssh/.ssh/config');
+
+    // Act
+    const resolved = spawnSync('ssh', ['-G', '-F', sshConfig, 'dev'], { encoding: 'utf8' });
+    const options = Object.fromEntries(
+        resolved.stdout.trim().split('\n').map(line => line.split(/ (.*)/s, 2)),
+    );
+
+    // Assert
+    assert.equal(resolved.status, 0, resolved.stderr);
+    assert.equal(options.hostname, 'videv.exe.xyz');
+    assert.equal(options.serveraliveinterval, '5');
+    assert.equal(options.serveralivecountmax, '2');
+});
+
+test('Ghostty dev box command reconnects on 255 drops and exits on clean detach or interrupted sleep', t => {
+    // Arrange
+    const conf = fs.readFileSync(path.join(root, 'shared/configs/ghostty/dev-box.conf'), 'utf8');
+    const match = conf.match(/^command\s*=\s*(.+)$/m);
+    assert.ok(match, 'dev-box.conf must define command = ...');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-dev-box-cmd-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const stub = path.join(dir, 'stub.sh');
+    fs.writeFileSync(stub, [
+        '#!/bin/sh',
+        'name="${0##*/}"',
+        'printf "%s %s\\n" "$name" "$*" >> "$INITD_CALLS"',
+        'if [ "$name" = ssh ]; then',
+        '  count=$(wc -l < "$INITD_SSH_COUNT" 2>/dev/null || echo 0)',
+        '  echo x >> "$INITD_SSH_COUNT"',
+        '  [ "$count" -lt "$INITD_DROPS" ] && exit 255',
+        '  exit 0',
+        'fi',
+        'exit "${INITD_SLEEP_EXIT:-0}"',
+        '',
+    ].join('\n'), { mode: 0o755 });
+    for (const cmd of ['ssh', 'sleep']) fs.symlinkSync(stub, path.join(dir, cmd));
+    const runLoop = (name, env) => {
+        const callsFile = path.join(dir, `${name}.calls`);
+        const countFile = path.join(dir, `${name}.count`);
+        const result = spawnSync('/bin/sh', ['-c', match[1]], {
+            env: { PATH: `${dir}:/usr/bin:/bin`, INITD_CALLS: callsFile, INITD_SSH_COUNT: countFile, ...env },
+            encoding: 'utf8', timeout: 5000,
+        });
+        const calls = fs.existsSync(callsFile) ? fs.readFileSync(callsFile, 'utf8').trim().split('\n') : [];
+        return { status: result.status, calls };
+    };
+
+    // Act
+    const reconnectThenDetach = runLoop('reconnect', { INITD_DROPS: '2', INITD_SLEEP_EXIT: '0' });
+    const interruptedSleep = runLoop('interrupt', { INITD_DROPS: '5', INITD_SLEEP_EXIT: '130' });
+
+    // Assert
+    assert.equal(reconnectThenDetach.status, 0);
+    assert.deepEqual(reconnectThenDetach.calls, [
+        'ssh dev',
+        'sleep 1',
+        'ssh dev',
+        'sleep 1',
+        'ssh dev',
+    ]);
+    assert.deepEqual(interruptedSleep.calls, [
+        'ssh dev',
+        'sleep 1',
+    ]);
+});
