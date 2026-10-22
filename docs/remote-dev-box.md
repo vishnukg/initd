@@ -37,10 +37,11 @@ personal laptops. Work machines are deliberately left out.
   A work machine gets neither; its `~/.ssh/config` stays its own, and its
   Ghostty skips the missing include and stays a local terminal.
 - **Ghostty is the dev box terminal, kitty stays local.** On personal machines
-  every Ghostty window and tab runs `ssh dev` (`command = ssh dev`) instead of a
+  every Ghostty window and tab runs `ssh dev` in a reconnect loop instead of a
   shell, so `cmd+tab` moves between local (kitty) and remote (Ghostty). Both
-  run the same font (Berkeley Mono 16); the blue tmux pill marks the box. The
-  window closes when the connection ends; the box's tmux keeps the session.
+  run the same font (Berkeley Mono 16); the blue tmux pill marks the box. A
+  connection dropped across sleep reconnects in place; a clean detach or
+  last-window exit closes the window while the box's tmux keeps the session.
 - **One tmux:** Ghostty runs `ssh dev` without starting fish, so the
   laptop's tmux never starts in it. Typing `ssh dev`
   inside the local tmux nests two tmuxes on the same `C-a` prefix instead.
