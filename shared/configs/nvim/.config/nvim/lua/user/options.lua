@@ -64,19 +64,25 @@ vim.opt.formatoptions:remove({ "c", "r", "o" })
 vim.opt.fillchars:append({ eob = " " })
 vim.o.winborder = "rounded"
 
--- Insert mode: use absolute line numbers and no cursorline to reduce redraws
+-- Insert mode: use absolute line numbers and no cursorline to reduce redraws.
+-- Guard on vim.wo.number so non-numbered windows (terminals, pickers, floats)
+-- don't gain relative numbers and a cursorline when leaving insert mode.
 local insert_mode_group = vim.api.nvim_create_augroup("InsertMode", { clear = true })
 vim.api.nvim_create_autocmd("InsertEnter", {
 	group = insert_mode_group,
 	callback = function()
-		vim.opt_local.relativenumber = false
-		vim.opt_local.cursorline = false
+		if vim.wo.number then
+			vim.wo.relativenumber = false
+			vim.wo.cursorline = false
+		end
 	end,
 })
 vim.api.nvim_create_autocmd("InsertLeave", {
 	group = insert_mode_group,
 	callback = function()
-		vim.opt_local.relativenumber = true
-		vim.opt_local.cursorline = true
+		if vim.wo.number then
+			vim.wo.relativenumber = true
+			vim.wo.cursorline = true
+		end
 	end,
 })

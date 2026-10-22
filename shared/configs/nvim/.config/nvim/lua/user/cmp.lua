@@ -66,13 +66,15 @@ cmp.setup({
 			local truncated = vim.fn.strcharpart(label, 0, MAX_LABEL_WIDTH)
 			if truncated ~= label then
 				vim_item.abbr = truncated .. ELLIPSIS_CHAR
-			elseif string.len(label) < MIN_LABEL_WIDTH then
-				vim_item.abbr = label .. string.rep(" ", MIN_LABEL_WIDTH - string.len(label))
+			else
+				local len = vim.fn.strchars(label)
+				if len < MIN_LABEL_WIDTH then
+					vim_item.abbr = label .. string.rep(" ", MIN_LABEL_WIDTH - len)
+				end
 			end
 			vim_item.kind = string.format("%s %s", kind_icons[vim_item.kind], vim_item.kind)
 			vim_item.menu = ({
 				nvim_lsp = "[LSP]",
-				nvim_lua = "[NVIM_LUA]",
 				luasnip  = "[Snippet]",
 				buffer   = "[Buffer]",
 				path     = "[Path]",
@@ -82,7 +84,6 @@ cmp.setup({
 	},
 	sources = {
 		{ name = "nvim_lsp" },
-		{ name = "nvim_lua" },
 		{ name = "luasnip" },
 		{ name = "buffer" },
 		{ name = "path" },

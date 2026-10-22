@@ -363,7 +363,7 @@ LSP servers, formatters, and linters are installed/updated outside Neovim:
 | `gri` | Go to implementation |
 | `grt` | Go to type definition |
 | `grr` | Find references |
-| `grl` | Run code lens |
+| `grx` | Run code lens |
 | `gO` | List document symbols |
 | `K` | Hover documentation |
 | `<leader>fm` | Format buffer |
@@ -427,7 +427,7 @@ Neotest and all adapters load only when one of these mappings is first used.
 | `<leader>gr{j,y,x,e,d}` | Remove those Go struct tags |
 | `<leader>gie` / `<leader>gim` | Add an if-error block / implement an interface |
 
-Coverage and Gopher are command-loaded on first use. Gopher's helper binaries are installed by lazy.nvim's plugin build step, not while opening a Go file.
+Coverage and Gopher are command-loaded on first use. Gopher's helper binaries are installed by `mise` (`mise/config.toml`), not while opening a Go file.
 
 ---
 
