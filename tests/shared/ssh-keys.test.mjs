@@ -180,7 +180,7 @@ test('a work machine gets no key, no ~/.ssh and no output', t => {
     assert.deepEqual(fs.readdirSync(path.join(f.home, '.ssh')), ['config']);
 });
 
-test('dev box SSH config resolves a 10s keepalive budget for videv', () => {
+test('dev box SSH config resolves a 20s keepalive budget for videv', () => {
     // Arrange
     const sshConfig = path.join(root, 'shared/configs/ssh/.ssh/config');
 
@@ -193,7 +193,7 @@ test('dev box SSH config resolves a 10s keepalive budget for videv', () => {
     // Assert
     assert.equal(resolved.status, 0, resolved.stderr);
     assert.equal(options.hostname, 'videv.exe.xyz');
-    assert.equal(options.serveraliveinterval, '5');
+    assert.equal(options.serveraliveinterval, '10');
     assert.equal(options.serveralivecountmax, '2');
 });
 
