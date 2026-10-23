@@ -30,7 +30,7 @@ personal laptops. Work machines are deliberately left out.
   Macs, `macos/configs/git/signing.gitconfig` makes git sign commits and tags
   with the GitHub key through 1Password's `op-ssh-sign`, so GitHub shows them
   as Verified; the VM and work machines don't sign. The VM has its own GitHub
-  key, registered on GitHub as "videv (exe.dev)".
+  key, registered on GitHub as "ViExeDev".
 - **Personal machines only.** The dev box files are linked only when
   `local.gitconfig` holds the personal email: the SSH config and
   `~/.config/ghostty-dev-box.conf` (from `shared/configs/ghostty/dev-box.conf`).
@@ -85,12 +85,18 @@ them except registering the key in step 5.
 ## Rebuild the VM from scratch
 
 ```bash
-ssh exe.dev "new --name=videv --disk=60GB --no-email"   # names: 5+ chars, globally unique
+ssh exe.dev "new --name=videv --disk=100GB --no-email"  # names: 5+ chars, globally unique
 ssh dev 'git clone https://github.com/vishnukg/initd ~/.config/initd'
 ssh -t dev 'bash ~/.config/initd/bootstrap.sh vm'     # interactive: gh login, git email, GitHub key
+ssh exe.dev restart videv                             # guestd picks up the chsh to fish only on restart
 ```
 
-Then remove the old VM's GitHub key ("videv (exe.dev)") from
+Until that restart, logins still come up as `/bin/bash -l`: exe.dev's
+`exe-init guestd`, not sshd, spawns the login shell, and it keeps the shell it
+read at boot, before bootstrap's `chsh`. Bash never reads the fish config, so
+tmux never auto-attaches.
+
+Then remove the old VM's GitHub key ("ViExeDev") from
 github.com/settings/keys. The new run registers its own.
 
 ## Day to day
