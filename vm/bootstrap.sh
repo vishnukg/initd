@@ -84,6 +84,33 @@ install_packages() {
   fi
 }
 
+# Roots distrusted after a CA key compromise, by their /etc/ssl/certs name.
+# emSign ECC Root CA - G3: eMudhra intermediates whose private keys can be
+# recovered from the public certificates (https://emudhra.we-have-a-problem.com/,
+# LP #2171507); Ubuntu dropped it in ca-certificates 20260816ubuntu0.24.04.1.
+DISTRUSTED_ROOTS=(emSign_ECC_Root_CA_-_G3)
+CERTS_DIR=/etc/ssl/certs
+
+# install_packages skips anything already present, and every image ships
+# ca-certificates - so without this a new VM keeps whatever trust store its
+# image was built with, however stale. Runs before the first curl.
+ensure_trust_store() {
+  log "Upgrading ca-certificates to the archive's latest..."
+  apt_update
+  sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --only-upgrade ca-certificates
+
+  local root trusted=()
+  for root in "${DISTRUSTED_ROOTS[@]}"; do
+    [[ -e "${CERTS_DIR}/${root}.pem" ]] && trusted+=("${root}")
+  done
+  if [[ "${#trusted[@]}" -gt 0 ]]; then
+    log_error "The system trust store still trusts compromised root(s): ${trusted[*]}"
+    log_info "Upgrade ca-certificates (or blocklist them with ! in /etc/ca-certificates.conf and run update-ca-certificates), then re-run."
+    exit 1
+  fi
+  log_success "System trust store is current."
+}
+
 ensure_fish_ppa() {
   # Ubuntu 24.04's own fish is 3.7; the shared config is written against 4.x.
   local major=0
@@ -293,6 +320,7 @@ main() {
   log "Starting initd bootstrap for a headless VM."
 
   install_packages
+  ensure_trust_store
   ensure_fish_ppa
   ensure_docker
   ensure_gh

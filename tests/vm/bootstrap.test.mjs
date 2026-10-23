@@ -141,6 +141,44 @@ test('install_packages makes no apt calls when everything is installed', () => {
     assert.equal(env.calls().some(call => call.startsWith('apt-get')), false);
 });
 
+function trustStoreFixture(certs) {
+    const env = fixture();
+    env.stub('sudo', '"$@"');
+    env.stub('apt-get');
+    const dir = path.join(newHome('certs'), 'certs');
+    fs.mkdirSync(dir);
+    for (const name of certs) fs.writeFileSync(path.join(dir, `${name}.pem`), '');
+    return { env, dir };
+}
+
+test('ensure_trust_store upgrades an already-installed ca-certificates', () => {
+    // Arrange
+    const { env, dir } = trustStoreFixture(['emSign_ECC_Root_CA_-_C3']);
+
+    // Act
+    const result = env.run(`CERTS_DIR='${dir}'; ensure_trust_store`);
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(env.calls().filter(call => call.startsWith('apt-get ')), [
+        'apt-get update -q',
+        'apt-get install -y -q --only-upgrade ca-certificates',
+    ]);
+});
+
+test('ensure_trust_store stops bootstrap while a compromised root is still trusted', () => {
+    // Arrange
+    const { env, dir } = trustStoreFixture(['emSign_ECC_Root_CA_-_G3']);
+
+    // Act
+    const result = env.run(`CERTS_DIR='${dir}'; ensure_trust_store; echo reached`);
+
+    // Assert
+    assert.notEqual(result.status, 0);
+    assert.match(result.stdout + result.stderr, /still trusts compromised root\(s\): emSign_ECC_Root_CA_-_G3/);
+    assert.doesNotMatch(result.stdout, /reached/);
+});
+
 test('ensure_fish_ppa keeps an installed fish 4 and replaces fish 3', () => {
     // Arrange
     const modern = fixture();
