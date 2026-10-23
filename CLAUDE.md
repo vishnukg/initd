@@ -174,7 +174,9 @@ linux/bootstrap.sh
 
 vm/bootstrap.sh                               # bash bootstrap.sh vm — never picked by uname alone
   ├─ ensure_user_context, ensure_ubuntu
-  ├─ install_packages (vm/packages.txt via apt), ensure_fish_ppa (fish 4 — Ubuntu 24.04 ships 3.7)
+  ├─ install_packages (vm/packages.txt via apt)
+  ├─ ensure_trust_store                       # --only-upgrade ca-certificates (images ship it, so install_packages skips it), then fails if a DISTRUSTED_ROOTS entry (emSign ECC G3, the eMudhra compromise) is still in /etc/ssl/certs
+  ├─ ensure_fish_ppa (fish 4 — Ubuntu 24.04 ships 3.7)
   ├─ ensure_docker (skipped when present, as on exeuntu), ensure_gh (official apt repo), ensure_mise
   ├─ ensure_gh_auth                           # before mise install: credential_command is `gh auth token`
   ├─ ensure_github_ssh                        # per-box key (verified github.com host key), gh ssh-key add, origin → SSH
