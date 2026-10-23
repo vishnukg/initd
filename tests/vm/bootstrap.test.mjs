@@ -179,6 +179,19 @@ test('ensure_trust_store stops bootstrap while a compromised root is still trust
     assert.doesNotMatch(result.stdout, /reached/);
 });
 
+test('ensure_trust_store also refuses the Sectigo cross-sign root', () => {
+    // Arrange
+    const { env, dir } = trustStoreFixture(['Comodo_AAA_Services_root', 'COMODO_RSA_Certification_Authority']);
+
+    // Act
+    const result = env.run(`CERTS_DIR='${dir}'; ensure_trust_store; echo reached`);
+
+    // Assert
+    assert.notEqual(result.status, 0);
+    assert.match(result.stdout + result.stderr, /still trusts compromised root\(s\): Comodo_AAA_Services_root$/m);
+    assert.doesNotMatch(result.stdout, /reached/);
+});
+
 test('ensure_fish_ppa keeps an installed fish 4 and replaces fish 3', () => {
     // Arrange
     const modern = fixture();

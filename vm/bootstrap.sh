@@ -85,10 +85,12 @@ install_packages() {
 }
 
 # Roots distrusted after a CA key compromise, by their /etc/ssl/certs name.
-# emSign ECC Root CA - G3: eMudhra intermediates whose private keys can be
-# recovered from the public certificates (https://emudhra.we-have-a-problem.com/,
-# LP #2171507); Ubuntu dropped it in ca-certificates 20260816ubuntu0.24.04.1.
-DISTRUSTED_ROOTS=(emSign_ECC_Root_CA_-_G3)
+# eMudhra intermediates whose private keys can be recovered from the public
+# certificates (https://emudhra.we-have-a-problem.com/, LP #2171507) chain to
+# emSign ECC Root CA - G3 and, through Sectigo cross-signs, to AAA Certificate
+# Services (Comodo_AAA_Services_root) - both paths, so both roots. Ubuntu
+# dropped both in ca-certificates 20260816ubuntu0.24.04.1.
+DISTRUSTED_ROOTS=(emSign_ECC_Root_CA_-_G3 Comodo_AAA_Services_root)
 CERTS_DIR=/etc/ssl/certs
 
 # install_packages skips anything already present, and every image ships
