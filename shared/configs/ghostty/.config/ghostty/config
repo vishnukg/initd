@@ -45,14 +45,6 @@ gtk-titlebar = false
 # here: it would cost those launches ~270ms -> ~680ms and has to be re-checked
 # whenever the package updates.
 gtk-single-instance = false
-# macOS has no per-window process to fall back on: every window lives in the one
-# Ghostty.app, and the default here is false, so the app outlives its last window
-# and keeps whatever 1.3.1's window-lifecycle leak accumulated (measured 314 MB
-# footprint after ~19 h). Quitting with the last window is the only reset short
-# of an upstream fix. It costs nothing - every window is `ssh dev` and the box's
-# tmux holds the session - except a cold start for the next window. Already the
-# default on Linux, so this line only changes macOS.
-quit-after-last-window-closed = true
 window-colorspace = display-p3
 resize-overlay = never
 
