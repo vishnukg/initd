@@ -6,6 +6,11 @@ minimum_release_age       = "8h"            # wait eight hours before accepting 
 # its own managed pythons (~/.local/share/uv), which mise upgrades never
 # delete — so python patch bumps can't orphan the yamllint venv again.
 pipx.uvx                  = true
+# Install npm: tools with plain npm instead of mise's embedded aube. aube's
+# dependency checks failed on the work machine's registry; npm honours
+# ~/.npmrc fully and mise still passes --before (minimum_release_age) and
+# --ignore-scripts. Costs some install speed, nothing else.
+npm.package_manager       = "npm"
 # Let mise update itself before eligible commands, checking daily rather than
 # the default 7d. Linux-only in effect: macOS installs mise from Homebrew,
 # whose build has no self_update (which is why macos/update.sh runs only
