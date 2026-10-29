@@ -78,8 +78,6 @@ yarn      = ["latest", "1.22.22"]
 "github:openfga/openfga" = "latest"
 "tree-sitter"         = "latest" # required by nvim treesitter parser compilation
 "claude-code"            = "latest" # native binary via mise registry; the npm package needs a postinstall step mise doesn't run
-"agy"                    = "latest" # Antigravity CLI; prebuilt binary via aqua, not the curl | bash installer
-"aqua:anomalyco/opencode" = "latest" # opencode CLI; prebuilt binary from GitHub releases, not the npm wrapper (the registry's first backend)
 
 # ── linters / formatters (consumed by nvim/.../user/lsp/null-ls.lua) ───
 "stylua"                                   = "latest"
