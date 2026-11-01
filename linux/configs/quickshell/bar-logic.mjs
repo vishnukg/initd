@@ -255,3 +255,36 @@ export function backlightPercent(brightness, maxBrightness) {
         return NaN;
     return Math.round(Math.min(value, max) * 100 / max);
 }
+
+// `df -P -B1 /`: a header, then "fs size used available capacity mountpoint"
+// in bytes. The percentage is used / (used + available), which is how df
+// computes Capacity -- on btrfs size != used + available (metadata, reserved
+// space), so dividing by size would under-read. Null for anything unparsable.
+export function diskUsage(dfOutput) {
+    const lines = (dfOutput || "").trim().split("\n");
+    if (lines.length < 2)
+        return null;
+    const fields = lines[lines.length - 1].trim().split(/\s+/);
+    if (fields.length < 6)
+        return null;
+    const size = Number(fields[1]), used = Number(fields[2]), available = Number(fields[3]);
+    if (!(size > 0) || isNaN(used) || isNaN(available) || used + available <= 0)
+        return null;
+    return {
+        percent: Math.round(used * 100 / (used + available)),
+        availableGiB: available / 1073741824,
+        totalGiB: size / 1073741824,
+    };
+}
+
+// Free space for the bar: one decimal under 10 GiB, where it matters,
+// whole GiB above, and TiB once a disk has that much.
+export function formatGiB(gib) {
+    if (!isFinite(gib) || gib < 0)
+        return "--";
+    if (gib >= 1024)
+        return (gib / 1024).toFixed(1) + "T";
+    if (gib < 10)
+        return gib.toFixed(1) + "G";
+    return Math.round(gib) + "G";
+}

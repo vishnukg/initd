@@ -11,6 +11,7 @@ import {
     loadColor, deviceKind, kindRank, KIND_ORDER,
     cpuTimes, cpuPercent, memoryUsage, batteryPercent,
     bluetoothDeviceIcon, compareBluetoothDevices, trayRole, backlightPercent,
+    diskUsage, formatGiB,
 } from '../../linux/configs/quickshell/bar-logic.mjs';
 import * as BarLogic from '../../linux/configs/quickshell/bar-logic.mjs';
 
@@ -503,5 +504,62 @@ for (const { name, brightness, max } of [
 
         // Assert
         assert.ok(Number.isNaN(percent));
+    });
+}
+
+// Real `df -P -B1 /` from this machine: a LUKS-wrapped btrfs volume.
+const DF = 'Filesystem 1-blocks Used Available Capacity Mounted on\n'
+    + '/dev/mapper/luks-b2d6 509315383296 23384498176 485564669952 5% /\n';
+
+test('disk usage reads free space and df-style capacity', () => {
+    // Act
+    const usage = diskUsage(DF);
+
+    // Assert
+    assert.equal(usage.availableGiB.toFixed(1), '452.2');
+    assert.equal(usage.totalGiB.toFixed(1), '474.3');
+    assert.equal(usage.percent, 5);
+});
+
+test('disk capacity divides by used + available, not size, like df on btrfs', () => {
+    // Arrange
+    // size 1000 but used + available only 800: df reports 50%, not 40%.
+    const dfOutput = 'Filesystem 1-blocks Used Available Capacity Mounted on\nx 1000 400 400 50% /\n';
+
+    // Act
+    const usage = diskUsage(dfOutput);
+
+    // Assert
+    assert.equal(usage.percent, 50);
+});
+
+for (const { name, dfOutput } of [
+    { name: 'empty output', dfOutput: '' },
+    { name: 'a header only', dfOutput: 'Filesystem 1-blocks Used Available Capacity Mounted on\n' },
+    { name: 'a truncated row', dfOutput: 'Filesystem\nx 1000 400\n' },
+    { name: 'a zero size', dfOutput: 'Filesystem\nx 0 0 0 0% /\n' },
+]) {
+    test(`disk usage rejects ${name}`, () => {
+        // Act
+        const usage = diskUsage(dfOutput);
+
+        // Assert
+        assert.equal(usage, null);
+    });
+}
+
+for (const { gib, expected } of [
+    { gib: 452.2, expected: '452G' },
+    { gib: 9.46, expected: '9.5G' },
+    { gib: 0.4, expected: '0.4G' },
+    { gib: 2048, expected: '2.0T' },
+    { gib: NaN, expected: '--' },
+]) {
+    test(`free space formats ${gib} GiB as ${expected}`, () => {
+        // Act
+        const text = formatGiB(gib);
+
+        // Assert
+        assert.equal(text, expected);
     });
 }

@@ -24,6 +24,9 @@ ShellRoot {
     property string memoryText: "--G"
     property string memoryPercent: "--%"
     property string memoryTooltip: "Memory usage unavailable"
+    property string diskText: "--"
+    property string diskPercent: "--%"
+    property string diskTooltip: "Disk usage unavailable"
     property string dockerText: "0"
     property string weatherTemp: "--"
     property string weatherCondition: "Unavailable"
@@ -407,6 +410,34 @@ ShellRoot {
         }
     }
 
+    // Free space on / (the same btrfs volume as /home here). The one readout
+    // that has to be a process: free space lives behind statfs(), which no
+    // /proc or /sys file exposes. It changes slowly, so once every 5 minutes.
+    Process {
+        id: diskProcess
+        command: ["df", "-P", "-B1", "/"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const usage = BarLogic.diskUsage(text);
+                if (!usage)
+                    return;
+                root.diskText = BarLogic.formatGiB(usage.availableGiB);
+                root.diskPercent = usage.percent + "%";
+                root.diskTooltip = "Free: " + BarLogic.formatGiB(usage.availableGiB)
+                    + " of " + BarLogic.formatGiB(usage.totalGiB)
+                    + "\nUsed: " + usage.percent + "%";
+            }
+        }
+    }
+
+    Timer {
+        interval: 300000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: root.start(diskProcess)
+    }
+
     Process {
         id: nightLightToggleProcess
         command: [Quickshell.env("HOME") + "/.config/night-light-toggle.mjs"]
@@ -645,6 +676,20 @@ ShellRoot {
                             barWindow: panel
                             tooltipTitle: "Memory"
                             tooltipBody: root.memoryTooltip
+                        }
+
+                        BarItem {
+                            // nf-md-harddisk. The number is what is *left*,
+                            // so the ramp keys off the used percentage, the
+                            // same amber-at-70 / red-at-90 as memory.
+                            icon: "\u{f02ca}"
+                            iconSize: 20
+                            iconSpacing: 4
+                            text: root.diskText
+                            foreground: root.loadColor(root.diskPercent)
+                            barWindow: panel
+                            tooltipTitle: "Disk"
+                            tooltipBody: root.diskTooltip
                         }
 
                         BarItem {
