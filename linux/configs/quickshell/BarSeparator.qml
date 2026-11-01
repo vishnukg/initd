@@ -5,7 +5,7 @@ import QtQuick.Layouts
 // both ends, so it marks a boundary without reading as a drawn line. Chosen
 // over group pills (seven rounded surfaces in a row read as busy), dots
 // (weaker, and they echo the clock's own "·") and floating islands (heavy)
-// -- see ~/Pictures/bar-mockups for the comparison that picked it.
+// -- picked from rendered mockups of all four on the real bar components.
 Rectangle {
     Layout.preferredWidth: 1
     Layout.preferredHeight: 20
