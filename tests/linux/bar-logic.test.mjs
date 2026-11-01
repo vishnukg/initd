@@ -340,7 +340,7 @@ test('cpu percent clamps a busy delta that outruns the total', () => {
     assert.equal(percent, 100);
 });
 
-test('memory usage is total minus available, as free reports it', () => {
+test('without a GPUReclaim line, memory usage is total minus MemAvailable, as free reports it', () => {
     // Arrange
     const meminfo = MEMINFO;
 
@@ -350,7 +350,37 @@ test('memory usage is total minus available, as free reports it', () => {
     // Assert
     assert.equal(usage.percent, 23);
     assert.equal(usage.usedGiB.toFixed(1), '3.5');
+    assert.equal(usage.availableGiB.toFixed(1), '11.6');
     assert.equal(usage.totalGiB.toFixed(1), '15.2');
+});
+
+test('the GPU driver buffer pool counts as available, not used', () => {
+    // Arrange
+    // Figures from this machine: free said 4.3 GB used, ~1.8 GB of it the
+    // xe driver's reclaimable pool.
+    const meminfo = 'MemTotal:       15924724 kB\nMemAvailable:   11517000 kB\n'
+        + 'GPUActive:        544360 kB\nGPUReclaim:      1891132 kB\n';
+
+    // Act
+    const usage = memoryUsage(meminfo);
+
+    // Assert
+    assert.equal(usage.usedGiB.toFixed(1), '2.4');
+    assert.equal(usage.availableGiB.toFixed(1), '12.8');
+    assert.equal(usage.percent, 16);
+});
+
+test('available memory never exceeds the total', () => {
+    // Arrange
+    const meminfo = 'MemTotal: 1000 kB\nMemAvailable: 900 kB\nGPUReclaim: 500 kB\n';
+
+    // Act
+    const usage = memoryUsage(meminfo);
+
+    // Assert
+    assert.equal(usage.availableGiB, 1000 / 1048576);
+    assert.equal(usage.usedGiB, 0);
+    assert.equal(usage.percent, 0);
 });
 
 for (const { name, meminfo } of [

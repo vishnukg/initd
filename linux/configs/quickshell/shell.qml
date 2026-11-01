@@ -67,10 +67,16 @@ ShellRoot {
         if (!usage)
             return;
         const used = usage.usedGiB.toFixed(1);
-        memoryText = used + "G";
+        const available = usage.availableGiB.toFixed(1);
+        // Used / total. "Used" already excludes page cache and the GPU
+        // driver's buffer pool; the tooltip spells out what is available.
+        memoryText = used + "G / " + usage.totalGiB.toFixed(1) + "G";
         memoryPercent = usage.percent + "%";
-        memoryTooltip = "Memory used: " + used + " GiB / " + usage.totalGiB.toFixed(1)
-            + " GiB (" + usage.percent + "%)";
+        memoryTooltip = "Used: " + used + " GiB (" + usage.percent + "%)"
+            + "\nAvailable: " + available + " GiB"
+            + "\nTotal: " + usage.totalGiB.toFixed(1) + " GiB"
+            + "\nCache and GPU buffer pools count as available:"
+            + "\nthe kernel frees them on demand.";
     }
 
     function refreshWeather() {

@@ -164,22 +164,29 @@ export function cpuPercent(previous, current) {
     return Math.round(Math.min(100, Math.max(0, busy)));
 }
 
-// Used is MemTotal - MemAvailable, which is what `free` reports as "used"
-// (procps-ng 4): page cache the kernel would hand back on demand is not
-// memory anything is using. /proc/meminfo is in kB (KiB).
+// Available is MemAvailable plus GPUReclaim; used is the rest of MemTotal.
+// MemAvailable already counts page cache and reclaimable slab as available,
+// but not the GPU driver's buffer pool (GPUReclaim, xe/TTM), which the
+// kernel shrinks under pressure just the same. On this Intel iGPU that pool
+// sits around 1.9 GB, so without it the bar (and `free`) read ~4.3 GB used
+// for ~2.4 GB of real use. Kernels without the GPUReclaim line fall back to
+// plain MemAvailable. /proc/meminfo is in kB (KiB).
 export function memoryUsage(meminfo) {
     function read(key) {
         const match = new RegExp("^" + key + ":\\s+(\\d+)", "m").exec(meminfo || "");
         return match ? Number(match[1]) : NaN;
     }
     const total = read("MemTotal");
-    const available = read("MemAvailable");
-    if (!(total > 0) || isNaN(available))
+    const memAvailable = read("MemAvailable");
+    if (!(total > 0) || isNaN(memAvailable))
         return null;
+    const gpuReclaim = read("GPUReclaim");
+    const available = Math.min(total, memAvailable + (isNaN(gpuReclaim) ? 0 : gpuReclaim));
     const used = Math.max(0, total - available);
     return {
         percent: Math.round(used * 100 / total),
         usedGiB: used / 1048576,
+        availableGiB: available / 1048576,
         totalGiB: total / 1048576,
     };
 }
