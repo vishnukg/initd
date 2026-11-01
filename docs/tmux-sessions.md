@@ -28,7 +28,7 @@ and a randomly assigned emoji. The current 21-icon pool is:
 
 - Science: 🧬 🧪 ⚗️ 🔬 🔭
 - Maths and puzzles: 🧮 📐 🧩 ♾️ 🎲
-- Space: 🚀 🛸 🛰️ 🪐 ☄️
+- Space: 🚀 🛸 🌍 🌕 ☄️
 - Nerdy extras: 🦕 🎮 👾 🤖 💎 🧲
 
 New windows choose an unused icon across the server's windows; repeats are

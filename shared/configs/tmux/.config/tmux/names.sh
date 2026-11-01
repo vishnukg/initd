@@ -12,10 +12,12 @@
 #   the numbers stay rather than duplicating one (tmux would refuse anyway).
 #
 # Each entry is a complete emoji string, so variation selectors stay attached.
+# No 🪐 or 🛰️: their artwork is wide and short, so kitty scales it down and
+# anchors it low in the cell, off the text line. Round glyphs sit centred.
 # No `set -u`: bash 3.2 (macOS, which runs hooks) treats "${empty[@]}" as unset.
 emojis=('🧬' '🧪' '⚗️' '🔬' '🔭'
     '🧮' '📐' '🧩' '♾️' '🎲'
-    '🚀' '🛸' '🛰️' '🪐' '☄️'
+    '🚀' '🛸' '🌍' '🌕' '☄️'
     '🦕' '🎮' '👾' '🤖' '💎' '🧲')
 names=(nova vega io sol luna mars lyra titan pluto orion)
 

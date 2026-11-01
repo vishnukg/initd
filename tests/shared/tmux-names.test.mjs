@@ -16,7 +16,7 @@ const bash = fs.existsSync('/bin/bash') ? '/bin/bash' : 'bash';
 const noTmux = spawnSync('tmux', ['-V']).status !== 0 && 'tmux is not installed';
 const options = { skip: noTmux || (process.env.INITD_TEST_TMUX !== '1' && 'set INITD_TEST_TMUX=1'), timeout: 20000 };
 const pool = ['🧬', '🧪', '⚗️', '🔬', '🔭', '🧮', '📐', '🧩', '♾️', '🎲',
-    '🚀', '🛸', '🛰️', '🪐', '☄️', '🦕', '🎮', '👾', '🤖', '💎', '🧲'];
+    '🚀', '🛸', '🌍', '🌕', '☄️', '🦕', '🎮', '👾', '🤖', '💎', '🧲'];
 const spaceNames = ['nova', 'vega', 'io', 'sol', 'luna', 'mars', 'lyra', 'titan', 'pluto', 'orion'];
 
 function server(t, config = '/dev/null') {
