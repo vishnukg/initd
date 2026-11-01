@@ -10,7 +10,7 @@ import {
     clockMinutes, isNight, weatherIcon, weatherCelsius, weatherColor,
     loadColor, deviceKind, kindRank, KIND_ORDER,
     cpuTimes, cpuPercent, memoryUsage, batteryPercent,
-    bluetoothDeviceIcon, compareBluetoothDevices, trayRole,
+    bluetoothDeviceIcon, compareBluetoothDevices, trayRole, backlightPercent,
 } from '../../linux/configs/quickshell/bar-logic.mjs';
 import * as BarLogic from '../../linux/configs/quickshell/bar-logic.mjs';
 
@@ -473,5 +473,35 @@ for (const { name, id, title, expected } of [
 
         // Assert
         assert.equal(role, expected);
+    });
+}
+
+for (const { name, brightness, max, expected } of [
+    { name: 'this panel at 45%, as brightnessctl reports it', brightness: '86401\n', max: '192000\n', expected: 45 },
+    { name: 'full', brightness: '192000', max: '192000', expected: 100 },
+    { name: 'off', brightness: '0', max: '192000', expected: 0 },
+    { name: 'a value past max, clamped', brightness: '200000', max: '192000', expected: 100 },
+]) {
+    test(`backlight percent: ${name}`, () => {
+        // Act
+        const percent = backlightPercent(brightness, max);
+
+        // Assert
+        assert.equal(percent, expected);
+    });
+}
+
+for (const { name, brightness, max } of [
+    { name: 'an unread brightness', brightness: '', max: '192000' },
+    { name: 'a zero max', brightness: '10', max: '0' },
+    { name: 'an unread max', brightness: '10', max: undefined },
+    { name: 'a negative brightness', brightness: '-5', max: '100' },
+]) {
+    test(`backlight percent is unknown for ${name}`, () => {
+        // Act
+        const percent = backlightPercent(brightness, max);
+
+        // Assert
+        assert.ok(Number.isNaN(percent));
     });
 }

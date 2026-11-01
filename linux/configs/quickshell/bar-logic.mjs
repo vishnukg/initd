@@ -244,3 +244,14 @@ export function trayRole(id, title) {
         return "bluetooth";
     return "other";
 }
+
+// Backlight level as brightnessctl reports it: the raw sysfs value over
+// max_brightness, as a rounded percentage. NaN for anything unreadable, so
+// the bar keeps its last reading rather than drawing a bogus one.
+export function backlightPercent(brightness, maxBrightness) {
+    const value = parseInt(brightness, 10);
+    const max = parseInt(maxBrightness, 10);
+    if (isNaN(value) || !(max > 0) || value < 0)
+        return NaN;
+    return Math.round(Math.min(value, max) * 100 / max);
+}

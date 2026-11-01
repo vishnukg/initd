@@ -275,7 +275,7 @@ ShellRoot {
         }
 
         function refreshBrightness(): void {
-            root.start(backlightProcess);
+            backlightFile.reload();
         }
 
         function refreshNightLight(): void {
@@ -308,14 +308,30 @@ ShellRoot {
         onLoaded: root.updateMemory(text())
     }
 
+    // Docker is gated on the daemon actually running, because docker.service
+    // is socket-activated: an unguarded `docker ps` touches /run/docker.sock,
+    // which wakes dockerd + containerd (~128 MB) every 15 s and defeats the
+    // point of socket activation entirely. dockerd writes /run/docker.pid on
+    // start and removes it on exit, so the file existing *is* "the daemon is
+    // up" -- read without a process, where this used to be `sh` +
+    // `systemctl is-active` every tick. Only with the daemon up does
+    // `docker ps` run. "–" means asleep, distinct from the "--" the other
+    // items use for "unknown".
+    FileView {
+        id: dockerPidFile
+        path: "/run/docker.pid"
+        // Absent is the normal state (daemon asleep), not an error worth a
+        // log line every 15 s.
+        __printErrors: false
+        onLoaded: root.start(dockerProcess)
+        onLoadFailed: root.dockerText = "–"
+    }
+
     Process {
         id: dockerProcess
-        // Guarded on docker.service being up, because docker.service is
-        // socket-activated: an unguarded `docker ps` touches /run/docker.sock,
-        // which wakes dockerd + containerd (~128 MB) every 15 s and defeats the
-        // point of socket activation entirely. "–" means the daemon is asleep,
-        // which is distinct from the "--" the other items use for "unknown".
-        command: ["sh", "-c", "systemctl is-active --quiet docker.service && docker ps -q 2>/dev/null | wc -l || echo -"]
+        // A stale pid file (dockerd killed hard) makes `docker ps` fail, which
+        // reads as asleep rather than as a count of 0.
+        command: ["sh", "-c", "if out=$(docker ps -q 2>/dev/null); then printf '%s\\n' \"$out\" | grep -c . ; else echo –; fi"]
         stdout: StdioCollector {
             onStreamFinished: root.dockerText = text.trim() || "0"
         }
@@ -340,15 +356,40 @@ ShellRoot {
         }
     }
 
+    // Backlight straight from sysfs, the same values brightnessctl reads.
+    // The device is found once at startup (intel_backlight here, but it
+    // differs by GPU vendor); after that every read is a file read. The
+    // brightness keys ping refreshBrightness, so the 30s reload only catches
+    // changes made some other way.
+    property string backlightDevice: ""
+
     Process {
-        id: backlightProcess
-        command: ["sh", "-c", "brightnessctl -m 2>/dev/null | awk -F, 'NR == 1 { gsub(/%/, \"\", $4); print $4 }'"]
+        id: backlightDeviceProcess
+        command: ["sh", "-c", "ls /sys/class/backlight 2>/dev/null | head -n 1"]
+        running: true
         stdout: StdioCollector {
-            onStreamFinished: {
-                if (text.trim() !== "")
-                    root.backlightText = text.trim() + "%";
-            }
+            onStreamFinished: root.backlightDevice = text.trim()
         }
+    }
+
+    FileView {
+        id: backlightMaxFile
+        path: root.backlightDevice !== ""
+            ? "/sys/class/backlight/" + root.backlightDevice + "/max_brightness" : ""
+        onLoaded: root.updateBacklight()
+    }
+
+    FileView {
+        id: backlightFile
+        path: root.backlightDevice !== ""
+            ? "/sys/class/backlight/" + root.backlightDevice + "/brightness" : ""
+        onLoaded: root.updateBacklight()
+    }
+
+    function updateBacklight() {
+        const percent = BarLogic.backlightPercent(backlightFile.text(), backlightMaxFile.text());
+        if (!isNaN(percent))
+            backlightText = percent + "%";
     }
 
     // Night light state is the gammastep process itself, run as the
@@ -356,8 +397,8 @@ ShellRoot {
     // on Wayland the gamma table resets when the client exits, so "warm" means
     // "gammastep is running". The toggle script pings `qs ipc call bar
     // refreshNightLight` after every switch — keybind, bulb click or the
-    // 07:00/19:00 schedule timer — so the item never lags; the 30s timer only
-    // covers gammastep dying on its own.
+    // 07:00/19:00 schedule timer — so the item never lags; the 5-minute timer
+    // below only covers gammastep dying on its own.
     Process {
         id: nightLightStateProcess
         command: ["sh", "-c", "pgrep -x gammastep >/dev/null && echo on || echo off"]
@@ -396,11 +437,15 @@ ShellRoot {
         interval: 30000
         repeat: true
         running: true
+        onTriggered: backlightFile.reload()
+    }
+
+    Timer {
+        interval: 300000
+        repeat: true
+        running: true
         triggeredOnStart: true
-        onTriggered: {
-            root.start(backlightProcess);
-            root.start(nightLightStateProcess);
-        }
+        onTriggered: root.start(nightLightStateProcess)
     }
 
     Timer {
@@ -408,7 +453,7 @@ ShellRoot {
         repeat: true
         running: true
         triggeredOnStart: true
-        onTriggered: root.start(dockerProcess)
+        onTriggered: dockerPidFile.reload()
     }
 
     Timer {
