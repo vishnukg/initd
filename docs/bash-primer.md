@@ -84,7 +84,6 @@ MANAGED_LINKS=(
   "${HOME}/.config/nvim:${ROOT_DIR}/shared/configs/nvim/.config/nvim"
   "${HOME}/.config/starship.toml:${ROOT_DIR}/shared/configs/starship/.config/starship.toml"
   "${HOME}/.config/tmux:${ROOT_DIR}/shared/configs/tmux/.config/tmux"
-  "${HOME}/.local/share/wallpapers:${ROOT_DIR}/shared/wallpaper"
 )
 ```
 

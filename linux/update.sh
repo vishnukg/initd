@@ -19,6 +19,7 @@ Runs:
   mise self-update --yes
   mise -C "${ROOT_DIR}" upgrade --yes
   linux/setup.sh --firefox-only
+  linux/scripts/wallpapers.sh
 
 Options:
   -h, --help     Show this help.
@@ -73,6 +74,9 @@ main() {
 
   log "Upgrading mise-managed tools..."
   mise -C "${ROOT_DIR}" upgrade --yes
+
+  log "Updating wallpapers..."
+  "${ROOT_DIR}/linux/scripts/wallpapers.sh"
 
   log "Refreshing Firefox configuration..."
   "${ROOT_DIR}/linux/setup.sh" --firefox-only

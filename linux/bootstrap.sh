@@ -412,6 +412,10 @@ main() {
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" linux
 
+  # After linking, so it can replace the old ~/.local/share/wallpapers link.
+  log "Syncing wallpapers from vishnukg/wallpapers..."
+  "${LINUX_DIR}/scripts/wallpapers.sh"
+
   # After linking: it keys off the ~/.ssh/config link, so personal machines only.
   "${SHARED_DIR}/lib/ssh-keys.sh"
 

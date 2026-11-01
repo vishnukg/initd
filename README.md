@@ -39,7 +39,7 @@ initd/
 └── vm/                          # self-contained headless VM bootstrap (Ubuntu 24.04+, apt)
     ├── bootstrap.sh             # bash bootstrap.sh vm
     ├── packages.txt             # apt package list: CLI tools + build deps, no desktop
-    ├── managed-links.sh         # drops the desktop-side shared links (terminals, Colima, wallpapers)
+    ├── managed-links.sh         # drops the desktop-side shared links (terminals, Colima)
     └── update.sh
 ```
 
@@ -97,7 +97,7 @@ See [Testing](docs/testing.md) for test organization and conventions.
 
 Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **inside `initd`**, not at the live paths.
 
-### Cross-platform (both OSes; the VM keeps all but colima, ghostty, kitty and wallpapers)
+### Cross-platform (both OSes; the VM keeps all but colima, ghostty, kitty)
 
 | Runtime path | Source |
 |---|---|
@@ -112,7 +112,6 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 | `~/.ssh/config` | `shared/configs/ssh/.ssh/config` (exe.dev dev box; personal profile only, never on the VM) |
 | `~/.config/ghostty-dev-box.conf` | `shared/configs/ghostty/dev-box.conf` (every Ghostty window runs `ssh dev`; personal profile only) |
 | `~/.gitconfig` | `shared/configs/git/gitconfig` (per-machine email via `local.gitconfig`) |
-| `~/.local/share/wallpapers` | `shared/wallpaper` |
 
 ### Linux-only
 

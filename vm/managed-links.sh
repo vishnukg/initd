@@ -2,7 +2,7 @@
 
 # Headless VM managed symlinks. Unlike macos/ and linux/, this platform REMOVES
 # shared entries rather than appending: the shared list carries desktop-side
-# configs (terminals, Colima, wallpapers) that a remote box never uses. The
+# configs (terminals, Colima) that a remote box never uses. The
 # laptop's terminal renders the VM's tmux, so its config stays on the laptop.
 
 : "${ROOT_DIR:?ROOT_DIR must be set before sourcing vm/managed-links.sh}"
@@ -13,7 +13,6 @@ VM_SKIPPED_LINKS=(
   "${HOME}/.config/ghostty"
   "${HOME}/.config/kitty"
   "${HOME}/.config/ghostty-dev-box.conf"
-  "${HOME}/.local/share/wallpapers"
   # The laptop's config for reaching the VM; the VM has no use for it.
   "${HOME}/.ssh/config"
 )
