@@ -5,7 +5,7 @@ set -euo pipefail
 # or on Linux when no platform is named.
 # Targets Fedora Workstation 44+ (dnf5). Several packages (Hyprland ecosystem,
 # hyprmoncfg, and Ghostty) aren't in Fedora's official repos and are pulled
-# from COPR; see the ensure_* / install_packages functions below for which.
+# from COPR; see queue_listed_packages below for which.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LINUX_DIR="${ROOT_DIR}/linux"
@@ -33,8 +33,46 @@ ensure_fedora() {
   require_command dnf "to install Fedora packages"
 }
 
-ensure_docker() {
-  local account_name="${USER:-$(id -un)}"
+# ── Package queue ─────────────────────────────────────────────────────────────
+# Every package step below only *queues* what is missing (and adds any repo it
+# needs); install_queued_packages then resolves the lot in ONE dnf transaction.
+# A fresh machine used to make ~11 separate dnf calls, each re-loading and
+# re-solving metadata for every enabled repo. Repos must therefore all be
+# added before install_queued_packages runs — the queue functions do that.
+DNF_QUEUE=()
+
+# Prints the arguments that are not installed, one per line, from a single
+# `rpm -q` (52 forked rpm -q calls took ~1 s; one takes ~0.1 s). rpm reports
+# each absent name as "package NAME is not installed" on stdout and exits
+# non-zero, which is expected here.
+missing_rpms() {
+  [[ "$#" -gt 0 ]] || return 0
+  rpm -q "$@" 2>/dev/null | sed -n 's/^package \(.*\) is not installed$/\1/p' || true
+}
+
+queue_packages() {
+  local pkg
+  while IFS= read -r pkg; do
+    [[ -n "${pkg}" ]] && DNF_QUEUE+=("${pkg}")
+  done < <(missing_rpms "$@")
+}
+
+install_queued_packages() {
+  if [[ "${#DNF_QUEUE[@]}" -eq 0 ]]; then
+    log_success "No dnf packages to install."
+    return
+  fi
+  log "Installing ${#DNF_QUEUE[@]} dnf package(s): ${DNF_QUEUE[*]}"
+  # --setopt=install_weak_deps=False: the queue is meant to be the exact,
+  # curated set of packages installed — not that plus whatever every
+  # package's Recommends happens to pull in transaction-wide (nwg-bar and
+  # nwg-panel have been observed sneaking in this way).
+  sudo dnf install -y --setopt=install_weak_deps=False "${DNF_QUEUE[@]}"
+  DNF_QUEUE=()
+  log_success "dnf packages installed."
+}
+
+queue_docker() {
   local docker_repo=/etc/yum.repos.d/docker-ce.repo
 
   # Docker's packages include its own compatible containerd. Do not silently
@@ -49,16 +87,21 @@ ensure_docker() {
     return 1
   fi
 
-  if ! rpm -q docker-ce >/dev/null 2>&1; then
-    log "Installing Docker Engine from Docker's official dnf repo..."
-    if [[ ! -f "${docker_repo}" ]]; then
-      sudo dnf config-manager addrepo --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
-    fi
-    sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    log_success "Docker Engine installed."
-  else
+  local before="${#DNF_QUEUE[@]}"
+  queue_packages docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  if [[ "${#DNF_QUEUE[@]}" -eq "${before}" ]]; then
     log_success "Docker Engine already installed."
+    return
   fi
+  if [[ ! -f "${docker_repo}" ]]; then
+    sudo dnf config-manager addrepo --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
+  fi
+  log "Queued Docker Engine from Docker's official dnf repo."
+}
+
+# Runs after install_queued_packages: socket activation and group membership.
+ensure_docker() {
+  local account_name="${USER:-$(id -un)}"
 
   # docker.socket, not docker.service: the daemon is socket-activated so it
   # starts on the first docker command instead of idling at ~130 MB (dockerd
@@ -66,9 +109,10 @@ ensure_docker() {
   # to docker.service and pin it running, undoing that. containerd is
   # WantedBy=docker.service, so it follows on activation with no entry here.
   #
-  # Quickshell's bar polls `docker ps` every 15s and would defeat this by
-  # waking the daemon each tick, so shell.qml guards that poll behind
-  # `systemctl is-active docker.service` — see linux/configs/quickshell/shell.qml.
+  # Quickshell's bar would defeat this if it ran `docker ps` unconditionally,
+  # since every call wakes the daemon; shell.qml only polls while
+  # /run/docker.pid exists (dockerd writes it on start, removes it on exit) —
+  # see linux/configs/quickshell/shell.qml.
   # Preserve running containers on re-runs; socket activation applies on the
   # next boot without stopping a daemon that is already serving work.
   sudo systemctl disable docker.service >/dev/null 2>&1 || true
@@ -105,55 +149,56 @@ ensure_video_codecs() {
   # Fedora's Intel driver omits H.264/HEVC. RPM Fusion supplies the full
   # driver and FFmpeg codecs; keep replacements scoped to these packages.
   # Every step is checked first, so a re-run on a configured machine makes
-  # no sudo/dnf calls at all.
-  local release channel package codecs=() changed=0
+  # no sudo/dnf calls at all. The repos are set up here, immediately, because
+  # the queued packages resolve from them; the packages themselves are queued
+  # for install_queued_packages.
+  local release channel releases=() changed=0 before="${#DNF_QUEUE[@]}"
   release="$(rpm -E %fedora)"
-  for channel in free nonfree; do
-    package="rpmfusion-${channel}-release"
-    if ! rpm -q "${package}" >/dev/null 2>&1; then
-      sudo dnf install -y "https://mirrors.rpmfusion.org/${channel}/fedora/${package}-${release}.noarch.rpm"
-      changed=1
-    fi
+  for channel in $(missing_rpms rpmfusion-free-release rpmfusion-nonfree-release); do
+    channel="${channel#rpmfusion-}"
+    channel="${channel%-release}"
+    releases+=("https://mirrors.rpmfusion.org/${channel}/fedora/rpmfusion-${channel}-release-${release}.noarch.rpm")
   done
+  if [[ "${#releases[@]}" -gt 0 ]]; then
+    sudo dnf install -y "${releases[@]}"
+    changed=1
+  fi
   if [[ "$(dnf repo list --enabled 2>/dev/null | grep -cE '^rpmfusion-(free|nonfree)(-updates)? ')" != 4 ]]; then
     sudo dnf config-manager setopt rpmfusion-free.enabled=1 rpmfusion-free-updates.enabled=1 \
       rpmfusion-nonfree.enabled=1 rpmfusion-nonfree-updates.enabled=1
   fi
 
   # The Intel driver only helps Intel graphics; other GPUs still get the
-  # FFmpeg codecs below.
+  # FFmpeg codecs below. The swap stays its own transaction: it replaces an
+  # installed package, which a plain install of intel-media-driver would
+  # conflict with.
   if ! has_intel_gpu; then
     log_info "No Intel GPU detected — skipping intel-media-driver."
   elif rpm -q libva-intel-media-driver >/dev/null 2>&1; then
     sudo dnf swap -y libva-intel-media-driver intel-media-driver
     changed=1
-  elif ! rpm -q intel-media-driver >/dev/null 2>&1; then
-    sudo dnf install -y --setopt=install_weak_deps=False intel-media-driver
-    changed=1
+  else
+    queue_packages intel-media-driver
   fi
-  for package in ffmpeg-free libavcodec-freeworld libva-utils; do
-    rpm -q "${package}" >/dev/null 2>&1 || codecs+=("${package}")
-  done
-  if [[ "${#codecs[@]}" -gt 0 ]]; then
-    sudo dnf install -y --setopt=install_weak_deps=False "${codecs[@]}"
-    changed=1
-  fi
+  queue_packages ffmpeg-free libavcodec-freeworld libva-utils
 
-  if [[ "${changed}" == 1 ]]; then
+  if [[ "${#DNF_QUEUE[@]}" -ne "${before}" ]]; then
+    log "Queued video codecs. Restart Firefox after bootstrap installs them."
+  elif [[ "${changed}" == 1 ]]; then
     log_success "Video codecs installed. Restart Firefox after package changes."
   else
     log_success "Video codecs already installed."
   fi
 }
 
-install_packages() {
+queue_listed_packages() {
   [[ -f "${PACKAGES_FILE}" ]] || { log_error "Missing ${PACKAGES_FILE}"; exit 1; }
 
   # Fedora's own repos don't carry the Hyprland ecosystem, hyprmoncfg, or
   # Ghostty. Enable their COPRs before resolving packages.txt.
   ensure_coprs "sdegler/hyprland" "paolino/hyprmoncfg" "scottames/ghostty"
 
-  local packages=() missing=() pkg
+  local packages=() pkg before="${#DNF_QUEUE[@]}"
   # Strip comments and blank lines.
   while IFS= read -r pkg; do
     pkg="${pkg%%#*}"
@@ -162,31 +207,19 @@ install_packages() {
     packages+=("${pkg}")
   done < "${PACKAGES_FILE}"
 
-  for pkg in "${packages[@]}"; do
-    rpm -q "${pkg}" >/dev/null 2>&1 || missing+=("${pkg}")
-  done
-
-  if [[ "${#missing[@]}" -eq 0 ]]; then
-    log_success "All ${#packages[@]} dnf packages already installed."
-  else
-    log "Installing ${#missing[@]} dnf package(s): ${missing[*]}"
-    # --setopt=install_weak_deps=False: this list is meant to be the exact,
-    # curated set of packages installed — not that plus whatever every
-    # package's Recommends happens to pull in transaction-wide (nwg-bar and
-    # nwg-panel have been observed sneaking in this way).
-    sudo dnf install -y --setopt=install_weak_deps=False "${missing[@]}"
-    log_success "dnf packages installed."
+  queue_packages "${packages[@]}"
+  if [[ "${#DNF_QUEUE[@]}" -eq "${before}" ]]; then
+    log_success "All ${#packages[@]} packages.txt packages already installed."
   fi
 
   # Fedora's "development-tools" group is VCS/doc tooling (git, doxygen,
   # subversion); "c-development" is the actual build-essential equivalent
-  # (gcc, gcc-c++, make, binutils, autoconf, automake, ...).
+  # (gcc, gcc-c++, make, binutils, autoconf, automake, ...). dnf5 installs a
+  # group named as @group in the same transaction as plain packages.
   if dnf group info c-development 2>/dev/null | grep -qE '^Installed\s*:\s*yes'; then
     log_success "C Development Tools group already installed."
   else
-    log "Installing C Development Tools group (build-essential equivalent)..."
-    sudo dnf group install -y c-development
-    log_success "C Development Tools group installed."
+    DNF_QUEUE+=("@c-development")
   fi
 }
 
@@ -210,15 +243,14 @@ ensure_gh() {
     log_success "gh CLI already installed."
     return
   fi
-  log "Installing gh CLI from official dnf repo..."
   # Per https://github.com/cli/cli/blob/trunk/docs/install_linux.md. dnf5's
   # addrepo refuses to overwrite an existing repo file, so skip it when gh was
   # removed but its repo left behind — otherwise bootstrap aborts here.
   if [[ ! -f /etc/yum.repos.d/gh-cli.repo ]]; then
     sudo dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
   fi
-  sudo dnf install -y gh
-  log_success "gh CLI installed."
+  DNF_QUEUE+=(gh)
+  log "Queued gh CLI from its official dnf repo."
 }
 
 ensure_1password() {
@@ -229,7 +261,6 @@ ensure_1password() {
 
   # 1Password is proprietary — not in Fedora's repos. Official dnf repo per
   # https://support.1password.com/install-linux/#rhel-fedora-or-centos
-  log "Installing 1Password from the official dnf repo..."
   require_command curl "to fetch the 1Password signing key"
 
   sudo rpm --import https://downloads.1password.com/linux/keys/1password.asc
@@ -243,8 +274,8 @@ repo_gpgcheck=1
 gpgkey="https://downloads.1password.com/linux/keys/1password.asc"
 EOF
 
-  sudo dnf install -y 1password
-  log_success "1Password installed."
+  DNF_QUEUE+=(1password)
+  log "Queued 1Password from its official dnf repo."
 }
 
 ensure_google_chrome() {
@@ -255,7 +286,6 @@ ensure_google_chrome() {
 
   # Proprietary — not in Fedora's repos. Official dnf repo per
   # https://www.google.com/linuxrepositories/
-  log "Installing Google Chrome from the official dnf repo..."
   sudo rpm --import https://dl.google.com/linux/linux_signing_key.pub
   sudo tee /etc/yum.repos.d/google-chrome.repo >/dev/null <<'EOF'
 [google-chrome]
@@ -266,8 +296,8 @@ gpgcheck=1
 gpgkey=https://dl.google.com/linux/linux_signing_key.pub
 EOF
 
-  sudo dnf install -y google-chrome-stable
-  log_success "Google Chrome installed."
+  DNF_QUEUE+=(google-chrome-stable)
+  log "Queued Google Chrome from its official dnf repo."
 }
 
 ensure_gh_auth() {
@@ -353,11 +383,14 @@ main() {
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
   log "Starting initd bootstrap for Linux."
 
-  install_packages
+  # Repos first, each step queueing what is missing; then one dnf transaction.
+  queue_listed_packages
   ensure_video_codecs
   ensure_gh
   ensure_1password
   ensure_google_chrome
+  queue_docker
+  install_queued_packages
   ensure_docker
   ensure_mise
 

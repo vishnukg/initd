@@ -24,7 +24,7 @@ developer can follow like a checklist.
 | `shared/managed-links.sh` | Cross-platform `MANAGED_LINKS` array. |
 | `<platform>/managed-links.sh` | Appends platform-specific entries to `MANAGED_LINKS`. |
 | `macos/defaults.sh` | Apply macOS system defaults (key repeat, hushlogin). |
-| `macos/update.sh` / `linux/update.sh` | Upgrade Homebrew/dnf packages and mise-managed tools; Linux also self-updates mise. |
+| `macos/update.sh` / `linux/update.sh` | Upgrade Homebrew/dnf packages and mise-managed tools; Linux also self-updates mise and applies firmware updates (`fwupdmgr`, staged, never reboots). |
 | `shared/lib/logging.sh` | Colored log helpers: `log`, `log_info`, `log_success`, `log_warn`, `log_error`. |
 | `tests/shared/install.test.mjs` | Behavior tests for installation, backups, cleanup, and the bootstrap launcher. |
 

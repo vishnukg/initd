@@ -15,6 +15,7 @@ Update dnf packages, mise-managed tools, and the active Firefox profile config.
 Runs:
   sudo dnf upgrade --refresh -y
   sudo dnf autoremove -y
+  sudo fwupdmgr refresh / update   (firmware; never reboots, only stages)
   mise self-update --yes
   mise -C "${ROOT_DIR}" upgrade --yes
   linux/setup.sh --firefox-only
@@ -22,6 +23,30 @@ Runs:
 Options:
   -h, --help     Show this help.
 EOF
+}
+
+update_firmware() {
+  # BIOS, SSD, dock and Thunderbolt firmware via LVFS. sudo, not polkit: the
+  # dnf steps above already cached credentials, so no GUI prompt pops up.
+  # --no-reboot-check matters: --assume-yes alone also answers "yes" to
+  # fwupdmgr's restart-now prompt, so a UEFI capsule update would reboot the
+  # machine mid-script. Without it the capsule is staged for the next boot.
+  # fwupdmgr exits 2 for "nothing to do" (metadata fresh, no updates).
+  if ! command -v fwupdmgr >/dev/null 2>&1; then
+    log_warn "fwupdmgr not found; skipping firmware updates."
+    return
+  fi
+  log "Checking firmware updates..."
+  local status=0
+  sudo fwupdmgr refresh >/dev/null 2>&1 || status=$?
+  [[ "${status}" == 0 || "${status}" == 2 ]] || log_warn "Firmware metadata refresh failed (exit ${status}); using cached metadata."
+  status=0
+  sudo fwupdmgr update --assume-yes --no-reboot-check --no-unreported-check || status=$?
+  case "${status}" in
+    0) log_success "Firmware updated. A pending UEFI update applies on the next reboot." ;;
+    2) log_success "Firmware already up to date." ;;
+    *) log_warn "Firmware update failed (exit ${status}); see fwupdmgr get-updates." ;;
+  esac
 }
 
 main() {
@@ -39,6 +64,8 @@ main() {
 
   log "Removing obsolete packages..."
   sudo dnf autoremove -y
+
+  update_firmware
 
   require_command mise "to update mise and its managed tools"
   log "Updating mise..."

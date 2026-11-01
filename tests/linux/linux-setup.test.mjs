@@ -232,6 +232,8 @@ sudo() {
     printf '%s\\n' "$*" >> "$HOME/docker-calls"
     if [[ "$*" == *'--now docker.service'* ]]; then touch "$HOME/stopped"; fi
 }
+queue_docker
+install_queued_packages
 ensure_docker
 `;
 
@@ -248,6 +250,19 @@ ensure_docker
     assert.equal(fs.existsSync(path.join(shell.home, 'stopped')), false);
 });
 
+// rpm -q mock for the batched missing_rpms call: `installed` decides each name,
+// absent names are reported the way rpm does, on stdout.
+const rpmMock = installed => `
+rpm() {
+    if [[ "$1" == -E ]]; then echo 44; return; fi
+    [[ "$1" == -q ]] && shift
+    local name status=0
+    for name in "$@"; do
+        if ${installed}; then echo "\${name}-1.0-1.fc44.x86_64"; else echo "package \${name} is not installed"; status=1; fi
+    done
+    return "\${status}"
+}`;
+
 for (const state of ['fresh', 'restricted', 'configured', 'non-intel']) {
     test(`video codecs handle a ${state} Fedora install`, t => {
         // Arrange
@@ -256,15 +271,12 @@ for (const state of ['fresh', 'restricted', 'configured', 'non-intel']) {
 
         // Act
         const result = f.run(`
-rpm() {
-    if [[ "$1" == -E ]]; then echo 44; return; fi
-    case "$2" in
-        rpmfusion-*-release) [[ '${state}' != fresh ]] ;;
-        libva-intel-media-driver) [[ '${state}' == restricted ]] ;;
-        intel-media-driver|ffmpeg-free|libavcodec-freeworld|libva-utils) ${installed} ;;
-        *) return 1 ;;
-    esac
-}
+${rpmMock(`case "\${name}" in
+            rpmfusion-*-release) [[ '${state}' != fresh ]] ;;
+            libva-intel-media-driver) [[ '${state}' == restricted ]] ;;
+            intel-media-driver|ffmpeg-free|libavcodec-freeworld|libva-utils) ${installed} ;;
+            *) false ;;
+        esac`)}
 dnf() {
     ${installed} && printf '%s\\n' rpmfusion-free rpmfusion-free-updates rpmfusion-nonfree rpmfusion-nonfree-updates \\
         | sed 's/$/ RPM Fusion/'
@@ -273,26 +285,67 @@ has_intel_gpu() { [[ '${state}' != non-intel ]]; }
 sudo() { printf '%s\\n' "$*" >> "$HOME/codec-calls"; }
 touch "$HOME/codec-calls"
 ensure_video_codecs
+install_queued_packages
 `, 'bootstrap.sh');
 
         // Assert
         assert.equal(result.status, 0, result.stderr || result.stdout);
-        const calls = fs.readFileSync(path.join(f.home, 'codec-calls'), 'utf8');
+        const calls = fs.readFileSync(path.join(f.home, 'codec-calls'), 'utf8').trim().split('\n').filter(Boolean);
         if (installed) {
-            assert.equal(calls, '');
+            assert.deepEqual(calls, []);
             assert.match(result.stdout, /Video codecs already installed/);
             return;
         }
-        assert.equal(calls.includes('rpmfusion-free-release-44.noarch.rpm'), state === 'fresh');
-        assert.equal(calls.includes('rpmfusion-nonfree-release-44.noarch.rpm'), state === 'fresh');
-        assert.match(calls, /config-manager setopt rpmfusion-free.enabled=1/);
-        assert.equal(calls.includes('swap -y libva-intel-media-driver intel-media-driver'), state === 'restricted');
-        assert.equal(calls.includes('install -y --setopt=install_weak_deps=False intel-media-driver'), state === 'fresh');
-        assert.equal(calls.includes('intel-media-driver'), state !== 'non-intel');
-        assert.match(calls, /install -y --setopt=install_weak_deps=False ffmpeg-free libavcodec-freeworld libva-utils/);
-        assert.doesNotMatch(calls, /--allowerasing/);
+        const releases = calls.filter(call => call.includes('rpmfusion-'));
+        if (state === 'fresh') {
+            assert.equal(releases.filter(call => call.startsWith('dnf install')).length, 1, 'both release RPMs in one call');
+            assert.match(releases[0], /rpmfusion-free-release-44\.noarch\.rpm .*rpmfusion-nonfree-release-44\.noarch\.rpm/);
+        } else {
+            assert.equal(calls.some(call => call.includes('-release-44.noarch.rpm')), false);
+        }
+        assert.ok(calls.some(call => /config-manager setopt rpmfusion-free.enabled=1/.test(call)));
+        assert.equal(calls.includes('dnf swap -y libva-intel-media-driver intel-media-driver'), state === 'restricted');
+        const driver = state === 'fresh' ? 'intel-media-driver ' : '';
+        assert.deepEqual(calls.filter(call => call.startsWith('dnf install -y --setopt')),
+            [`dnf install -y --setopt=install_weak_deps=False ${driver}ffmpeg-free libavcodec-freeworld libva-utils`]);
+        assert.ok(calls.every(call => !call.includes('--allowerasing')));
     });
 }
+
+test('a fresh Fedora machine installs every queued package in one dnf transaction', t => {
+    // Arrange
+    const f = fixture(t);
+
+    // Act
+    const result = f.run(`
+${rpmMock('false')}
+dnf() { return 0; }
+has_intel_gpu() { false; }
+command() { [[ "$1" == -v ]] && return 1; builtin command "$@"; }
+require_command() { :; }
+sudo() { printf '%s\\n' "$*" >> "$HOME/dnf-calls"; [[ "$1 $2" == "tee "* ]] && cat >/dev/null; return 0; }
+queue_listed_packages
+ensure_video_codecs
+ensure_gh
+ensure_1password
+ensure_google_chrome
+queue_docker
+install_queued_packages
+install_queued_packages
+`, 'bootstrap.sh');
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const calls = fs.readFileSync(path.join(f.home, 'dnf-calls'), 'utf8').trim().split('\n');
+    const installs = calls.filter(call => call.startsWith('dnf install -y --setopt'));
+    assert.equal(installs.length, 1, calls.join('\n'));
+    for (const pkg of ['hyprland', 'kitty', 'fish', '@c-development', 'ffmpeg-free', 'gh', '1password',
+        'google-chrome-stable', 'docker-ce', 'docker-compose-plugin']) {
+        assert.ok(installs[0].split(' ').includes(pkg), `${pkg} missing from: ${installs[0]}`);
+    }
+    assert.ok(calls.every(call => !/^dnf (group )?install -y (gh|1password|google-chrome-stable|docker-ce|c-development)\b/.test(call)));
+    assert.match(result.stdout, /No dnf packages to install/, 'the queue is emptied after installing');
+});
 
 test('Docker menu reports a failed stop instead of announcing success', async () => {
     // Arrange

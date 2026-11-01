@@ -154,13 +154,16 @@ macos/bootstrap.sh
 
 linux/bootstrap.sh
   ├─ ensure_user_context, ensure_fedora
-  ├─ install_packages                          # enables sdegler/hyprland,
+  ├─ queue_listed_packages                     # enables sdegler/hyprland,
   │                                               paolino/hyprmoncfg, and scottames/ghostty COPRs,
-  │                                               then dnf-installs
-  │                                               packages.txt + the C Development Tools group
-  ├─ ensure_gh (official dnf repo), ensure_1password (official dnf repo),
-  │  ensure_google_chrome (official dnf repo), ensure_docker (Docker's official
-  │  dnf repo), ensure_mise (curl mise.run)
+  │                                               queues missing packages.txt entries + @c-development
+  ├─ ensure_video_codecs, ensure_gh, ensure_1password, ensure_google_chrome,
+  │  queue_docker                             # each adds its repo (RPM Fusion, gh, 1Password,
+  │                                               Chrome, Docker) and QUEUES what is missing
+  ├─ install_queued_packages                  # ONE dnf transaction for the whole queue (one
+  │                                               rpm -q finds what is missing; a re-run installs nothing)
+  ├─ ensure_docker                            # docker.socket + docker group, after the install
+  ├─ ensure_mise (curl mise.run)
   ├─ ensure_gh_auth                           # before the fonts sync, so a fresh machine gets fonts in one run
   ├─ shared/lib/fonts.sh                      # clone/pull private fonts repo → shared/fonts/
   ├─ setup_git_profile                        # before linking: ~/.ssh/config links on a personal profile only
@@ -267,7 +270,7 @@ If typing ever seems worth revisiting: the bar is a bug class the tests genuinel
 
 ### Linux-specific quirks
 
-The Linux desktop is **Wayland-only**: Hyprland installed alongside Fedora's stock GNOME (both offered at the GDM login screen). Fedora's own repos don't carry the Hyprland ecosystem, `hyprmoncfg`, or `ghostty` — `install_packages()` enables their three COPRs first (`sdegler/hyprland`, `paolino/hyprmoncfg`, `scottames/ghostty`) before resolving `packages.txt`. The old X11 stack (i3, polybar, picom, xsettingsd, autorandr, Xresources) and the previous Ubuntu-specific fixes (Intel WiFi/Bluetooth udev rules, WiFi regdomain, power-profile AC/battery auto-switch, Chrome apt-arch pin) have been removed from the repo; git history has them if ever needed. This machine is different hardware from the old Ubuntu laptop those fixes targeted, and the trimmed-down setup intentionally doesn't try to guess replacements — add back only what a given machine actually needs.
+The Linux desktop is **Wayland-only**: Hyprland installed alongside Fedora's stock GNOME (both offered at the GDM login screen). Fedora's own repos don't carry the Hyprland ecosystem, `hyprmoncfg`, or `ghostty` — `queue_listed_packages()` enables their three COPRs first (`sdegler/hyprland`, `paolino/hyprmoncfg`, `scottames/ghostty`) before resolving `packages.txt`. The old X11 stack (i3, polybar, picom, xsettingsd, autorandr, Xresources) and the previous Ubuntu-specific fixes (Intel WiFi/Bluetooth udev rules, WiFi regdomain, power-profile AC/battery auto-switch, Chrome apt-arch pin) have been removed from the repo; git history has them if ever needed. This machine is different hardware from the old Ubuntu laptop those fixes targeted, and the trimmed-down setup intentionally doesn't try to guess replacements — add back only what a given machine actually needs.
 
 - **Hyprland config** (`linux/configs/hypr/hyprland.lua`): Hyprland's Lua config format (hyprlang `.conf` support is removed entirely in Hyprland 0.57; this repo ported fully rather than keep a config format on a deprecation countdown). Per-monitor scale (1.33333x on the laptop panel and on unmatched outputs — a 1920x1200 logical workspace on the 2560x1600 panel) via `hl.monitor({...})`, with generated profile rules loaded from `hyprmoncfg-monitors.lua` by the guarded loader hyprmoncfg itself maintains on the last line; built-in blur/rounding/animations; `kb_options = ctrl:nocaps` and `repeat_delay/rate` for input. The polkit auth agent is `lxpolkit` (Fedora has neither `polkit-gnome` nor a `hyprpolkitagent` package). Hyprland only detects `hyprland.lua` vs `hyprland.conf` at compositor **startup**, not on `hyprctl reload` — use `Hyprland --verify-config --config <path>` to validate changes without restarting. **Every dispatch payload is Lua too**, over `hyprctl` and over the IPC socket alike: `hyprctl dispatch 'hl.dsp.focus({ workspace = 2 })'`, not `hyprctl dispatch workspace 2`. Quickshell's convenience wrappers (`HyprlandWorkspace.activate()`) still emit the legacy syntax and fail with a log warning rather than an error, so the bar sends Lua strings through `Hyprland.dispatch()` instead.
 - **There is no Ghostty terminal server, and no systemd setup for Ghostty at all.** It used to run one — Fedora's `app-com.mitchellh.ghostty.service` plus a drop-in carrying `--gtk-single-instance --quit-after-last-window-closed=false --background-opacity=0.92` — so `$mod+Return` asked a resident process for a window (~250ms) instead of cold-starting one (574ms). Two measurements retired it. kitty opens a fresh process in **0.24s**, beating the server's **0.62s** with no daemon at all; and the server was where Ghostty's leak compounded, going 69 → 204 MB across ~5 window open/close cycles and holding that with **zero windows open**. The unit is Fedora's, ships disabled, and nothing in this repo enables it, so a fresh bootstrap needs no action — the drop-in, its `MANAGED_LINKS` entry and the `enable_ghostty_server`/`disable_ghostty_server` step are all gone. One thing worth remembering if a server is ever wanted again: **a single-instance client forwards only the request, so config flags passed to it are silently dropped** (`--background-opacity`, `--title`, `--class` all no-op) — which is why that opacity had to live on the *server* command line. The `$mod+t` Ghostty fallback bind deliberately omits `--gtk-single-instance` for the same reason the server is gone: that flag would make the first window the instance owner for every later one, reinstating the shared-process accumulation.
