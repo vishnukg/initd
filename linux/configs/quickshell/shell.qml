@@ -68,9 +68,9 @@ ShellRoot {
             return;
         const used = usage.usedGiB.toFixed(1);
         const available = usage.availableGiB.toFixed(1);
-        // Used / total. "Used" already excludes page cache and the GPU
-        // driver's buffer pool; the tooltip spells out what is available.
-        memoryText = used + "G / " + usage.totalGiB.toFixed(1) + "G";
+        // Used only. "Used" already excludes page cache and the GPU driver's
+        // buffer pool; the tooltip carries available and total.
+        memoryText = used + "G";
         memoryPercent = usage.percent + "%";
         memoryTooltip = "Used: " + used + " GiB (" + usage.percent + "%)"
             + "\nAvailable: " + available + " GiB"
