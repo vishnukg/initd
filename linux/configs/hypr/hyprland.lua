@@ -105,7 +105,12 @@ hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictur
 -- at the shared config's macOS value (0.58 for both terminals).
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
 hl.bind(mod .. " + SHIFT + ALT + Return", hl.dsp.exec_cmd("ghostty"))
-hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd("firefox --new-window"))
+-- The browser follows the system default (xdg-settings, set to Chrome by
+-- linux/scripts/chrome-profile.mjs) instead of naming one here, and launches
+-- through its .desktop entry so it gets the same flags as rofi and xdg-open
+-- links — for Chrome, the 120% scaling in the shadowed launcher. Both Chrome
+-- and Firefox open a new window when already running.
+hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd([[sh -c 'gtk-launch "$(xdg-settings get default-web-browser)"']]))
 hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
 hl.bind(mod .. " + Tab", hl.dsp.exec_cmd("rofi -show window"))
