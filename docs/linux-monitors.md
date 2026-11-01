@@ -61,18 +61,23 @@ JSON, plus generated per-profile Lua and hyprlang fallbacks. Commit intentional
 profile changes there.
 
 Profiles that share the same connected displays cannot be auto-selected from
-hardware identity alone. The committed `External screen only`, `External
-above`, and `External mirrored` profiles all match the laptop panel plus the
-BenQ RD320U, so explicitly apply the desired external layout:
+hardware identity alone. The committed `home benq 32 only`, `benq 32 above`,
+and `benq 32 mirrored` profiles all match the laptop panel plus the BenQ
+RD320U, so explicitly apply the desired external layout:
 
 ```bash
-hyprmoncfg apply "External screen only"
-hyprmoncfg apply "External above"
-hyprmoncfg apply "External mirrored"
+hyprmoncfg apply "home benq 32 only"
+hyprmoncfg apply "benq 32 above"
+hyprmoncfg apply "benq 32 mirrored"
 ```
 
+`home dell 27 only` is the only profile for the Dell U2725QE (laptop panel
+off, 4K at 120 Hz, 1.33333x scale — a 2880x1620 logical workspace), so the
+daemon selects it
+automatically whenever that monitor is connected.
+
 The BenQ RD320U uses a sharp 1.06667x scale (3600x2025 logical workspace) in
-each external profile. This keeps the display readable while reducing the
+each BenQ profile. This keeps the display readable while reducing the
 input latency observed at 1.25x fractional scaling.
 
 `hyprmoncfg` generates the active `~/.config/hypr/hyprmoncfg-monitors.lua`
