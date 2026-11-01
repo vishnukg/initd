@@ -266,8 +266,8 @@ hl.config({
     -- do not expose their own transparency setting.
     decoration = {
         rounding = 14,
-        active_opacity = 0.90,
-        inactive_opacity = 0.80,
+        active_opacity = 0.96,
+        inactive_opacity = 0.90,
         fullscreen_opacity = 1.0,
         blur = {
             enabled = true,
