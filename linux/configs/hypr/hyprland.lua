@@ -83,10 +83,10 @@ hl.bind("Print", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && grim \
 hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && f=\"$HOME/Pictures/screenshot-$(date +%Y-%m-%d-%H-%M-%S).png\" && grim -g \"$(slurp)\" \"$f\" && wl-copy < \"$f\"'"))
 
 -- ── Apps ──────────────────────────────────────────────────────────────────────
--- kitty is the default terminal; Ghostty stays installed and reachable via
--- SUPER+SHIFT+ALT+Return below. The switch is a memory decision, not a taste
--- one: Ghostty 1.3.1 leaks on window *lifecycle* (upstream #9433 / #9786 /
--- #10244 / #10269) — 69 → 204 MB across ~5 open/close cycles, held with zero
+-- kitty is the default, local terminal; Ghostty (SUPER+t below) is the dev box
+-- terminal on personal machines. kitty as the default is a memory decision,
+-- not a taste one: Ghostty 1.3.1 leaks on window *lifecycle* (upstream #9433 /
+-- #9786 / #10244 / #10269) — 69 → 204 MB across ~5 open/close cycles, held with zero
 -- windows open, ~1 GB over a day of real use. kitty's fresh window peaked at
 -- 162 MB on the same payload and gave all of it back on exit. Cold start
 -- agrees: kitty ~223ms against Ghostty's ~680ms, which no Ghostty config knob
@@ -104,7 +104,7 @@ hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictur
 -- flag would only reach windows opened by that one keybind and leave the rest
 -- at the shared config's macOS value (0.58 for both terminals).
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
-hl.bind(mod .. " + SHIFT + ALT + Return", hl.dsp.exec_cmd("ghostty"))
+hl.bind(mod .. " + t", hl.dsp.exec_cmd("ghostty"))
 -- The browser follows the system default (xdg-settings, set to Chrome by
 -- linux/scripts/chrome-profile.mjs) instead of naming one here, and launches
 -- through its .desktop entry so it gets the same flags as rofi and xdg-open
@@ -272,6 +272,11 @@ hl.config({
             passes = 2,
             ignore_opacity = true,
             new_optimizations = true,
+            -- Floating windows (dialogs, popups) blur the cached wallpaper instead
+            -- of re-sampling the tiled windows under them every frame — the same
+            -- cache tiled windows already use. Tiled windows sit on the wallpaper
+            -- anyway, so only overlapping floats look different.
+            xray = true,
         },
         -- macOS-style focus model paired with the subtle gray active border:
         -- unfocused windows dim slightly, so focus reads as "the bright window".

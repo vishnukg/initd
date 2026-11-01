@@ -220,6 +220,12 @@ configure_chrome() {
   run_node "${SCRIPTS_DIR}/chrome-profile.mjs"
 }
 
+# Shadows Fedora's Ghostty desktop entry so rofi/.desktop launches get one
+# process per window instead of joining a single-instance server (the leak).
+configure_ghostty_launcher() {
+  run_node "${SCRIPTS_DIR}/ghostty-launcher.mjs"
+}
+
 apply_gsettings_theme() {
   # GTK3 apps read gtk-3.0/settings.ini, but GTK4/libadwaita apps on Wayland
   # get their theme through xdg-desktop-portal, which reads gsettings/dconf.
@@ -358,6 +364,7 @@ main() {
   apply_gsettings_keyboard
   configure_firefox
   configure_chrome
+  configure_ghostty_launcher
   add_user_to_video_group
 
   restart_dunst
