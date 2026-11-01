@@ -11,7 +11,7 @@ import {
     loadColor, deviceKind, kindRank, KIND_ORDER,
     cpuTimes, cpuPercent, memoryUsage, batteryPercent,
     bluetoothDeviceIcon, compareBluetoothDevices, trayRole, backlightPercent,
-    diskUsage, formatGiB,
+    diskUsage, formatGiB, netBytes, netRate, formatRate,
 } from '../../linux/configs/quickshell/bar-logic.mjs';
 import * as BarLogic from '../../linux/configs/quickshell/bar-logic.mjs';
 
@@ -561,5 +561,87 @@ for (const { gib, expected } of [
 
         // Assert
         assert.equal(text, expected);
+    });
+}
+
+const NET_DEV = 'Inter-|   Receive                                                |  Transmit\n'
+    + ' face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed\n'
+    + '    lo:  443631    3920    0    0    0     0          0         0   443631    3920    0    0    0     0       0          0\n'
+    + 'wlp0s20f3: 3875417993 2829371    0    0    0     0          0         0 370377678  429821    0   12    0     0       0          0\n'
+    + 'docker0:  5000 10 0 0 0 0 0 0 6000 10 0 0 0 0 0 0\n'
+    + 'veth1a2b:  5000 10 0 0 0 0 0 0 6000 10 0 0 0 0 0 0\n'
+    + 'wg0:  7000 10 0 0 0 0 0 0 8000 10 0 0 0 0 0 0\n'
+    + 'enp0s31f6: 100 1 0 0 0 0 0 0 200 1 0 0 0 0 0 0\n';
+
+test('network bytes sum physical interfaces and skip loopback, containers and tunnels', () => {
+    // Act
+    const bytes = netBytes(NET_DEV);
+
+    // Assert
+    assert.deepEqual(bytes, { rx: 3875417993 + 100, tx: 370377678 + 200, interfaces: ['wlp0s20f3', 'enp0s31f6'] });
+});
+
+test('network bytes are null with no physical interface', () => {
+    // Arrange
+    const onlyLoopback = NET_DEV.split('\n').slice(0, 3).join('\n');
+
+    // Act
+    const bytes = netBytes(onlyLoopback);
+
+    // Assert
+    assert.equal(bytes, null);
+});
+
+test('network rate is the byte delta over the interval', () => {
+    // Arrange
+    const previous = { rx: 1000, tx: 500 };
+    const current = { rx: 7000, tx: 800 };
+
+    // Act
+    const rate = netRate(previous, current, 3);
+
+    // Assert
+    assert.deepEqual(rate, { down: 2000, up: 100 });
+});
+
+test('a network counter that goes backwards reads as zero', () => {
+    // Act
+    const rate = netRate({ rx: 9000, tx: 900 }, { rx: 100, tx: 50 }, 3);
+
+    // Assert
+    assert.deepEqual(rate, { down: 0, up: 0 });
+});
+
+for (const { name, previous, current, seconds } of [
+    { name: 'there is no earlier reading', previous: null, current: { rx: 1, tx: 1 }, seconds: 3 },
+    { name: 'no time has passed', previous: { rx: 1, tx: 1 }, current: { rx: 2, tx: 2 }, seconds: 0 },
+]) {
+    test(`network rate is unknown when ${name}`, () => {
+        // Act
+        const rate = netRate(previous, current, seconds);
+
+        // Assert
+        assert.equal(rate, null);
+    });
+}
+
+for (const { bytes, expected } of [
+    { bytes: 0, expected: '0K' },
+    { bytes: 20, expected: '0K' },
+    { bytes: 9728, expected: '9.5K' },
+    { bytes: 348160, expected: '340K' },
+    { bytes: 1024 * 1000, expected: '1.0M' },
+    { bytes: 1.2 * 1048576, expected: '1.2M' },
+    { bytes: 45 * 1048576, expected: '45M' },
+    { bytes: 1.1 * 1073741824, expected: '1.1G' },
+    { bytes: -1, expected: '--' },
+]) {
+    test(`network rate ${bytes} B/s formats as ${expected}`, () => {
+        // Act
+        const text = formatRate(bytes);
+
+        // Assert
+        assert.equal(text, expected);
+        assert.ok(text.length <= 4, 'stays within four characters');
     });
 }

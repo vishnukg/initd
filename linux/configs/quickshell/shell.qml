@@ -25,6 +25,12 @@ ShellRoot {
     property string memoryPercent: "--%"
     property string memoryTooltip: "Memory usage unavailable"
     property string diskText: "--"
+    property string netDown: "--"
+    property string netUp: "--"
+    property string netTooltip: "Network usage unavailable"
+    // Last /proc/net/dev reading and when it was taken; the rate is the delta.
+    property var netSample: null
+    property real netSampleTime: 0
     property string diskPercent: "--%"
     property string diskTooltip: "Disk usage unavailable"
     property string dockerText: "0"
@@ -63,6 +69,26 @@ ShellRoot {
             return;
         cpuText = percent + "%";
         cpuTooltip = "CPU usage: " + percent + "%";
+    }
+
+    function updateNetwork(procNetDev) {
+        const sample = BarLogic.netBytes(procNetDev);
+        const now = Date.now();
+        const rate = BarLogic.netRate(netSample, sample, (now - netSampleTime) / 1000);
+        netSample = sample;
+        netSampleTime = now;
+        if (!sample) {
+            netDown = "--";
+            netUp = "--";
+            netTooltip = "No network interface";
+            return;
+        }
+        if (!rate)
+            return;
+        netDown = BarLogic.formatRate(rate.down);
+        netUp = BarLogic.formatRate(rate.up);
+        netTooltip = "Download: " + netDown + "B/s\nUpload: " + netUp + "B/s"
+            + "\nInterfaces: " + sample.interfaces.join(", ");
     }
 
     function updateMemory(meminfo) {
@@ -306,6 +332,12 @@ ShellRoot {
     }
 
     FileView {
+        id: netDevFile
+        path: "/proc/net/dev"
+        onLoaded: root.updateNetwork(text())
+    }
+
+    FileView {
         id: memInfoFile
         path: "/proc/meminfo"
         onLoaded: root.updateMemory(text())
@@ -461,6 +493,7 @@ ShellRoot {
         onTriggered: {
             statFile.reload();
             memInfoFile.reload();
+            netDevFile.reload();
         }
     }
 
@@ -604,271 +637,319 @@ ShellRoot {
                             Layout.fillWidth: true
                         }
 
-                        BarItem {
-                            icon: "󰡨"
-                            // Sizes are per glyph, not shared: Material Design
-                            // glyphs fill very different shares of their em box
-                            // (the whale ~59%, brightness ~91%), so one shared
-                            // size drew them 18-29px tall. Each is tuned to ~22
-                            // device px of ink at 1.33x, just above the text's
-                            // 17px cap height -- re-measure with grim after
-                            // swapping a glyph.
-                            iconSize: 28
-                            text: root.dockerText
-                            barWindow: panel
-                            tooltipTitle: "Docker"
-                            tooltipBody: (root.dockerText === "–"
-                                ? "Daemon asleep (socket-activated)"
-                                : root.dockerText + " running container"
-                                    + (root.dockerText === "1" ? "" : "s"))
-                                + "\nClick to manage containers"
-                            clickable: true
-                            onClicked: root.start(dockerMenuProcess)
-                        }
-
-                        BarItem {
-                            icon: root.weatherIcon()
-                            iconSize: 27
-                            iconSpacing: 8
-                            text: root.weatherTemp
-                            foreground: root.weatherColor()
-                            barWindow: panel
-                            tooltipTitle: "Weather"
-                            tooltipBody: root.weatherTooltip()
-                            clickable: true
-                            onClicked: root.start(weatherPopupProcess)
-                        }
-
-                        BarItem {
-                            icon: root.powerProfileText()
-                            iconSize: 22
-                            barWindow: panel
-                            foreground: root.powerProfileColor()
-                            tooltipTitle: "Power profile"
-                            tooltipBody: root.powerProfileName()
-                                + "\nClick to switch"
-                            clickable: true
-                            onClicked: root.togglePowerProfile()
-                        }
-
-                        BarItem {
-                            icon: "󰍛"
-                            iconSize: 22
-                            text: root.cpuText
-                            foreground: root.loadColor(root.cpuText)
-                            barWindow: panel
-                            tooltipTitle: "Processor"
-                            tooltipBody: root.cpuTooltip
-                        }
-
-                        BarItem {
-                            // nf-md-chip, a DIMM module. Not nf-md-speedometer-slow:
-                            // that sits one codepoint away from the balanced power
-                            // profile's speedometer and the two were indistinguishable
-                            // in the bar. Also not nf-md-memory -- the CPU has that one.
-                            icon: "󰘚"
-                            iconSize: 24
-                            text: root.memoryText
-                            // The bar shows GiB used, but the ramp still keys off
-                            // the percentage -- 9 GiB means nothing without knowing
-                            // how much the machine has.
-                            foreground: root.loadColor(root.memoryPercent)
-                            barWindow: panel
-                            tooltipTitle: "Memory"
-                            tooltipBody: root.memoryTooltip
-                        }
-
-                        BarItem {
-                            // nf-md-harddisk. The number is what is *left*,
-                            // so the ramp keys off the used percentage, the
-                            // same amber-at-70 / red-at-90 as memory.
-                            icon: "\u{f02ca}"
-                            iconSize: 20
-                            iconSpacing: 4
-                            text: root.diskText
-                            foreground: root.loadColor(root.diskPercent)
-                            barWindow: panel
-                            tooltipTitle: "Disk"
-                            tooltipBody: root.diskTooltip
-                        }
-
-                        BarItem {
-                            icon: "󰃟"
-                            iconSize: 18
-                            iconSpacing: 8
-                            text: root.backlightText
-                            barWindow: panel
-                            tooltipTitle: "Display brightness"
-                            tooltipBody: "Current brightness: " + root.backlightText
-                        }
-
-                        BarItem {
-                            // nf-md-lightbulb-outline when off, nf-md-lightbulb-on
-                            // (with rays) when warm: the glyph carries the state
-                            // as well as the colour. A moon glyph would collide
-                            // with the weather item's night variant.
-                            icon: root.nightLightOn ? "󰛨" : "󰌶"
-                            iconSize: 20
-                            barWindow: panel
-                            // Amber = warm gamma active. Same "colour is
-                            // state" rule as the power profile beside it.
-                            foreground: root.nightLightOn ? "#e8b87a" : "#e8eaf0"
-                            tooltipTitle: "Night light"
-                            tooltipBody: (root.nightLightOn ? "On (4500 K)" : "Off")
-                                + "\nSchedule: 19:00 – 07:00"
-                                + "\nClick to toggle"
-                            clickable: true
-                            onClicked: root.start(nightLightToggleProcess)
-                        }
-
-                        BarItem {
-                            id: displayItem
-
-                            icon: "󰍹"
-                            iconSize: 20
-                            iconSpacing: 8
-                            text: displayMenu.enabledCount > 0
-                                ? String(displayMenu.enabledCount)
-                                : "--"
-                            barWindow: panel
-                            tooltipTitle: "Displays"
-                            tooltipBody: (displayMenu.activeProfile !== ""
-                                    ? "Profile: " + displayMenu.activeProfile
-                                    : "No profile applied")
-                                + displayMenu.monitorSummary()
-                                + "\nClick to switch profile"
-                            clickable: true
-                            onClicked: displayMenu.open()
-
-                            DisplayMenu {
-                                id: displayMenu
-                                anchorItem: displayItem
+                        // Outside: weather.
+                        BarGroup {
+                            BarItem {
+                                icon: root.weatherIcon()
+                                iconSize: 27
+                                iconSpacing: 8
+                                text: root.weatherTemp
+                                foreground: root.weatherColor()
                                 barWindow: panel
+                                tooltipTitle: "Weather"
+                                tooltipBody: root.weatherTooltip()
+                                clickable: true
+                                onClicked: root.start(weatherPopupProcess)
                             }
                         }
 
-                        // Wi-Fi, then Bluetooth, then every other tray item
-                        // (1Password, ...): Bluetooth is drawn natively now, so
-                        // the tray is split around it to keep the order it had
-                        // as a blueman icon. trayRole() also drops blueman's own
-                        // SNI item, if one is still registered.
-                        Repeater {
-                            model: ScriptModel {
-                                values: SystemTray.items.values.filter(function (item) {
-                                    return BarLogic.trayRole(item.id, item.title) === "network";
-                                })
-                            }
+                        BarSeparator {}
 
-                            delegate: TrayIcon {
+                        // Dev.
+                        BarGroup {
+                            BarItem {
+                                icon: "󰡨"
+                                // Sizes are per glyph, not shared: Material Design
+                                // glyphs fill very different shares of their em box
+                                // (the whale ~59%, brightness ~91%), so one shared
+                                // size drew them 18-29px tall. Each is tuned to ~22
+                                // device px of ink at 1.33x, just above the text's
+                                // 17px cap height -- re-measure with grim after
+                                // swapping a glyph.
+                                iconSize: 28
+                                text: root.dockerText
                                 barWindow: panel
-                                wifiConnected: root.wifiConnected
+                                tooltipTitle: "Docker"
+                                tooltipBody: (root.dockerText === "–"
+                                    ? "Daemon asleep (socket-activated)"
+                                    : root.dockerText + " running container"
+                                        + (root.dockerText === "1" ? "" : "s"))
+                                    + "\nClick to manage containers"
+                                clickable: true
+                                onClicked: root.start(dockerMenuProcess)
                             }
                         }
 
-                        BarItem {
-                            id: bluetoothItem
+                        BarSeparator {}
 
-                            visible: !!Bluetooth.defaultAdapter
-                            // Papirus, the same icon set as the Wi-Fi icon beside
-                            // it: nf-md-bluetooth's hairline B read thinner than
-                            // every neighbour. The theme has no "connected"
-                            // variant, so state is colour -- blue while a device
-                            // is connected, dimmed and crossed out when off.
-                            iconSource: "file:///usr/share/icons/Papirus-Dark/16x16/panel/"
-                                + (bluetoothMenu.powered ? "blueman-tray.svg" : "blueman-tray-disabled.svg")
-                            // ~25 device px against the others' ~22: a B is narrow,
-                            // so at matched height it carried half the ink of its
-                            // Wi-Fi and 1Password neighbours and read as smaller.
-                            iconSize: 19
-                            barWindow: panel
-                            foreground: !bluetoothMenu.powered ? "#52566a"
-                                : bluetoothMenu.connectedDevices.length > 0 ? "#8fb7e8"
-                                : "#e8eaf0"
-                            tooltipTitle: "Bluetooth"
-                            tooltipBody: bluetoothMenu.summary() + "\nClick for devices"
-                            clickable: true
-                            onClicked: bluetoothMenu.open()
-
-                            BluetoothMenu {
-                                id: bluetoothMenu
-                                anchorItem: bluetoothItem
+                        // System resources: live readouts, hover-only.
+                        BarGroup {
+                            BarItem {
+                                icon: "󰍛"
+                                iconSize: 22
+                                text: root.cpuText
+                                foreground: root.loadColor(root.cpuText)
                                 barWindow: panel
-                            }
-                        }
-
-                        Repeater {
-                            model: ScriptModel {
-                                values: SystemTray.items.values.filter(function (item) {
-                                    return BarLogic.trayRole(item.id, item.title) === "other";
-                                })
+                                tooltipTitle: "Processor"
+                                tooltipBody: root.cpuTooltip
                             }
 
-                            delegate: TrayIcon {
+                            BarItem {
+                                // nf-md-chip, a DIMM module. Not nf-md-speedometer-slow:
+                                // that sits one codepoint away from the balanced power
+                                // profile's speedometer and the two were indistinguishable
+                                // in the bar. Also not nf-md-memory -- the CPU has that one.
+                                icon: "󰘚"
+                                iconSize: 24
+                                text: root.memoryText
+                                // The bar shows GiB used, but the ramp still keys off
+                                // the percentage -- 9 GiB means nothing without knowing
+                                // how much the machine has.
+                                foreground: root.loadColor(root.memoryPercent)
                                 barWindow: panel
-                            }
-                        }
-
-                        BarItem {
-                            visible: UPower.displayDevice.ready && UPower.displayDevice.isLaptopBattery
-                            icon: root.batteryIcon()
-                            iconSize: 20
-                            iconSpacing: 1
-                            text: root.batteryPercentage() + "%"
-                            barWindow: panel
-                            foreground: root.batteryColor()
-                            tooltipTitle: "Battery"
-                            tooltipBody: root.batteryDetails()
-                        }
-
-                        BarItem {
-                            id: audioItem
-
-                            icon: root.audioIcon()
-                            iconSize: 23
-                            text: root.sink && root.sink.audio
-                                ? Math.round(root.sink.audio.volume * 100) + "%"
-                                : "--%"
-                            barWindow: panel
-                            foreground: root.sink && root.sink.audio && root.sink.audio.muted
-                                ? "#52566a"
-                                : "#e8eaf0"
-                            tooltipTitle: "Audio"
-                            // Deliberately audioMenu's own labeller, so the
-                            // tooltip and the picker never disagree about what
-                            // the current output is called.
-                            tooltipBody: (root.sink
-                                    ? "Output: " + audioMenu.deviceLabel(root.sink)
-                                    : "No audio output")
-                                + (root.sink && root.sink.audio
-                                    ? "\nVolume: " + Math.round(root.sink.audio.volume * 100) + "%"
-                                        + (root.sink.audio.muted ? "\nMuted" : "")
-                                    : "")
-                                + "\nClick to pick a device"
-                                + (root.sink && root.sink.audio
-                                    ? "\nRight-click to " + (root.sink.audio.muted ? "unmute" : "mute")
-                                    : "")
-                            clickable: true
-                            onClicked: audioMenu.open()
-                            secondaryClickable: !!(root.sink && root.sink.audio)
-                            onSecondaryClicked: {
-                                if (root.sink && root.sink.audio)
-                                    root.sink.audio.muted = !root.sink.audio.muted;
+                                tooltipTitle: "Memory"
+                                tooltipBody: root.memoryTooltip
                             }
 
-                            AudioMenu {
-                                id: audioMenu
-                                anchorItem: audioItem
+                            BarItem {
+                                // nf-md-harddisk. The number is what is *left*,
+                                // so the ramp keys off the used percentage, the
+                                // same amber-at-70 / red-at-90 as memory.
+                                icon: "\u{f02ca}"
+                                iconSize: 20
+                                iconSpacing: 4
+                                text: root.diskText
+                                foreground: root.loadColor(root.diskPercent)
                                 barWindow: panel
-                                sink: root.sink
+                                tooltipTitle: "Disk"
+                                tooltipBody: root.diskTooltip
+                            }
+
+                            BarItem {
+                                // Download/upload across the physical interfaces, from /proc/net/dev
+                                // byte counters on the 3s tick (no process). The arrows stand in for
+                                // an icon; text sized to its widest value, with tabular digits, keeps the bar from
+                                // shifting as the numbers change every tick.
+                                text: "\u2193" + root.netDown + "  \u2191" + root.netUp
+                                // Up to 999 KB/s, and anything in MB/s below 100, fits;
+                                // only >100 MB/s grows the item.
+                                textSample: "\u2193888K  \u2191888K"
+                                barWindow: panel
+                                tooltipTitle: "Network"
+                                tooltipBody: root.netTooltip
                             }
                         }
+
+                        BarSeparator {}
+
+                        // Display: brightness, night light, monitor profiles.
+                        BarGroup {
+                            BarItem {
+                                icon: "󰃟"
+                                iconSize: 18
+                                iconSpacing: 8
+                                text: root.backlightText
+                                barWindow: panel
+                                tooltipTitle: "Display brightness"
+                                tooltipBody: "Current brightness: " + root.backlightText
+                            }
+
+                            BarItem {
+                                // nf-md-lightbulb-outline when off, nf-md-lightbulb-on
+                                // (with rays) when warm: the glyph carries the state
+                                // as well as the colour. A moon glyph would collide
+                                // with the weather item's night variant.
+                                icon: root.nightLightOn ? "󰛨" : "󰌶"
+                                iconSize: 20
+                                barWindow: panel
+                                // Amber = warm gamma active. Same "colour is
+                                // state" rule as the power profile beside it.
+                                foreground: root.nightLightOn ? "#e8b87a" : "#e8eaf0"
+                                tooltipTitle: "Night light"
+                                tooltipBody: (root.nightLightOn ? "On (4500 K)" : "Off")
+                                    + "\nSchedule: 19:00 – 07:00"
+                                    + "\nClick to toggle"
+                                clickable: true
+                                onClicked: root.start(nightLightToggleProcess)
+                            }
+
+                            BarItem {
+                                id: displayItem
+
+                                icon: "󰍹"
+                                iconSize: 20
+                                iconSpacing: 8
+                                text: displayMenu.enabledCount > 0
+                                    ? String(displayMenu.enabledCount)
+                                    : "--"
+                                barWindow: panel
+                                tooltipTitle: "Displays"
+                                tooltipBody: (displayMenu.activeProfile !== ""
+                                        ? "Profile: " + displayMenu.activeProfile
+                                        : "No profile applied")
+                                    + displayMenu.monitorSummary()
+                                    + "\nClick to switch profile"
+                                clickable: true
+                                onClicked: displayMenu.open()
+
+                                DisplayMenu {
+                                    id: displayMenu
+                                    anchorItem: displayItem
+                                    barWindow: panel
+                                }
+                            }
+                        }
+
+                        BarSeparator {}
+
+                        // Connections: Wi-Fi, Bluetooth, then the remaining tray apps.
+                        BarGroup {
+                            // Wi-Fi, then Bluetooth, then every other tray item
+                            // (1Password, ...): Bluetooth is drawn natively now, so
+                            // the tray is split around it to keep the order it had
+                            // as a blueman icon. trayRole() also drops blueman's own
+                            // SNI item, if one is still registered.
+                            Repeater {
+                                model: ScriptModel {
+                                    values: SystemTray.items.values.filter(function (item) {
+                                        return BarLogic.trayRole(item.id, item.title) === "network";
+                                    })
+                                }
+
+                                delegate: TrayIcon {
+                                    barWindow: panel
+                                    wifiConnected: root.wifiConnected
+                                }
+                            }
+
+                            BarItem {
+                                id: bluetoothItem
+
+                                visible: !!Bluetooth.defaultAdapter
+                                // Papirus, the same icon set as the Wi-Fi icon beside
+                                // it: nf-md-bluetooth's hairline B read thinner than
+                                // every neighbour. The theme has no "connected"
+                                // variant, so state is colour -- blue while a device
+                                // is connected, dimmed and crossed out when off.
+                                iconSource: "file:///usr/share/icons/Papirus-Dark/16x16/panel/"
+                                    + (bluetoothMenu.powered ? "blueman-tray.svg" : "blueman-tray-disabled.svg")
+                                // ~25 device px against the others' ~22: a B is narrow,
+                                // so at matched height it carried half the ink of its
+                                // Wi-Fi and 1Password neighbours and read as smaller.
+                                iconSize: 19
+                                barWindow: panel
+                                foreground: !bluetoothMenu.powered ? "#52566a"
+                                    : bluetoothMenu.connectedDevices.length > 0 ? "#8fb7e8"
+                                    : "#e8eaf0"
+                                tooltipTitle: "Bluetooth"
+                                tooltipBody: bluetoothMenu.summary() + "\nClick for devices"
+                                clickable: true
+                                onClicked: bluetoothMenu.open()
+
+                                BluetoothMenu {
+                                    id: bluetoothMenu
+                                    anchorItem: bluetoothItem
+                                    barWindow: panel
+                                }
+                            }
+
+                            Repeater {
+                                model: ScriptModel {
+                                    values: SystemTray.items.values.filter(function (item) {
+                                        return BarLogic.trayRole(item.id, item.title) === "other";
+                                    })
+                                }
+
+                                delegate: TrayIcon {
+                                    barWindow: panel
+                                }
+                            }
+                        }
+
+                        BarSeparator {}
+
+                        // Power: profile next to the battery it governs.
+                        BarGroup {
+                            BarItem {
+                                icon: root.powerProfileText()
+                                iconSize: 22
+                                barWindow: panel
+                                foreground: root.powerProfileColor()
+                                tooltipTitle: "Power profile"
+                                tooltipBody: root.powerProfileName()
+                                    + "\nClick to switch"
+                                clickable: true
+                                onClicked: root.togglePowerProfile()
+                            }
+
+                            BarItem {
+                                visible: UPower.displayDevice.ready && UPower.displayDevice.isLaptopBattery
+                                icon: root.batteryIcon()
+                                iconSize: 20
+                                iconSpacing: 1
+                                text: root.batteryPercentage() + "%"
+                                barWindow: panel
+                                foreground: root.batteryColor()
+                                tooltipTitle: "Battery"
+                                tooltipBody: root.batteryDetails()
+                            }
+                        }
+
+                        BarSeparator {}
+
+                        // Sound.
+                        BarGroup {
+                            BarItem {
+                                id: audioItem
+
+                                icon: root.audioIcon()
+                                iconSize: 23
+                                text: root.sink && root.sink.audio
+                                    ? Math.round(root.sink.audio.volume * 100) + "%"
+                                    : "--%"
+                                barWindow: panel
+                                foreground: root.sink && root.sink.audio && root.sink.audio.muted
+                                    ? "#52566a"
+                                    : "#e8eaf0"
+                                tooltipTitle: "Audio"
+                                // Deliberately audioMenu's own labeller, so the
+                                // tooltip and the picker never disagree about what
+                                // the current output is called.
+                                tooltipBody: (root.sink
+                                        ? "Output: " + audioMenu.deviceLabel(root.sink)
+                                        : "No audio output")
+                                    + (root.sink && root.sink.audio
+                                        ? "\nVolume: " + Math.round(root.sink.audio.volume * 100) + "%"
+                                            + (root.sink.audio.muted ? "\nMuted" : "")
+                                        : "")
+                                    + "\nClick to pick a device"
+                                    + (root.sink && root.sink.audio
+                                        ? "\nRight-click to " + (root.sink.audio.muted ? "unmute" : "mute")
+                                        : "")
+                                clickable: true
+                                onClicked: audioMenu.open()
+                                secondaryClickable: !!(root.sink && root.sink.audio)
+                                onSecondaryClicked: {
+                                    if (root.sink && root.sink.audio)
+                                        root.sink.audio.muted = !root.sink.audio.muted;
+                                }
+
+                                AudioMenu {
+                                    id: audioMenu
+                                    anchorItem: audioItem
+                                    barWindow: panel
+                                    sink: root.sink
+                                }
+                            }
+                        }
+
+                        BarSeparator {}
 
                         BarItem {
                             id: dateItem
                             text: Qt.formatDateTime(clock.date, "ddd, dd MMM  ·  HH:mm")
                             barWindow: panel
                             foreground: "#e8eaf0"
-                            background: "#0fffffff"
                             clickable: true
                             onClicked: calendar.open()
 

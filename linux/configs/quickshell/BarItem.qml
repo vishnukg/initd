@@ -22,6 +22,13 @@ Rectangle {
     // (brightness) none; items override this to keep ~10 device px of
     // visible gap between ink and number.
     property int iconSpacing: 6
+    // For readouts that change every tick (network speed): the text is sized
+    // to this sample -- the widest *typical* value -- with tabular
+    // (equal-width) digits and right alignment, so the item does not shift as
+    // the number changes and any spare room sits inside the group rather than
+    // against the next separator. A rarer, wider value grows the item instead
+    // of being cut off.
+    property string textSample: ""
     property var barWindow: null
     property string tooltipTitle: ""
     property string tooltipBody: ""
@@ -81,12 +88,23 @@ Rectangle {
         Text {
             visible: root.text !== ""
             anchors.verticalCenter: parent.verticalCenter
+            id: label
+            width: root.textSample !== ""
+                ? Math.max(Math.ceil(sampleMetrics.advanceWidth), implicitWidth) : implicitWidth
+            horizontalAlignment: root.textSample !== "" ? Text.AlignRight : Text.AlignLeft
+            font.features: root.textSample !== "" ? { "tnum": 1 } : ({})
             text: root.text
             color: root.foreground
             font.family: "Inter"
             font.pixelSize: 17
             font.weight: Font.DemiBold
         }
+    }
+
+    TextMetrics {
+        id: sampleMetrics
+        font: label.font
+        text: root.textSample
     }
 
     HoverHandler {
