@@ -728,12 +728,10 @@ ShellRoot {
                             BarItem {
                                 // Download/upload across the physical interfaces, from /proc/net/dev
                                 // byte counters on the 3s tick (no process). The arrows stand in for
-                                // an icon; text sized to its widest value, with tabular digits, keeps the bar from
-                                // shifting as the numbers change every tick.
+                                // an icon. Natural width with tabular digits: digit changes keep the
+                                // width, only a change in length (9.9K -> 10K) shifts the items left of it.
                                 text: "\u2193" + root.netDown + "  \u2191" + root.netUp
-                                // Up to 999 KB/s, and anything in MB/s below 100, fits;
-                                // only >100 MB/s grows the item.
-                                textSample: "\u2193888K  \u2191888K"
+                                tabularDigits: true
                                 barWindow: panel
                                 tooltipTitle: "Network"
                                 tooltipBody: root.netTooltip
