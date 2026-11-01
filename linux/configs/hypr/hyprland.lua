@@ -224,11 +224,16 @@ hl.config({
     general = {
         gaps_in = 5,
         gaps_out = 14,
-        border_size = 1,
-        -- Muted pastel blue remains visible against virtually any dark surface.
+        -- No border: windows are separated by the gaps, rounding and the soft
+        -- shadow, and focus is carried by dim_inactive, the opacity split and the
+        -- active-window shadow. The colours below are kept for the day a border
+        -- comes back (they would draw as an ~8% white hairline); at size 0
+        -- nothing draws them. resize_on_border still works: Hyprland's grab
+        -- area extends past the window edge.
+        border_size = 0,
         col = {
-            active_border = "rgba(8a9199cc)",
-            inactive_border = "rgba(30344299)",
+            active_border = "rgba(ffffff14)",
+            inactive_border = "rgba(ffffff0a)",
         },
         layout = "dwindle",
         resize_on_border = true,
@@ -243,8 +248,8 @@ hl.config({
 
     group = {
         col = {
-            border_active = "rgba(8a9199cc)",
-            border_inactive = "rgba(30344299)",
+            border_active = "rgba(ffffff14)",
+            border_inactive = "rgba(ffffff0a)",
         },
         groupbar = {
             font_family = "Inter",
@@ -281,12 +286,22 @@ hl.config({
             -- anyway, so only overlapping floats look different.
             xray = true,
         },
-        -- macOS-style focus model paired with the subtle gray active border:
-        -- unfocused windows dim slightly, so focus reads as "the bright window".
+        -- macOS-style focus model: unfocused windows dim slightly, so focus
+        -- reads as "the bright window", lifted by the only full shadow.
         dim_inactive = true,
-        dim_strength = 0.12,
+        -- 0.20 rather than 0.12: with no border, dimming is the main focus cue,
+        -- so it has to be obvious at a glance.
+        dim_strength = 0.20,
+        -- A wide, soft drop shadow lifts windows off the wallpaper instead of a
+        -- border outlining them. Full strength on the focused window only:
+        -- inactive ones get a faint one, which is both a second focus cue and
+        -- less shadow area to blend per frame on this iGPU.
         shadow = {
             enabled = true,
+            range = 20,
+            render_power = 3,
+            color = "rgba(00000066)",
+            color_inactive = "rgba(00000022)",
         },
         -- Off: it samples the framebuffer again on every frame of a move or
         -- resize, which is exactly when the compositor is already busiest, and

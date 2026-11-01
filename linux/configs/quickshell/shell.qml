@@ -458,11 +458,9 @@ ShellRoot {
                     // the backdrop kills the local contrast that would otherwise fight
                     // the text, so the island does not have to be near-opaque.
                     color: "#b30b0c10"
-                    border.width: 1
-                    // Lifted with the alpha: once the fill stopped being near-opaque
-                    // the old 0x18 edge disappeared against light regions of the
-                    // wallpaper and the island lost its shape.
-                    border.color: "#2effffff"
+                    // No outline, matching hyprland.lua's border_size = 0: the
+                    // island reads by its fill and the blur behind it.
+                    border.width: 0
 
                     RowLayout {
                         anchors {
