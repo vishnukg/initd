@@ -30,6 +30,25 @@ export function scaledLauncher(text) {
     return result;
 }
 
+// The packaged desktop ID: com.google.Chrome.desktop ships alongside it but is
+// NoDisplay, and the scaled launcher above shadows this ID, so links opened
+// through xdg-open get the 120% launcher too.
+export const BROWSER = 'google-chrome.desktop';
+
+// xdg-settings writes ~/.config/mimeapps.list (text/html plus the http/https
+// handlers), which both Hyprland and GNOME read. Checked first so a re-run is a
+// no-op; a failure warns rather than aborting the rest of the Chrome setup.
+export function setDefaultBrowser({ run = spawnSync, log = console.log, warn = console.warn } = {}) {
+    const current = run('xdg-settings', ['get', 'default-web-browser'], { encoding: 'utf8' });
+    if (current.status === 0 && current.stdout?.trim() === BROWSER) {
+        log('Chrome is already the default browser.');
+        return;
+    }
+    const set = run('xdg-settings', ['set', 'default-web-browser', BROWSER], { encoding: 'utf8' });
+    if (set.status === 0) log('Chrome set as the default browser.');
+    else warn(`Could not make Chrome the default browser: ${set.stderr?.trim() || set.error?.message || `xdg-settings exited ${set.status}`}`);
+}
+
 function replaceWithBackup(file, contents) {
     if (fs.existsSync(file) && fs.readFileSync(file, 'utf8') === contents) return;
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -57,6 +76,7 @@ export function configureChrome({
     }
     replaceWithBackup(path.join(dataHome, 'applications/google-chrome.desktop'), scaledLauncher(fs.readFileSync(desktop, 'utf8')));
     log('Chrome launcher: 120% interface scaling.');
+    setDefaultBrowser({ run, log, warn });
 
     const running = run('pgrep', ['-x', 'chrome'], { encoding: 'utf8' });
     if (running.status !== 1) {
