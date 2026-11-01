@@ -58,15 +58,18 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("nm-applet")
     -- blueman's XDG autostart only fires in sessions that reach the systemd
     -- graphical-session.target (GNOME does, this session doesn't) — start explicitly.
+    -- It runs headless (linux/setup.sh disables its StatusIcon plugin): the bar
+    -- draws Bluetooth itself, and the applet stays only as BlueZ's pairing
+    -- agent and OBEX receiver.
     hl.exec_cmd("blueman-applet")
     -- 1Password is autostarted because its SSH agent serves the GitHub and
     -- exe.dev keys (~/.ssh/config): without it running and unlocked, git
     -- push/pull and Ghostty's dev box windows fail with "Permission denied
     -- (publickey)". The cost is ~645 MB idle across three Electron processes
-    -- on a 16 GB machine. The sleep 2 is load-bearing: it lets its tray icon
-    -- register after nm-applet and blueman-applet, which otherwise loses the
-    -- SNI race and lands the icon between the wifi and bluetooth ones.
-    hl.exec_cmd("bash -c 'sleep 2 && 1password --silent'")
+    -- on a 16 GB machine. No startup delay: the bar places tray icons by role
+    -- (nm-applet, native Bluetooth, then the rest), so registration order no
+    -- longer decides where its icon lands.
+    hl.exec_cmd("1password --silent")
 end)
 
 -- ── Media / hardware keys ─────────────────────────────────────────────────────

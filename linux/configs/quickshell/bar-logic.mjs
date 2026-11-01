@@ -132,3 +132,108 @@ export function kindRank(name) {
     const index = KIND_ORDER.indexOf(deviceKind(name));
     return index === -1 ? KIND_ORDER.length : index;
 }
+
+// /proc/stat's aggregate line is jiffies since boot:
+//   cpu  user nice system idle iowait irq softirq steal guest guest_nice
+// Only the first eight are summed: guest time is already counted inside user
+// and nice, so adding the last two would double count a running VM. Idle is
+// idle *plus* iowait - waiting on the disk is not CPU load, and counting it
+// pinned the old readout near 40% on an idle machine.
+export function cpuTimes(stat) {
+    const match = /^cpu\s+(.+)$/m.exec(stat || "");
+    if (!match)
+        return null;
+    const fields = match[1].trim().split(/\s+/).slice(0, 8).map(Number);
+    if (fields.length < 5 || fields.some(isNaN))
+        return null;
+    const total = fields.reduce(function (sum, value) { return sum + value; }, 0);
+    return { busy: total - fields[3] - fields[4], total: total };
+}
+
+// Busy share of the interval between two cpuTimes() readings. NaN until there
+// are two readings to compare, and for a counter that did not move or went
+// backwards (a suspend/resume can do either), so the bar keeps "--%" rather
+// than inventing a number.
+export function cpuPercent(previous, current) {
+    if (!previous || !current)
+        return NaN;
+    const total = current.total - previous.total;
+    if (total <= 0)
+        return NaN;
+    const busy = (current.busy - previous.busy) * 100 / total;
+    return Math.round(Math.min(100, Math.max(0, busy)));
+}
+
+// Used is MemTotal - MemAvailable, which is what `free` reports as "used"
+// (procps-ng 4): page cache the kernel would hand back on demand is not
+// memory anything is using. /proc/meminfo is in kB (KiB).
+export function memoryUsage(meminfo) {
+    function read(key) {
+        const match = new RegExp("^" + key + ":\\s+(\\d+)", "m").exec(meminfo || "");
+        return match ? Number(match[1]) : NaN;
+    }
+    const total = read("MemTotal");
+    const available = read("MemAvailable");
+    if (!(total > 0) || isNaN(available))
+        return null;
+    const used = Math.max(0, total - available);
+    return {
+        percent: Math.round(used * 100 / total),
+        usedGiB: used / 1048576,
+        totalGiB: total / 1048576,
+    };
+}
+
+// BlueZ reports Battery1.Percentage as 0-100 and Quickshell normalises it to
+// 0-1; accepting both keeps a future change on either side from rendering
+// "1%" for a full mouse.
+export function batteryPercent(value) {
+    const number = Number(value);
+    if (!isFinite(number) || number < 0)
+        return NaN;
+    return Math.round(number <= 1 ? number * 100 : Math.min(number, 100));
+}
+
+// BlueZ's device Icon is a freedesktop icon name ("input-mouse",
+// "audio-headset"); the bar wants a Nerd Font glyph like every other item.
+// Prefix matches, because BlueZ appends nothing consistent after the class.
+export function bluetoothDeviceIcon(icon) {
+    const name = (icon || "").toLowerCase();
+    if (name.indexOf("input-keyboard") === 0)
+        return "\u{f030c}";
+    if (name.indexOf("input-mouse") === 0 || name.indexOf("input-tablet") === 0)
+        return "\u{f037d}";
+    if (name.indexOf("input-gaming") === 0)
+        return "\u{f0297}";
+    if (name.indexOf("audio-headset") === 0 || name.indexOf("audio-headphones") === 0)
+        return "\u{f02cb}";
+    if (name.indexOf("audio") === 0)
+        return "\u{f04c3}";
+    if (name.indexOf("phone") === 0)
+        return "\u{f011c}";
+    if (name.indexOf("computer") === 0)
+        return "\u{f0322}";
+    return "\u{f00af}";
+}
+
+// Connected devices first, then by name, so the one in use is always the top
+// row and the rest do not reshuffle as signal comes and goes.
+export function compareBluetoothDevices(a, b) {
+    if (!!a.connected !== !!b.connected)
+        return a.connected ? -1 : 1;
+    return (a.name || "").localeCompare(b.name || "");
+}
+
+// Which slot a StatusNotifierItem takes in the bar. nm-applet gets the custom
+// Wi-Fi icon and menu; blueman's is dropped, because the bar draws Bluetooth
+// natively and blueman-applet runs headless as BlueZ's pairing agent - the
+// filter covers a session still running blueman-tray from before that change,
+// which would otherwise show a second Bluetooth icon until the next login.
+export function trayRole(id, title) {
+    const identity = ((id || "") + " " + (title || "")).toLowerCase();
+    if (identity.indexOf("networkmanager") !== -1 || identity.indexOf("nm-applet") !== -1)
+        return "network";
+    if (identity.indexOf("blueman") !== -1)
+        return "bluetooth";
+    return "other";
+}

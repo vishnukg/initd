@@ -9,6 +9,8 @@ import assert from 'node:assert/strict';
 import {
     clockMinutes, isNight, weatherIcon, weatherCelsius, weatherColor,
     loadColor, deviceKind, kindRank, KIND_ORDER,
+    cpuTimes, cpuPercent, memoryUsage, batteryPercent,
+    bluetoothDeviceIcon, compareBluetoothDevices, trayRole,
 } from '../../linux/configs/quickshell/bar-logic.mjs';
 import * as BarLogic from '../../linux/configs/quickshell/bar-logic.mjs';
 
@@ -257,3 +259,189 @@ test('every BarLogic call site in the QML resolves to an export', () => {
         assert.ok(exported.has(symbol), `${file} calls BarLogic.${symbol}, which bar-logic.mjs does not export`);
     }
 });
+
+// Real /proc/stat and /proc/meminfo layouts from this Fedora machine, trimmed.
+const STAT = 'cpu  13820 2 7717 287861 37835 1791 476 0 0 0\ncpu0 1700 0 960 36000 4700 220 60 0 0 0\nintr 123 0\n';
+const MEMINFO = 'MemTotal:       15924724 kB\nMemFree:         9667244 kB\nMemAvailable:   12203464 kB\nBuffers:            4096 kB\n';
+
+test('cpu times read the aggregate line and count iowait as idle', () => {
+    // Arrange
+    const stat = STAT;
+
+    // Act
+    const times = cpuTimes(stat);
+
+    // Assert
+    // total = user..steal; busy = total - idle - iowait.
+    assert.deepEqual(times, { busy: 13820 + 2 + 7717 + 1791 + 476, total: 349502 });
+});
+
+test('cpu times ignore guest columns, which are already inside user and nice', () => {
+    // Arrange
+    const withGuest = 'cpu  100 0 100 700 100 0 0 0 50 50\n';
+
+    // Act
+    const times = cpuTimes(withGuest);
+
+    // Assert
+    assert.deepEqual(times, { busy: 200, total: 1000 });
+});
+
+for (const { name, stat } of [
+    { name: 'empty input', stat: '' },
+    { name: 'missing input', stat: undefined },
+    { name: 'only per-core lines', stat: 'cpu0 1 2 3 4 5 6 7 8\n' },
+    { name: 'a truncated aggregate line', stat: 'cpu  1 2 3\n' },
+]) {
+    test(`cpu times reject ${name}`, () => {
+        // Act
+        const times = cpuTimes(stat);
+
+        // Assert
+        assert.equal(times, null);
+    });
+}
+
+test('cpu percent is the busy share of the interval between two readings', () => {
+    // Arrange
+    const previous = { busy: 1000, total: 10000 };
+    const current = { busy: 1250, total: 11000 };
+
+    // Act
+    const percent = cpuPercent(previous, current);
+
+    // Assert
+    assert.equal(percent, 25);
+});
+
+for (const { name, previous, current } of [
+    { name: 'there is no earlier reading', previous: null, current: { busy: 1, total: 2 } },
+    { name: 'the counters did not move', previous: { busy: 5, total: 10 }, current: { busy: 5, total: 10 } },
+    { name: 'the counters went backwards', previous: { busy: 5, total: 10 }, current: { busy: 1, total: 4 } },
+]) {
+    test(`cpu percent is unknown when ${name}`, () => {
+        // Act
+        const percent = cpuPercent(previous, current);
+
+        // Assert
+        assert.ok(Number.isNaN(percent));
+    });
+}
+
+test('cpu percent clamps a busy delta that outruns the total', () => {
+    // Arrange
+    const previous = { busy: 0, total: 0 };
+    const current = { busy: 120, total: 100 };
+
+    // Act
+    const percent = cpuPercent(previous, current);
+
+    // Assert
+    assert.equal(percent, 100);
+});
+
+test('memory usage is total minus available, as free reports it', () => {
+    // Arrange
+    const meminfo = MEMINFO;
+
+    // Act
+    const usage = memoryUsage(meminfo);
+
+    // Assert
+    assert.equal(usage.percent, 23);
+    assert.equal(usage.usedGiB.toFixed(1), '3.5');
+    assert.equal(usage.totalGiB.toFixed(1), '15.2');
+});
+
+for (const { name, meminfo } of [
+    { name: 'empty input', meminfo: '' },
+    { name: 'no MemAvailable', meminfo: 'MemTotal: 100 kB\nMemFree: 50 kB\n' },
+    { name: 'a zero total', meminfo: 'MemTotal: 0 kB\nMemAvailable: 0 kB\n' },
+]) {
+    test(`memory usage rejects ${name}`, () => {
+        // Act
+        const usage = memoryUsage(meminfo);
+
+        // Assert
+        assert.equal(usage, null);
+    });
+}
+
+for (const { name, value, expected } of [
+    { name: 'a 0-1 fraction', value: 0.85, expected: 85 },
+    { name: 'a full fraction', value: 1, expected: 100 },
+    { name: 'an empty fraction', value: 0, expected: 0 },
+    { name: 'a 0-100 percentage', value: 64, expected: 64 },
+    { name: 'an out-of-range percentage', value: 140, expected: 100 },
+]) {
+    test(`bluetooth battery accepts ${name}`, () => {
+        // Act
+        const percent = batteryPercent(value);
+
+        // Assert
+        assert.equal(percent, expected);
+    });
+}
+
+for (const value of [-1, NaN, undefined, 'full']) {
+    test(`bluetooth battery rejects ${String(value)}`, () => {
+        // Act
+        const percent = batteryPercent(value);
+
+        // Assert
+        assert.ok(Number.isNaN(percent));
+    });
+}
+
+for (const { icon, expected } of [
+    { icon: 'input-keyboard', expected: '\u{f030c}' },
+    { icon: 'input-mouse', expected: '\u{f037d}' },
+    { icon: 'input-tablet', expected: '\u{f037d}' },
+    { icon: 'input-gaming', expected: '\u{f0297}' },
+    { icon: 'audio-headset', expected: '\u{f02cb}' },
+    { icon: 'audio-headphones', expected: '\u{f02cb}' },
+    { icon: 'audio-card', expected: '\u{f04c3}' },
+    { icon: 'phone', expected: '\u{f011c}' },
+    { icon: 'computer', expected: '\u{f0322}' },
+    { icon: '', expected: '\u{f00af}' },
+    { icon: undefined, expected: '\u{f00af}' },
+]) {
+    test(`bluetooth device icon: ${icon || 'none'}`, () => {
+        // Act
+        const glyph = bluetoothDeviceIcon(icon);
+
+        // Assert
+        assert.equal(glyph, expected);
+    });
+}
+
+test('bluetooth devices list the connected ones first, then by name', () => {
+    // Arrange
+    const devices = [
+        { name: 'Slim X1 Keyboard', connected: false },
+        { name: 'MX Anywhere 3S', connected: true },
+        { name: 'AirPods', connected: false },
+    ];
+
+    // Act
+    const ordered = [...devices].sort(compareBluetoothDevices).map(device => device.name);
+
+    // Assert
+    assert.deepEqual(ordered, ['MX Anywhere 3S', 'AirPods', 'Slim X1 Keyboard']);
+});
+
+for (const { name, id, title, expected } of [
+    { name: 'nm-applet by id', id: 'nm-applet', title: '', expected: 'network' },
+    { name: 'nm-applet by title', id: 'org.kde.StatusNotifierItem-1', title: 'NetworkManager Applet', expected: 'network' },
+    { name: 'blueman-tray', id: 'blueman', title: 'blueman-tray', expected: 'bluetooth' },
+    { name: '1Password', id: '1password', title: '1Password', expected: 'other' },
+    { name: 'an item with neither field', id: undefined, title: undefined, expected: 'other' },
+]) {
+    test(`tray role: ${name}`, () => {
+        // Act
+        const role = trayRole(id, title);
+
+        // Assert
+        assert.equal(role, expected);
+    });
+}

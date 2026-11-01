@@ -272,6 +272,42 @@ apply_gsettings_keyboard() {
   log_success "gsettings keyboard synced (ctrl:nocaps, delay 350, interval 33ms)."
 }
 
+configure_blueman_headless() {
+  # The Quickshell bar draws Bluetooth natively (BluetoothMenu.qml), so
+  # blueman's tray icon would be a duplicate. Only its StatusIcon plugin goes:
+  # that is what spawns blueman-tray (~50 MB), while blueman-applet keeps
+  # running as BlueZ's pairing agent (PIN/passkey prompts) and OBEX receiver,
+  # which Quickshell does not provide. Appended to the existing plugin-list
+  # rather than replacing it, and a no-op once present.
+  if ! command -v gsettings >/dev/null 2>&1 \
+      || ! gsettings list-schemas 2>/dev/null | grep -qx org.blueman.general; then
+    log_warn "blueman gsettings schema not available — skipping tray icon disable."
+    return
+  fi
+  local plugins
+  plugins="$(gsettings get org.blueman.general plugin-list)"
+  if [[ "${plugins}" == *"'!StatusIcon'"* ]]; then
+    log_success "blueman runs headless (StatusIcon plugin disabled)."
+    return
+  fi
+  # GVariant string array: "@as []" when empty, "['A', 'B']" otherwise.
+  if [[ "${plugins}" == *"[]" ]]; then
+    plugins="['!StatusIcon']"
+  else
+    plugins="${plugins%]}, '!StatusIcon']"
+  fi
+  gsettings set org.blueman.general plugin-list "${plugins}"
+  # blueman-applet unloads the plugin live, but the tray process it already
+  # launched outlives that -- and the unload itself fires blueman's
+  # plugins-changed handler, which relaunches blueman-tray one last time
+  # (measured). Let that happen first, then reap it; nothing respawns it after.
+  if pgrep -x blueman-applet >/dev/null 2>&1; then
+    sleep 1
+    pkill -x blueman-tray 2>/dev/null || true
+  fi
+  log_success "blueman tray icon disabled; blueman-applet stays as the pairing agent."
+}
+
 add_user_to_video_group() {
   # /sys/class/backlight/*/brightness is root:video — membership is required
   # for the brightnessctl keybinds (XF86MonBrightness*) to work.
@@ -362,6 +398,7 @@ main() {
 
   apply_gsettings_theme
   apply_gsettings_keyboard
+  configure_blueman_headless
   configure_firefox
   configure_chrome
   configure_ghostty_launcher

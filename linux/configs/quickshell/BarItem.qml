@@ -1,16 +1,27 @@
 import QtQuick
+import QtQuick.Effects
 
 Rectangle {
     id: root
 
     property string text: ""
     property string icon: ""
+    // An icon-theme SVG instead of a font glyph, for the few items whose
+    // Nerd Font glyph reads too thin beside the tray's theme icons. It is
+    // tinted with `foreground` like a glyph would be, so colour still carries
+    // state; the source should be a light, single-colour symbol.
+    property url iconSource: ""
     property color foreground: "#e8eaf0"
     property color background: "transparent"
     property bool clickable: false
     property bool secondaryClickable: false
     property int horizontalPadding: 9
     property int iconSize: 21
+    // Icon-to-text gap. Glyphs sit in a square box of iconSize, so a narrow
+    // one (battery) carries wide side bearings and a full-width one
+    // (brightness) none; items override this to keep ~10 device px of
+    // visible gap between ink and number.
+    property int iconSpacing: 6
     property var barWindow: null
     property string tooltipTitle: ""
     property string tooltipBody: ""
@@ -29,7 +40,29 @@ Rectangle {
     Row {
         id: content
         anchors.centerIn: parent
-        spacing: root.icon !== "" ? 6 : 0
+        spacing: root.icon !== "" || root.iconSource != "" ? root.iconSpacing : 0
+
+        Item {
+            visible: root.iconSource != ""
+            width: visible ? root.iconSize : 0
+            height: root.iconSize
+            anchors.verticalCenter: parent.verticalCenter
+
+            Image {
+                id: iconImage
+                anchors.fill: parent
+                source: root.iconSource
+                sourceSize: Qt.size(width, height)
+                visible: false
+            }
+
+            MultiEffect {
+                anchors.fill: iconImage
+                source: iconImage
+                colorization: 1.0
+                colorizationColor: root.foreground
+            }
+        }
 
         Text {
             visible: root.icon !== ""
