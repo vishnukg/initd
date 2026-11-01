@@ -59,14 +59,14 @@ hl.on("hyprland.start", function()
     -- blueman's XDG autostart only fires in sessions that reach the systemd
     -- graphical-session.target (GNOME does, this session doesn't) — start explicitly.
     hl.exec_cmd("blueman-applet")
-    -- 1Password is NOT autostarted: the Electron app idles at ~645 MB across
-    -- three processes on a 16 GB machine, and nothing here depends on it being
-    -- resident (no SSH agent in ~/.ssh/config, no git signing key). Launch it
-    -- from rofi when needed. To restore, un-comment below — the sleep 2 is
-    -- load-bearing: it lets its tray icon register after nm-applet and
-    -- blueman-applet, which otherwise loses the SNI race and lands the icon
-    -- between the wifi and bluetooth ones.
-    -- hl.exec_cmd("bash -c 'sleep 2 && 1password --silent'")
+    -- 1Password is autostarted because its SSH agent serves the GitHub and
+    -- exe.dev keys (~/.ssh/config): without it running and unlocked, git
+    -- push/pull and Ghostty's dev box windows fail with "Permission denied
+    -- (publickey)". The cost is ~645 MB idle across three Electron processes
+    -- on a 16 GB machine. The sleep 2 is load-bearing: it lets its tray icon
+    -- register after nm-applet and blueman-applet, which otherwise loses the
+    -- SNI race and lands the icon between the wifi and bluetooth ones.
+    hl.exec_cmd("bash -c 'sleep 2 && 1password --silent'")
 end)
 
 -- ── Media / hardware keys ─────────────────────────────────────────────────────
