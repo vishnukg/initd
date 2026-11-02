@@ -41,7 +41,9 @@ function fixture(t) {
             if (isolated && !fs.existsSync(path.join(bin, 'dirname'))) {
                 fs.symlinkSync(fs.realpathSync('/usr/bin/dirname'), path.join(bin, 'dirname'));
             }
-            return spawnSync(fs.realpathSync('/usr/bin/bash'), [path.join(lib, 'fonts.sh')], {
+            // /bin/bash, not /usr/bin/bash: macOS has bash only at /bin, and on
+            // Fedora /bin is a link to /usr/bin, so this path works on both.
+            return spawnSync(fs.realpathSync('/bin/bash'), [path.join(lib, 'fonts.sh')], {
                 cwd: dir, env: { PATH: isolated ? bin : `${bin}:/usr/bin:/bin`, HOME: dir, NO_COLOR: '1' },
                 encoding: 'utf8', timeout: 10000,
             });
