@@ -189,12 +189,12 @@ vm/bootstrap.sh                               # bash bootstrap.sh vm — never p
   ├─ ensure_docker (skipped when present, as on exeuntu), ensure_gh (official apt repo), ensure_mise
   ├─ ensure_gh_auth                           # before mise install: credential_command is `gh auth token`
   ├─ ensure_github_ssh                        # per-box key (verified github.com host key), gh ssh-key add, origin → SSH
+  ├─ setup_git_profile                        # before linking and before mise install: every prompt comes first
   ├─ shared/lib/link.sh vm
   ├─ shared/lib/claude-statusline.mjs
   ├─ shared/lib/agy-statusline.mjs
   ├─ ensure_fish (chsh + fisher)
-  ├─ mise trust + mise install
-  └─ setup_git_profile
+  └─ mise trust + mise install
 ```
 
 ### Script sourcing chain
