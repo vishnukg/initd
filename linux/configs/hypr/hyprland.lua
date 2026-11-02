@@ -466,11 +466,11 @@ hl.animation({ leaf = "layersOut",  enabled = true, speed = 2, bezier = "easeOut
 hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "easeOut", style = "slidefade 20%" })
 
 -- Each Quickshell surface enters from where it lives: banners from the right
--- edge, quick settings down from the bar, the volume/brightness pill up from
--- the bottom. (The launcher keeps the layersIn popin.) Same layersIn timing.
+-- edge, quick settings and the volume/brightness pill down from
+-- the bar. (The launcher keeps the layersIn popin.) Same layersIn timing.
 hl.layer_rule({ name = "notifications-slide", match = { namespace = "^quickshell-notifications$" }, animation = "slide right" })
 hl.layer_rule({ name = "panel-slide",         match = { namespace = "^quickshell-panel$" },         animation = "slide top" })
-hl.layer_rule({ name = "osd-slide",           match = { namespace = "^quickshell-osd$" },           animation = "slide bottom" })
+hl.layer_rule({ name = "osd-slide",           match = { namespace = "^quickshell-osd$" },           animation = "slide top" })
 
 -- Keep the loader line below verbatim: hyprmoncfg (1.17+) owns it, checks after every
 -- reload that its rules actually ran, and rewrites it in this exact form if not. It is

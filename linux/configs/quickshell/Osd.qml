@@ -2,8 +2,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 
-// On-screen indicator for volume, microphone and brightness: a frosted pill at
-// the bottom centre with an icon, a level bar and the percentage. shell.qml
+// On-screen indicator for volume, microphone and brightness: a frosted pill
+// top right, centred under the bar's quick settings button (shell.qml works
+// out rightMargin), with an icon, a level bar and the percentage. shell.qml
 // creates it through a LazyLoader only while a level is changing and drops it
 // 1.5 s after the last change, so at rest it does not exist at all.
 PanelWindow {
@@ -13,6 +14,7 @@ PanelWindow {
     property string kind: "volume"
     property real value: 0
     property bool muted: false
+    property real rightMargin: 14
 
     readonly property string glyph: {
         if (kind === "brightness")
@@ -33,8 +35,16 @@ PanelWindow {
     implicitWidth: 320
     implicitHeight: 64
 
-    anchors.bottom: true
-    margins.bottom: 96
+    anchors {
+        top: true
+        right: true
+    }
+
+    margins {
+        // Just under the bar (4 + 39), like the quick settings sheet.
+        top: 52
+        right: osd.rightMargin
+    }
 
     WlrLayershell.namespace: "quickshell-osd"
     WlrLayershell.layer: WlrLayer.Overlay

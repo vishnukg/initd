@@ -98,6 +98,24 @@ ShellRoot {
     property real osdValue: 0
     property bool osdMuted: false
 
+    property var quickSettingsButtons: ({})
+    // Where the indicator's right edge goes: centred under the focused
+    // screen's quick settings button, measured when it opens (the bar is
+    // right-anchored, so the button barely moves while it is up).
+    property real osdRightMargin: 14
+
+    function placeOsd() {
+        const screen = focusedScreen();
+        const button = screen ? quickSettingsButtons[screen.name] : null;
+        if (!button || !screen) {
+            osdRightMargin = 14;
+            return;
+        }
+        // The bar window starts 14px in from the screen's left edge.
+        const center = 14 + button.mapToItem(null, button.width / 2, 0).x;
+        osdRightMargin = Math.max(14, screen.width - center - 160);
+    }
+
     function showOsd(kind, value, muted) {
         // Not while quick settings is open: its sliders show the level.
         if (!osdReady || panelOpen)
@@ -105,6 +123,8 @@ ShellRoot {
         osdKind = kind;
         osdValue = value;
         osdMuted = muted;
+        if (!osdShown)
+            placeOsd();
         osdShown = true;
         osdHide.restart();
     }
@@ -382,6 +402,9 @@ ShellRoot {
     // Notification server, banners, history, Do Not Disturb (replaces dunst).
     Notifications {
         id: notifications
+        // Banners share the top-right corner with the indicator; they step
+        // down below it while it is up rather than sitting under it.
+        topOffset: root.osdShown ? 74 : 0
     }
 
     Timer {
@@ -448,6 +471,7 @@ ShellRoot {
 
         Osd {
             screen: root.focusedScreen()
+            rightMargin: root.osdRightMargin
             kind: root.osdKind
             value: root.osdValue
             muted: root.osdMuted
@@ -975,6 +999,8 @@ ShellRoot {
                         // Quick settings. The count is the notification
                         // history; the glyph dims under Do Not Disturb.
                         BarItem {
+                            id: quickSettingsButton
+                            Component.onCompleted: root.quickSettingsButtons[panel.screen.name] = quickSettingsButton
                             icon: notifications.doNotDisturb ? "\u{f009b}" : "\u{f062e}"
                             text: notifications.history.length > 0 ? String(notifications.history.length) : ""
                             barWindow: panel

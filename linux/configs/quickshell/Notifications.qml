@@ -20,6 +20,9 @@ Scope {
     id: root
 
     property bool doNotDisturb: false
+    // Extra room above the banners: shell.qml sets it while the volume /
+    // brightness indicator occupies the same corner.
+    property int topOffset: 0
     // Live banners, oldest first.
     property var banners: []
     readonly property var history: server.trackedNotifications.values.slice().reverse()
@@ -78,7 +81,7 @@ Scope {
 
             margins {
                 // Under the bar (4 + 39) and aligned with its right edge.
-                top: 52
+                top: 52 + root.topOffset
                 right: 14
             }
 
