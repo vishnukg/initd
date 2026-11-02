@@ -323,6 +323,12 @@ add_user_to_video_group() {
 
 # ── Service restarts (apply config changes without a reboot) ─────────────────
 restart_dunst() {
+  # From SSH or a TTY the relaunched dunst would have no WAYLAND_DISPLAY and die,
+  # leaving the session without notifications. It picks the config up next login.
+  if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
+    pgrep -x dunst >/dev/null 2>&1 && log_info "Not in the graphical session; dunst picks up its config on next login."
+    return 0
+  fi
   if pgrep -x dunst >/dev/null 2>&1; then
     pkill -x dunst; sleep 0.1
     dunst >/dev/null 2>&1 &

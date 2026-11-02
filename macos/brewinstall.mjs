@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 const defaultBrewfile = fileURLToPath(new URL('./Brewfile', import.meta.url));
 const usage = `Usage: brewinstall [--formula|--cask] <package>
 
-Add a Homebrew formula or cask to Brewfile, then install it with brew bundle.
+Add a Homebrew formula or cask to Brewfile, then install it with brew install.
 
   --formula, --brew  Add as a brew formula
   --cask             Add as a cask
@@ -75,9 +75,11 @@ export function main(args, { file = defaultBrewfile, run = spawnSync, log = cons
         kind = formula ? 'brew' : 'cask';
     }
     log(appendPackage(file, kind, name) ? `Added ${name} to ${file}.` : `${name} is already in ${file}.`);
+    // Install just this package: `brew bundle` on the whole file would also
+    // upgrade everything and trip over casks installed outside Homebrew.
     // Keep the curated entry if installation fails, so rerunning can retry.
-    const result = run('brew', ['bundle', '--file', file], { stdio: 'inherit' });
+    const result = run('brew', ['install', kind === 'cask' ? '--cask' : '--formula', name], { stdio: 'inherit' });
     if (result.error) throw result.error;
-    if (result.status !== 0) throw new Error(`brew bundle failed (${result.signal || result.status}); Brewfile entry retained for retry`);
-    log('Brewfile applied locally.');
+    if (result.status !== 0) throw new Error(`brew install failed (${result.signal || result.status}); Brewfile entry retained for retry`);
+    log(`Installed ${name}.`);
 }

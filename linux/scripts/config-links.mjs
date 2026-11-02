@@ -13,8 +13,11 @@ export function configureLinks({
     const options = { home, backupRoot, log };
     const scripts = path.join(root, 'linux/scripts');
     const configs = path.join(root, 'linux/configs');
-    const oldAudio = path.join(home, '.config/audio-ports.sh');
-    if (pointsTo(oldAudio, path.join(scripts, 'audio-ports.sh'))) backupPath(oldAudio, options);
+    // The .sh launchers these replaced are gone; links still pointing at them dangle.
+    for (const name of ['night-light-toggle', 'weather-popup', 'docker-menu', 'audio-ports']) {
+        const old = path.join(home, `.config/${name}.sh`);
+        if (pointsTo(old, path.join(scripts, `${name}.sh`))) backupPath(old, options);
+    }
 
     const links = [
         [path.join(root, 'shared/configs/ghostty/.config/ghostty/linux.conf'), path.join(configs, 'ghostty/linux.conf')],

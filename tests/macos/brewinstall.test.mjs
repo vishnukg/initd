@@ -60,7 +60,7 @@ test('brewinstall detects kind, preserves contents and mode, and retries without
     // Assert
     assert.equal(fs.readFileSync(f.file, 'utf8'), '# curated\nbrew "tool"\n');
     assert.equal(fs.statSync(f.file).mode & 0o777, 0o640);
-    assert.deepEqual(f.calls.at(-1), ['bundle', '--file', f.file]);
+    assert.deepEqual(f.calls.at(-1), ['install', '--formula', 'tool']);
 
     // Act
     main(['--formula', 'tool'], f);
@@ -105,12 +105,12 @@ for (const { name, args = ['tool'], result, expectedError } of [
     });
 }
 
-test('brewinstall reports bundle failure and retains the entry for a retry', t => {
+test('brewinstall reports install failure and retains the entry for a retry', t => {
     // Arrange
     const f = fixture(t);
 
     // Act: define the operation whose error behavior is checked below
-    const act = () => main(['--formula', 'tool'], { ...f, run: (_command, args) => ({ status: args[0] === 'bundle' ? 1 : 0 }) });
+    const act = () => main(['--formula', 'tool'], { ...f, run: (_command, args) => ({ status: args[0] === 'install' ? 1 : 0 }) });
 
     // Assert
     assert.throws(act, /retained for retry/);

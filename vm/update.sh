@@ -34,11 +34,14 @@ main() {
   require_command apt-get "to update Ubuntu packages"
 
   log "Upgrading apt packages..."
-  sudo apt-get update -q
-  sudo env DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y -q
+  sudo apt-get -o DPkg::Lock::Timeout=300 update -q
+  # confdef/confold: keep a locally edited config file (sshd_config, say)
+  # instead of stopping at dpkg's "keep or replace?" prompt.
+  sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 \
+    -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade -y -q
 
   log "Removing obsolete packages..."
-  sudo apt-get autoremove -y -q
+  sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 autoremove -y -q
 
   require_command mise "to update mise and its managed tools"
   log "Updating mise..."

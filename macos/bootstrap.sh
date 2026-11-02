@@ -17,6 +17,8 @@ export BACKUP_ROOT="${BACKUP_ROOT:-${HOME}/.config/initd-backups/$(date +%Y%m%d%
 # shellcheck disable=SC1091
 source "${SHARED_DIR}/lib/logging.sh"
 # shellcheck disable=SC1091
+source "${SHARED_DIR}/lib/profile.sh"
+# shellcheck disable=SC1091
 source "${SHARED_DIR}/managed-links.sh"
 # shellcheck disable=SC1091
 source "${MACOS_DIR}/brewfile.sh"
@@ -117,7 +119,8 @@ ensure_fish() {
       fisher install jorgebucaran/fisher
     end
     fisher update
-  " </dev/null
+  " </dev/null \
+    || log_warn "fisher plugin sync failed (offline?); re-run bootstrap or 'fisher update' later."
 }
 
 ensure_gh_auth() {
@@ -135,7 +138,7 @@ ensure_gh_auth() {
   fi
 
   log "Authenticating gh CLI..."
-  gh auth login
+  gh auth login || log_warn "gh auth login did not complete; continuing without it (private fonts and GitHub-hosted tools may be skipped)."
 }
 
 # Two settings the docker formula needs that Docker Desktop used to provide:
@@ -301,7 +304,7 @@ main() {
   trap 'rm -f "${brewfile_tmp}" "${brewfile_tmp}.tmp"' EXIT
 
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
-  log "Starting initd bootstrap for macOS."
+  log_bootstrap_summary macos
 
   ensure_xcode_clt
   ensure_homebrew
@@ -311,7 +314,8 @@ main() {
   prepare_brewfile
 
   log "Installing Homebrew packages and casks..."
-  brew bundle --file "${brewfile_tmp}"
+  # --no-upgrade: a re-run installs what is missing; upgrading is update.sh's job.
+  brew bundle --no-upgrade --file "${brewfile_tmp}"
 
   require_command mise "after brew bundle"
 
@@ -340,7 +344,10 @@ main() {
   mise -C "${ROOT_DIR}" trust "${SHARED_DIR}/configs/mise/.config/mise/config.toml"
 
   log "Installing shared runtimes and LSP tooling with mise..."
-  mise -C "${ROOT_DIR}" install --yes
+  # Not fatal: one tool failing to download (or GitHub rate-limiting a run
+  # without gh auth) must not skip the local steps after it. Re-run to finish.
+  mise -C "${ROOT_DIR}" install --yes \
+    || log_warn "mise install did not finish; re-run 'mise install' (after gh auth login if GitHub rate-limited it)."
 
   log "Configuring Claude Code's statusLine hook for the tmux usage pill..."
   run_node "${SHARED_DIR}/lib/claude-statusline.mjs"
@@ -367,7 +374,7 @@ main() {
   ensure_colima_service
 
   echo
-  log_success "initd finished for macOS."
+  log_success "initd finished for macOS (profile: $(initd_profile))."
 }
 
 # Guarded like linux/bootstrap.sh and linux/setup.sh: sourcing this file to

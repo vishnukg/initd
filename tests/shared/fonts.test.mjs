@@ -54,7 +54,7 @@ test('an unauthenticated machine skips the font sync and still succeeds', t => {
     assert.match(result.stderr, /gh is not authenticated/);
     assert.match(result.stdout, /gh auth login/);
     assert.equal(fs.existsSync(f.fonts), false);
-    assert.deepEqual(f.calls(), ['gh auth status']);
+    assert.deepEqual(f.calls(), ['gh auth token --hostname github.com']);
 });
 
 test('a missing gh is indistinguishable from an unauthenticated one', t => {
@@ -81,7 +81,7 @@ test('an authenticated machine clones the private repo into the gitignored direc
     // Assert
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Fonts cloned/);
-    assert.deepEqual(f.calls(), ['gh auth status', `gh repo clone vishnukg/fonts ${f.fonts} -- --quiet`]);
+    assert.deepEqual(f.calls(), ['gh auth token --hostname github.com', `gh repo clone vishnukg/fonts ${f.fonts} -- --quiet`]);
     assert.equal(fs.existsSync(f.fonts), true);
 });
 
@@ -113,7 +113,7 @@ test('an existing clone is updated, and an offline update keeps the fonts alread
     // Assert
     assert.equal(updated.status, 0, updated.stderr);
     assert.match(updated.stdout, /Fonts up to date/);
-    assert.deepEqual(f.calls(), [`git -C ${f.fonts} pull --ff-only --quiet`]);
+    assert.deepEqual(f.calls(), [`git -c credential.helper= -c credential.helper=!gh auth git-credential -C ${f.fonts} pull --ff-only --quiet`]);
 
     // Arrange
     f.tool('git', 'exit 1');

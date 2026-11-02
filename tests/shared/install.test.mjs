@@ -433,7 +433,7 @@ test('backups outside HOME stay beneath backupRoot', () => {
 test('personal links (SSH config, Ghostty dev box, commit signing) are made on a personal profile only', () => {
     // Arrange: a copy of the link manifests whose local.gitconfig we control.
     const copy = newHome('profile-root');
-    for (const file of ['shared/managed-links.sh', `${platform}/managed-links.sh`]) {
+    for (const file of ['shared/managed-links.sh', 'shared/lib/profile.sh', `${platform}/managed-links.sh`]) {
         fs.mkdirSync(path.join(copy, path.dirname(file)), { recursive: true });
         fs.copyFileSync(path.join(root, file), path.join(copy, file));
     }

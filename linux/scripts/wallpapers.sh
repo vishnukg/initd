@@ -14,6 +14,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${ROOT_DIR}/shared/lib/logging.sh"
 
+# Never stop for a username/password: a git that cannot authenticate fails, and
+# the paths below turn that into a warning.
+export GIT_TERMINAL_PROMPT=0
+
 WALLPAPERS_DIR="${HOME}/.local/share/wallpapers"
 WALLPAPERS_URL="https://github.com/vishnukg/wallpapers.git"
 

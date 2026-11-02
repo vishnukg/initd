@@ -26,9 +26,9 @@ MANAGED_LINKS=(
 # dev-box related and keeps its own ~/.ssh/config untouched. "Personal" is the email
 # git-profile.mjs wrote into local.gitconfig, so bootstraps set the Git
 # profile BEFORE linking.
-# Global/system git config are ignored: git parses them even with --file,
-# and an unreadable ~/.gitconfig would otherwise read as "not personal".
-if [[ "$(GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git config --file "${ROOT_DIR}/shared/configs/git/local.gitconfig" user.email 2>/dev/null || true)" == "vishnukg@gmail.com" ]]; then
+# shellcheck disable=SC1091
+source "${ROOT_DIR}/shared/lib/profile.sh"
+if [[ "$(initd_profile)" == personal ]]; then
   MANAGED_LINKS+=(
     "${HOME}/.ssh/config:${ROOT_DIR}/shared/configs/ssh/.ssh/config"
     "${HOME}/.config/ghostty-dev-box.conf:${ROOT_DIR}/shared/configs/ghostty/dev-box.conf"

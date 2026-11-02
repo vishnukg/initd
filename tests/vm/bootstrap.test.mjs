@@ -119,9 +119,9 @@ test('install_packages installs only the missing packages, after one apt update'
     assert.equal(result.status, 0, result.stderr);
     const apt = env.calls().filter(call => call.startsWith('apt-get '));
     assert.deepEqual(apt, [
-        'apt-get update -q',
-        'apt-get install -y -q --no-install-recommends tmux ncurses-term',
-        'apt-get install -y -q --no-install-recommends extra',
+        'apt-get -o DPkg::Lock::Timeout=300 update -q',
+        'apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends tmux ncurses-term',
+        'apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends extra',
     ]);
 });
 
@@ -161,8 +161,8 @@ test('ensure_trust_store upgrades an already-installed ca-certificates', () => {
     // Assert
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(env.calls().filter(call => call.startsWith('apt-get ')), [
-        'apt-get update -q',
-        'apt-get install -y -q --only-upgrade ca-certificates',
+        'apt-get -o DPkg::Lock::Timeout=300 update -q',
+        'apt-get -o DPkg::Lock::Timeout=300 install -y -q --only-upgrade ca-certificates',
     ]);
 });
 
@@ -212,7 +212,7 @@ test('ensure_fish_ppa keeps an installed fish 4 and replaces fish 3', () => {
     assert.equal(modern.calls().some(call => call.startsWith('add-apt-repository')), false);
     assert.equal(replaced.status, 0, replaced.stderr);
     assert.ok(legacy.calls().includes('add-apt-repository -y ppa:fish-shell/release-4'));
-    assert.ok(legacy.calls().includes('apt-get install -y -q --no-install-recommends fish'));
+    assert.ok(legacy.calls().includes('apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends fish'));
 });
 
 function githubFixture({ fingerprint = 'SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU', greeting = '' } = {}) {

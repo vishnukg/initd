@@ -55,7 +55,8 @@ main() {
   prepare_brewfile
 
   log "Installing any new Brewfile entries..."
-  brew bundle --file "${brewfile_tmp}"
+  # --no-upgrade: the brew upgrade below already upgrades everything once.
+  brew bundle --no-upgrade --file "${brewfile_tmp}"
 
   log "Upgrading Homebrew formulae and casks..."
   brew upgrade

@@ -746,9 +746,9 @@ test('updates install from the prepared Brewfile and remove the temporary copy',
     const f = fixture(t);
     const prepared = path.join(f.home, 'prepared-path');
     f.stub('brew', `
-if [[ "$1" == bundle && "$2" == --file ]]; then
-  printf '%s' "$3" > "${prepared}"
-  [[ "$(cat "$3")" == 'brew "mise"' ]] || exit 91
+if [[ "$1" == bundle && "$2" == --no-upgrade && "$3" == --file ]]; then
+  printf '%s' "$4" > "${prepared}"
+  [[ "$(cat "$4")" == 'brew "mise"' ]] || exit 91
 fi
 `);
     f.stub('mise');

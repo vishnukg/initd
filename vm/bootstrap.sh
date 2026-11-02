@@ -22,6 +22,8 @@ export BACKUP_ROOT="${BACKUP_ROOT:-${HOME}/.config/initd-backups/$(date +%Y%m%d%
 
 # shellcheck disable=SC1091
 source "${SHARED_DIR}/lib/logging.sh"
+# shellcheck disable=SC1091
+source "${SHARED_DIR}/lib/profile.sh"
 
 APT_UPDATED=0
 
@@ -48,15 +50,17 @@ apt_installed() {
 }
 
 # One `apt-get update` per run, however many steps need a fresh index.
+# Every apt-get call waits up to 5 min for the dpkg lock: on a fresh VM
+# cloud-init and unattended-upgrades often hold it for the first minutes.
 apt_update() {
   [[ "${APT_UPDATED}" == 1 ]] && return
-  sudo apt-get update -q
+  sudo apt-get -o DPkg::Lock::Timeout=300 update -q
   APT_UPDATED=1
 }
 
 apt_install() {
   apt_update
-  sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends "$@"
+  sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends "$@"
 }
 
 install_packages() {
@@ -99,7 +103,7 @@ CERTS_DIR=/etc/ssl/certs
 ensure_trust_store() {
   log "Upgrading ca-certificates to the archive's latest..."
   apt_update
-  sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --only-upgrade ca-certificates
+  sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 install -y -q --only-upgrade ca-certificates
 
   local root trusted=()
   for root in "${DISTRUSTED_ROOTS[@]}"; do
@@ -196,7 +200,7 @@ ensure_gh_auth() {
     return
   fi
   log "Authenticating gh CLI..."
-  gh auth login
+  gh auth login || log_warn "gh auth login did not complete; continuing without it (private fonts and GitHub-hosted tools may be skipped)."
 }
 
 # GitHub's published ed25519 host key fingerprint:
@@ -218,8 +222,10 @@ ensure_github_ssh() {
 
   if ! ssh-keygen -F github.com >/dev/null 2>&1; then
     local scanned fingerprint
-    scanned="$(ssh-keyscan -t ed25519 github.com 2>/dev/null)"
-    fingerprint="$(ssh-keygen -lf - <<< "${scanned}" | awk '{print $2}')"
+    scanned="$(ssh-keyscan -t ed25519 github.com 2>/dev/null || true)"
+    # Both `|| true`: offline, keyscan and keygen fail, and under pipefail that
+    # would end the run here with no message instead of the error below.
+    fingerprint="$(ssh-keygen -lf - <<< "${scanned}" 2>/dev/null | awk '{print $2}' || true)"
     if [[ "${fingerprint}" != "${GITHUB_ED25519_FINGERPRINT}" ]]; then
       log_error "github.com host key fingerprint ${fingerprint:-<none>} does not match GitHub's published one."
       return 1
@@ -240,8 +246,12 @@ ensure_github_ssh() {
     return
   else
     log "Adding this VM's SSH key to GitHub (gh asks once for the admin:public_key scope)..."
-    gh auth refresh -h github.com -s admin:public_key
-    gh ssh-key add "${key}.pub" --title "$(hostname) (initd vm)" --type authentication
+    if ! gh auth refresh -h github.com -s admin:public_key \
+      || ! gh ssh-key add "${key}.pub" --title "$(hostname) (initd vm)" --type authentication; then
+      log_warn "Could not add ${key}.pub to GitHub; leaving origin as it is."
+      log_info "Add it at github.com/settings/keys, then re-run vm/bootstrap.sh."
+      return
+    fi
   fi
 
   gh config set git_protocol ssh
@@ -286,7 +296,8 @@ ensure_fish() {
       fisher install jorgebucaran/fisher
     end
     fisher update
-  " </dev/null
+  " </dev/null \
+    || log_warn "fisher plugin sync failed (offline?); re-run bootstrap or 'fisher update' later."
 }
 
 # node@lts is named explicitly, as in shared/lib/link.sh: a bare
@@ -319,7 +330,7 @@ main() {
   ensure_ubuntu
 
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
-  log "Starting initd bootstrap for a headless VM."
+  log_bootstrap_summary vm
 
   install_packages
   ensure_trust_store
@@ -351,12 +362,15 @@ main() {
   mise trust "${SHARED_DIR}/configs/mise/.config/mise/config.toml"
 
   log "Installing shared runtimes and LSP tooling with mise..."
-  mise -C "${ROOT_DIR}" install --yes
+  # Not fatal: one tool failing to download (or GitHub rate-limiting a run
+  # without gh auth) must not skip the local steps after it. Re-run to finish.
+  mise -C "${ROOT_DIR}" install --yes \
+    || log_warn "mise install did not finish; re-run 'mise install' (after gh auth login if GitHub rate-limited it)."
 
   setup_git_profile
 
   echo
-  log_success "initd finished for the VM. Reconnect to land in fish + tmux."
+  log_success "initd finished for the VM (profile: $(initd_profile)). Reconnect to land in fish + tmux."
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

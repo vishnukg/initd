@@ -17,6 +17,8 @@ export BACKUP_ROOT="${BACKUP_ROOT:-${HOME}/.config/initd-backups/$(date +%Y%m%d%
 
 # shellcheck disable=SC1091
 source "${SHARED_DIR}/lib/logging.sh"
+# shellcheck disable=SC1091
+source "${SHARED_DIR}/lib/profile.sh"
 
 ensure_user_context() {
   if [[ "${EUID}" == "0" ]]; then
@@ -115,8 +117,15 @@ ensure_docker() {
   # see linux/configs/quickshell/shell.qml.
   # Preserve running containers on re-runs; socket activation applies on the
   # next boot without stopping a daemon that is already serving work.
-  sudo systemctl disable docker.service >/dev/null 2>&1 || true
-  sudo systemctl enable --now docker.socket
+  # Checked first so a fully set-up re-run needs no sudo here at all.
+  if [[ "$(systemctl is-enabled docker.socket 2>/dev/null || true)" == enabled \
+    && "$(systemctl is-enabled docker.service 2>/dev/null || true)" != enabled ]] \
+    && systemctl is-active --quiet docker.socket; then
+    log_success "docker.socket already enabled (docker.service socket-activated)."
+  else
+    sudo systemctl disable docker.service >/dev/null 2>&1 || true
+    sudo systemctl enable --now docker.socket
+  fi
   if id -nG "${account_name}" | grep -qw docker; then
     log_success "${account_name} already belongs to the docker group."
   else
@@ -133,7 +142,8 @@ ensure_coprs() {
   enabled="$(dnf copr list 2>/dev/null | grep -v '(disabled)' || true)"
   local copr
   for copr in "$@"; do
-    if grep -qF "/${copr}" <<< "${enabled}"; then
+    # Anchored: a bare substring match would let owner/name-git count as owner/name.
+    if grep -qE "/${copr}$" <<< "${enabled}"; then
       continue
     fi
     log "Enabling COPR ${copr}..."
@@ -216,7 +226,9 @@ queue_listed_packages() {
   # subversion); "c-development" is the actual build-essential equivalent
   # (gcc, gcc-c++, make, binutils, autoconf, automake, ...). dnf5 installs a
   # group named as @group in the same transaction as plain packages.
-  if dnf group info c-development 2>/dev/null | grep -qE '^Installed\s*:\s*yes'; then
+  # rpm -q is local; `dnf group info` as a normal user loads every repo's
+  # metadata into a per-user cache, a network round trip on most re-runs.
+  if rpm -q gcc gcc-c++ make >/dev/null 2>&1; then
     log_success "C Development Tools group already installed."
   else
     DNF_QUEUE+=("@c-development")
@@ -311,7 +323,7 @@ ensure_gh_auth() {
     return
   fi
   log "Authenticating gh CLI..."
-  gh auth login
+  gh auth login || log_warn "gh auth login did not complete; continuing without it (private fonts and GitHub-hosted tools may be skipped)."
 }
 
 ensure_fish() {
@@ -332,7 +344,9 @@ ensure_fish() {
   login_shell="$(getent passwd "${account_name}" | cut -d: -f7)"
   if [[ "${login_shell}" != "${fish_path}" ]]; then
     log "Setting fish as default shell for ${account_name}."
-    sudo chsh -s "${fish_path}" "${account_name}"
+    # usermod, not chsh: Fedora ships chsh in util-linux-user, which is not
+    # guaranteed on a fresh install; usermod is shadow-utils, always present.
+    sudo usermod -s "${fish_path}" "${account_name}"
   else
     log_success "fish is already the default shell."
   fi
@@ -346,7 +360,8 @@ ensure_fish() {
       fisher install jorgebucaran/fisher
     end
     fisher update
-  " </dev/null
+  " </dev/null \
+    || log_warn "fisher plugin sync failed (offline?); re-run bootstrap or 'fisher update' later."
 }
 
 # node@lts is named explicitly, as in shared/lib/link.sh: a bare
@@ -381,7 +396,7 @@ main() {
   ensure_fedora
 
   log_info "Backups for unmanaged configs will go under ${BACKUP_ROOT}"
-  log "Starting initd bootstrap for Linux."
+  log_bootstrap_summary linux
 
   # Repos first, each step queueing what is missing; then one dnf transaction.
   queue_listed_packages
@@ -435,10 +450,13 @@ main() {
   mise trust "${SHARED_DIR}/configs/mise/.config/mise/config.toml"
 
   log "Installing shared runtimes and LSP tooling with mise..."
-  mise -C "${ROOT_DIR}" install --yes
+  # Not fatal: one tool failing to download (or GitHub rate-limiting a run
+  # without gh auth) must not skip the local steps after it. Re-run to finish.
+  mise -C "${ROOT_DIR}" install --yes \
+    || log_warn "mise install did not finish; re-run 'mise install' (after gh auth login if GitHub rate-limited it)."
 
   echo
-  log_success "initd finished for Linux."
+  log_success "initd finished for Linux (profile: $(initd_profile))."
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

@@ -42,7 +42,9 @@ main() {
     key="$(awk -v item="${item}" 'tolower($3) == tolower(item) { print; exit }' <<< "${listing}")"
 
     if [[ -n "${key}" ]]; then
-      mkdir -p -m 700 "${HOME}/.ssh"
+      # -m only applies when mkdir creates it; link.sh may already have made
+      # ~/.ssh (for ~/.ssh/config) with the default 0755.
+      mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
       # 0600 although public: when the agent is locked ssh tries this path as a
       # private key, and a 0644 file buys a wall of "UNPROTECTED" warnings.
       printf "%s\n" "${key}" > "${pub}"
