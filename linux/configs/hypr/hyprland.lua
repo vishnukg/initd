@@ -19,6 +19,15 @@ hl.env("PATH", home .. "/.local/share/mise/shims:" .. home .. "/.local/bin:" .. 
 hl.env("XCURSOR_SIZE", "24")
 hl.env("XCURSOR_THEME", "Adwaita")
 
+-- Qt apps (EasyEffects, Media Writer) follow the GTK theme the way Omarchy 4
+-- does it: Qt's own gtk3 platform theme (libqgtk3.so, shipped in
+-- qt6-qtbase-gui) hands Fusion the GTK palette, so Qt windows go dark with
+-- everything else and track any later GTK theme change. No Kvantum and no
+-- QT_STYLE_OVERRIDE: Omarchy dropped both, since Kvantum never followed the
+-- GTK theme. Wayland first, XWayland as the fallback.
+hl.env("QT_QPA_PLATFORM", "wayland;xcb")
+hl.env("QT_QPA_PLATFORMTHEME", "gtk3")
+
 -- No realtime scheduling for the compositor. Since 0.57, Hyprland asks rtkit
 -- for SCHED_RR and in exchange accepts RLIMIT_RTTIME at rtkit's
 -- RTTimeUSecMax: 150 ms soft / 200 ms hard of CPU without blocking. Hotplugging
@@ -64,18 +73,23 @@ hl.config({
 -- but xdg-desktop-autostart.target is started by the session manager (GNOME
 -- does, Hyprland doesn't), so nm-applet's, blueman's and 1Password's
 -- /etc/xdg/autostart entries would otherwise be skipped.
-local session_vars = "WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE"
+local session_vars = "WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORM QT_QPA_PLATFORMTHEME"
 hl.on("hyprland.start", function()
-    -- Make portals (screenshare, file pickers) see the session environment,
-    -- then reach graphical-session.target and (re)start hyprmoncfgd under it.
+    -- Make portals (screenshare, file pickers) and D-Bus- or systemd-started
+    -- apps see the session environment (the QT_QPA_* pair included, so a
+    -- Qt app started that way still follows the GTK theme), then reach
+    -- graphical-session.target and (re)start hyprmoncfgd under it.
     hl.exec_cmd("sh -c '"
         .. "dbus-update-activation-environment --systemd " .. session_vars
         .. " && systemctl --user import-environment " .. session_vars
         .. " && systemctl --user start initd-hyprland-session.service"
         .. " && systemctl --user restart hyprmoncfgd.service'")
 
-    -- Polkit auth agent (GNOME ships its own inside gnome-shell; Hyprland needs one).
-    hl.exec_cmd("lxpolkit")
+    -- Polkit auth agent (GNOME ships its own inside gnome-shell; Hyprland needs
+    -- one): the password prompt for pkexec, 1Password's system unlock and the
+    -- like. mate-polkit is GTK3, so it gets adw-gtk3-dark; lxpolkit was GTK2
+    -- and drew in the old default look. Its XDG autostart entry is MATE-only.
+    hl.exec_cmd("/usr/libexec/polkit-mate-authentication-agent-1")
 
     hl.exec_cmd("qs")
     hl.exec_cmd("dunst")

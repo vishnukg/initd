@@ -14,6 +14,7 @@ MANAGED_LINKS+=(
   "${HOME}/.config/dunst:${ROOT_DIR}/linux/configs/dunst"
   "${HOME}/.config/fontconfig:${ROOT_DIR}/linux/configs/fontconfig"
   "${HOME}/.config/gtk-3.0:${ROOT_DIR}/linux/configs/gtk-3.0"
+  "${HOME}/.config/gtk-4.0:${ROOT_DIR}/linux/configs/gtk-4.0"
   # A real unit, not a drop-in: a oneshot no-op that hyprland.lua starts from
   # its autostart block so graphical-session.target is reached under Hyprland
   # the way it is under GNOME. Nothing enables it; hyprland.lua starts it.

@@ -35,7 +35,7 @@ initd/
 │   ├── update.sh
 │   ├── scripts/                 # session scripts invoked by hyprland.lua/Quickshell
 │   └── configs/                 # hypr, hyprmoncfg, quickshell, rofi, dunst, fontconfig,
-│                                #   systemd, gtk-3.0, ghostty, firefox
+│                                #   systemd, gtk-3.0, gtk-4.0, ghostty, firefox
 └── vm/                          # self-contained headless VM bootstrap (Ubuntu 24.04+, apt)
     ├── bootstrap.sh             # bash bootstrap.sh vm
     ├── packages.txt             # apt package list: CLI tools + build deps, no desktop
@@ -124,6 +124,7 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 | `~/.config/dunst` | `linux/configs/dunst` |
 | `~/.config/fontconfig` | `linux/configs/fontconfig` |
 | `~/.config/gtk-3.0` | `linux/configs/gtk-3.0` |
+| `~/.config/gtk-4.0` | `linux/configs/gtk-4.0` |
 | `~/.config/systemd/user/initd-hyprland-session.service` | `linux/configs/systemd/user/initd-hyprland-session.service` |
 | `~/.config/systemd/user/hyprmoncfgd.service.d` | `linux/configs/systemd/user/hyprmoncfgd.service.d` (Hyprland-only condition for the packaged daemon) |
 | `~/.config/systemd/user/night-light.service`, `night-light-schedule.service`, `night-light-schedule.timer` | `linux/configs/systemd/user/` (gammastep as a unit; warm 19:00–07:00) |

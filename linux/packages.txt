@@ -27,7 +27,10 @@ quickshell
 rofi
 dunst
 libnotify
-lxpolkit
+# Polkit auth agent (password prompts, e.g. 1Password's system unlock). GTK3, so
+# it gets adw-gtk3-dark like every other GTK app; lxpolkit, used before, is GTK2,
+# which no installed theme covers, so its prompt drew in the old default look.
+mate-polkit
 hyprmoncfg
 grim
 slurp
