@@ -19,6 +19,13 @@ source "${ROOT_DIR}/shared/lib/logging.sh"
 export GIT_TERMINAL_PROMPT=0
 
 WALLPAPERS_DIR="${HOME}/.local/share/wallpapers"
+# SSH first, so the clone can push the way initd does; HTTPS (read-only, the
+# repo is public) when SSH cannot authenticate. On a fresh machine it usually
+# cannot yet: this runs before shared/lib/ssh-keys.sh writes the GitHub public
+# key the SSH config names, a work machine has no GitHub key at all, and
+# known_hosts may not hold github.com. A clone that fell back stays on HTTPS;
+# switch it later with `git remote set-url origin <the SSH URL below>`.
+WALLPAPERS_SSH_URL="git@github.com:vishnukg/wallpapers.git"
 WALLPAPERS_URL="https://github.com/vishnukg/wallpapers.git"
 
 main() {
@@ -44,9 +51,19 @@ main() {
     return
   fi
 
-  log "Cloning wallpapers (${WALLPAPERS_URL})..."
   mkdir -p "$(dirname "${WALLPAPERS_DIR}")"
-  # Shallow: the history is only images that are no longer used.
+  # Shallow: the history is only images that are no longer used. BatchMode
+  # makes ssh fail rather than ask (an unknown host key, a passphrase), which
+  # GIT_TERMINAL_PROMPT does not cover; git removes a failed clone's directory,
+  # so the HTTPS attempt starts clean.
+  log "Cloning wallpapers (${WALLPAPERS_SSH_URL})..."
+  if GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10" \
+    git clone --depth 1 --quiet "${WALLPAPERS_SSH_URL}" "${WALLPAPERS_DIR}"; then
+    log_success "Wallpapers cloned into ${WALLPAPERS_DIR}."
+    return
+  fi
+
+  log_warn "SSH clone failed — falling back to HTTPS (${WALLPAPERS_URL})."
   if git clone --depth 1 --quiet "${WALLPAPERS_URL}" "${WALLPAPERS_DIR}"; then
     log_success "Wallpapers cloned into ${WALLPAPERS_DIR}."
   else

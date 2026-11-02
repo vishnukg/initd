@@ -13,6 +13,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
+const sshUrl = 'git@github.com:vishnukg/wallpapers.git';
 const url = 'https://github.com/vishnukg/wallpapers.git';
 
 function fixture(t) {
@@ -40,7 +41,7 @@ function fixture(t) {
     };
 }
 
-test('a fresh machine clones the wallpapers repo into the XDG data dir', t => {
+test('a fresh machine clones the wallpapers repo over SSH into the XDG data dir', t => {
     // Arrange
     const f = fixture(t);
     f.git('[ "$1" = clone ] && mkdir -p "$6/.git"\nexit 0');
@@ -51,11 +52,43 @@ test('a fresh machine clones the wallpapers repo into the XDG data dir', t => {
     // Assert
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Wallpapers cloned/);
-    assert.deepEqual(f.calls(), [`git clone --depth 1 --quiet ${url} ${f.wallpapers}`]);
+    assert.deepEqual(f.calls(), [`git clone --depth 1 --quiet ${sshUrl} ${f.wallpapers}`]);
     assert.equal(fs.existsSync(path.join(f.wallpapers, '.git')), true);
 });
 
-test('a failed clone warns without failing the bootstrap', t => {
+test('the SSH clone never prompts: ssh runs in batch mode', t => {
+    // Arrange
+    const f = fixture(t);
+    f.git('echo "ssh: $GIT_SSH_COMMAND" >> "$(dirname "$0")/../calls"\n[ "$1" = clone ] && mkdir -p "$6/.git"\nexit 0');
+
+    // Act
+    const result = f.run();
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(f.calls().join('\n'), /ssh: ssh -o BatchMode=yes/);
+});
+
+test('a clone SSH cannot authenticate falls back to HTTPS', t => {
+    // Arrange
+    const f = fixture(t);
+    f.git(`case "$*" in *${sshUrl}*) exit 128 ;; esac\n[ "$1" = clone ] && mkdir -p "$6/.git"\nexit 0`);
+
+    // Act
+    const result = f.run();
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr, /falling back to HTTPS/);
+    assert.match(result.stdout, /Wallpapers cloned/);
+    assert.deepEqual(f.calls(), [
+        `git clone --depth 1 --quiet ${sshUrl} ${f.wallpapers}`,
+        `git clone --depth 1 --quiet ${url} ${f.wallpapers}`,
+    ]);
+    assert.equal(fs.existsSync(path.join(f.wallpapers, '.git')), true);
+});
+
+test('a clone that fails over both SSH and HTTPS warns without failing the bootstrap', t => {
     // Arrange
     const f = fixture(t);
     f.git('exit 128');
