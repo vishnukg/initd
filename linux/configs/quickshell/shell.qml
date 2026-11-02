@@ -943,7 +943,13 @@ ShellRoot {
                         // Wi-Fi password dialog), so its tray icon is filtered out
                         // here, and trayRole() drops blueman's SNI item too.
                         BarGroup {
+                            // With no tray apps the group would still cost the row
+                            // one extra gap. Keyed off the count, not implicitWidth:
+                            // a hidden layout reports 0 and could never come back.
+                            visible: trayRepeater.count > 0
+
                             Repeater {
+                                id: trayRepeater
                                 model: ScriptModel {
                                     values: SystemTray.items.values.filter(function (item) {
                                         return BarLogic.trayRole(item.id, item.title) === "other";

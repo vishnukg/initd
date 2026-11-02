@@ -7,7 +7,7 @@ import "bar-logic.mjs" as BarLogic
 
 // The bar's palette, by role. Defaults are the hand-tuned dark palette the
 // bar always had; linux/scripts/theme.mjs rewrites
-// ~/.local/state/initd/theme.json from the wallpaper (matugen) and this
+// ~/.local/state/initd/theme.json (the fixed blue palette) and this
 // picks the change up through an inotify watch -- no polling, no restart.
 // BarLogic.themeColors() validates every role, so a missing or corrupt file
 // keeps the defaults rather than painting the bar black.

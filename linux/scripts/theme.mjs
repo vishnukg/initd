@@ -11,7 +11,10 @@
 // Commands:
 //   apply <image>  extract a dark scheme from <image> with matugen and write all of it
 //   ensure         write the default palette for anything missing (every login, setup.sh)
-//   defaults       write the default palette over everything
+//   defaults       write the default (blue) palette over everything and set GNOME's accent
+//
+// A wallpaper change (wallpaper.mjs) writes the defaults, not a matugen scheme:
+// the desktop is blue whatever the image.
 //
 // Stability rules: every file is written atomically (temp + rename), so a
 // reader never sees half a file; if matugen is missing or fails, `apply`
@@ -227,6 +230,23 @@ export function applyTheme(image, { home = os.homedir(), run = execFileSync, set
     return theme;
 }
 
+// The fixed blue palette, recorded against the current wallpaper. This is what
+// a wallpaper change writes: the desktop stays blue whatever the image (a
+// matugen scheme from a moon photo came out yellow). `apply <image>` is still
+// there to try a wallpaper-derived scheme by hand.
+export function applyDefaultTheme(wallpaper = '', { home = os.homedir(), run = execFileSync, setAccent = true } = {}) {
+    writeTheme(DEFAULT_THEME, { home, wallpaper });
+    if (setAccent) {
+        try {
+            run('gsettings', ['set', 'org.gnome.desktop.interface', 'accent-color', nearestAccent(DEFAULT_THEME.accent)],
+                { stdio: 'ignore', timeout: 5000 });
+        } catch {
+            // No gsettings (or no session bus): GTK4 apps keep their accent.
+        }
+    }
+    return DEFAULT_THEME;
+}
+
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
     const [command, image] = process.argv.slice(2);
     try {
@@ -237,7 +257,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
             const written = ensureTheme();
             if (written.length) console.log(`theme: wrote defaults for ${written.length} missing file(s)`);
         } else if (command === 'defaults') {
-            writeTheme(DEFAULT_THEME);
+            applyDefaultTheme();
             console.log('theme: defaults written');
         } else {
             throw new Error('usage: theme.mjs apply <image> | ensure | defaults');

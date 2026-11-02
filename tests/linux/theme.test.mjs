@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-    DEFAULT_THEME, applyTheme, ensureTheme, nearestAccent, outputs, parseMatugen,
+    DEFAULT_THEME, applyDefaultTheme, applyTheme, ensureTheme, nearestAccent, outputs, parseMatugen,
     renderHyprlock, renderRofi, renderThemeJson, themeFromScheme, writeTheme,
 } from '../../linux/scripts/theme.mjs';
 import { THEME_DEFAULTS, themeColors } from '../../linux/configs/quickshell/bar-logic.mjs';
@@ -129,4 +129,22 @@ test('applyTheme leaves the current theme alone when matugen fails', () => {
     assert.throws(() => applyTheme(image, { home, run }), /command not found/);
     assert.equal(fs.readFileSync(outputs(home).json, 'utf8'), before);
     assert.throws(() => applyTheme(path.join(home, 'missing.jpg'), { home, run }), /no such image/);
+});
+
+test('applyDefaultTheme keeps the blue palette whatever the wallpaper', () => {
+    // Arrange
+    const home = tempHome();
+    writeTheme(themeFromScheme(scheme), { home });
+    const calls = [];
+    const run = (command, args) => { calls.push([command, ...args]); return ''; };
+    // Act
+    applyDefaultTheme('/walls/full-moon.jpg', { home, run });
+    // Assert
+    const json = JSON.parse(fs.readFileSync(outputs(home).json, 'utf8'));
+    assert.equal(json.wallpaper, '/walls/full-moon.jpg');
+    assert.deepEqual(json.colors, DEFAULT_THEME);
+    assert.equal(nearestAccent(DEFAULT_THEME.accent), 'blue');
+    assert.ok(calls.some((c) => c[0] === 'gsettings' && c.includes('blue')));
+    assert.ok(!calls.some((c) => c[0] === 'matugen'));
+    assert.match(fs.readFileSync(outputs(home).rofi, 'utf8'), new RegExp(`accent: +${DEFAULT_THEME.accent}`));
 });

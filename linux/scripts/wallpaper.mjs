@@ -24,7 +24,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { applyTheme, ensureTheme } from './theme.mjs';
+import { applyDefaultTheme, ensureTheme } from './theme.mjs';
 
 const HOME = os.homedir();
 export const LIBRARY = path.join(HOME, '.local/share/wallpapers');
@@ -159,9 +159,9 @@ export function setWallpaper(source) {
         console.error(`wallpaper: hyprpaper did not take it (${error.message.split('\n')[0]})`);
     }
     try {
-        applyTheme(image);
+        // The palette stays blue; this only records the new image (hyprlock).
+        applyDefaultTheme(image);
     } catch (error) {
-        // matugen missing or failed: the wallpaper changed, the theme did not.
         console.error(`wallpaper: theme not updated (${error.message})`);
     }
     return image;

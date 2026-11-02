@@ -129,10 +129,11 @@ hl.on("hyprland.start", function()
     -- exe.dev keys (~/.ssh/config): without it running and unlocked, git
     -- push/pull and Ghostty's dev box windows fail with "Permission denied
     -- (publickey)". The cost is ~645 MB idle across three Electron processes
-    -- on a 16 GB machine. No startup delay: the bar places tray icons by role
-    -- (nm-applet, native Bluetooth, then the rest), so registration order no
-    -- longer decides where its icon lands.
-    hl.exec_cmd("1password --silent")
+    -- on a 16 GB machine. It waits (up to 10 s) for the bar's tray watcher:
+    -- Electron registers its tray icon once at startup and never retries, so
+    -- started alongside Quickshell it ran with no icon at all. Order within
+    -- the tray is not the reason -- the bar places icons by role.
+    hl.exec_cmd("sh -c 'for i in $(seq 50); do busctl --user status org.kde.StatusNotifierWatcher >/dev/null 2>&1 && break; sleep 0.2; done; exec 1password --silent'")
 end)
 
 -- ── Media / hardware keys ─────────────────────────────────────────────────────
