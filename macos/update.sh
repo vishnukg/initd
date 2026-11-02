@@ -20,7 +20,7 @@ Runs:
   brew upgrade
   brew cleanup
   mise -C "${ROOT_DIR}" upgrade --yes
-  fisher update (if installed)
+  fisher update (when fish and fisher are installed)
   brew bundle cleanup (report only — lists installs the Brewfile doesn't own)
 
 Options:
@@ -68,10 +68,13 @@ main() {
   log "Upgrading mise-managed tools..."
   mise -C "${ROOT_DIR}" upgrade --yes
 
-  if command -v fish &>/dev/null && fish -c "type -q fisher" 2>/dev/null; then
+  if command -v fish >/dev/null 2>&1 && fish -c "type -q fisher" 2>/dev/null; then
     log "Updating fish plugins..."
-    # fisher reads plugin names from a non-tty stdin; /dev/null keeps it from waiting.
-    fish -c "fisher update" </dev/null
+    # fisher reads plugin names from a non-tty stdin; /dev/null keeps it from
+    # waiting. The token lifts GitHub's 60-an-hour anonymous API limit. Not
+    # fatal: a failed plugin fetch must not skip the steps after it.
+    GITHUB_TOKEN="$(gh auth token 2>/dev/null || true)" fish -c "fisher update" </dev/null \
+      || log_warn "fisher update failed; re-run macos/update.sh or 'fisher update' later."
   fi
 
   # Report only: surfaces packages installed outside the Brewfile so the machine
