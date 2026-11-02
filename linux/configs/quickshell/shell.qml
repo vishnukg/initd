@@ -19,17 +19,6 @@ ShellRoot {
     id: root
 
     property bool barVisible: true
-    // Desktop widgets (DesktopWidgets.qml); `qs ipc call bar toggleDesktop`.
-    property bool desktopVisible: true
-    // Arrange mode (DesktopEditor.qml): right-click a widget, $mod+SHIFT+d,
-    // or `qs ipc call bar editDesktop`.
-    property bool desktopEditing: false
-    readonly property var clockDate: clock.date
-    // Desktop news widget (NewsCard.qml): { updated, sections }, from
-    // ~/.config/news.mjs every 20 min. Fetched here, not per screen, so a
-    // second monitor does not double the requests.
-    property var news: ({ updated: "", sections: [] })
-    signal resetDesktop()
     property string cpuText: "--%"
     property string cpuTooltip: "CPU usage unavailable"
     property string memoryText: "--G"
@@ -310,24 +299,8 @@ ShellRoot {
             root.barVisible = !root.barVisible;
         }
 
-        function toggleDesktop(): void {
-            root.desktopVisible = !root.desktopVisible;
-        }
-
-        function resetDesktop(): void {
-            root.resetDesktop();
-        }
-
-        function editDesktop(): void {
-            root.desktopEditing = !root.desktopEditing;
-        }
-
         function refreshWeather(): void {
             root.refreshWeather();
-        }
-
-        function refreshNews(): void {
-            root.start(newsProcess);
         }
 
         function refreshBrightness(): void {
@@ -553,35 +526,6 @@ ShellRoot {
         running: true
         triggeredOnStart: true
         onTriggered: root.refreshWeather()
-    }
-
-    Process {
-        id: newsProcess
-        command: [Quickshell.env("HOME") + "/.config/news.mjs"]
-        stdout: StdioCollector {
-            onStreamFinished: root.news = BarLogic.mergeNews(root.news, text)
-        }
-    }
-
-    Timer {
-        interval: 20 * 60 * 1000
-        repeat: true
-        running: true
-        triggeredOnStart: true
-        onTriggered: root.start(newsProcess)
-    }
-
-    // One set of desktop widgets per screen, under every window.
-    Variants {
-        model: Quickshell.screens
-
-        delegate: Component {
-            DesktopWidgets {
-                required property var modelData
-                screen: modelData
-                shell: root
-            }
-        }
     }
 
     Variants {

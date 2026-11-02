@@ -193,8 +193,6 @@ hl.bind(mod .. " + f", hl.dsp.window.fullscreen({ mode = "fullscreen", action = 
 -- Preserve all tiled splits while using the full output: hide the bar and
 -- release its exclusive screen space without changing window state.
 hl.bind(mod .. " + SHIFT + f", hl.dsp.exec_cmd("qs ipc call bar toggle"))
--- Arrange the desktop widgets (drag, then Esc/Done); right-click a widget does the same.
-hl.bind(mod .. " + SHIFT + d", hl.dsp.exec_cmd("qs ipc --any-display call bar editDesktop"))
 
 -- i3 stacking/tabbed layouts → Hyprland groups (a group renders as tabs).
 -- $mod+w and $mod+s both toggle the group (Hyprland has no separate stacked
@@ -401,17 +399,6 @@ hl.window_rule({
 hl.layer_rule({
     name = "quickshell-bar-blur",
     match = { namespace = "quickshell-bar" },
-    blur = true,
-    ignore_alpha = 0.20,
-})
-
--- Same for the desktop widgets (one surface each, WidgetWindow.qml): blur only
--- behind the cards, not the transparent space around the clock text.
-hl.layer_rule({
-    name = "quickshell-desktop-blur",
-    -- Anchored: the arrange overlay (quickshell-desktop-editor) must not
-    -- blur, or it would blur the very widgets being arranged under it.
-    match = { namespace = "^quickshell-desktop$" },
     blur = true,
     ignore_alpha = 0.20,
 })
