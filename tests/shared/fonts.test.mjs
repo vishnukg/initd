@@ -34,10 +34,18 @@ function fixture(t) {
             `#!/bin/sh\necho "${name} $*" >> ${calls}\n${body}\n`, { mode: 0o755 }),
         // cwd is the scratch tree: a fake that mishandles a relative path must
         // not be able to create anything inside the checkout.
-        run: () => spawnSync('bash', [path.join(lib, 'fonts.sh')], {
-            cwd: dir, env: { PATH: `${bin}:/usr/bin:/bin`, HOME: dir, NO_COLOR: '1' },
-            encoding: 'utf8', timeout: 10000,
-        }),
+        // isolated: PATH is the fake bin alone, so a real gh in /usr/bin cannot
+        // stand in for a missing one. fonts.sh needs only dirname before its gh
+        // check, so that is the one real tool linked in.
+        run: ({ isolated = false } = {}) => {
+            if (isolated && !fs.existsSync(path.join(bin, 'dirname'))) {
+                fs.symlinkSync(fs.realpathSync('/usr/bin/dirname'), path.join(bin, 'dirname'));
+            }
+            return spawnSync(fs.realpathSync('/usr/bin/bash'), [path.join(lib, 'fonts.sh')], {
+                cwd: dir, env: { PATH: isolated ? bin : `${bin}:/usr/bin:/bin`, HOME: dir, NO_COLOR: '1' },
+                encoding: 'utf8', timeout: 10000,
+            });
+        },
     };
 }
 
@@ -62,7 +70,7 @@ test('a missing gh is indistinguishable from an unauthenticated one', t => {
     const f = fixture(t);
 
     // Act
-    const result = f.run();
+    const result = f.run({ isolated: true });
 
     // Assert
     assert.equal(result.status, 0);
