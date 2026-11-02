@@ -346,6 +346,11 @@ main() {
   log "Checking GitHub SSH access..."
   ensure_github_ssh
 
+  # Before linking, as on macOS and Linux, and before the long mise install so
+  # every prompt (gh auth, the SSH key, this) comes first and the rest runs
+  # unattended. Gets node through mise exec, so it needs no mise install yet.
+  setup_git_profile
+
   log "Linking managed configs into ${HOME}..."
   "${SHARED_DIR}/lib/link.sh" vm
 
@@ -366,8 +371,6 @@ main() {
   # without gh auth) must not skip the local steps after it. Re-run to finish.
   mise -C "${ROOT_DIR}" install --yes \
     || log_warn "mise install did not finish; re-run 'mise install' (after gh auth login if GitHub rate-limited it)."
-
-  setup_git_profile
 
   echo
   log_success "initd finished for the VM (profile: $(initd_profile)). Reconnect to land in fish + tmux."
