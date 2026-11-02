@@ -17,6 +17,7 @@ Runs:
   sudo apt-get autoremove -y
   mise self-update --yes
   mise -C "${ROOT_DIR}" upgrade --yes
+  fisher update (when fish and fisher are installed)
 
 Options:
   -h, --help     Show this help.
@@ -49,6 +50,15 @@ main() {
 
   log "Upgrading mise-managed tools..."
   mise -C "${ROOT_DIR}" upgrade --yes
+
+  if command -v fish >/dev/null 2>&1 && fish -c "type -q fisher" 2>/dev/null; then
+    log "Updating fish plugins..."
+    # fisher reads plugin names from a non-tty stdin; /dev/null keeps it from
+    # waiting. The token lifts GitHub's 60-an-hour anonymous API limit, as in
+    # vm/bootstrap.sh. Not fatal: a failed plugin fetch must not fail the run.
+    GITHUB_TOKEN="$(gh auth token 2>/dev/null || true)" fish -c "fisher update" </dev/null \
+      || log_warn "fisher update failed; re-run vm/update.sh or 'fisher update' later."
+  fi
 
   log_success "Machine update complete."
 }
