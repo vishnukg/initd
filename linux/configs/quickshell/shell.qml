@@ -341,6 +341,25 @@ ShellRoot {
         return "󰕾";
     }
 
+    // Each workspace keeps its own pastel, so the active pill says which one
+    // you are on at a glance. These stay fixed rather than following the
+    // wallpaper theme: a colour per number only helps if it never changes.
+    function workspaceColor(id) {
+        const colors = [
+            "#8fb7e8", // 1 blue
+            "#8fd6b8", // 2 green
+            "#e8a0b5", // 3 pink
+            "#c4b5fd", // 4 purple
+            "#e8b87a", // 5 amber
+            "#7dd3c7", // 6 teal
+            "#e89a8f", // 7 coral
+            "#e8d78a", // 8 yellow
+            "#b9a3e3", // 9 violet
+            "#8fd8e8"  // 10 cyan
+        ];
+        return colors[(id - 1) % colors.length];
+    }
+
     function workspaceForId(id, screen) {
         const monitor = Hyprland.monitorFor(screen);
         const workspaces = Hyprland.workspaces.values;
@@ -785,7 +804,7 @@ ShellRoot {
                                 Layout.fillHeight: true
                                 radius: 8
                                 color: active
-                                    ? Theme.accent
+                                    ? root.workspaceColor(workspaceId)
                                     : workspaceHover.hovered ? "#18ffffff" : "transparent"
 
                                 Behavior on color {
@@ -795,7 +814,8 @@ ShellRoot {
                                 Text {
                                     anchors.centerIn: parent
                                     text: workspaceButton.workspaceId
-                                    color: workspaceButton.active ? Theme.onAccent : Theme.textMuted
+                                    // Every pastel is light, so one dark label reads on all of them.
+                                    color: workspaceButton.active ? "#0b0c10" : Theme.textMuted
                                     font.family: "Inter"
                                     font.pixelSize: 18
                                     font.weight: workspaceButton.active ? Font.Bold : Font.DemiBold
