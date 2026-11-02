@@ -18,6 +18,20 @@ hl.env("PATH", home .. "/.local/share/mise/shims:" .. home .. "/.local/bin:" .. 
 hl.env("XCURSOR_SIZE", "24")
 hl.env("XCURSOR_THEME", "Adwaita")
 
+-- No realtime scheduling for the compositor. Since 0.57, Hyprland asks rtkit
+-- for SCHED_RR and in exchange accepts RLIMIT_RTTIME at rtkit's
+-- RTTimeUSecMax: 150 ms soft / 200 ms hard of CPU without blocking. Hotplugging
+-- the Dell U2725QE (4K@120 over USB-C) overran it: the kernel SIGKILLed
+-- Hyprland in the middle of bringing the output up, so there was no core and no
+-- crash report, and start-hyprland restarted it in safe mode. The SIGXCPU
+-- handler at the soft limit never ran ("Realtime budget exceeded" was never
+-- logged), so the time was spent where a signal cannot land. Startup with the
+-- monitor already attached survived only because realtime is requested after
+-- the first modeset. Hyprland reads this once at startup, after the config is
+-- parsed, so it takes effect from the next login; it restores 0.56's normal
+-- scheduling.
+hl.env("HYPRLAND_NO_RT", "1")
+
 -- ── Monitors ──────────────────────────────────────────────────────────────────
 -- Wayland replaces the whole autorandr/xsettingsd/Xft.dpi machinery with
 -- per-monitor scale. 1.33333 on the laptop panel (2560x1600, ~224 PPI) — a

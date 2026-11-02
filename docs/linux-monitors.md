@@ -153,3 +153,24 @@ client can fix that. Short-press the power button for a clean shutdown (logind
 treats it as power-off), and grab
 `/run/user/1000/hypr/*/hyprland.log` from the console first, since a reboot
 wipes it.
+
+## Hyprland dies when a monitor is plugged in
+
+Symptom: plugging in the Dell U2725QE kills Hyprland, and `start-hyprland`
+restarts it in safe mode (default config, no bar or keybinds). The journal shows
+`Couldn't waitpid for hyprland: No child processes` followed by
+`Hyprland exit not-cleanly, restarting`. There is no Hyprland core dump and no
+`~/.cache/hyprland/hyprlandCrashReport*.txt`.
+
+Cause: since 0.57 Hyprland asks rtkit for realtime scheduling and accepts
+`RLIMIT_RTTIME` in exchange: 150 ms soft / 200 ms hard of CPU without blocking
+(`grep -i realtime /proc/$(pgrep -x Hyprland)/limits`). Bringing up a 4K@120
+output on hotplug overran it, and the kernel's SIGKILL at the hard limit leaves
+none of the usual traces. That `waitpid` line is how start-hyprland reports a
+child killed by a signal rather than one that exited. Startup with the monitor
+already attached survives, because realtime is requested after the first
+modeset.
+
+Fix: `hl.env("HYPRLAND_NO_RT", "1")` in `hyprland.lua`. Hyprland reads it once
+at startup, so log out and back in after changing it, then check with
+`ps -o cls -p $(pgrep -x Hyprland)` (`TS` means realtime is off, `RR` means it is on).
