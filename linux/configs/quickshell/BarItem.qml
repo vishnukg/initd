@@ -11,7 +11,7 @@ Rectangle {
     // tinted with `foreground` like a glyph would be, so colour still carries
     // state; the source should be a light, single-colour symbol.
     property url iconSource: ""
-    property color foreground: "#e8eaf0"
+    property color foreground: Theme.text
     property color background: "transparent"
     property bool clickable: false
     property bool secondaryClickable: false

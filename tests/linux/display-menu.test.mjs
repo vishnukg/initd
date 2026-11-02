@@ -1,4 +1,4 @@
-// DisplayMenu.qml parses `hyprmoncfg status --json` inline - there is no
+// Displays.qml parses `hyprmoncfg status --json` inline - there is no
 // JavaScript module between the tool and the bar, so nothing else in this suite
 // would notice the day hyprmoncfg renames a field. These checks assert only the
 // keys that popup actually reads.
@@ -19,7 +19,7 @@ function status() {
     return JSON.parse(result.stdout);
 }
 
-test('hyprmoncfg still speaks the status schema DisplayMenu is written against', { skip: noHyprmoncfg }, () => {
+test('hyprmoncfg still speaks the status schema Displays.qml is written against', { skip: noHyprmoncfg }, () => {
     // Act
     const reading = status();
 
@@ -77,12 +77,12 @@ test('apply is still invoked with the confirmation prompt disabled', () => {
     // Without --confirm-timeout 0, apply prompts, reads EOF from a popup that
     // has no tty, reverts the profile and exits 1. This is a source assertion
     // rather than a live one: running apply would relayout the real session.
-    const menu = fs.readFileSync(path.join(root, 'linux/configs/quickshell/DisplayMenu.qml'), 'utf8');
+    const menu = fs.readFileSync(path.join(root, 'linux/configs/quickshell/Displays.qml'), 'utf8');
 
     // Act
     const applyCommand = menu.match(/"hyprmoncfg",\s*"apply"[^\]]*/);
 
     // Assert
-    assert.ok(applyCommand, 'DisplayMenu still shells out to hyprmoncfg apply');
+    assert.ok(applyCommand, 'Displays.qml still shells out to hyprmoncfg apply');
     assert.match(applyCommand[0], /"--confirm-timeout",\s*"0"/);
 });

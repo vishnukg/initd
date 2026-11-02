@@ -123,7 +123,7 @@ Scope {
             anchors.fill: parent
             focus: true
             Keys.onEscapePressed: root.close()
-            color: "#f20d0e12"
+            color: Theme.menu
             border.width: 1
             border.color: "#24ffffff"
             radius: 12
@@ -167,7 +167,7 @@ Scope {
 
                             Text {
                                 text: "‹"
-                                color: "#8fb7e8"
+                                color: Theme.accent
                                 font.family: "Inter"
                                 font.pixelSize: 22
                             }
@@ -175,7 +175,7 @@ Scope {
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: "Back"
-                                color: "#e8eaf0"
+                                color: Theme.text
                                 font.family: "Inter"
                                 font.pixelSize: 14
                                 font.weight: Font.DemiBold
@@ -251,12 +251,12 @@ Scope {
                                         height: 14
                                         radius: entry.modelData.buttonType === QsMenuButtonType.RadioButton ? 7 : 4
                                         color: entry.modelData.checkState === Qt.Checked
-                                            ? "#8fb7e8"
+                                            ? Theme.accent
                                             : "transparent"
                                         border.width: 1
                                         border.color: entry.modelData.checkState === Qt.Checked
-                                            ? "#8fb7e8"
-                                            : "#656a78"
+                                            ? Theme.accent
+                                            : Theme.textDim
                                     }
                                 }
 
@@ -265,7 +265,7 @@ Scope {
                                     text: root.cleanLabel(entry.modelData.text)
                                         + (entry.inlineHeader && availableOpener.children.values.length === 0
                                             ? " — none reported" : "")
-                                    color: entry.interactive ? "#e8eaf0" : "#656a78"
+                                    color: entry.interactive ? Theme.text : Theme.textDim
                                     elide: Text.ElideRight
                                     font.family: "Inter"
                                     font.pixelSize: 14
@@ -275,7 +275,7 @@ Scope {
                                 Text {
                                     visible: entry.modelData.hasChildren && !entry.inlineHeader
                                     text: "›"
-                                    color: "#8fb7e8"
+                                    color: Theme.accent
                                     font.family: "Inter"
                                     font.pixelSize: 21
                                 }

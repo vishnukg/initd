@@ -59,7 +59,7 @@ Scope {
             implicitWidth: column.implicitWidth + 22
             implicitHeight: column.implicitHeight + 16
             radius: 10
-            color: "#f20d0e12"
+            color: Theme.menu
             border.width: 1
             border.color: "#24ffffff"
 
@@ -72,7 +72,7 @@ Scope {
                 Text {
                     visible: root.title !== ""
                     text: root.title
-                    color: "#7f8493"
+                    color: Theme.textDim
                     font.family: "Inter"
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
@@ -81,7 +81,7 @@ Scope {
                 Text {
                     visible: root.body !== ""
                     text: root.body
-                    color: "#e8eaf0"
+                    color: Theme.text
                     font.family: "Inter"
                     font.pixelSize: 14
                     font.weight: Font.Medium

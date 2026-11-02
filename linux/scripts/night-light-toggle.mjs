@@ -62,7 +62,7 @@ export async function nightLight(args = [], {
             notify('Off');
         }
     } finally {
-        bestEffort('qs', ['ipc', 'call', 'bar', 'refreshNightLight']);
+        bestEffort('qs', ['ipc', '--any-display', 'call', 'bar', 'refreshNightLight']);
     }
 }
 

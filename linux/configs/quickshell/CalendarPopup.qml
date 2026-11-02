@@ -54,7 +54,7 @@ Scope {
 
         Rectangle {
             anchors.fill: parent
-            color: "#f20d0e12"
+            color: Theme.menu
             border.width: 1
             border.color: "#24ffffff"
             radius: 14
@@ -83,7 +83,7 @@ Scope {
                         Text {
                             anchors.centerIn: parent
                             text: "‹"
-                            color: "#aeb4c3"
+                            color: Theme.textMuted
                             font.family: "Inter"
                             font.pixelSize: 24
                         }
@@ -101,7 +101,7 @@ Scope {
                     Text {
                         anchors.centerIn: parent
                         text: Qt.formatDate(new Date(root.shownYear, root.shownMonth, 1), "MMMM yyyy")
-                        color: "#e8eaf0"
+                        color: Theme.text
                         font.family: "Inter"
                         font.pixelSize: 17
                         font.weight: Font.Bold
@@ -120,7 +120,7 @@ Scope {
                         Text {
                             anchors.centerIn: parent
                             text: "›"
-                            color: "#aeb4c3"
+                            color: Theme.textMuted
                             font.family: "Inter"
                             font.pixelSize: 24
                         }
@@ -150,7 +150,7 @@ Scope {
                             width: 38
                             height: 24
                             text: modelData
-                            color: "#656a78"
+                            color: Theme.textDim
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             font.family: "Inter"
@@ -172,14 +172,14 @@ Scope {
                             width: 38
                             height: 34
                             radius: 9
-                            color: todayCell ? "#8fb7e8" : "transparent"
+                            color: todayCell ? Theme.accent : "transparent"
 
                             Text {
                                 anchors.centerIn: parent
                                 text: parent.cellDate.getDate()
                                 color: parent.todayCell
-                                    ? "#0b0c10"
-                                    : parent.currentMonth ? "#e8eaf0" : "#4d515d"
+                                    ? Theme.onAccent
+                                    : parent.currentMonth ? Theme.text : Theme.textDisabled
                                 font.family: "Inter"
                                 font.pixelSize: 14
                                 font.weight: parent.todayCell ? Font.Bold : Font.Medium

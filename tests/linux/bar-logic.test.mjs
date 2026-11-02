@@ -673,3 +673,73 @@ test('trackTime formats Mpris seconds as m:ss or h:mm:ss', () => {
     assert.equal(BarLogic.trackTime(-3), '0:00');
     assert.equal(BarLogic.trackTime(NaN), '0:00');
 });
+
+test('bar-logic.mjs avoids syntax the QML JavaScript engine rejects', () => {
+    // Node accepts these, so every other test here passes, but Quickshell's
+    // V4 engine refuses the module and the whole bar fails to load. An
+    // optional catch binding (`catch {`) took the bar down once already.
+    // Arrange
+    const source = fs.readFileSync(fileURLToPath(new URL(
+        '../../linux/configs/quickshell/bar-logic.mjs', import.meta.url)), 'utf8');
+    // Act / Assert
+    assert.doesNotMatch(source, /\bcatch\s*\{/, 'use `catch (error) {`');
+});
+
+test('themeColors takes valid roles from theme.json and defaults the rest', () => {
+    // Arrange
+    const text = JSON.stringify({ wallpaper: '/w.jpg', colors: {
+        accent: '#FFB4A8', text: '#ffffff', bar: '#b3201a19',
+        textMuted: 'red', menu: '#12345', bogus: '#000000',
+    } });
+    // Act
+    const colors = BarLogic.themeColors(text);
+    // Assert
+    assert.equal(colors.accent, '#ffb4a8');
+    assert.equal(colors.text, '#ffffff');
+    assert.equal(colors.bar, '#b3201a19');
+    assert.equal(colors.textMuted, BarLogic.THEME_DEFAULTS.textMuted);
+    assert.equal(colors.menu, BarLogic.THEME_DEFAULTS.menu);
+    assert.equal(colors.bogus, undefined);
+});
+
+test('themeColors falls back to the whole default palette on a bad file', () => {
+    for (const text of ['', '{', 'null', '[]', '{"colors": 3}'])
+        assert.deepEqual(BarLogic.themeColors(text), BarLogic.THEME_DEFAULTS, text);
+});
+
+test('bannerTimeout defaults to 5 s, clamps requests to 3-15 s, and pins critical', () => {
+    assert.equal(BarLogic.bannerTimeout(-1, false), 5000);
+    assert.equal(BarLogic.bannerTimeout(0, false), 5000);
+    assert.equal(BarLogic.bannerTimeout(undefined, false), 5000);
+    assert.equal(BarLogic.bannerTimeout(1, false), 3000);
+    assert.equal(BarLogic.bannerTimeout(8, false), 8000);
+    assert.equal(BarLogic.bannerTimeout(600, false), 15000);
+    assert.equal(BarLogic.bannerTimeout(8, true), 0);
+});
+
+test('wifiNetworkList dedupes by name and orders connected, saved, then signal', () => {
+    // Arrange: "Home" broadcast by two access points; one hidden network.
+    const networks = [
+        { name: 'Cafe', known: false, connected: false, signalStrength: 0.9 },
+        { name: 'Home', known: true, connected: false, signalStrength: 0.4 },
+        { name: 'Home', known: true, connected: true, signalStrength: 0.3 },
+        { name: 'Office', known: true, connected: false, signalStrength: 0.7 },
+        { name: '', known: false, connected: false, signalStrength: 1 },
+        { name: 'Weak', known: false, connected: false, signalStrength: 0.1 },
+    ];
+    // Act
+    const list = BarLogic.wifiNetworkList(networks);
+    // Assert
+    assert.deepEqual(list.map((n) => n.name), ['Home', 'Office', 'Cafe', 'Weak']);
+    assert.equal(list[0].connected, true);
+    assert.deepEqual(BarLogic.wifiNetworkList(null), []);
+});
+
+test('wifiSignalIcon picks one of four bars and accepts 0-100 readings', () => {
+    assert.equal(BarLogic.wifiSignalIcon(0.9), '\u{f0928}');
+    assert.equal(BarLogic.wifiSignalIcon(90), '\u{f0928}');
+    assert.equal(BarLogic.wifiSignalIcon(0.6), '\u{f0925}');
+    assert.equal(BarLogic.wifiSignalIcon(0.3), '\u{f0922}');
+    assert.equal(BarLogic.wifiSignalIcon(0.05), '\u{f091f}');
+    assert.equal(BarLogic.wifiSignalIcon(undefined), '\u{f091f}');
+});

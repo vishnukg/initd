@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly wallpaper rotation (a no-op while rotation is off)
+
+[Timer]
+OnCalendar=hourly
+# A missed hour (asleep) is skipped, not caught up on wake.
+Persistent=false
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

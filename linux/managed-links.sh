@@ -27,6 +27,12 @@ MANAGED_LINKS+=(
   "${HOME}/.config/systemd/user/night-light.service:${ROOT_DIR}/linux/configs/systemd/user/night-light.service"
   "${HOME}/.config/systemd/user/night-light-schedule.service:${ROOT_DIR}/linux/configs/systemd/user/night-light-schedule.service"
   "${HOME}/.config/systemd/user/night-light-schedule.timer:${ROOT_DIR}/linux/configs/systemd/user/night-light-schedule.timer"
+  # Quickshell (bar, notifications, panels) as a restartable unit; setup.sh
+  # enables it into graphical-session.target.
+  "${HOME}/.config/systemd/user/initd-quickshell.service:${ROOT_DIR}/linux/configs/systemd/user/initd-quickshell.service"
+  # Hourly wallpaper rotation (skipped unless rotation is on); setup.sh enables the timer.
+  "${HOME}/.config/systemd/user/initd-wallpaper-rotate.service:${ROOT_DIR}/linux/configs/systemd/user/initd-wallpaper-rotate.service"
+  "${HOME}/.config/systemd/user/initd-wallpaper-rotate.timer:${ROOT_DIR}/linux/configs/systemd/user/initd-wallpaper-rotate.timer"
 )
 
 # Berkeley Mono — licensed font, gitignored (see .gitignore). shared/fonts/ is

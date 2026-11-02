@@ -1,0 +1,15 @@
+[Unit]
+Description=Rotate the wallpaper to the next in its collection
+# Only when rotation is on (quick settings' "Rotate wallpaper", or
+# `wallpaper.mjs rotation on`): otherwise systemd skips the unit outright and
+# not even node starts. Hyprland-only: it switches hyprpaper over IPC.
+ConditionPathExists=%h/.local/state/initd/wallpaper-rotate
+ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland
+
+[Service]
+Type=oneshot
+Nice=10
+# The user manager does not have Hyprland's PATH; matugen and magick are in
+# /usr/bin, node is a mise shim.
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/share/mise/shims/node %h/.config/wallpaper.mjs rotate

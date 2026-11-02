@@ -375,3 +375,98 @@ export function trackTime(seconds) {
         ? hours + ':' + String(minutes).padStart(2, '0') + ':' + secs
         : minutes + ':' + secs;
 }
+
+// --- Theme (Theme.qml) ---
+
+// The roles Theme.qml exposes, with the hand-tuned dark palette the bar had
+// before wallpaper theming. A role missing from theme.json, or holding
+// anything but a #rrggbb / #aarrggbb colour, keeps its default -- so a
+// half-written or corrupt file degrades to the old look, never to black.
+export const THEME_DEFAULTS = {
+    accent: '#8fb7e8',
+    onAccent: '#0b0c10',
+    text: '#e8eaf0',
+    textMuted: '#aeb4c3',
+    textDim: '#656a78',
+    textDisabled: '#52566a',
+    bar: '#b30b0c10',
+    menu: '#f20d0e12',
+    good: '#8fd6b8',
+    warn: '#e8b87a',
+    bad: '#e0788a',
+};
+
+export function themeColors(text) {
+    const result = Object.assign({}, THEME_DEFAULTS);
+    let parsed;
+    try {
+        parsed = JSON.parse(text);
+    } catch (error) {
+        return result;
+    }
+    const colors = parsed && typeof parsed === 'object' ? parsed.colors : null;
+    if (!colors || typeof colors !== 'object')
+        return result;
+    for (const role of Object.keys(THEME_DEFAULTS)) {
+        const value = colors[role];
+        if (typeof value === 'string' && /^#([0-9a-f]{6}|[0-9a-f]{8})$/i.test(value))
+            result[role] = value.toLowerCase();
+    }
+    return result;
+}
+
+// --- Notifications (Notifications.qml) ---
+
+// How long a banner stays up, in ms. `expireTimeout` is the app's request in
+// seconds as Quickshell reports it (<= 0: "server default"). Critical ones
+// stay until dismissed (0 = no timer); everything else gets the request
+// clamped to 3-15 s, or 5 s by default, so no app can pin a banner.
+export function bannerTimeout(expireTimeout, critical) {
+    if (critical)
+        return 0;
+    const seconds = Number(expireTimeout);
+    if (!(seconds > 0))
+        return 5000;
+    return Math.round(Math.min(15, Math.max(3, seconds)) * 1000);
+}
+
+// --- Wi-Fi page (QuickSettings.qml) ---
+
+// Signal strength as a 0..1 fraction; Quickshell reports 0..1, but a 0..100
+// reading is accepted too so a backend change cannot zero every bar.
+export function signalFraction(strength) {
+    const value = Number(strength);
+    if (!isFinite(value) || value <= 0)
+        return 0;
+    return Math.min(1, value > 1 ? value / 100 : value);
+}
+
+// nf-md-wifi_strength_1..4 by signal.
+export function wifiSignalIcon(strength) {
+    const s = signalFraction(strength);
+    if (s >= 0.75) return "\u{f0928}";
+    if (s >= 0.5) return "\u{f0925}";
+    if (s >= 0.25) return "\u{f0922}";
+    return "\u{f091f}";
+}
+
+// The networks to list: one row per name (several access points broadcast the
+// same network; the strongest stands for it), hidden/unnamed ones dropped,
+// connected first, then saved, then by signal.
+export function wifiNetworkList(networks) {
+    const best = {};
+    for (let i = 0; i < (networks || []).length; i++) {
+        const n = networks[i];
+        if (!n || !n.name)
+            continue;
+        const current = best[n.name];
+        const rank = (x) => (x.connected ? 2 : 0) + signalFraction(x.signalStrength);
+        if (!current || rank(n) > rank(current))
+            best[n.name] = n;
+    }
+    return Object.keys(best).map((name) => best[name]).sort((a, b) => {
+        if (!!a.connected !== !!b.connected) return a.connected ? -1 : 1;
+        if (!!a.known !== !!b.known) return a.known ? -1 : 1;
+        return signalFraction(b.signalStrength) - signalFraction(a.signalStrength);
+    });
+}

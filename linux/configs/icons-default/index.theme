@@ -1,4 +1,5 @@
 [Icon Theme]
 Name=Default
 Comment=Default Cursor Theme
-Inherits=Adwaita
+# Breeze when breeze-cursor-theme is installed; Adwaita otherwise (always there).
+Inherits=breeze_cursors,Adwaita

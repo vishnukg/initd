@@ -206,6 +206,27 @@ enable_hyprmoncfg() {
   systemctl --user start hyprmoncfgd.service >/dev/null 2>&1 || true
 }
 
+configure_wallpaper() {
+  # The wallpaper link hyprpaper.conf points at, and the theme files the bar,
+  # rofi and hyprlock read (defaults until a wallpaper is picked). Idempotent;
+  # Hyprland runs the same `ensure` at every login before hyprpaper starts.
+  run_node "${SCRIPTS_DIR}/wallpaper.mjs" ensure
+  systemctl --user daemon-reload
+  systemctl --user enable --now initd-wallpaper-rotate.timer >/dev/null 2>&1
+  log_success "Wallpaper link and theme files in place; hourly rotation timer enabled."
+}
+
+enable_quickshell() {
+  # The bar runs as a user unit so a crash restarts it (Restart=on-failure)
+  # instead of leaving the session without a bar until the next login. It is
+  # WantedBy=graphical-session.target and Hyprland-only; hyprland.lua also
+  # restarts it at every login so it picks up the fresh session environment.
+  # Not started here: from SSH or a TTY there is no Wayland session for it.
+  systemctl --user daemon-reload
+  systemctl --user enable initd-quickshell.service >/dev/null 2>&1
+  log_success "Quickshell unit enabled (restarts on failure)."
+}
+
 enable_night_light_schedule() {
   # Units are managed links (linux/managed-links.sh). The timer fires `auto`
   # at 07:00 and 19:00; the oneshot is also wanted by graphical-session.target
@@ -256,9 +277,14 @@ apply_gsettings_theme() {
   gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark"
   gsettings set org.gnome.desktop.interface icon-theme "Papirus-Dark"
   gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"
-  # No Fedora package ships the DMZ cursors used on the old Ubuntu machine;
-  # Adwaita is always present, no extra package needed.
-  gsettings set org.gnome.desktop.interface cursor-theme "Adwaita"
+  # Breeze (breeze-cursor-theme, packages.txt) when installed, else Adwaita,
+  # which is always present -- the same choice hyprland.lua makes for
+  # XCURSOR_THEME, so GTK apps and Hyprland draw the same cursor.
+  if [[ -f /usr/share/icons/breeze_cursors/index.theme ]]; then
+    gsettings set org.gnome.desktop.interface cursor-theme "breeze_cursors"
+  else
+    gsettings set org.gnome.desktop.interface cursor-theme "Adwaita"
+  fi
   # 56 (the old laptop's value) was oversized on this machine's display; 24 is
   # Fedora/GNOME's own out-of-box default. hyprland.lua's hl.env("XCURSOR_SIZE", ...)
   # is what actually controls the on-screen cursor under Hyprland itself
@@ -340,22 +366,6 @@ add_user_to_video_group() {
   log_warn "Log out and back in for the video group to take effect."
 }
 
-# ── Service restarts (apply config changes without a reboot) ─────────────────
-restart_dunst() {
-  # From SSH or a TTY the relaunched dunst would have no WAYLAND_DISPLAY and die,
-  # leaving the session without notifications. It picks the config up next login.
-  if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
-    pgrep -x dunst >/dev/null 2>&1 && log_info "Not in the graphical session; dunst picks up its config on next login."
-    return 0
-  fi
-  if pgrep -x dunst >/dev/null 2>&1; then
-    pkill -x dunst; sleep 0.1
-    dunst >/dev/null 2>&1 &
-    disown
-    log "dunst restarted."
-  fi
-}
-
 usage() {
   cat <<EOF
 Usage: ${0##*/} [--firefox-only | --chrome-only]
@@ -421,6 +431,8 @@ main() {
   configure_links
   enable_hyprmoncfg
   enable_night_light_schedule
+  enable_quickshell
+  configure_wallpaper
 
   apply_gsettings_theme
   apply_gsettings_keyboard
@@ -430,7 +442,6 @@ main() {
   configure_ghostty_launcher
   add_user_to_video_group
 
-  restart_dunst
 
   log_success "Linux tweaks applied."
 }

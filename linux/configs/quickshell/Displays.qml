@@ -2,11 +2,12 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
+// Monitor profiles (hyprmoncfg): the readout and the switch behind quick
+// settings' Displays page. Logic only -- QuickSettings.qml draws the page and
+// creates this with it, so the one `hyprmoncfg status --json` runs when the
+// panel opens, not in the background.
 Scope {
     id: root
-
-    required property var anchorItem
-    required property var barWindow
 
     // Straight out of `hyprmoncfg status --json`: the monitor list is a
     // readout, the profile list is the choice. Both come from the one call.
@@ -35,15 +36,6 @@ Scope {
             statusProcess.running = true;
     }
 
-    function open() {
-        root.refresh();
-        popup.visible = true;
-    }
-
-    function close() {
-        popup.visible = false;
-    }
-
     // hyprmoncfg owns the generated monitor config and its daemon reasserts the
     // layout on every monitor event, so switching profiles is the only sound
     // way to change resolution from here -- `hyprctl keyword monitor` would be
@@ -63,7 +55,6 @@ Scope {
             "--confirm-timeout", "0"
         ];
         applyProcess.running = true;
-        root.close();
     }
 
     function monitorIcon(monitor) {
@@ -181,151 +172,5 @@ Scope {
         onTriggered: root.refresh()
     }
 
-    // The bar item shows the display count and the active profile, so the
-    // reading has to be warm before the menu is ever opened.
     Component.onCompleted: root.refresh()
-
-    PopupWindow {
-        id: popup
-
-        visible: false
-        color: "transparent"
-        grabFocus: true
-        implicitWidth: 340
-        implicitHeight: Math.min(menuColumn.implicitHeight + 28, 620)
-
-        anchor {
-            window: root.barWindow
-            item: root.anchorItem
-            edges: Edges.Top
-            gravity: Edges.Top
-            adjustment: PopupAdjustment.SlideX | PopupAdjustment.FlipY
-        }
-
-        Rectangle {
-            anchors.fill: parent
-            color: "#f20d0e12"
-            border.width: 1
-            border.color: "#24ffffff"
-            radius: 14
-
-            Flickable {
-                anchors.fill: parent
-                anchors.margins: 8
-                contentHeight: menuColumn.implicitHeight
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-
-                Column {
-                    id: menuColumn
-
-                    width: parent.width
-                    spacing: 2
-
-                    Item {
-                        width: parent.width
-                        height: 36
-
-                        Text {
-                            anchors {
-                                left: parent.left
-                                leftMargin: 10
-                                verticalCenter: parent.verticalCenter
-                            }
-                            text: "Displays"
-                            color: "#656a78"
-                            font.family: "Inter"
-                            font.pixelSize: 12
-                            font.weight: Font.DemiBold
-                        }
-                    }
-
-                    Repeater {
-                        model: root.monitors
-
-                        delegate: MenuRow {
-                            required property var modelData
-                            width: menuColumn.width
-                            icon: root.monitorIcon(modelData)
-                            label: root.monitorLabel(modelData)
-                            tag: root.monitorTag(modelData)
-                            // A monitor row states what is connected; the
-                            // profile list below is where the choice is made.
-                            interactive: false
-                        }
-                    }
-
-                    Item {
-                        width: parent.width
-                        height: 10
-                    }
-
-                    Rectangle {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: parent.width - 16
-                        height: 1
-                        color: "#18ffffff"
-                    }
-
-                    Item {
-                        width: parent.width
-                        height: 34
-
-                        Text {
-                            anchors {
-                                left: parent.left
-                                leftMargin: 10
-                                verticalCenter: parent.verticalCenter
-                            }
-                            text: "Profiles"
-                            color: "#656a78"
-                            font.family: "Inter"
-                            font.pixelSize: 12
-                            font.weight: Font.DemiBold
-                        }
-
-                        Text {
-                            anchors {
-                                right: parent.right
-                                rightMargin: 12
-                                verticalCenter: parent.verticalCenter
-                            }
-                            visible: !root.daemonRunning
-                            text: "daemon stopped"
-                            color: "#e8b87a"
-                            font.family: "Inter"
-                            font.pixelSize: 11
-                            font.weight: Font.DemiBold
-                        }
-                    }
-
-                    Repeater {
-                        model: root.profiles
-
-                        delegate: MenuRow {
-                            required property var modelData
-                            width: menuColumn.width
-                            icon: "󰍺"
-                            label: modelData.name
-                            tag: root.profileTag(modelData)
-                            checked: modelData.active
-                            onActivated: root.applyProfile(modelData.name)
-                        }
-                    }
-
-                    Text {
-                        visible: root.profiles.length === 0
-                        width: parent.width
-                        height: visible ? 30 : 0
-                        leftPadding: 10
-                        verticalAlignment: Text.AlignVCenter
-                        text: "No saved profiles — run hyprmoncfg tui"
-                        color: "#656a78"
-                        font.family: "Inter"
-                        font.pixelSize: 13
-                    }
-                }
-            }
-        }
-    }
 }

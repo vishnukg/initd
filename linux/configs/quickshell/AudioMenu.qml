@@ -189,7 +189,7 @@ Scope {
 
         Rectangle {
             anchors.fill: parent
-            color: "#f20d0e12"
+            color: Theme.menu
             border.width: 1
             border.color: "#24ffffff"
             radius: 14
@@ -218,7 +218,7 @@ Scope {
                                 verticalCenter: parent.verticalCenter
                             }
                             text: "Output"
-                            color: "#656a78"
+                            color: Theme.textDim
                             font.family: "Inter"
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
@@ -247,8 +247,8 @@ Scope {
                                         ? "󰝟"
                                         : "󰕾"
                                     color: root.sink && root.sink.audio && root.sink.audio.muted
-                                        ? "#52566a"
-                                        : "#e8eaf0"
+                                        ? Theme.textDisabled
+                                        : Theme.text
                                     font.family: "FiraCode Nerd Font"
                                     font.pixelSize: 17
                                 }
@@ -259,8 +259,8 @@ Scope {
                                         ? Math.round(root.sink.audio.volume * 100) + "%"
                                         : "--%"
                                     color: root.sink && root.sink.audio && root.sink.audio.muted
-                                        ? "#52566a"
-                                        : "#e8eaf0"
+                                        ? Theme.textDisabled
+                                        : Theme.text
                                     font.family: "Inter"
                                     font.pixelSize: 13
                                     font.weight: Font.DemiBold
@@ -318,7 +318,7 @@ Scope {
                                 verticalCenter: parent.verticalCenter
                             }
                             text: "Input"
-                            color: "#656a78"
+                            color: Theme.textDim
                             font.family: "Inter"
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
@@ -346,7 +346,7 @@ Scope {
                         leftPadding: 10
                         verticalAlignment: Text.AlignVCenter
                         text: "No input devices"
-                        color: "#656a78"
+                        color: Theme.textDim
                         font.family: "Inter"
                         font.pixelSize: 13
                     }

@@ -13,7 +13,7 @@ try {
     const location = lines.shift() || 'Weather';
     const details = lines.join('\n');
     run('notify-send', ['-t', '8000', '-h', 'string:x-canonical-private-synchronous:weather', `  ${location}`, details]);
-    run('qs', ['ipc', 'call', 'bar', 'refreshWeather']);
+    run('qs', ['ipc', '--any-display', 'call', 'bar', 'refreshWeather']);
 } catch {
     run('notify-send', ['-t', '3000', 'Weather', 'wttr.in unreachable']);
 }

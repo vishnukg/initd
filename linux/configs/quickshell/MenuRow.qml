@@ -39,7 +39,7 @@ Item {
             Layout.preferredWidth: 18
             horizontalAlignment: Text.AlignHCenter
             text: root.icon
-            color: root.checked ? "#8fb7e8" : "#aeb4c3"
+            color: root.checked ? Theme.accent : Theme.textMuted
             font.family: "FiraCode Nerd Font"
             font.pixelSize: 16
         }
@@ -47,7 +47,7 @@ Item {
         Text {
             Layout.fillWidth: true
             text: root.label
-            color: root.checked ? "#e8eaf0" : "#aeb4c3"
+            color: root.checked ? Theme.text : Theme.textMuted
             elide: Text.ElideRight
             font.family: "Inter"
             font.pixelSize: 14
@@ -57,7 +57,7 @@ Item {
         Text {
             visible: root.tag !== ""
             text: root.tag
-            color: "#656a78"
+            color: Theme.textDim
             font.family: "Inter"
             font.pixelSize: 11
             font.weight: Font.DemiBold
@@ -67,7 +67,7 @@ Item {
             Layout.preferredWidth: 14
             horizontalAlignment: Text.AlignHCenter
             text: root.checked ? "󰄬" : ""
-            color: "#8fb7e8"
+            color: Theme.accent
             font.family: "FiraCode Nerd Font"
             font.pixelSize: 14
         }

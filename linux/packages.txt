@@ -25,6 +25,8 @@ xdg-desktop-portal-gtk
 xorg-x11-server-Xwayland
 quickshell
 rofi
+# dunst is only the fallback notification server now: Quickshell owns
+# org.freedesktop.Notifications, and D-Bus starts dunst only while qs is down.
 dunst
 libnotify
 # Polkit auth agent (password prompts, e.g. 1Password's system unlock). GTK3, so
@@ -72,6 +74,13 @@ papirus-icon-theme-dark
 adw-gtk3-theme
 google-noto-sans-fonts
 rsms-inter-fonts
+# Wallpaper-driven colour theme (linux/scripts/theme.mjs): matugen extracts a
+# Material You palette from the wallpaper; ImageMagick pre-scales wallpapers
+# to the monitor and makes the picker's thumbnails (wallpaper.mjs).
+matugen
+ImageMagick
+# Cursor: KDE's Breeze, a cleaner modern cursor than Adwaita (any toolkit).
+breeze-cursor-theme
 
 # ── Dev tools (cross-platform equivalents of Brewfile entries) ───────────────
 fish

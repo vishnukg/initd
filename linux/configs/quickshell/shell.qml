@@ -39,6 +39,42 @@ ShellRoot {
     property string weatherSunrise: ""
     property string weatherSunset: ""
     property string backlightText: "--%"
+    property real backlightValue: 0
+    readonly property var clockDate: clock.date
+
+    // Quick settings (QuickSettings.qml), created only while open.
+    property bool panelOpen: false
+    // When the sheet last closed: a click on the bar button first clears the
+    // sheet's focus grab (closing it), and must not then reopen it.
+    property real panelClosedAt: 0
+    onPanelOpenChanged: if (!panelOpen) panelClosedAt = Date.now()
+    // Inhibits idle (no auto-lock or screen-off) through every bar window.
+    property bool keepAwake: false
+    // Workspace overview (Overview.qml), created only while open.
+    property bool overviewOpen: false
+
+    function togglePanel() {
+        if (!panelOpen && Date.now() - panelClosedAt < 300)
+            return;
+        panelOpen = !panelOpen;
+    }
+
+    function toggleNightLight() {
+        start(nightLightToggleProcess);
+    }
+
+    // The brightness slider fires on every pixel of a drag; run brightnessctl
+    // one at a time and always finish on the latest value.
+    property int brightnessPending: -1
+    function setBrightness(fraction) {
+        brightnessPending = Math.round(Math.max(0.02, Math.min(1, fraction)) * 100);
+        backlightValue = brightnessPending / 100;
+        if (!brightnessProcess.running) {
+            brightnessProcess.command = ["brightnessctl", "-q", "set", brightnessPending + "%"];
+            brightnessPending = -1;
+            brightnessProcess.running = true;
+        }
+    }
     property bool nightLightOn: false
     // Straight off NetworkManager's D-Bus signals, so the tray icon flips the
     // moment the link does -- this used to be `nmcli device status` every 3s.
@@ -50,6 +86,39 @@ ShellRoot {
     // Last /proc/stat reading; CPU load is the delta to the next one.
     property var cpuSample: null
     property var sink: Pipewire.defaultAudioSink
+    property var source: Pipewire.defaultAudioSource
+
+    // On-screen indicator (Osd.qml). It exists only while osdShown; each
+    // change restarts the 1.5 s hide timer. osdReady holds it back for the
+    // first seconds, when PipeWire and the backlight report their initial
+    // levels and would otherwise flash it at every login and bar restart.
+    property bool osdReady: false
+    property bool osdShown: false
+    property string osdKind: "volume"
+    property real osdValue: 0
+    property bool osdMuted: false
+
+    function showOsd(kind, value, muted) {
+        // Not while quick settings is open: its sliders show the level.
+        if (!osdReady || panelOpen)
+            return;
+        osdKind = kind;
+        osdValue = value;
+        osdMuted = muted;
+        osdShown = true;
+        osdHide.restart();
+    }
+
+    // The Quickshell screen Hyprland has focused, so the indicator appears
+    // where you are looking.
+    function focusedScreen() {
+        const monitor = Hyprland.focusedMonitor;
+        const screens = Quickshell.screens;
+        for (let i = 0; i < screens.length; i++)
+            if (monitor && screens[i].name === monitor.name)
+                return screens[i];
+        return screens.length > 0 ? screens[0] : null;
+    }
 
     function start(process) {
         if (!process.running)
@@ -166,10 +235,10 @@ ShellRoot {
 
     function powerProfileColor() {
         if (PowerProfiles.profile === PowerProfile.PowerSaver)
-            return "#8fd6b8";
+            return Theme.good;
         if (PowerProfiles.profile === PowerProfile.Performance)
-            return "#e8b87a";
-        return "#e8eaf0";
+            return Theme.warn;
+        return Theme.text;
     }
 
     function togglePowerProfile() {
@@ -214,8 +283,8 @@ ShellRoot {
 
     function batteryColor() {
         if (batteryPlugged())
-            return "#8fd6b8";
-        return batteryPercentage() <= 10 ? "#e0788a" : "#e8eaf0";
+            return Theme.good;
+        return batteryPercentage() <= 10 ? Theme.bad : Theme.text;
     }
 
     function batteryPercentage() {
@@ -274,21 +343,6 @@ ShellRoot {
         Hyprland.dispatch("hl.dsp.focus({ workspace = " + id + " })");
     }
 
-    function workspaceColor(id) {
-        const colors = [
-            "#8fb7e8",
-            "#8fd6b8",
-            "#c4b5fd",
-            "#e8b87a",
-            "#e8a0b5",
-            "#7dd3c7",
-            "#e8d78a",
-            "#b9a3e3",
-            "#e89a8f",
-            "#8fd8e8"
-        ];
-        return colors[(id - 1) % colors.length];
-    }
 
     settings.watchFiles: true
 
@@ -303,6 +357,14 @@ ShellRoot {
             root.refreshWeather();
         }
 
+        function togglePanel(): void {
+            root.togglePanel();
+        }
+
+        function toggleOverview(): void {
+            root.overviewOpen = !root.overviewOpen;
+        }
+
         function refreshBrightness(): void {
             backlightFile.reload();
         }
@@ -314,7 +376,82 @@ ShellRoot {
     }
 
     PwObjectTracker {
-        objects: root.sink ? [root.sink] : []
+        objects: [root.sink, root.source].filter(node => node)
+    }
+
+    // Notification server, banners, history, Do Not Disturb (replaces dunst).
+    Notifications {
+        id: notifications
+    }
+
+    Timer {
+        interval: 3000
+        running: true
+        onTriggered: root.osdReady = true
+    }
+
+    Timer {
+        id: osdHide
+        interval: 1500
+        onTriggered: root.osdShown = false
+    }
+
+    // PipeWire's own change signals, so it shows for the volume keys and for
+    // any app or mixer that moves the default sink -- nothing polls.
+    Connections {
+        target: root.sink ? root.sink.audio : null
+        function onVolumeChanged() {
+            root.showOsd("volume", root.sink.audio.volume, root.sink.audio.muted);
+        }
+        function onMutedChanged() {
+            root.showOsd("volume", root.sink.audio.volume, root.sink.audio.muted);
+        }
+    }
+
+    Connections {
+        target: root.source ? root.source.audio : null
+        function onMutedChanged() {
+            root.showOsd("mic", 1, root.source.audio.muted);
+        }
+    }
+
+    Process {
+        id: brightnessProcess
+        onExited: {
+            backlightFile.reload();
+            if (root.brightnessPending >= 0)
+                root.setBrightness(root.brightnessPending / 100);
+        }
+    }
+
+    LazyLoader {
+        active: root.overviewOpen
+
+        Overview {
+            screen: root.focusedScreen()
+            shell: root
+        }
+    }
+
+    LazyLoader {
+        active: root.panelOpen
+
+        QuickSettings {
+            screen: root.focusedScreen()
+            shell: root
+            center: notifications
+        }
+    }
+
+    LazyLoader {
+        active: root.osdShown
+
+        Osd {
+            screen: root.focusedScreen()
+            kind: root.osdKind
+            value: root.osdValue
+            muted: root.osdMuted
+        }
     }
 
     SystemClock {
@@ -423,8 +560,13 @@ ShellRoot {
 
     function updateBacklight() {
         const percent = BarLogic.backlightPercent(backlightFile.text(), backlightMaxFile.text());
-        if (!isNaN(percent))
-            backlightText = percent + "%";
+        if (isNaN(percent))
+            return;
+        const changed = backlightText !== percent + "%";
+        backlightText = percent + "%";
+        backlightValue = percent / 100;
+        if (changed)
+            showOsd("brightness", percent / 100, false);
     }
 
     // Night light state is the gammastep process itself, run as the
@@ -564,6 +706,13 @@ ShellRoot {
                 WlrLayershell.namespace: "quickshell-bar"
                 WlrLayershell.layer: WlrLayer.Top
 
+                // "Keep awake" in quick settings: an idle inhibitor needs a
+                // visible surface, and the bar is the one always mapped.
+                IdleInhibitor {
+                    window: panel
+                    enabled: root.keepAwake
+                }
+
                 Rectangle {
                     anchors.fill: parent
                     radius: 12
@@ -572,7 +721,7 @@ ShellRoot {
                     // quickshell-bar-blur layer rule in hyprland.lua alone: blurring
                     // the backdrop kills the local contrast that would otherwise fight
                     // the text, so the island does not have to be near-opaque.
-                    color: "#b30b0c10"
+                    color: Theme.bar
                     // No outline, matching hyprland.lua's border_size = 0: the
                     // island reads by its fill and the blur behind it.
                     border.width: 0
@@ -607,7 +756,7 @@ ShellRoot {
                                 Layout.fillHeight: true
                                 radius: 8
                                 color: active
-                                    ? root.workspaceColor(workspaceId)
+                                    ? Theme.accent
                                     : workspaceHover.hovered ? "#18ffffff" : "transparent"
 
                                 Behavior on color {
@@ -617,7 +766,7 @@ ShellRoot {
                                 Text {
                                     anchors.centerIn: parent
                                     text: workspaceButton.workspaceId
-                                    color: workspaceButton.active ? "#0b0c10" : "#a8abb4"
+                                    color: workspaceButton.active ? Theme.onAccent : Theme.textMuted
                                     font.family: "Inter"
                                     font.pixelSize: 18
                                     font.weight: workspaceButton.active ? Font.Bold : Font.DemiBold
@@ -655,7 +804,6 @@ ShellRoot {
                             }
                         }
 
-                        BarSeparator {}
 
                         // Dev.
                         BarGroup {
@@ -682,7 +830,6 @@ ShellRoot {
                             }
                         }
 
-                        BarSeparator {}
 
                         // System resources: live readouts, hover-only.
                         BarGroup {
@@ -740,119 +887,13 @@ ShellRoot {
                             }
                         }
 
-                        BarSeparator {}
 
-                        // Display: brightness, night light, monitor profiles.
+                        // Tray apps (1Password, ...). Wi-Fi and Bluetooth are quick
+                        // settings tiles with their own pages now: nm-applet keeps
+                        // running headless as NetworkManager's secret agent (the
+                        // Wi-Fi password dialog), so its tray icon is filtered out
+                        // here, and trayRole() drops blueman's SNI item too.
                         BarGroup {
-                            BarItem {
-                                icon: "󰃟"
-                                iconSize: 18
-                                iconSpacing: 8
-                                text: root.backlightText
-                                barWindow: panel
-                                tooltipTitle: "Display brightness"
-                                tooltipBody: "Current brightness: " + root.backlightText
-                            }
-
-                            BarItem {
-                                // nf-md-lightbulb-outline when off, nf-md-lightbulb-on
-                                // (with rays) when warm: the glyph carries the state
-                                // as well as the colour. A moon glyph would collide
-                                // with the weather item's night variant.
-                                icon: root.nightLightOn ? "󰛨" : "󰌶"
-                                iconSize: 20
-                                barWindow: panel
-                                // Amber = warm gamma active. Same "colour is
-                                // state" rule as the power profile beside it.
-                                foreground: root.nightLightOn ? "#e8b87a" : "#e8eaf0"
-                                tooltipTitle: "Night light"
-                                tooltipBody: (root.nightLightOn ? "On (4500 K)" : "Off")
-                                    + "\nSchedule: 19:00 – 07:00"
-                                    + "\nClick to toggle"
-                                clickable: true
-                                onClicked: root.start(nightLightToggleProcess)
-                            }
-
-                            BarItem {
-                                id: displayItem
-
-                                icon: "󰍹"
-                                iconSize: 20
-                                iconSpacing: 8
-                                text: displayMenu.enabledCount > 0
-                                    ? String(displayMenu.enabledCount)
-                                    : "--"
-                                barWindow: panel
-                                tooltipTitle: "Displays"
-                                tooltipBody: (displayMenu.activeProfile !== ""
-                                        ? "Profile: " + displayMenu.activeProfile
-                                        : "No profile applied")
-                                    + displayMenu.monitorSummary()
-                                    + "\nClick to switch profile"
-                                clickable: true
-                                onClicked: displayMenu.open()
-
-                                DisplayMenu {
-                                    id: displayMenu
-                                    anchorItem: displayItem
-                                    barWindow: panel
-                                }
-                            }
-                        }
-
-                        BarSeparator {}
-
-                        // Connections: Wi-Fi, Bluetooth, then the remaining tray apps.
-                        BarGroup {
-                            // Wi-Fi, then Bluetooth, then every other tray item
-                            // (1Password, ...): Bluetooth is drawn natively now, so
-                            // the tray is split around it to keep the order it had
-                            // as a blueman icon. trayRole() also drops blueman's own
-                            // SNI item, if one is still registered.
-                            Repeater {
-                                model: ScriptModel {
-                                    values: SystemTray.items.values.filter(function (item) {
-                                        return BarLogic.trayRole(item.id, item.title) === "network";
-                                    })
-                                }
-
-                                delegate: TrayIcon {
-                                    barWindow: panel
-                                    wifiConnected: root.wifiConnected
-                                }
-                            }
-
-                            BarItem {
-                                id: bluetoothItem
-
-                                visible: !!Bluetooth.defaultAdapter
-                                // Papirus, the same icon set as the Wi-Fi icon beside
-                                // it: nf-md-bluetooth's hairline B read thinner than
-                                // every neighbour. The theme has no "connected"
-                                // variant, so state is colour -- blue while a device
-                                // is connected, dimmed and crossed out when off.
-                                iconSource: "file:///usr/share/icons/Papirus-Dark/16x16/panel/"
-                                    + (bluetoothMenu.powered ? "blueman-tray.svg" : "blueman-tray-disabled.svg")
-                                // ~25 device px against the others' ~22: a B is narrow,
-                                // so at matched height it carried half the ink of its
-                                // Wi-Fi and 1Password neighbours and read as smaller.
-                                iconSize: 19
-                                barWindow: panel
-                                foreground: !bluetoothMenu.powered ? "#52566a"
-                                    : bluetoothMenu.connectedDevices.length > 0 ? "#8fb7e8"
-                                    : "#e8eaf0"
-                                tooltipTitle: "Bluetooth"
-                                tooltipBody: bluetoothMenu.summary() + "\nClick for devices"
-                                clickable: true
-                                onClicked: bluetoothMenu.open()
-
-                                BluetoothMenu {
-                                    id: bluetoothMenu
-                                    anchorItem: bluetoothItem
-                                    barWindow: panel
-                                }
-                            }
-
                             Repeater {
                                 model: ScriptModel {
                                     values: SystemTray.items.values.filter(function (item) {
@@ -866,36 +907,6 @@ ShellRoot {
                             }
                         }
 
-                        BarSeparator {}
-
-                        // Power: profile next to the battery it governs.
-                        BarGroup {
-                            BarItem {
-                                icon: root.powerProfileText()
-                                iconSize: 22
-                                barWindow: panel
-                                foreground: root.powerProfileColor()
-                                tooltipTitle: "Power profile"
-                                tooltipBody: root.powerProfileName()
-                                    + "\nClick to switch"
-                                clickable: true
-                                onClicked: root.togglePowerProfile()
-                            }
-
-                            BarItem {
-                                visible: UPower.displayDevice.ready && UPower.displayDevice.isLaptopBattery
-                                icon: root.batteryIcon()
-                                iconSize: 20
-                                iconSpacing: 1
-                                text: root.batteryPercentage() + "%"
-                                barWindow: panel
-                                foreground: root.batteryColor()
-                                tooltipTitle: "Battery"
-                                tooltipBody: root.batteryDetails()
-                            }
-                        }
-
-                        BarSeparator {}
 
                         // Sound.
                         BarGroup {
@@ -909,8 +920,8 @@ ShellRoot {
                                     : "--%"
                                 barWindow: panel
                                 foreground: root.sink && root.sink.audio && root.sink.audio.muted
-                                    ? "#52566a"
-                                    : "#e8eaf0"
+                                    ? Theme.textDisabled
+                                    : Theme.text
                                 tooltipTitle: "Audio"
                                 // Deliberately audioMenu's own labeller, so the
                                 // tooltip and the picker never disagree about what
@@ -943,13 +954,46 @@ ShellRoot {
                             }
                         }
 
-                        BarSeparator {}
+
+                        // Battery, just left of quick settings. The power profile is a
+                        // quick settings tile.
+                        BarGroup {
+                            BarItem {
+                                visible: UPower.displayDevice.ready && UPower.displayDevice.isLaptopBattery
+                                icon: root.batteryIcon()
+                                iconSize: 20
+                                iconSpacing: 1
+                                text: root.batteryPercentage() + "%"
+                                barWindow: panel
+                                foreground: root.batteryColor()
+                                tooltipTitle: "Battery"
+                                tooltipBody: root.batteryDetails()
+                            }
+                        }
+
+
+                        // Quick settings. The count is the notification
+                        // history; the glyph dims under Do Not Disturb.
+                        BarItem {
+                            icon: notifications.doNotDisturb ? "\u{f009b}" : "\u{f062e}"
+                            text: notifications.history.length > 0 ? String(notifications.history.length) : ""
+                            barWindow: panel
+                            foreground: root.panelOpen ? Theme.accent
+                                : notifications.doNotDisturb ? Theme.textDim : Theme.text
+                            clickable: true
+                            tooltipTitle: "Quick settings"
+                            tooltipBody: notifications.history.length > 0
+                                ? notifications.history.length + " notification" + (notifications.history.length === 1 ? "" : "s")
+                                : "No notifications"
+                            onClicked: root.togglePanel()
+                        }
+
 
                         BarItem {
                             id: dateItem
                             text: Qt.formatDateTime(clock.date, "ddd, dd MMM  ·  HH:mm")
                             barWindow: panel
-                            foreground: "#e8eaf0"
+                            foreground: Theme.text
                             clickable: true
                             onClicked: calendar.open()
 

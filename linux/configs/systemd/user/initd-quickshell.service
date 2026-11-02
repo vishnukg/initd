@@ -1,0 +1,33 @@
+[Unit]
+Description=Quickshell (bar, notifications, panels)
+# Under systemd so a crash is a 1-second blip instead of a session with no bar
+# (it used to be a bare `hl.exec_cmd("qs")`: one crash and it stayed gone
+# until the next login). Pulled in by graphical-session.target, which
+# initd-hyprland-session.service reaches only after hyprland.lua has imported
+# the session environment; and Hyprland-only, like hyprmoncfgd.
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland
+ConditionEnvironment=WAYLAND_DISPLAY
+# A config that crashes at load must not restart forever: five tries a minute.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+# qs is the notification server (Notifications.qml). If a notification arrived
+# while it was down, D-Bus activated dunst as the fallback, and dunst would
+# keep org.freedesktop.Notifications; stop it so the name comes back here.
+ExecStartPre=-/usr/bin/pkill -x dunst
+ExecStart=/usr/bin/qs
+Restart=on-failure
+RestartSec=1
+# The bar's helper scripts are `#!/usr/bin/env node`, and node only exists as a
+# mise shim; the user manager does not have Hyprland's PATH.
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+# Apps the bar opens (a browser from a notification, blueman-manager, the
+# Docker menu) are children in this unit's cgroup. On a restart only qs itself
+# is stopped, never them.
+KillMode=process
+
+[Install]
+WantedBy=graphical-session.target

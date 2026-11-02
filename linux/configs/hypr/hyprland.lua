@@ -16,8 +16,20 @@ local mod = "SUPER"
 local home = os.getenv("HOME")
 hl.env("PATH", home .. "/.local/share/mise/shims:" .. home .. "/.local/bin:" .. (os.getenv("PATH") or "/usr/bin:/bin"))
 
+-- Breeze (KDE's cursor; breeze-cursor-theme in packages.txt) when installed,
+-- otherwise Adwaita, which every Fedora has -- a missing package must never
+-- leave the session with no cursor. linux/setup.sh makes the same choice for
+-- GTK's gsetting, and ~/.icons/default inherits Breeze then Adwaita.
+local cursor_theme = "Adwaita"
+do
+    local probe = io.open("/usr/share/icons/breeze_cursors/index.theme", "r")
+    if probe then
+        probe:close()
+        cursor_theme = "breeze_cursors"
+    end
+end
 hl.env("XCURSOR_SIZE", "24")
-hl.env("XCURSOR_THEME", "Adwaita")
+hl.env("XCURSOR_THEME", cursor_theme)
 
 -- Qt apps (EasyEffects, Media Writer) follow the GTK theme the way Omarchy 4
 -- does it: Qt's own gtk3 platform theme (libqgtk3.so, shipped in
@@ -73,17 +85,21 @@ hl.config({
 -- but xdg-desktop-autostart.target is started by the session manager (GNOME
 -- does, Hyprland doesn't), so nm-applet's, blueman's and 1Password's
 -- /etc/xdg/autostart entries would otherwise be skipped.
-local session_vars = "WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORM QT_QPA_PLATFORMTHEME"
+local session_vars = "WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORM QT_QPA_PLATFORMTHEME XCURSOR_THEME XCURSOR_SIZE"
 hl.on("hyprland.start", function()
     -- Make portals (screenshare, file pickers) and D-Bus- or systemd-started
     -- apps see the session environment (the QT_QPA_* pair included, so a
     -- Qt app started that way still follows the GTK theme), then reach
-    -- graphical-session.target and (re)start hyprmoncfgd under it.
+    -- graphical-session.target and (re)start hyprmoncfgd and Quickshell under
+    -- it. Quickshell (the bar) is a unit so a crash restarts it in a second
+    -- (initd-quickshell.service); restarted rather than just started so a
+    -- second login never keeps a bar holding the previous session's env.
     hl.exec_cmd("sh -c '"
         .. "dbus-update-activation-environment --systemd " .. session_vars
         .. " && systemctl --user import-environment " .. session_vars
         .. " && systemctl --user start initd-hyprland-session.service"
-        .. " && systemctl --user restart hyprmoncfgd.service'")
+        .. " && systemctl --user restart hyprmoncfgd.service"
+        .. " && systemctl --user restart initd-quickshell.service'")
 
     -- Polkit auth agent (GNOME ships its own inside gnome-shell; Hyprland needs
     -- one): the password prompt for pkexec, 1Password's system unlock and the
@@ -91,10 +107,10 @@ hl.on("hyprland.start", function()
     -- and drew in the old default look. Its XDG autostart entry is MATE-only.
     hl.exec_cmd("/usr/libexec/polkit-mate-authentication-agent-1")
 
-    hl.exec_cmd("qs")
-    hl.exec_cmd("dunst")
     hl.exec_cmd("hypridle")
-    hl.exec_cmd("hyprpaper")
+    -- The wallpaper link (and the theme files) must exist before hyprpaper
+    -- reads hyprpaper.conf; `ensure` is a no-op when they do.
+    hl.exec_cmd("sh -c 'node ~/.config/wallpaper.mjs ensure; exec hyprpaper'")
     hl.exec_cmd("nm-applet")
     -- blueman-applet runs headless (linux/setup.sh disables its StatusIcon
     -- plugin): the bar draws Bluetooth itself, and the applet stays only as
@@ -115,8 +131,8 @@ hl.bind("XF86AudioRaiseVolume",  hl.dsp.exec_cmd("pactl set-sink-volume @DEFAULT
 hl.bind("XF86AudioLowerVolume",  hl.dsp.exec_cmd("pactl set-sink-volume @DEFAULT_SINK@ -5%"),   { locked = true, repeating = true })
 hl.bind("XF86AudioMute",         hl.dsp.exec_cmd("pactl set-sink-mute @DEFAULT_SINK@ toggle"),  { locked = true })
 hl.bind("XF86AudioMicMute",      hl.dsp.exec_cmd("pactl set-source-mute @DEFAULT_SOURCE@ toggle"), { locked = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("bash -c 'brightnessctl --min-val=2 -q set 5%- && qs ipc call bar refreshBrightness'"), { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("bash -c 'brightnessctl -q set 5%+ && qs ipc call bar refreshBrightness'"),             { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("bash -c 'brightnessctl --min-val=2 -q set 5%- && qs ipc --any-display call bar refreshBrightness'"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("bash -c 'brightnessctl -q set 5%+ && qs ipc --any-display call bar refreshBrightness'"),             { locked = true, repeating = true })
 
 -- Screenshots land in ~/Pictures/Screenshots; region also copies to the clipboard.
 -- linux/scripts/screenshot.mjs, linked by linux/scripts/config-links.mjs.
@@ -192,7 +208,18 @@ hl.bind(mod .. " + v", hl.dsp.layout("preselect d"))
 hl.bind(mod .. " + f", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
 -- Preserve all tiled splits while using the full output: hide the bar and
 -- release its exclusive screen space without changing window state.
-hl.bind(mod .. " + SHIFT + f", hl.dsp.exec_cmd("qs ipc call bar toggle"))
+-- Every `qs ipc` here passes --any-display: Quickshell records its display as
+-- "unk" however it is launched, so without it the call matches no instance and
+-- silently does nothing. This machine only ever runs one session.
+hl.bind(mod .. " + SHIFT + f", hl.dsp.exec_cmd("qs ipc --any-display call bar toggle"))
+-- Quick settings: toggles, sliders, media, power and notification history.
+-- Wallpapers: the picker, and the next one in the current collection. Each
+-- re-themes the desktop from the new wallpaper (linux/scripts/theme.mjs).
+hl.bind(mod .. " + SHIFT + w", hl.dsp.exec_cmd("node ~/.config/wallpaper.mjs pick"))
+hl.bind(mod .. " + CTRL + w",  hl.dsp.exec_cmd("node ~/.config/wallpaper.mjs next"))
+hl.bind(mod .. " + a", hl.dsp.exec_cmd("qs ipc --any-display call bar togglePanel"))
+-- Workspace overview: every workspace with still previews of its windows.
+hl.bind(mod .. " + o", hl.dsp.exec_cmd("qs ipc --any-display call bar toggleOverview"))
 
 -- i3 stacking/tabbed layouts → Hyprland groups (a group renders as tabs).
 -- $mod+w and $mod+s both toggle the group (Hyprland has no separate stacked
@@ -403,6 +430,25 @@ hl.layer_rule({
     ignore_alpha = 0.20,
 })
 
+-- The same frosted glass for Quickshell's transient surfaces: the volume and
+-- brightness indicator, notification banners, the quick settings panel. Each
+-- exists only while shown, so the blur costs nothing the rest of the time.
+-- The launcher (rofi): same frosted card. ignore_alpha keeps the blur to the
+-- card itself, not the transparent margin around it.
+hl.layer_rule({
+    name = "rofi-blur",
+    match = { namespace = "^rofi$" },
+    blur = true,
+    ignore_alpha = 0.20,
+})
+
+hl.layer_rule({
+    name = "quickshell-overlay-blur",
+    match = { namespace = "^quickshell-(osd|notifications|panel|overview)$" },
+    blur = true,
+    ignore_alpha = 0.20,
+})
+
 hl.curve("easeOut", { type = "bezier", points = { { 0.16, 1 }, { 0.3, 1 } } })
 -- speed is in deciseconds, and this one is pure perceived latency: it is painted
 -- on top of the time the terminal takes to map a window (~223ms for kitty, the
@@ -415,7 +461,16 @@ hl.animation({ leaf = "windowsOut", enabled = true, speed = 2, bezier = "easeOut
 hl.animation({ leaf = "fade",       enabled = true, speed = 3, bezier = "default" })
 hl.animation({ leaf = "layersIn",   enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
 hl.animation({ leaf = "layersOut",  enabled = true, speed = 2, bezier = "easeOut", style = "fade" })
-hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "easeOut", style = "slide" })
+-- slidefade 20%: the new workspace slides a fifth of the width while fading
+-- in, rather than a whole screen; direction still reads, at less motion.
+hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "easeOut", style = "slidefade 20%" })
+
+-- Each Quickshell surface enters from where it lives: banners from the right
+-- edge, quick settings down from the bar, the volume/brightness pill up from
+-- the bottom. (The launcher keeps the layersIn popin.) Same layersIn timing.
+hl.layer_rule({ name = "notifications-slide", match = { namespace = "^quickshell-notifications$" }, animation = "slide right" })
+hl.layer_rule({ name = "panel-slide",         match = { namespace = "^quickshell-panel$" },         animation = "slide top" })
+hl.layer_rule({ name = "osd-slide",           match = { namespace = "^quickshell-osd$" },           animation = "slide bottom" })
 
 -- Keep the loader line below verbatim: hyprmoncfg (1.17+) owns it, checks after every
 -- reload that its rules actually ran, and rewrites it in this exact form if not. It is
