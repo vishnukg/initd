@@ -252,6 +252,8 @@ Edit files inside this repo, not through the live symlinks.
 
 `backupPath` in `shared/lib/fs.mjs` moves any pre-existing unmanaged file to `${BACKUP_ROOT}/<relative-path>` before taking ownership. `BACKUP_ROOT` is exported by each platform's `bootstrap.sh` so re-applying links uses the same timestamped folder for the whole run.
 
+After linking, `removeStaleLinks` (same file, called from `link.mjs`) deletes symlinks that point into this checkout at a path that no longer exists, so dropping an entry from `MANAGED_LINKS` and deleting its source needs no one-off migration. It reads only the entries directly inside `~`, `~/.config`, `~/.local/share`, `~/.local/bin` and the directory of each current link, never subtrees; a working link, a link outside the checkout and a real file are never touched, and nothing is backed up, since a dangling link holds nothing.
+
 ### Plain .mjs, no toolchain
 
 Every Node script here is `.mjs` with no build step, no `package.json`, and no `node_modules` — `node --check` is the whole syntax check and `node --test` the whole test runner. Files are run straight out of the repo through the `MANAGED_LINKS` symlinks (`node ~/.config/tmux/tmux.mjs watch`, `#!/usr/bin/env node` on `claude-statusline-hook.mjs`), so editing one is the deploy.

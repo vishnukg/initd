@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PLATFORMS, managedLinks } from './managed-links.mjs';
-import { defaultBackupRoot, installLink } from './fs.mjs';
+import { defaultBackupRoot, installLink, removeStaleLinks } from './fs.mjs';
 
 const filename = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(filename), '../..');
@@ -14,6 +14,11 @@ export function installManagedLinks(platform, {
     const links = managedLinks(root, platform, home);
     log(`:: Backups for unmanaged configs will go under ${backupRoot}`);
     for (const entry of links) installLink(entry.home, entry.source, { home, backupRoot, log });
+    // Where managed links live (and once lived): the common roots plus the
+    // directory of every current link.
+    const dirs = [home, ...['.config', '.local/share', '.local/bin'].map(dir => path.join(home, dir)),
+        ...links.map(entry => path.dirname(entry.home))];
+    removeStaleLinks(dirs, root, { log });
     log('OK Managed symlinks verified.');
 }
 

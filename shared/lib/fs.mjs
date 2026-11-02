@@ -57,6 +57,35 @@ export function installLink(file, source, options = {}) {
     return true;
 }
 
+// Deletes symlinks directly inside `dirs` that point into `root` at something
+// that no longer exists: what is left behind when a config is dropped from
+// MANAGED_LINKS (the old ~/.local/share/wallpapers link, say). Only the
+// entries directly inside each directory are read, never subtrees, so this
+// stays cheap. A working link, a link elsewhere and a real file are all left
+// alone; a dangling link carries nothing to back up.
+export function removeStaleLinks(dirs, root, { log = console.log } = {}) {
+    const removed = [];
+    const prefix = path.resolve(root) + path.sep;
+    for (const dir of new Set(dirs)) {
+        let names;
+        try { names = fs.readdirSync(dir); }
+        catch (error) {
+            if (error.code === 'ENOENT' || error.code === 'ENOTDIR') continue;
+            throw error;
+        }
+        for (const name of names) {
+            const file = path.join(dir, name);
+            if (!pathStat(file)?.isSymbolicLink()) continue;
+            const target = path.resolve(dir, fs.readlinkSync(file));
+            if (!target.startsWith(prefix) || pathStat(target)) continue;
+            fs.unlinkSync(file);
+            log(`==> Removed stale link ${file} -> ${target}`);
+            removed.push(file);
+        }
+    }
+    return removed;
+}
+
 export function removeLink(file, source, { dryRun = false, log = console.log } = {}) {
     const stat = pathStat(file);
     if (!stat) {

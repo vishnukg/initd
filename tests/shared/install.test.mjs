@@ -459,3 +459,39 @@ test('personal links (SSH config, Ghostty dev box, commit signing) are made on a
     assert.deepEqual(work, [], 'a work machine gets nothing personal');
     assert.deepEqual(unset, []);
 });
+
+test('linking removes stale links into the checkout and leaves everything else alone', () => {
+    // Arrange
+    // The shape a dropped MANAGED_LINKS entry leaves behind: the old
+    // ~/.local/share/wallpapers -> <repo>/shared/wallpaper after it was deleted.
+    const home = newHome('stale');
+    const share = path.join(home, '.local/share');
+    fs.mkdirSync(share, { recursive: true });
+    const stale = path.join(share, 'wallpapers');
+    fs.symlinkSync(path.join(root, 'shared/wallpaper'), stale);
+    const relativeStale = path.join(home, '.config/old-tool');
+    fs.mkdirSync(path.dirname(relativeStale), { recursive: true });
+    fs.symlinkSync(path.relative(path.dirname(relativeStale), path.join(root, 'gone/old-tool')), relativeStale);
+    const working = path.join(home, '.config/readme-link');
+    fs.symlinkSync(path.join(root, 'README.md'), working);
+    const elsewhere = path.join(share, 'not-ours');
+    fs.symlinkSync(path.join(testRoot, 'missing-outside-the-checkout'), elsewhere);
+    const nested = path.join(share, 'deep/stale');
+    fs.mkdirSync(path.dirname(nested), { recursive: true });
+    fs.symlinkSync(path.join(root, 'gone/deep'), nested);
+    const file = path.join(share, 'real-file');
+    fs.writeFileSync(file, 'mine');
+
+    // Act
+    const output = link(home, path.join(home, 'backups'));
+
+    // Assert
+    assert.equal(fs.lstatSync(stale, { throwIfNoEntry: false }), undefined, 'a dangling link into initd is removed');
+    assert.equal(fs.lstatSync(relativeStale, { throwIfNoEntry: false }), undefined, 'relative targets are resolved too');
+    assert.match(output, /Removed stale link .*wallpapers/);
+    assertLink(working, path.join(root, 'README.md'));
+    assert.ok(fs.lstatSync(elsewhere).isSymbolicLink(), 'a dangling link outside initd is not ours');
+    assert.ok(fs.lstatSync(nested).isSymbolicLink(), 'subdirectories are not scanned');
+    assert.equal(fs.readFileSync(file, 'utf8'), 'mine');
+    assert.equal(fs.existsSync(path.join(home, 'backups')), false, 'nothing stale is worth a backup');
+});
