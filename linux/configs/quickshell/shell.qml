@@ -580,7 +580,11 @@ ShellRoot {
                     RowLayout {
                         anchors {
                             fill: parent
-                            leftMargin: 8
+                            // The workspace pills start the row, so the left inset
+                            // matches top/bottom: an active pill hugs the island
+                            // evenly on three sides. The right end is plain text
+                            // (the clock), which wants the wider inset.
+                            leftMargin: 2
                             rightMargin: 8
                             topMargin: 2
                             bottomMargin: 2
@@ -601,8 +605,6 @@ ShellRoot {
                                 visible: workspace !== null
                                 Layout.preferredWidth: visible ? 29 : 0
                                 Layout.fillHeight: true
-                                Layout.leftMargin: index === 0 ? 4 : 0
-                                Layout.rightMargin: index === 9 ? 4 : 0
                                 radius: 8
                                 color: active
                                     ? root.workspaceColor(workspaceId)
