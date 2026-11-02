@@ -256,9 +256,18 @@ configure_lid_switch
 test('Docker bootstrap enables socket activation without stopping running containers', t => {
     // Arrange
     const shell = fixture(t);
+    // systemctl is mocked as a machine where Docker was just installed: without
+    // it the real systemd answers, and on a host that already runs Docker
+    // socket-activated ensure_docker correctly takes its no-sudo shortcut.
     const script = `
 rpm() { [[ "$2" == docker-ce ]]; }
 id() { echo docker; }
+systemctl() {
+    case "$1" in
+        is-enabled) [[ "$2" == docker.service ]] && echo enabled || echo disabled ;;
+        is-active) return 3 ;;
+    esac
+}
 sudo() {
     printf '%s\\n' "$*" >> "$HOME/docker-calls"
     if [[ "$*" == *'--now docker.service'* ]]; then touch "$HOME/stopped"; fi
@@ -279,6 +288,30 @@ ensure_docker
         'systemctl enable --now docker.socket',
     ]);
     assert.equal(fs.existsSync(path.join(shell.home, 'stopped')), false);
+});
+
+test('a Docker already socket-activated is left alone without sudo', t => {
+    // Arrange
+    const shell = fixture(t);
+    const script = `
+id() { echo docker; }
+systemctl() {
+    case "$1" in
+        is-enabled) [[ "$2" == docker.socket ]] && echo enabled || echo disabled ;;
+        is-active) return 0 ;;
+    esac
+}
+sudo() { echo 'unexpected sudo' >&2; return 99; }
+ensure_docker
+`;
+
+    // Act
+    const result = shell.run(script, 'bootstrap.sh');
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.doesNotMatch(result.stderr, /unexpected sudo/);
+    assert.match(result.stdout, /docker\.socket already enabled/);
 });
 
 // rpm -q mock for the batched missing_rpms call: `installed` decides each name,
