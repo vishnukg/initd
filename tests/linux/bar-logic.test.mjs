@@ -645,3 +645,31 @@ for (const { bytes, expected } of [
         assert.ok(text.length <= 4, 'stays within four characters');
     });
 }
+
+test('greeting splits the day at 5, 12 and 18', () => {
+    // Arrange / Act / Assert
+    assert.equal(BarLogic.greeting(0), 'Good night');
+    assert.equal(BarLogic.greeting(4), 'Good night');
+    assert.equal(BarLogic.greeting(5), 'Good morning');
+    assert.equal(BarLogic.greeting(11), 'Good morning');
+    assert.equal(BarLogic.greeting(12), 'Good afternoon');
+    assert.equal(BarLogic.greeting(17), 'Good afternoon');
+    assert.equal(BarLogic.greeting(18), 'Good evening');
+    assert.equal(BarLogic.greeting(23), 'Good evening');
+});
+
+test('fraction turns a bar readout into a clamped 0..1 value', () => {
+    assert.equal(BarLogic.fraction('42%'), 0.42);
+    assert.equal(BarLogic.fraction('100%'), 1);
+    assert.equal(BarLogic.fraction('130%'), 1);
+    assert.equal(BarLogic.fraction('--%'), 0);
+    assert.equal(BarLogic.fraction(''), 0);
+});
+
+test('trackTime formats Mpris seconds as m:ss or h:mm:ss', () => {
+    assert.equal(BarLogic.trackTime(0), '0:00');
+    assert.equal(BarLogic.trackTime(65.9), '1:05');
+    assert.equal(BarLogic.trackTime(3725), '1:02:05');
+    assert.equal(BarLogic.trackTime(-3), '0:00');
+    assert.equal(BarLogic.trackTime(NaN), '0:00');
+});

@@ -344,3 +344,34 @@ export function formatRate(bytesPerSecond) {
         return "0" + units[unit];
     return (value < 9.95 ? value.toFixed(1) : String(Math.round(value))) + units[unit];
 }
+
+// --- Desktop widgets (DesktopWidgets.qml) ---
+
+// The greeting over the desktop clock. Night owls get "Good night" until 5,
+// then the day splits at noon and 18:00.
+export function greeting(hour) {
+    if (hour < 5) return 'Good night';
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+}
+
+// "42%" -> 0.42, clamped to [0, 1]; the bar's readouts are strings, the
+// rings want a fraction. Anything unparsable ("--%") reads as 0.
+export function fraction(percentText) {
+    const value = parseFloat(percentText);
+    if (!isFinite(value)) return 0;
+    return Math.min(1, Math.max(0, value / 100));
+}
+
+// Mpris position/length (seconds) -> "m:ss", or "h:mm:ss" past an hour.
+// Unknown or negative reads as "0:00".
+export function trackTime(seconds) {
+    const total = isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : 0;
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const secs = String(total % 60).padStart(2, '0');
+    return hours > 0
+        ? hours + ':' + String(minutes).padStart(2, '0') + ':' + secs
+        : minutes + ':' + secs;
+}
