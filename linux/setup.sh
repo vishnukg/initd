@@ -318,7 +318,7 @@ apply_gsettings_keyboard() {
 }
 
 configure_blueman_headless() {
-  # The Quickshell bar draws Bluetooth natively (BluetoothMenu.qml), so
+  # Bluetooth lives in Quickshell's quick settings (the Bluetooth page), so
   # blueman's tray icon would be a duplicate. Only its StatusIcon plugin goes:
   # that is what spawns blueman-tray (~50 MB), while blueman-applet keeps
   # running as BlueZ's pairing agent (PIN/passkey prompts) and OBEX receiver,

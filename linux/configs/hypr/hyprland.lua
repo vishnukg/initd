@@ -40,6 +40,15 @@ hl.env("XCURSOR_THEME", cursor_theme)
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")
 hl.env("QT_QPA_PLATFORMTHEME", "gtk3")
 
+-- No accessibility bus: every GTK app otherwise starts at-spi-bus-launcher and
+-- at-spi2-registryd (~15 MB, two processes) and pays the bridge setup at
+-- launch. Nothing here uses a screen reader; drop these two lines if one is
+-- ever needed. GTK4 reads GTK_A11Y, GTK3/ATK reads NO_AT_BRIDGE. Exported to
+-- D-Bus/systemd activation too (session_vars), so the portals and anything
+-- else activated that way skip it as well.
+hl.env("GTK_A11Y", "none")
+hl.env("NO_AT_BRIDGE", "1")
+
 -- No realtime scheduling for the compositor. Since 0.57, Hyprland asks rtkit
 -- for SCHED_RR and in exchange accepts RLIMIT_RTTIME at rtkit's
 -- RTTimeUSecMax: 150 ms soft / 200 ms hard of CPU without blocking. Hotplugging
@@ -85,7 +94,7 @@ hl.config({
 -- but xdg-desktop-autostart.target is started by the session manager (GNOME
 -- does, Hyprland doesn't), so nm-applet's, blueman's and 1Password's
 -- /etc/xdg/autostart entries would otherwise be skipped.
-local session_vars = "WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORM QT_QPA_PLATFORMTHEME XCURSOR_THEME XCURSOR_SIZE"
+local session_vars = "WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORM QT_QPA_PLATFORMTHEME XCURSOR_THEME XCURSOR_SIZE GTK_A11Y NO_AT_BRIDGE"
 hl.on("hyprland.start", function()
     -- Make portals (screenshare, file pickers) and D-Bus- or systemd-started
     -- apps see the session environment (the QT_QPA_* pair included, so a

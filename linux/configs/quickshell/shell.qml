@@ -40,6 +40,7 @@ ShellRoot {
     property string weatherSunset: ""
     property string backlightText: "--%"
     property real backlightValue: 0
+    property bool brightnessFromKeys: false
     readonly property var clockDate: clock.date
 
     // Quick settings (QuickSettings.qml), created only while open.
@@ -386,6 +387,9 @@ ShellRoot {
         }
 
         function refreshBrightness(): void {
+            // Only the brightness keys ping this, so only they bring up the
+            // indicator -- not hypridle's idle dim, which the 30s reload sees.
+            root.brightnessFromKeys = true;
             backlightFile.reload();
         }
 
@@ -589,8 +593,9 @@ ShellRoot {
         const changed = backlightText !== percent + "%";
         backlightText = percent + "%";
         backlightValue = percent / 100;
-        if (changed)
+        if (changed && brightnessFromKeys)
             showOsd("brightness", percent / 100, false);
+        brightnessFromKeys = false;
     }
 
     // Night light state is the gammastep process itself, run as the

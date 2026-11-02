@@ -51,7 +51,11 @@ The individual files are organized as follows:
 | `macos/bootstrap.test.mjs` | Fresh/repeat bootstrap ordering, existing apps, font migration, terminfo, Colima service ownership, gh auth, Git identity, and update orchestration |
 | `shared/fonts.test.mjs` | Private font sync: clone, update, and every warn-and-continue path |
 | `linux/bar-logic.test.mjs` | Weather icons and colours, load colours, audio device classification, QML call sites |
-| `linux/display-menu.test.mjs` | The `hyprmoncfg status --json` contract DisplayMenu.qml parses |
+| `linux/display-menu.test.mjs` | The `hyprmoncfg status --json` contract Displays.qml parses |
+| `linux/theme.test.mjs` | Wallpaper theme: matugen output shapes, role mapping, GNOME accent, rendered files, `ensure`, failure keeps the theme |
+| `linux/wallpaper.test.mjs` | Wallpaper collections, ordering, monitor sizing and cache keys |
+| `linux/hyprlock-config.test.mjs` | `hyprlock.conf` parses with no config errors (against a nonexistent display, so nothing locks) |
+| `linux/idle.test.mjs` | hypridle's `idle.sh`: dim/undim, and suspend only on battery with nothing playing |
 
 The remaining files cover bootstrap configs, installation, Linux setup, Fish,
 night light, and enterprise quotas.

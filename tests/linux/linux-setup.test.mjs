@@ -71,6 +71,7 @@ test('session links migrate the owned audio shell helper and preserve unrelated 
     assert.equal(fs.realpathSync(path.join(f.home, '.config/audio-ports.mjs')), path.join(root, 'linux/scripts/audio-ports.mjs'));
     assert.equal(fs.realpathSync(path.join(f.home, '.config/theme.mjs')), path.join(root, 'linux/scripts/theme.mjs'));
     assert.equal(fs.realpathSync(path.join(f.home, '.config/wallpaper.mjs')), path.join(root, 'linux/scripts/wallpaper.mjs'));
+    assert.equal(fs.realpathSync(path.join(f.home, '.config/idle.sh')), path.join(root, 'linux/scripts/idle.sh'));
 
     // Arrange
     fs.writeFileSync(old, 'user helper');

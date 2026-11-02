@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Layouts
 
-// One row in a bar dropdown: icon · label · dim tag · checkmark. Shared by
-// AudioMenu and DisplayMenu, which want identical chrome over different data.
+// One row in a bar dropdown: icon · label · dim tag · checkmark. Used by
+// AudioMenu (quick settings' pages have their own ListRow).
 // Rows that are a readout rather than a choice set `interactive: false`, which
 // drops the hover highlight and the pointer cursor with it.
 Item {
