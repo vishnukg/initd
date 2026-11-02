@@ -69,6 +69,7 @@ test('session links migrate the owned audio shell helper and preserve unrelated 
     assert.equal(fs.existsSync(old), false);
     assert.equal(fs.readlinkSync(path.join(f.home, 'backup/.config/audio-ports.sh')), path.join(checkout, 'linux/scripts/audio-ports.sh'));
     assert.equal(fs.realpathSync(path.join(f.home, '.config/audio-ports.mjs')), path.join(root, 'linux/scripts/audio-ports.mjs'));
+    assert.equal(fs.realpathSync(path.join(f.home, '.config/news.mjs')), path.join(root, 'linux/scripts/news.mjs'));
 
     // Arrange
     fs.writeFileSync(old, 'user helper');
