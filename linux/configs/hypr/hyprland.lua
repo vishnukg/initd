@@ -1,11 +1,12 @@
 -- Hyprland config — originally a direct port of this repo's old i3 config
 -- (linux/configs/i3/, removed with the rest of the X11 stack; git history has
 -- it), then ported from hyprlang (hyprland.conf) to Lua ahead of hyprlang's
--- removal in Hyprland 0.57. Keybindings are still 1:1 with that i3 config;
--- comments note the few places where a concept has no exact Hyprland
--- equivalent. Hyprland picks .lua vs .conf at STARTUP only, never on
--- `hyprctl reload` — validate edits with
--- `Hyprland --verify-config --config <path>` instead of restarting.
+-- removal in Hyprland 0.57. The core keybindings (focus, move, workspaces,
+-- splits, resize mode) still follow that i3 config, with comments where a
+-- concept has no exact Hyprland equivalent; the rest (Ghostty, the Copilot
+-- key, Ctrl+Super+Q lock, bar toggle) were added since. Hyprland picks
+-- .lua vs .conf at STARTUP only, never on `hyprctl reload` — validate edits
+-- with `Hyprland --verify-config --config <path>` instead of restarting.
 -- Reference: https://wiki.hypr.land/Configuring/
 
 local mod = "SUPER"
@@ -58,9 +59,20 @@ hl.config({
 })
 
 -- ── Autostart ─────────────────────────────────────────────────────────────────
+-- Everything below is started explicitly because XDG autostart never fires
+-- here: initd-hyprland-session.service does bring up graphical-session.target,
+-- but xdg-desktop-autostart.target is started by the session manager (GNOME
+-- does, Hyprland doesn't), so nm-applet's, blueman's and 1Password's
+-- /etc/xdg/autostart entries would otherwise be skipped.
+local session_vars = "WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE"
 hl.on("hyprland.start", function()
-    -- Make portals (screenshare, file pickers) see the session environment.
-    hl.exec_cmd("sh -c 'dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE && systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE && systemctl --user start initd-hyprland-session.service && systemctl --user restart hyprmoncfgd.service'")
+    -- Make portals (screenshare, file pickers) see the session environment,
+    -- then reach graphical-session.target and (re)start hyprmoncfgd under it.
+    hl.exec_cmd("sh -c '"
+        .. "dbus-update-activation-environment --systemd " .. session_vars
+        .. " && systemctl --user import-environment " .. session_vars
+        .. " && systemctl --user start initd-hyprland-session.service"
+        .. " && systemctl --user restart hyprmoncfgd.service'")
 
     -- Polkit auth agent (GNOME ships its own inside gnome-shell; Hyprland needs one).
     hl.exec_cmd("lxpolkit")
@@ -70,11 +82,9 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("hypridle")
     hl.exec_cmd("hyprpaper")
     hl.exec_cmd("nm-applet")
-    -- blueman's XDG autostart only fires in sessions that reach the systemd
-    -- graphical-session.target (GNOME does, this session doesn't) — start explicitly.
-    -- It runs headless (linux/setup.sh disables its StatusIcon plugin): the bar
-    -- draws Bluetooth itself, and the applet stays only as BlueZ's pairing
-    -- agent and OBEX receiver.
+    -- blueman-applet runs headless (linux/setup.sh disables its StatusIcon
+    -- plugin): the bar draws Bluetooth itself, and the applet stays only as
+    -- BlueZ's pairing agent and OBEX receiver.
     hl.exec_cmd("blueman-applet")
     -- 1Password is autostarted because its SSH agent serves the GitHub and
     -- exe.dev keys (~/.ssh/config): without it running and unlocked, git
@@ -94,10 +104,10 @@ hl.bind("XF86AudioMicMute",      hl.dsp.exec_cmd("pactl set-source-mute @DEFAULT
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("bash -c 'brightnessctl --min-val=2 -q set 5%- && qs ipc call bar refreshBrightness'"), { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("bash -c 'brightnessctl -q set 5%+ && qs ipc call bar refreshBrightness'"),             { locked = true, repeating = true })
 
--- Screenshot (scrot → grim)
-hl.bind("Print", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && grim \"$HOME/Pictures/screenshot-$(date +%Y-%m-%d-%H-%M-%S).png\"'"))
--- Screenshot region (select area → save + copy to clipboard)
-hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("bash -c 'mkdir -p \"$HOME/Pictures\" && f=\"$HOME/Pictures/screenshot-$(date +%Y-%m-%d-%H-%M-%S).png\" && grim -g \"$(slurp)\" \"$f\" && wl-copy < \"$f\"'"))
+-- Screenshots land in ~/Pictures/Screenshots; region also copies to the clipboard.
+-- linux/scripts/screenshot.mjs, linked by linux/scripts/config-links.mjs.
+hl.bind("Print",                hl.dsp.exec_cmd("~/.config/screenshot.mjs full"))
+hl.bind(mod .. " + SHIFT + s",  hl.dsp.exec_cmd("~/.config/screenshot.mjs region"))
 
 -- ── Apps ──────────────────────────────────────────────────────────────────────
 -- kitty is the default, local terminal; Ghostty (SUPER+t below) is the dev box
@@ -144,29 +154,21 @@ hl.bind(mod .. " + SHIFT + n", hl.dsp.exec_cmd("~/.config/night-light-toggle.mjs
 hl.bind(mod .. " + CTRL + q",  hl.dsp.exec_cmd("loginctl lock-session"))
 hl.bind(mod .. " + SHIFT + x", hl.dsp.exec_cmd("loginctl lock-session"))
 
--- Re-evaluate the config, monitor rules included. hyprmoncfgd already handles
--- hotplug and lid events on its own; this is the manual nudge (i3's old
--- "re-apply layout" key).
-hl.bind(mod .. " + SHIFT + m", hl.dsp.exec_cmd("hyprctl reload"))
-
 -- ── Focus / move (i3 vim keys + arrows) ──────────────────────────────────────
-hl.bind(mod .. " + h", hl.dsp.focus({ direction = "left" }))
-hl.bind(mod .. " + j", hl.dsp.focus({ direction = "down" }))
-hl.bind(mod .. " + k", hl.dsp.focus({ direction = "up" }))
-hl.bind(mod .. " + l", hl.dsp.focus({ direction = "right" }))
-hl.bind(mod .. " + Left",  hl.dsp.focus({ direction = "left" }))
-hl.bind(mod .. " + Down",  hl.dsp.focus({ direction = "down" }))
-hl.bind(mod .. " + Up",    hl.dsp.focus({ direction = "up" }))
-hl.bind(mod .. " + Right", hl.dsp.focus({ direction = "right" }))
-
-hl.bind(mod .. " + SHIFT + h", hl.dsp.window.move({ direction = "l" }))
-hl.bind(mod .. " + SHIFT + j", hl.dsp.window.move({ direction = "d" }))
-hl.bind(mod .. " + SHIFT + k", hl.dsp.window.move({ direction = "u" }))
-hl.bind(mod .. " + SHIFT + l", hl.dsp.window.move({ direction = "r" }))
-hl.bind(mod .. " + SHIFT + Left",  hl.dsp.window.move({ direction = "l" }))
-hl.bind(mod .. " + SHIFT + Down",  hl.dsp.window.move({ direction = "d" }))
-hl.bind(mod .. " + SHIFT + Up",    hl.dsp.window.move({ direction = "u" }))
-hl.bind(mod .. " + SHIFT + Right", hl.dsp.window.move({ direction = "r" }))
+-- One table drives focus, move and the resize submap below. Each direction is
+-- reachable by its vim key and its arrow key.
+local directions = {
+    { keys = { "h", "Left" },  dir = "l", dx = -40, dy = 0 },
+    { keys = { "j", "Down" },  dir = "d", dx = 0,   dy = 40 },
+    { keys = { "k", "Up" },    dir = "u", dx = 0,   dy = -40 },
+    { keys = { "l", "Right" }, dir = "r", dx = 40,  dy = 0 },
+}
+for _, d in ipairs(directions) do
+    for _, key in ipairs(d.keys) do
+        hl.bind(mod .. " + " .. key,           hl.dsp.focus({ direction = d.dir }))
+        hl.bind(mod .. " + SHIFT + " .. key, hl.dsp.window.move({ direction = d.dir }))
+    end
+end
 
 -- ── Splits / layout ───────────────────────────────────────────────────────────
 -- i3 "split h/v" → dwindle preselect for the next window.
@@ -184,7 +186,7 @@ hl.bind(mod .. " + SHIFT + f", hl.dsp.exec_cmd("qs ipc call bar toggle"))
 hl.bind(mod .. " + w", hl.dsp.group.toggle())
 hl.bind(mod .. " + s", hl.dsp.group.toggle())
 hl.bind(mod .. " + e", hl.dsp.layout("togglesplit"))
--- Cycle tabs inside a group with focus keys crossing group edges.
+-- Cycle to the next tab inside the focused group.
 hl.bind(mod .. " + g", hl.dsp.group.next())
 
 hl.bind(mod .. " + SHIFT + space", hl.dsp.window.float({ action = "toggle" }))
@@ -208,9 +210,10 @@ for i = 1, 10 do
 end
 
 -- ── Reload / exit ─────────────────────────────────────────────────────────────
--- Hyprland reloads config live; both i3 "reload" and "restart" map to it.
+-- Hyprland reloads config live, monitor rules included, so i3's "reload",
+-- "restart" and "re-apply layout" keys collapsed into this one. hyprmoncfgd
+-- handles hotplug and lid events on its own.
 hl.bind(mod .. " + SHIFT + c", hl.dsp.exec_cmd("hyprctl reload && notify-send \"Hyprland\" \"Config reloaded\""))
-hl.bind(mod .. " + SHIFT + r", hl.dsp.exec_cmd("hyprctl reload && notify-send \"Hyprland\" \"Config reloaded\""))
 hl.bind(mod .. " + SHIFT + e", hl.dsp.exec_cmd(
     "bash -c '[ \"$(printf \"No\\nYes\" | rofi -dmenu -p \"Exit Hyprland?\")\" = \"Yes\" ] && hyprctl dispatch \"hl.dsp.exit()\"'"
 ))
@@ -218,14 +221,11 @@ hl.bind(mod .. " + SHIFT + e", hl.dsp.exec_cmd(
 -- ── Resize mode (i3 mode "resize" → Hyprland submap) ─────────────────────────
 hl.bind(mod .. " + r", hl.dsp.submap("resize"))
 hl.define_submap("resize", function()
-    hl.bind("h", hl.dsp.window.resize({ x = -40, y = 0, relative = true }), { repeating = true })
-    hl.bind("j", hl.dsp.window.resize({ x = 0, y = 40, relative = true }), { repeating = true })
-    hl.bind("k", hl.dsp.window.resize({ x = 0, y = -40, relative = true }), { repeating = true })
-    hl.bind("l", hl.dsp.window.resize({ x = 40, y = 0, relative = true }), { repeating = true })
-    hl.bind("Left",  hl.dsp.window.resize({ x = -40, y = 0, relative = true }), { repeating = true })
-    hl.bind("Down",  hl.dsp.window.resize({ x = 0, y = 40, relative = true }), { repeating = true })
-    hl.bind("Up",    hl.dsp.window.resize({ x = 0, y = -40, relative = true }), { repeating = true })
-    hl.bind("Right", hl.dsp.window.resize({ x = 40, y = 0, relative = true }), { repeating = true })
+    for _, d in ipairs(directions) do
+        for _, key in ipairs(d.keys) do
+            hl.bind(key, hl.dsp.window.resize({ x = d.dx, y = d.dy, relative = true }), { repeating = true })
+        end
+    end
     hl.bind("Return", hl.dsp.submap("reset"))
     hl.bind("Escape", hl.dsp.submap("reset"))
     hl.bind(mod .. " + r", hl.dsp.submap("reset"))
@@ -353,26 +353,27 @@ hl.config({
     xwayland = {
         force_zero_scaling = true,
     },
-})
 
--- ── Behavior ──────────────────────────────────────────────────────────────────
-hl.config({
     -- Jump back to previous workspace on repeated press.
     binds = {
         workspace_back_and_forth = true,
     },
 })
 
--- Rule opacity multiplies the global decoration opacity unless overridden.
--- Ghostty also applies its own background alpha from its Linux config.
+-- ── Window and layer rules ────────────────────────────────────────────────────
+-- Rule opacity multiplies decoration.active/inactive_opacity unless each value
+-- carries `override`, and both multiply the client's own background alpha.
+
+-- Exempt Ghostty from the global glass: its own 0.92 (linux.conf) is the only
+-- alpha, so the dev box terminal stays readable over a bright wallpaper.
 hl.window_rule({
     name = "ghostty-opacity",
     match = { class = "com.mitchellh.ghostty" },
-    opacity = "1.0 1.0",
+    opacity = "1.0 override 1.0 override",
 })
 
--- Preserve Kitty's previous compositor opacity independently of the defaults.
--- Its own background alpha continues to apply as before.
+-- kitty: 0.80 focused, 0.70 unfocused, opaque fullscreen, on top of its own
+-- 0.92 background alpha (linux.conf).
 hl.window_rule({
     name = "kitty-opacity",
     match = { class = "kitty" },

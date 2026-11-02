@@ -38,6 +38,7 @@ Read the small config helpers before the long-running tmux watcher:
 | `linux/scripts/audio-ports.mjs` | Read sound-card port availability |
 | `linux/scripts/docker-menu.mjs` | Present container actions through rofi and kitty |
 | `linux/scripts/weather-popup.mjs` | Fetch weather and display a notification |
+| `linux/scripts/screenshot.mjs` | Capture the screen or a slurp region to ~/Pictures/Screenshots (region also to the clipboard) |
 | `linux/scripts/firefox-profile.mjs` | Discover/init a profile, link managed files, and update default zoom transactionally |
 | `linux/scripts/config-links.mjs` | Install Linux's special-case config and session-script links |
 | `linux/scripts/night-light-toggle.mjs` | Apply the night-light schedule and safely start/stop gamma control |
