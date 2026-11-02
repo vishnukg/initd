@@ -320,6 +320,13 @@ hl.config({
         font_family = "Inter",
         disable_hyprland_logo = true,
         disable_splash_rendering = true,
+        -- Let a new hyprlock take over a session whose lock client died or
+        -- lost its surfaces (an output vanishing mid-lock, as the external
+        -- monitor's USB-C link does on resume). Without it the only way out
+        -- of a stuck lock is logging out. The session stays locked either way:
+        -- this only permits another lock client to claim it. Recovery from a
+        -- TTY is in docs/linux-monitors.md.
+        allow_session_lock_restore = true,
     },
 
     -- Fullscreen surfaces scan out straight to the display, skipping the composite

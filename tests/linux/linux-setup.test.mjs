@@ -222,6 +222,37 @@ disable_unused_daemons
     assert.doesNotMatch(result.stderr, /unexpected sudo/);
 });
 
+test('lid switch drop-in installs once, reloads logind without a restart, and is idempotent', t => {
+    // Arrange
+    const shell = fixture(t);
+    const dropins = path.join(shell.home, 'logind.conf.d');
+    const calls = path.join(shell.home, 'calls');
+    const script = `
+export LOGIND_DROPIN_DIR=${JSON.stringify(dropins)}
+sudo() {
+    echo "$*" >> ${JSON.stringify(calls)}
+    if [[ "$1" == install ]]; then "$@"; fi
+}
+configure_lid_switch
+configure_lid_switch
+`;
+
+    // Act
+    const result = shell.run(script);
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(
+        fs.readFileSync(path.join(dropins, 'initd-lid-switch.conf'), 'utf8'),
+        fs.readFileSync(path.join(root, 'linux/configs/logind/initd-lid-switch.conf'), 'utf8'),
+    );
+    assert.match(fs.readFileSync(path.join(dropins, 'initd-lid-switch.conf'), 'utf8'), /^HandleLidSwitchExternalPower=ignore$/m);
+    const sudoCalls = fs.readFileSync(calls, 'utf8').trim().split('\n');
+    assert.equal(sudoCalls.length, 2, 'the second run must not invoke sudo');
+    assert.match(sudoCalls[1], /^systemctl kill -s HUP systemd-logind\.service$/);
+    assert.ok(sudoCalls.every(call => !/restart/.test(call)));
+});
+
 test('Docker bootstrap enables socket activation without stopping running containers', t => {
     // Arrange
     const shell = fixture(t);

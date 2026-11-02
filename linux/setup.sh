@@ -4,7 +4,7 @@ set -euo pipefail
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font, Symbols Nerd Font)
 #   - System fixes that need sudo (unused ModemManager/abrt/rsyslog off,
-#     `video` group for the backlight keys)
+#     `video` group for the backlight keys, lid ignored on external power)
 #   - Session/user-unit state: masking the hypridle/hyprpaper units this repo
 #     autostarts from hyprland.lua instead, enabling hyprmoncfgd and the
 #     night-light schedule timer
@@ -133,6 +133,25 @@ disable_unused_daemons() {
     sudo systemctl mask --now packagekit.service >/dev/null 2>&1
     log_success "Masked packagekit."
   fi
+}
+
+configure_lid_switch() {
+  # Clamshell mode: ignore the lid on external power (the reason is in the
+  # drop-in itself). Copied rather than linked so the root-read policy is not a
+  # file any user process can rewrite, and only when it differs, so a re-run
+  # needs no sudo. logind re-reads logind.conf.d on SIGHUP; restarting it
+  # instead would tear down every session, this one included.
+  local source="${CONFIGS_DIR}/logind/initd-lid-switch.conf"
+  local dropin_dir="${LOGIND_DROPIN_DIR:-/etc/systemd/logind.conf.d}"
+  local target="${dropin_dir}/initd-lid-switch.conf"
+  if cmp -s "${source}" "${target}"; then
+    log_success "Lid switch already ignored on external power (clamshell)."
+    return
+  fi
+  log "Installing logind drop-in: ignore lid close on external power (clamshell)..."
+  sudo install -D -m 0644 "${source}" "${target}"
+  sudo systemctl kill -s HUP systemd-logind.service
+  log_success "Lid close on external power no longer suspends."
 }
 
 # ── Hyprland session ──────────────────────────────────────────────────────────
@@ -395,6 +414,7 @@ main() {
   install_firacode_nerd_font
   install_symbols_nerd_font
   disable_unused_daemons
+  configure_lid_switch
   check_hyprland_session
   mask_desktop_user_units
   # The schedule's ExecStart must exist before its service/timer is started.

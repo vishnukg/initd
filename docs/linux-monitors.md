@@ -97,3 +97,59 @@ so the static fallback rules in `hyprland.lua` apply until the first profile doe
 
 Keep one profile per real desk, dock, projector, or travel setup; every JSON
 profile is considered when the daemon chooses a match.
+
+## Clamshell mode (lid closed, external monitor only)
+
+With the lid closed, `hyprmoncfgd` turns the laptop panel off whichever profile
+it picks (its closed-lid policy disables every internal output once an external
+monitor is connected), so any matching profile becomes external-only. With the
+lid open, the profile with the most enabled outputs wins, so for the BenQ that
+is `benq 32 above` rather than `home benq 32 only`.
+
+Lid close on external power is ignored (`linux/configs/logind/initd-lid-switch.conf`,
+installed into `/etc/systemd/logind.conf.d/` by `linux/setup.sh:configure_lid_switch`).
+logind's own docked check is not enough here. It skips the lid suspend only while
+an external display is connected *and enabled*, and Hyprland's DPMS off disables
+the output entirely. So hypridle's screen-off at 630 s made the monitor look
+absent, and logind suspended a closed laptop about two minutes later, with no lid
+event. Resume then raced the monitor's USB-C link renegotiation (the Dell drops
+off DP and its USB hub for ~15 s) while hyprlock held the session, leaving a lit
+but unresponsive screen. On battery, closing the lid still suspends.
+
+Two things this does not cover:
+
+- A laptop that is closed on battery is asleep, and plugging a monitor into it
+  does not wake it. Press the power button briefly (or open the lid).
+- A closed laptop on a charger with no monitor stays awake, with the panel on
+  until hypridle's screen-off.
+
+## Recovering a stuck lock screen
+
+If the monitor is on but nothing responds after a resume or a hotplug, the
+session is most likely still locked with no lock surface on the screen you are
+looking at. `misc.allow_session_lock_restore = true` in `hyprland.lua` lets a
+fresh hyprlock take the lock over, so nothing has to be logged out:
+
+1. Press `Ctrl+Alt+F3` and log in on the text console.
+2. Look before changing anything (useful if this needs reporting):
+
+   ```bash
+   pgrep -a hyprlock
+   hyprctl --instance 0 monitors
+   ```
+
+3. Replace the lock client:
+
+   ```bash
+   pkill -x hyprlock
+   hyprctl --instance 0 dispatch 'hl.dsp.exec_cmd("hyprlock")'
+   ```
+
+4. Press `Ctrl+Alt+F2` to return to the Hyprland session (it runs on VT 2) and
+   unlock as usual. Log out of the console afterwards with `exit`, from `Ctrl+Alt+F3`.
+
+If `hyprctl` itself hangs, Hyprland is frozen rather than locked, and no lock
+client can fix that. Short-press the power button for a clean shutdown (logind
+treats it as power-off), and grab
+`/run/user/1000/hypr/*/hyprland.log` from the console first, since a reboot
+wipes it.
