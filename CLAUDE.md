@@ -156,7 +156,8 @@ macos/bootstrap.sh
   ├─ mise trust + mise install
   ├─ macos/defaults.sh
   ├─ ensure_docker_config                 # runs macos/docker-config.mjs: merges credsStore=osxkeychain + brew cliPluginsExtraDirs into ~/.docker/config.json, drops Docker Desktop's leftover CLI hooks
-  └─ ensure_colima_service                # brew services start colima (login autostart)
+  ├─ ensure_colima_service                # brew services start colima (login autostart)
+  └─ macos/update.sh                      # every run: brew + mise upgrade (not fatal)
 
 linux/bootstrap.sh
   ├─ ensure_user_context, ensure_fedora
@@ -180,7 +181,8 @@ linux/bootstrap.sh
   ├─ shared/lib/agy-statusline.mjs            # merges ~/.gemini/antigravity-cli/settings.json's statusLine key → tmux agy pill
   ├─ linux/setup.sh                           # fonts/theme + config glue
   ├─ ensure_fish (chsh)
-  └─ mise trust + mise install
+  ├─ mise trust + mise install
+  └─ linux/update.sh                         # every run: dnf + firmware + mise upgrade (not fatal)
 
 vm/bootstrap.sh                               # bash bootstrap.sh vm — never picked by uname alone
   ├─ ensure_user_context, ensure_ubuntu
@@ -195,7 +197,8 @@ vm/bootstrap.sh                               # bash bootstrap.sh vm — never p
   ├─ shared/lib/claude-statusline.mjs
   ├─ shared/lib/agy-statusline.mjs
   ├─ ensure_fish (chsh + fisher)
-  └─ mise trust + mise install
+  ├─ mise trust + mise install
+  └─ vm/update.sh                            # every run: full apt + mise upgrade (not fatal)
 ```
 
 ### Script sourcing chain

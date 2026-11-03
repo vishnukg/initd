@@ -325,6 +325,14 @@ setup_git_profile() {
   run_node "${SHARED_DIR}/lib/git-profile.mjs"
 }
 
+run_update() {
+  # Every bootstrap ends with a full upgrade (OS packages, mise tools; see
+  # vm/update.sh): bootstrap itself only installs what is missing. Not
+  # fatal, so a failed upgrade still leaves a set-up machine.
+  log "Running vm/update.sh..."
+  "${ROOT_DIR}/vm/update.sh" || log_warn "vm/update.sh failed; re-run it on its own."
+}
+
 main() {
   ensure_user_context
   ensure_ubuntu
@@ -371,6 +379,8 @@ main() {
   # without gh auth) must not skip the local steps after it. Re-run to finish.
   mise -C "${ROOT_DIR}" install --yes \
     || log_warn "mise install did not finish; re-run 'mise install' (after gh auth login if GitHub rate-limited it)."
+
+  run_update
 
   echo
   log_success "initd finished for the VM (profile: $(initd_profile)). Reconnect to land in fish + tmux."

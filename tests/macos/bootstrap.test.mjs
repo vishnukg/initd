@@ -729,6 +729,7 @@ ensure_fish() { [[ -f "$HOME/installed" ]] || return 93; printf 'fish\\n' >> "$H
 setup_git_profile() { :; }
 ensure_docker_config() { :; }
 ensure_colima_service() { :; }
+run_update() { printf 'update\\n' >> "$HOME/order"; }
 main
 `;
 
@@ -738,7 +739,7 @@ main
     assert.equal(first.status, 0, first.stderr);
     assert.equal(repeated.status, 0, repeated.stderr);
     // Two status-line hooks, one `run_node` each: Claude's, then agy's.
-    const cycle = ['fonts', 'links', 'ssh-keys', 'trust', 'install', 'hook', 'hook', 'fish', 'defaults'];
+    const cycle = ['fonts', 'links', 'ssh-keys', 'trust', 'install', 'hook', 'hook', 'fish', 'defaults', 'update'];
     assert.deepEqual(fs.readFileSync(path.join(f.home, 'order'), 'utf8').trim().split('\n'), [...cycle, ...cycle]);
 });
 

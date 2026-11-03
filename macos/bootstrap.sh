@@ -291,6 +291,14 @@ setup_git_profile() {
   run_node "${SHARED_DIR}/lib/git-profile.mjs"
 }
 
+run_update() {
+  # Every bootstrap ends with a full upgrade (OS packages, mise tools; see
+  # macos/update.sh): bootstrap itself only installs what is missing. Not
+  # fatal, so a failed upgrade still leaves a set-up machine.
+  log "Running macos/update.sh..."
+  "${ROOT_DIR}/macos/update.sh" || log_warn "macos/update.sh failed; re-run it on its own."
+}
+
 main() {
   ensure_user_context
   ensure_supported_platform
@@ -372,6 +380,8 @@ main() {
 
   log "Ensuring colima runs as a login service..."
   ensure_colima_service
+
+  run_update
 
   echo
   log_success "initd finished for macOS (profile: $(initd_profile))."
