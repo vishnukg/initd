@@ -28,7 +28,7 @@ UV_MANAGED_PYTHON = "1"
 [tools]
 # ── runtimes ───────────────────────────────────────────────────────────
 uv        = "latest"              # required for pipx: backend with pipx.uvx (yamllint)
-dotnet    = ["latest", "8"]
+dotnet    = "lts"                 # newest .NET LTS from Microsoft's release-type tags: 10 now, 12 in Nov 2027 (bare "latest" would take .NET 11, an STS)
 go        = "latest"
 java      = "temurin-25"            # Eclipse Temurin, current LTS (bare "latest" tracks short-lived non-LTS OpenJDK builds)
 node      = "lts"
