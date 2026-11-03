@@ -100,7 +100,8 @@ initd/
 ├── docs/                     # configuration guides and testing conventions
 ├── shared/                   # cross-platform — sourced by both bootstraps
 │   ├── lib/                  # Bash bootstrap helpers plus cleanup.mjs, git-profile.mjs,
-│   │                         #   claude-statusline.mjs, agy-statusline.mjs and json-file.mjs
+│   │                         #   claude-statusline.mjs, agy-statusline.mjs, json-file.mjs and
+│   │                         #   dotnet-prune.mjs (update.sh: drops .NET runtimes no SDK uses)
 │   ├── managed-links.sh      # MANAGED_LINKS for shared configs + git helpers
 │   ├── configs/              # colima, fish, git, ghostty, kitty, mise, nvim, starship, tmux
 │   └── fonts/                # gitignored clone of the PRIVATE vishnukg/fonts repo (Berkeley Mono)

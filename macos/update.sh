@@ -20,6 +20,7 @@ Runs:
   brew upgrade
   brew cleanup
   mise -C "${ROOT_DIR}" upgrade --yes
+  node shared/lib/dotnet-prune.mjs   (removes .NET runtimes no SDK uses)
   fisher update (when fish and fisher are installed)
   brew bundle cleanup (report only — lists installs the Brewfile doesn't own)
 
@@ -67,6 +68,12 @@ main() {
   require_command mise "to upgrade mise-managed tools"
   log "Upgrading mise-managed tools..."
   mise -C "${ROOT_DIR}" upgrade --yes
+
+  log "Pruning .NET runtimes the installed SDKs no longer use..."
+  # mise removes an old SDK but not the runtimes, packs and templates it shared
+  # the dotnet root with; see shared/lib/dotnet-prune.mjs. Not fatal.
+  mise exec node@lts -- node "${ROOT_DIR}/shared/lib/dotnet-prune.mjs" \
+    || log_warn ".NET prune failed; run shared/lib/dotnet-prune.mjs --dry-run to see why."
 
   if command -v fish >/dev/null 2>&1 && fish -c "type -q fisher" 2>/dev/null; then
     log "Updating fish plugins..."
