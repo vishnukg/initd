@@ -28,7 +28,7 @@ do
         cursor_theme = "breeze_cursors"
     end
 end
-hl.env("XCURSOR_SIZE", "24")
+hl.env("XCURSOR_SIZE", "30")
 hl.env("XCURSOR_THEME", cursor_theme)
 
 -- Qt apps (EasyEffects, Media Writer) follow the GTK theme the way Omarchy 4

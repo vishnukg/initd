@@ -310,10 +310,10 @@ apply_gsettings_theme() {
     gsettings set org.gnome.desktop.interface cursor-theme "Adwaita"
   fi
   # 56 (the old laptop's value) was oversized on this machine's display; 24 is
-  # Fedora/GNOME's own out-of-box default. hyprland.lua's hl.env("XCURSOR_SIZE", ...)
+  # Fedora/GNOME's own out-of-box default, and 30 is one Breeze step above it. hyprland.lua's hl.env("XCURSOR_SIZE", ...)
   # is what actually controls the on-screen cursor under Hyprland itself
   # (this gsetting only affects GTK apps) — keep the two in sync.
-  gsettings set org.gnome.desktop.interface cursor-size 24
+  gsettings set org.gnome.desktop.interface cursor-size 30
   # rsms-inter-fonts is installed by linux/bootstrap.sh. Keep GTK3, GTK4, and
   # the fontconfig generic sans-serif alias on the same high-quality UI font.
   gsettings set org.gnome.desktop.interface font-name "Inter 11"
