@@ -256,6 +256,34 @@ configure_lid_switch
     assert.ok(sudoCalls.every(call => !/restart/.test(call)));
 });
 
+test('initramfs Bluetooth drop-in installs once, rebuilds every kernel, and is idempotent', t => {
+    // Arrange
+    const shell = fixture(t);
+    const dropins = path.join(shell.home, 'dracut.conf.d');
+    const calls = path.join(shell.home, 'calls');
+    const script = `
+export DRACUT_DROPIN_DIR=${JSON.stringify(dropins)}
+sudo() {
+    echo "$*" >> ${JSON.stringify(calls)}
+    if [[ "$1" == install ]]; then "$@"; fi
+}
+configure_initramfs_bluetooth
+configure_initramfs_bluetooth
+`;
+
+    // Act
+    const result = shell.run(script);
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const installed = fs.readFileSync(path.join(dropins, 'initd-bluetooth.conf'), 'utf8');
+    assert.equal(installed, fs.readFileSync(path.join(root, 'linux/configs/dracut/initd-bluetooth.conf'), 'utf8'));
+    assert.match(installed, /^add_dracutmodules\+=" bluetooth "$/m);
+    const sudoCalls = fs.readFileSync(calls, 'utf8').trim().split('\n');
+    assert.equal(sudoCalls.length, 2, 'the second run must not invoke sudo');
+    assert.equal(sudoCalls[1], 'dracut -f --regenerate-all');
+});
+
 test('Docker bootstrap enables socket activation without stopping running containers', t => {
     // Arrange
     const shell = fixture(t);

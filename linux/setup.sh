@@ -154,6 +154,30 @@ configure_lid_switch() {
   log_success "Lid close on external power no longer suspends."
 }
 
+configure_initramfs_bluetooth() {
+  # A Bluetooth keyboard at the LUKS passphrase prompt (the reason is in the
+  # drop-in itself). Copied like the logind drop-in, and only when it differs.
+  # --regenerate-all rebuilds every installed kernel's initramfs, so a kernel
+  # installed but not yet booted gets it too; later kernels pick the drop-in up
+  # from their own %posttrans. Pairing a new keyboard later needs a manual
+  # `sudo dracut -f --regenerate-all`, since the pairing is copied in.
+  # dracut's "If you need to use bluetooth, please include it explicitly"
+  # warning keeps printing even with the module included: its check() warns
+  # whenever a paired keyboard exists, before it knows the module was asked
+  # for. Verify with `sudo lsinitrd -m /boot/initramfs-$(uname -r).img`.
+  local source="${CONFIGS_DIR}/dracut/initd-bluetooth.conf"
+  local dropin_dir="${DRACUT_DROPIN_DIR:-/etc/dracut.conf.d}"
+  local target="${dropin_dir}/initd-bluetooth.conf"
+  if cmp -s "${source}" "${target}"; then
+    log_success "Initramfs already includes Bluetooth (keyboard at the LUKS prompt)."
+    return
+  fi
+  log "Installing dracut drop-in: Bluetooth in the initramfs, then rebuilding it..."
+  sudo install -D -m 0644 "${source}" "${target}"
+  sudo dracut -f --regenerate-all
+  log_success "Bluetooth keyboards work at the LUKS passphrase prompt."
+}
+
 # ── Hyprland session ──────────────────────────────────────────────────────────
 check_hyprland_session() {
   # Fedora's hyprland package ships the GDM session entry; verify it's there so
@@ -425,6 +449,7 @@ main() {
   install_symbols_nerd_font
   disable_unused_daemons
   configure_lid_switch
+  configure_initramfs_bluetooth
   check_hyprland_session
   mask_desktop_user_units
   # The schedule's ExecStart must exist before its service/timer is started.
