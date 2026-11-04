@@ -118,26 +118,42 @@ but unresponsive screen. On battery, closing the lid still suspends.
 
 Two things this does not cover:
 
-- A laptop that is closed on battery is asleep. It used to stay asleep when a
-  monitor was plugged in, until the lid opened: the kernel had wakeup disabled
-  on every USB root hub and on the Bluetooth controller.
-  `linux/configs/udev/90-initd-wakeup.rules` (installed by
-  `linux/setup.sh:configure_wakeup_sources`) enables both. Plugging in the USB-C
-  monitor connects its USB hub, which wakes the laptop, and the monitor's power
-  delivery means logind leaves the closed lid alone. A Bluetooth keyboard key
-  wakes it too. Check with `cat /sys/bus/usb/devices/usb*/power/wakeup` (all
-  `enabled`).
+- A laptop that is closed on battery is asleep, and plugging a monitor into it
+  does not wake it. **Plug the monitor in, then open the lid and close it
+  again** (or press the power button): the laptop resumes with the monitor
+  already attached, and `hyprmoncfgd` applies its profile with the panel off.
+  This has worked on every wake tried; the lock screen comes up on the
+  monitor and unlocks there.
 
-  The first wake that way left the Dell black but still locked. The laptop
-  resumes with only the panel, and `hyprmoncfgd` applies `laptop`, whose
-  generated rules name only the panel. So the Dell arrived through the catch-all
-  rule at its preferred 60 Hz and was switched to 120 Hz a few seconds later.
-  hyprlock 0.9.7 lost its lock surface on that mode change (the family is
-  tracked upstream as hyprwm/hyprlock#678). `hyprland.lua` now has fixed rules
-  for the Dell and the BenQ at their profiles' mode and scale, so they arrive in
-  their final mode. The profile switch that follows only positions them and
-  turns the panel off. If a profile's mode or scale is changed in
-  `hyprmoncfg tui`, change the matching rule in `hyprland.lua` too.
+  Waking *by* the plug-in was tried on 2026-11-04 (a udev rule enabling
+  wakeup on the USB root hubs and the Bluetooth controller) and retired the
+  same day. The USB wake worked, but the Dell's DisplayPort link then comes up
+  while the kernel is still resuming (`typec port0-partner: PM: parent port0
+  should not be sleeping` marks that path) and the picture flickers until
+  unplugged, even once the daemon's wake settle (below) had reduced the
+  software side to a single profile apply. The Bluetooth controller never
+  woke the machine at all (`/sys/bus/pci/devices/0000:00:14.7/power/wakeup_count`
+  stayed 0). The same cable and monitor are fine on a MacBook, so it is the
+  kernel's bring-up, not the hardware. If it is ever worth another go: turn
+  on DRM debug logging (`echo 0x1e > /sys/module/drm/parameters/debug`),
+  install `drm_info`, re-enable the root hubs' wakeup for one boot, and read
+  the link training and `link-status` during the flicker; a DPMS off/on of
+  the output (a link retrain) or a 60 Hz mode are the two things to try live.
+
+  `hyprmoncfgd` runs with `--wake-settle 8s` (its drop-in). With the default
+  2 s it picked a profile before a monitor arriving 4-5 s after resume
+  existed, so a closed laptop got `laptop` (panel lit inside the lid) and the
+  monitor profile a moment later; every event during the settle restarts it,
+  so 8 s gives one apply with the monitor present. The cost is ~8 s instead of
+  ~2 s to the panel after opening the lid when the last profile had it off.
+
+  `hyprland.lua` also carries fixed rules for the Dell and the BenQ at their
+  profiles' mode and scale. The generated file names only the outputs of the
+  last profile, so a monitor hotplugged after `laptop` used to arrive through
+  the catch-all rule at 60 Hz and be switched to 120 Hz seconds later, and
+  hyprlock 0.9.7 lost its lock surface on that mode change (hyprwm/hyprlock#678).
+  With the rules it arrives in its final mode. If a profile's mode or scale is
+  changed in `hyprmoncfg tui`, change the matching rule too.
 - A closed laptop on a charger with no monitor stays awake, with the panel on
   until hypridle's screen-off.
 

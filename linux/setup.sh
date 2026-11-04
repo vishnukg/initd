@@ -154,24 +154,23 @@ configure_lid_switch() {
   log_success "Lid close on external power no longer suspends."
 }
 
-configure_wakeup_sources() {
-  # Wake a sleeping, closed laptop when a USB-C monitor is plugged in or a
-  # Bluetooth keyboard is used (the reason is in the rule itself). Copied like
-  # the logind drop-in, and only when it differs. The trigger replays "add" for
-  # just the matched devices, so the rule applies now rather than at next boot.
-  local source="${CONFIGS_DIR}/udev/90-initd-wakeup.rules"
-  local rules_dir="${UDEV_RULES_DIR:-/etc/udev/rules.d}"
-  local target="${rules_dir}/90-initd-wakeup.rules"
-  if cmp -s "${source}" "${target}"; then
-    log_success "USB connect and Bluetooth already wake the laptop from sleep."
-    return
-  fi
-  log "Installing udev rule: USB connect and Bluetooth wake from sleep..."
-  sudo install -D -m 0644 "${source}" "${target}"
+remove_wakeup_rule() {
+  # Migration (2026-11-04): a udev rule briefly let a USB connect and the
+  # Bluetooth controller wake the sleeping laptop, so plugging the monitor in
+  # with the lid closed would bring it up. Removed: the Bluetooth controller
+  # never woke the machine (its wakeup counters stayed at zero), and a USB-C
+  # monitor whose plug-in is the wake event comes up with a flickering link,
+  # since the kernel brings up DisplayPort while still resuming (the typec
+  # "parent port should not be sleeping" warning marks that path). Waking by
+  # lid or power button with the monitor already attached works every time;
+  # docs/linux-monitors.md has the routine. The rule re-enabled wake at every
+  # boot, so it must go; the sysfs flags reset to disabled on reboot.
+  local target="${UDEV_RULES_DIR:-/etc/udev/rules.d}/90-initd-wakeup.rules"
+  [[ -e "${target}" ]] || return 0
+  log "Removing the USB/Bluetooth wake rule (plug-in wake comes up flickering)..."
+  sudo rm -f "${target}"
   sudo udevadm control --reload
-  sudo udevadm trigger --action=add --subsystem-match=usb --attr-match=bDeviceClass=09 --sysname-match='usb[0-9]*'
-  sudo udevadm trigger --action=add --subsystem-match=pci --attr-match=class=0x0d11*
-  log_success "Plugging in a monitor or using a Bluetooth keyboard now wakes the laptop."
+  log_success "Wake the laptop by lid or power button; the monitor is picked up on resume."
 }
 
 configure_initramfs_bluetooth() {
@@ -469,7 +468,7 @@ main() {
   install_symbols_nerd_font
   disable_unused_daemons
   configure_lid_switch
-  configure_wakeup_sources
+  remove_wakeup_rule
   configure_initramfs_bluetooth
   check_hyprland_session
   mask_desktop_user_units
