@@ -139,6 +139,12 @@ Two things this does not cover:
   install `drm_info`, re-enable the root hubs' wakeup for one boot, and read
   the link training and `link-status` during the flicker; a DPMS off/on of
   the output (a link retrain) or a 60 Hz mode are the two things to try live.
+  **Retest first on a 7.4 kernel**: mainline commit a2463e2394 ("usb: typec:
+  ucsi: allow retries of ucsi_resume_work", in v7.4-rc1, not tagged for
+  stable) fixes the UCSI driver losing connection-status changes when the
+  USB-C controller is busy during system resume, which is this path. Fedora's
+  `@kernel-vanilla/mainline-wo-mergew` COPR has it for F44 if it is wanted
+  sooner (Secure Boot is off on this machine, so an unsigned kernel boots).
 
   `hyprmoncfgd` runs with `--wake-settle 8s` (its drop-in). With the default
   2 s it picked a profile before a monitor arriving 4-5 s after resume
