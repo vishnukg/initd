@@ -1,0 +1,25 @@
+# Installed to /etc/udev/rules.d/ by linux/setup.sh:configure_wakeup_sources
+# (copied, not linked: udev reads it as root, so it should not live in a
+# user-writable checkout).
+#
+# Closing the lid on battery suspends (s2idle), and out of the box only the
+# lid, the power button and the built-in keyboard/touchpad can wake it. Two
+# things a closed laptop on a desk should also answer to:
+#
+# USB root hubs -- with wakeup enabled, a connect on any root port wakes the
+# machine. A USB-C monitor brings its USB hub up on that cable (on both the
+# Thunderbolt and the PCH controller), so plugging it in wakes the laptop,
+# and since the monitor also charges it, logind then sees external power and
+# leaves a closed lid alone (initd-lid-switch.conf): clamshell mode with no
+# lid opening. The same holds for any USB device plugged in while asleep.
+#
+# Bluetooth controller (PCI class 0x0d11) -- BlueZ already marks paired HID
+# devices WakeAllowed, but the controller itself had wakeup disabled, so a
+# key on a Bluetooth keyboard never reached anything. Caveat: a Bluetooth
+# mouse moved while the laptop sleeps (say, both in a bag) wakes it too; turn
+# that off per device with
+#   busctl set-property org.bluez /org/bluez/hci0/dev_<MAC> org.bluez.Device1 WakeAllowed b false
+# A wake on battery with the lid still closed just suspends again after
+# logind's holdoff.
+ACTION=="add", SUBSYSTEM=="usb", KERNEL=="usb[0-9]*", ATTR{bDeviceClass}=="09", ATTR{power/wakeup}="enabled"
+ACTION=="add", SUBSYSTEM=="pci", ATTR{class}=="0x0d11*", ATTR{power/wakeup}="enabled"

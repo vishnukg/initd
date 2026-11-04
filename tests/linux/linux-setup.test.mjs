@@ -256,6 +256,37 @@ configure_lid_switch
     assert.ok(sudoCalls.every(call => !/restart/.test(call)));
 });
 
+test('wakeup udev rule installs once, applies to root hubs and Bluetooth now, and is idempotent', t => {
+    // Arrange
+    const shell = fixture(t);
+    const rules = path.join(shell.home, 'rules.d');
+    const calls = path.join(shell.home, 'calls');
+    const script = `
+export UDEV_RULES_DIR=${JSON.stringify(rules)}
+sudo() {
+    echo "$*" >> ${JSON.stringify(calls)}
+    if [[ "$1" == install ]]; then "$@"; fi
+}
+configure_wakeup_sources
+configure_wakeup_sources
+`;
+
+    // Act
+    const result = shell.run(script);
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const installed = fs.readFileSync(path.join(rules, '90-initd-wakeup.rules'), 'utf8');
+    assert.equal(installed, fs.readFileSync(path.join(root, 'linux/configs/udev/90-initd-wakeup.rules'), 'utf8'));
+    assert.match(installed, /SUBSYSTEM=="usb".*ATTR\{bDeviceClass\}=="09".*ATTR\{power\/wakeup\}="enabled"/);
+    assert.match(installed, /SUBSYSTEM=="pci".*ATTR\{class\}=="0x0d11\*".*ATTR\{power\/wakeup\}="enabled"/);
+    const sudoCalls = fs.readFileSync(calls, 'utf8').trim().split('\n');
+    assert.equal(sudoCalls.length, 4, 'the second run must not invoke sudo');
+    assert.equal(sudoCalls[1], 'udevadm control --reload');
+    assert.match(sudoCalls[2], /^udevadm trigger --action=add --subsystem-match=usb /);
+    assert.match(sudoCalls[3], /^udevadm trigger --action=add --subsystem-match=pci /);
+});
+
 test('initramfs Bluetooth drop-in installs once, rebuilds every kernel, and is idempotent', t => {
     // Arrange
     const shell = fixture(t);

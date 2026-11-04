@@ -118,8 +118,15 @@ but unresponsive screen. On battery, closing the lid still suspends.
 
 Two things this does not cover:
 
-- A laptop that is closed on battery is asleep, and plugging a monitor into it
-  does not wake it. Press the power button briefly (or open the lid).
+- A laptop that is closed on battery is asleep. It used to stay asleep when a
+  monitor was plugged in, until the lid opened: the kernel had wakeup disabled
+  on every USB root hub and on the Bluetooth controller.
+  `linux/configs/udev/90-initd-wakeup.rules` (installed by
+  `linux/setup.sh:configure_wakeup_sources`) enables both. Plugging in the USB-C
+  monitor connects its USB hub, which wakes the laptop, and the monitor's power
+  delivery means logind leaves the closed lid alone. A Bluetooth keyboard key
+  wakes it too. Check with `cat /sys/bus/usb/devices/usb*/power/wakeup` (all
+  `enabled`).
 - A closed laptop on a charger with no monitor stays awake, with the panel on
   until hypridle's screen-off.
 
