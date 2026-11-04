@@ -32,7 +32,7 @@ systemctl --user status hyprmoncfgd
 
 ## Switching profiles from the bar
 
-The Quickshell bar's monitor icon opens a profile switcher: a read-only list of
+Quick settings' Displays page is a profile switcher: a read-only list of
 the connected displays with their current mode and scale, over the saved
 profiles with the active one checked. Clicking a profile runs
 `hyprmoncfg apply <name> --confirm-timeout 0`.
@@ -127,6 +127,17 @@ Two things this does not cover:
   delivery means logind leaves the closed lid alone. A Bluetooth keyboard key
   wakes it too. Check with `cat /sys/bus/usb/devices/usb*/power/wakeup` (all
   `enabled`).
+
+  The first wake that way left the Dell black but still locked. The laptop
+  resumes with only the panel, and `hyprmoncfgd` applies `laptop`, whose
+  generated rules name only the panel. So the Dell arrived through the catch-all
+  rule at its preferred 60 Hz and was switched to 120 Hz a few seconds later.
+  hyprlock 0.9.7 lost its lock surface on that mode change (the family is
+  tracked upstream as hyprwm/hyprlock#678). `hyprland.lua` now has fixed rules
+  for the Dell and the BenQ at their profiles' mode and scale, so they arrive in
+  their final mode. The profile switch that follows only positions them and
+  turns the panel off. If a profile's mode or scale is changed in
+  `hyprmoncfg tui`, change the matching rule in `hyprland.lua` too.
 - A closed laptop on a charger with no monitor stays awake, with the panel on
   until hypridle's screen-off.
 
@@ -135,7 +146,10 @@ Two things this does not cover:
 If the monitor is on but nothing responds after a resume or a hotplug, the
 session is most likely still locked with no lock surface on the screen you are
 looking at. `misc.allow_session_lock_restore = true` in `hyprland.lua` lets a
-fresh hyprlock take the lock over, so nothing has to be logged out:
+fresh hyprlock take the lock over, so nothing has to be logged out. hypridle
+starts hyprlock through `idle.sh lock`, which starts it again whenever it dies
+from a signal: a crash, or the `pkill` below. A dead client never unlocks the
+session.
 
 1. Press `Ctrl+Alt+F3` and log in on the text console.
 2. Look before changing anything (useful if this needs reporting):
@@ -145,7 +159,9 @@ fresh hyprlock take the lock over, so nothing has to be logged out:
    hyprctl --instance 0 monitors
    ```
 
-3. Replace the lock client:
+3. Replace the lock client. `idle.sh lock` restarts it within a second. Run the
+   second command only if `pgrep -a hyprlock` shows nothing a moment later
+   (for example, after five crashes in a row it stops trying):
 
    ```bash
    pkill -x hyprlock

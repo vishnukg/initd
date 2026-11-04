@@ -84,3 +84,70 @@ test('an unknown command is a usage error', () => {
     const f = fixture();
     assert.equal(f.run('bogus').status, 2);
 });
+
+// lock: hyprlock is a stub that exits with the next status listed in a file,
+// so a crash (139), a SIGTERM (143), an unlock (0) and a refusal (1) can be
+// played in order without a compositor.
+function lockFixture(statuses, { running = false } = {}) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-lock-'));
+    const bin = path.join(root, 'bin');
+    const queue = path.join(root, 'statuses');
+    const log = path.join(root, 'calls.log');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(queue, statuses.join('\n') + '\n');
+    const stub = (name, body) => fs.writeFileSync(path.join(bin, name), `#!/bin/bash\necho "${name} $*" >> "${log}"\n${body}\n`, { mode: 0o755 });
+    stub('hyprlock', `s=$(head -n1 "${queue}"); sed -i 1d "${queue}"; exit "\${s:-0}"`);
+    stub('pgrep', running ? 'exit 0' : 'exit 1');
+    const env = { PATH: `${bin}:/usr/bin:/bin`, XDG_RUNTIME_DIR: root, LOCK_RESTART_DELAY: '0' };
+    const run = () => spawnSync('bash', [script, 'lock'], { encoding: 'utf8', env });
+    const launches = () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n') : [])
+        .filter((c) => c.startsWith('hyprlock'));
+    return { root, env, run, launches };
+}
+
+test('lock restarts hyprlock after a crash or a kill, and stops at the unlock', () => {
+    // Arrange: segfault, then SIGTERM (a TTY pkill), then a normal unlock.
+    const f = lockFixture([139, 143, 0, 0]);
+    // Act
+    const result = f.run();
+    // Assert: three launches, every one without the fade-in, none after the unlock.
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(f.launches(), Array(3).fill('hyprlock --no-fade-in'));
+});
+
+test('lock does not retry an ordinary failure, such as another client holding the lock', () => {
+    const f = lockFixture([1, 0]);
+    f.run();
+    assert.equal(f.launches().length, 1);
+});
+
+test('lock gives up after five restarts of a client that keeps crashing', () => {
+    const f = lockFixture(Array(10).fill(134));
+    f.run();
+    assert.equal(f.launches().length, 6);
+});
+
+test('lock starts nothing while a hyprlock is already running', () => {
+    const f = lockFixture([0], { running: true });
+    f.run();
+    assert.deepEqual(f.launches(), []);
+});
+
+test('lock runs one supervisor at a time', async () => {
+    // Arrange: the first client stays up until released, the way a real lock
+    // screen does until the password is typed.
+    const f = lockFixture([0]);
+    const release = path.join(f.root, 'release');
+    fs.writeFileSync(path.join(f.root, 'bin/hyprlock'),
+        `#!/bin/bash\necho "hyprlock $*" >> "${path.join(f.root, 'calls.log')}"\nwhile [ ! -e "${release}" ]; do sleep 0.05; done\n`, { mode: 0o755 });
+    const { spawn } = await import('node:child_process');
+    const first = new Promise((resolve) => spawn('bash', [script, 'lock'], { env: f.env }).on('exit', resolve));
+    while (f.launches().length === 0) await new Promise((r) => setTimeout(r, 20));
+    // Act: a second lock-session while the first is showing.
+    const second = f.run();
+    fs.writeFileSync(release, '');
+    await first;
+    // Assert
+    assert.equal(second.status, 0);
+    assert.equal(f.launches().length, 1);
+});

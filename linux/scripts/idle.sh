@@ -5,6 +5,7 @@
 #   idle.sh dim                 dim to 20% (never brightens an already-dim screen)
 #   idle.sh undim               restore the brightness `dim` saved, if it dimmed
 #   idle.sh suspend-on-battery  suspend, but only on battery and with nothing playing
+#   idle.sh lock                run hyprlock, and run it again if it crashes
 set -u
 
 POWER_SUPPLY="${IDLE_POWER_SUPPLY:-/sys/class/power_supply}"
@@ -52,12 +53,38 @@ suspend_on_battery() {
   systemctl suspend
 }
 
+lock() {
+  # hypridle's lock_cmd. One supervisor at a time (the flock), and none at all
+  # while some other hyprlock already holds the lock -- the old
+  # `pidof hyprlock || hyprlock` guard, which stopped a hyprlock per suspend
+  # piling up.
+  local guard="${XDG_RUNTIME_DIR:-/tmp}/initd-lock.flock" status restarts=0
+  exec 9> "${guard}"
+  flock -n 9 || return 0
+  pgrep -x hyprlock >/dev/null && return 0
+  while :; do
+    # fd 9 is closed for hyprlock so the guard dies with this script.
+    hyprlock --no-fade-in 9>&-
+    status=$?
+    # Only a death by signal is restarted: 0 is an unlock, and any other exit
+    # (another lock client holding the session, no display) would just fail
+    # again. A dead client never unlocks the session -- Hyprland keeps it
+    # locked, and misc.allow_session_lock_restore lets the new client take
+    # over. SIGTERM counts, so `pkill -x hyprlock` from a TTY is the whole
+    # recovery for a lock screen that is up but not drawing.
+    ((status > 128)) || return 0
+    ((++restarts <= ${LOCK_MAX_RESTARTS:-5})) || return 0
+    sleep "${LOCK_RESTART_DELAY:-0.5}"
+  done
+}
+
 case "${1:-}" in
   dim) dim ;;
   undim) undim ;;
   suspend-on-battery) suspend_on_battery ;;
+  lock) lock ;;
   *)
-    echo "usage: ${0##*/} dim | undim | suspend-on-battery" >&2
+    echo "usage: ${0##*/} dim | undim | suspend-on-battery | lock" >&2
     exit 2
     ;;
 esac

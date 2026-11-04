@@ -16,7 +16,10 @@ const config = path.join(root, 'linux/configs/hypr/hyprlock.conf');
 const hasHyprlock = spawnSync('hyprlock', ['--version'], { encoding: 'utf8' }).status === 0;
 
 function parse(file, home) {
-    const result = spawnSync('hyprlock', ['--config', file, '--display', 'wayland-initd-test-none'], {
+    // hyprlock aborts once it finds no display, which is the point. With core
+    // dumps off, systemd-coredump stores nothing for these runs, so a real
+    // lock-screen crash is the only hyprlock core in coredumpctl.
+    const result = spawnSync('bash', ['-c', 'ulimit -c 0; exec hyprlock "$@"', 'hyprlock', '--config', file, '--display', 'wayland-initd-test-none'], {
         encoding: 'utf8', timeout: 10000, env: { ...process.env, HOME: home, WAYLAND_DISPLAY: 'wayland-initd-test-none' },
     });
     return `${result.stdout}\n${result.stderr}`;

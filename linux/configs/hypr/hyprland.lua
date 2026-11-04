@@ -70,6 +70,20 @@ hl.env("HYPRLAND_NO_RT", "1")
 -- (tuned for the old machine's panel), then 1.25, which read a touch small.
 hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = "1.33333" })
 hl.monitor({ output = "",      mode = "preferred", position = "auto", scale = "1.33333" })
+-- The external monitors at the mode and scale their saved hyprmoncfg profiles
+-- use (keep these in step with linux/configs/hyprmoncfg/profiles/). The
+-- generated file loaded at the end names only the outputs of the profile
+-- applied last, so a monitor hotplugged after the `laptop` profile used to
+-- come up through the catch-all above at its preferred 60 Hz and then be
+-- switched to its real mode a few seconds later, once hyprmoncfgd caught up.
+-- Waking a closed laptop by plugging the Dell in did exactly that while the
+-- session was locked, and hyprlock 0.9.7 lost its lock surface on the mode
+-- change: a black, still-locked monitor (hyprwm/hyprlock#678 tracks the
+-- family). With these the monitor arrives in its final mode, and the profile
+-- switch that follows only moves it and turns the panel off. Position is left
+-- to the profile.
+hl.monitor({ output = "desc:Dell Inc. DELL U2725QE 3VSH584", mode = "3840x2160@120", position = "auto", scale = "1.33333" })
+hl.monitor({ output = "desc:BNQ BenQ RD320U V9R01600019",    mode = "3840x2160@60",  position = "auto", scale = "1.06667" })
 
 -- ── Input ─────────────────────────────────────────────────────────────────────
 hl.config({
