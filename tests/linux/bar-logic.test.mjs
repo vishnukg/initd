@@ -11,7 +11,7 @@ import {
     loadColor, deviceKind, kindRank, KIND_ORDER,
     cpuTimes, cpuPercent, memoryUsage, batteryPercent,
     bluetoothDeviceIcon, compareBluetoothDevices, trayRole, backlightPercent,
-    isInternalOutput, externalBrightness,
+    isInternalOutput, externalBrightness, switcherOrder, switcherStep,
     diskUsage, formatGiB, netBytes, netRate, formatRate,
 } from '../../linux/configs/quickshell/bar-logic.mjs';
 import * as BarLogic from '../../linux/configs/quickshell/bar-logic.mjs';
@@ -749,6 +749,30 @@ test('themeColors takes valid roles from theme.json and defaults the rest', () =
 test('themeColors falls back to the whole default palette on a bad file', () => {
     for (const text of ['', '{', 'null', '[]', '{"colors": 3}'])
         assert.deepEqual(BarLogic.themeColors(text), BarLogic.THEME_DEFAULTS, text);
+});
+
+test('the switcher lists mapped windows most recently used first, with the active one pinned', () => {
+    // Arrange: history says kitty (0) then Brave (1) then Files (2), but the
+    // active window is Brave -- its history ID has not caught up yet.
+    const kitty = { lastIpcObject: { address: '0x1', focusHistoryID: 0, mapped: true, hidden: false } };
+    const brave = { lastIpcObject: { address: '0x2', focusHistoryID: 1, mapped: true, hidden: false } };
+    const files = { lastIpcObject: { address: '0x3', focusHistoryID: 2, mapped: true, hidden: false } };
+    const unmapped = { lastIpcObject: { address: '0x4', focusHistoryID: 3, mapped: false, hidden: false } };
+    const hidden = { lastIpcObject: { address: '0x5', focusHistoryID: 4, mapped: true, hidden: true } };
+    const noIpc = { lastIpcObject: null };
+
+    // Act
+    const order = switcherOrder([files, hidden, noIpc, kitty, unmapped, brave], brave);
+
+    // Assert
+    assert.deepEqual(order, [brave, kitty, files]);
+});
+
+test('the switcher selection wraps in both directions', () => {
+    assert.equal(switcherStep(1, 1, 3), 2);
+    assert.equal(switcherStep(2, 1, 3), 0);
+    assert.equal(switcherStep(0, -1, 3), 2);
+    assert.equal(switcherStep(5, 1, 0), 0);
 });
 
 test('bannerTimeout defaults to 3 s, clamps requests to 2-8 s, and pins critical', () => {

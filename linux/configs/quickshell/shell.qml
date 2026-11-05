@@ -66,6 +66,50 @@ ShellRoot {
     // Workspace overview (Overview.qml), created only while open.
     property bool overviewOpen: false
 
+    // Window switcher (AltTab.qml), Windows Alt+Tab style. The list is the
+    // open windows in most-recently-used order, taken once when it opens so
+    // the row does not reshuffle under the selection; the focused window is
+    // first and the previous one is selected on the first press. Driven by
+    // the "switcher" submap in hyprland.lua through the IPC calls below.
+    property bool switcherOpen: false
+    property int switcherIndex: 0
+    property var switcherWindows: []
+
+    function altTab(step) {
+        if (!switcherOpen) {
+            const active = Hyprland.activeToplevel;
+            const windows = BarLogic.switcherOrder(Hyprland.toplevels.values, active);
+            if (windows.length < 2)
+                return;
+            switcherWindows = windows;
+            switcherIndex = 1;
+            switcherOpen = true;
+            // Current geometry and history for the next open; the previews
+            // this one shows are captured from the live surfaces regardless.
+            Hyprland.refreshToplevels();
+            return;
+        }
+        switcherIndex = BarLogic.switcherStep(switcherIndex, step, switcherWindows.length);
+    }
+
+    function altTabCommit() {
+        if (!switcherOpen)
+            return;
+        const chosen = switcherWindows[switcherIndex];
+        const ipc = chosen ? chosen.lastIpcObject : null;
+        switcherOpen = false;
+        switcherWindows = [];
+        if (ipc && ipc.address) {
+            Hyprland.dispatch("hl.dsp.focus({ window = \"address:" + ipc.address + "\" })");
+            Hyprland.dispatch("hl.dsp.window.alter_zorder({ mode = \"top\" })");
+        }
+    }
+
+    function altTabCancel() {
+        switcherOpen = false;
+        switcherWindows = [];
+    }
+
     function togglePanel() {
         if (!panelOpen && Date.now() - panelClosedAt < 300)
             return;
@@ -446,6 +490,21 @@ ShellRoot {
             root.overviewOpen = !root.overviewOpen;
         }
 
+        // The switcher: `altTab 1` opens it (or moves the selection forward
+        // once open), `altTab -1` moves it back, commit focuses the selected
+        // window, cancel closes without a change.
+        function altTab(step: int): void {
+            root.altTab(step);
+        }
+
+        function altTabCommit(): void {
+            root.altTabCommit();
+        }
+
+        function altTabCancel(): void {
+            root.altTabCancel();
+        }
+
         function refreshBrightness(): void {
             // Only the brightness keys ping this, so only they bring up the
             // indicator -- not hypridle's idle dim, which the 30s reload sees.
@@ -521,6 +580,15 @@ ShellRoot {
         active: root.overviewOpen
 
         Overview {
+            screen: root.focusedScreen()
+            shell: root
+        }
+    }
+
+    LazyLoader {
+        active: root.switcherOpen
+
+        AltTab {
             screen: root.focusedScreen()
             shell: root
         }

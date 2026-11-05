@@ -436,6 +436,37 @@ export function themeColors(text) {
     return result;
 }
 
+// --- Window switcher (AltTab.qml) ---
+
+// The windows the switcher offers, most recently used first: Hyprland's
+// toplevels (each with its last `clients` JSON as lastIpcObject) that are
+// mapped and not hidden, ordered by focusHistoryID (0 = focused most
+// recently), with the active window pinned first in case the history IDs
+// are a beat behind the last focus change. Toplevels without IPC data yet
+// are left out rather than guessed at.
+export function switcherOrder(toplevels, active) {
+    const ipcOf = toplevel => toplevel.lastIpcObject || null;
+    const usable = (toplevels || []).filter(toplevel => {
+        const ipc = ipcOf(toplevel);
+        return ipc && ipc.address && ipc.mapped !== false && ipc.hidden !== true;
+    });
+    const rank = toplevel => {
+        if (active && toplevel === active)
+            return -1;
+        const id = Number(ipcOf(toplevel).focusHistoryID);
+        return Number.isFinite(id) ? id : Number.MAX_SAFE_INTEGER;
+    };
+    return usable.sort((a, b) => rank(a) - rank(b));
+}
+
+// The selection after a Tab (step 1) or Shift+Tab (step -1), wrapping at
+// both ends.
+export function switcherStep(index, step, count) {
+    if (!(count > 0))
+        return 0;
+    return (((index + step) % count) + count) % count;
+}
+
 // --- Notifications (Notifications.qml) ---
 
 // How long a banner stays up, in ms. `expireTimeout` is the app's request in

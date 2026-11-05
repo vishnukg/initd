@@ -223,7 +223,32 @@ hl.bind(mod .. " + t", hl.dsp.exec_cmd("ghostty"))
 hl.bind(mod .. " + SHIFT + Return", hl.dsp.exec_cmd([[sh -c 'gtk-launch "$(xdg-settings get default-web-browser)"']]))
 hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
-hl.bind(mod .. " + Tab", hl.dsp.exec_cmd("rofi -show window"))
+-- Window switcher, Windows Alt+Tab style (AltTab.qml): the first press shows
+-- the open windows most-recently-used first with the previous one selected,
+-- each further Tab (Shift+Tab backwards) moves the selection, and releasing
+-- Super focuses it; Escape cancels. The "switcher" submap holds the keys
+-- while Super is down and ends on its release, so one tap of Super+Tab is a
+-- straight jump to the previous window.
+hl.bind(mod .. " + Tab", function()
+    hl.dispatch(hl.dsp.exec_cmd("qs ipc --any-display call bar altTab 1"))
+    hl.dispatch(hl.dsp.submap("switcher"))
+end)
+hl.bind(mod .. " + SHIFT + Tab", function()
+    hl.dispatch(hl.dsp.exec_cmd("qs ipc --any-display call bar altTab 1"))
+    hl.dispatch(hl.dsp.submap("switcher"))
+end)
+hl.define_submap("switcher", function()
+    hl.bind(mod .. " + Tab",         hl.dsp.exec_cmd("qs ipc --any-display call bar altTab 1"))
+    hl.bind(mod .. " + SHIFT + Tab", hl.dsp.exec_cmd("qs ipc --any-display call bar altTab -1"))
+    hl.bind(mod .. " + SUPER_L", function()
+        hl.dispatch(hl.dsp.exec_cmd("qs ipc --any-display call bar altTabCommit"))
+        hl.dispatch(hl.dsp.submap("reset"))
+    end, { release = true })
+    hl.bind(mod .. " + Escape", function()
+        hl.dispatch(hl.dsp.exec_cmd("qs ipc --any-display call bar altTabCancel"))
+        hl.dispatch(hl.dsp.submap("reset"))
+    end)
+end)
 -- Keyboard's dedicated "Copilot" key: the kernel has no keycode for it, so
 -- the firmware sends a synthetic Super+Shift+F23 chord instead (confirmed
 -- via `libinput debug-events`). Wired to the same app launcher as mod+d.
