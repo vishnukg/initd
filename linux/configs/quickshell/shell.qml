@@ -72,7 +72,15 @@ ShellRoot {
         panelOpen = !panelOpen;
     }
 
+    // The tile flips at once; the switch itself takes up to ~4 s (gammastep
+    // fades the gamma back before it exits, and systemd waits for it), and
+    // the toggle script's refreshNightLight ping then confirms the real
+    // state, or puts the tile back if the switch failed. A click while the
+    // switch is still running is ignored rather than queued.
     function toggleNightLight() {
+        if (nightLightToggleProcess.running)
+            return;
+        nightLightOn = !nightLightOn;
         start(nightLightToggleProcess);
     }
 
