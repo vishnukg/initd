@@ -4,9 +4,9 @@ import Quickshell.Hyprland
 import Quickshell.Wayland
 
 // Window switcher (Alt+Tab): the open windows in most-recently-used order as
-// a row of still previews. Each Alt+Tab press selects AND focuses the next
-// window along (Alt+Shift+Tab the one back); the row stays up for 0.6 s
-// after the last press. hyprland.lua's binds drive shell.qml's altTab; this
+// a row of still previews. Each Alt+Tab press selects the next window along
+// (Alt+Shift+Tab the one back) and the focus follows 150 ms after the last
+// press; the row stays up for 0.6 s after the last press. hyprland.lua's binds drive shell.qml's altTab; this
 // file only draws, so it takes no keyboard focus. Clicking a card focuses it
 // and closes the row, a click on the backdrop just closes it. shell.qml
 // creates it through a LazyLoader only while open; the previews are single

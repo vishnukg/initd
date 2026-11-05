@@ -68,9 +68,10 @@ ShellRoot {
 
     // Window switcher (AltTab.qml) on Alt+Tab. The list is the open windows
     // in most-recently-used order, taken once when the row opens so it does
-    // not reshuffle under the selection. Every press moves the selection AND
-    // focuses it at once: one Alt+Tab is the previous window, a second Tab
-    // while the row is up is the one before that, and so on, wrapping. The
+    // not reshuffle under the selection. Every press moves the selection, and
+    // the focus follows 150 ms after the last press (switcherFocus): one
+    // Alt+Tab is the previous window, a second Tab while the row is up is
+    // the one before that, and so on, wrapping. The
     // row closes 0.6 s after the last press (switcherHide: long enough for the next Tab of a run, short enough to be gone when you stop), and with it the
     // snapshot, so the next Alt+Tab starts from the new order. There is no
     // "release Alt to commit": Hyprland suppresses a bare Alt release bind
@@ -97,8 +98,17 @@ ShellRoot {
             switcherOpen = true;
         }
         switcherIndex = BarLogic.switcherStep(switcherIndex, step, switcherWindows.length);
-        focusSwitcherSelection();
+        // The selection moves at once; the focus follows 150 ms after the
+        // last press, so a run of Tabs lands on one window instead of
+        // hopping through each one on the way.
+        switcherFocus.restart();
         switcherHide.restart();
+    }
+
+    Timer {
+        id: switcherFocus
+        interval: 150
+        onTriggered: root.focusSwitcherSelection()
     }
 
     Timer {
@@ -111,9 +121,12 @@ ShellRoot {
         }
     }
 
-    // Keep every window's IPC data (geometry, focus history) current as
-    // windows come and go, so the switcher's first press after opening a new
-    // window already knows it. Open and close are rare; one query each.
+    // Keep every window's IPC data (geometry, focus history) current: once
+    // at startup (Quickshell lists toplevels without it until asked), then
+    // as windows come and go, so the switcher's first press already knows
+    // every window. Open and close are rare; one query each.
+    Component.onCompleted: Hyprland.refreshToplevels()
+
     Connections {
         target: Hyprland
         function onRawEvent(event) {
@@ -135,11 +148,18 @@ ShellRoot {
     function altTabCommit() {
         if (!switcherOpen)
             return;
+        switcherFocus.stop();
         focusSwitcherSelection();
         altTabCancel();
     }
 
     function altTabCancel() {
+        // A cancel while a focus is pending (the backdrop clicked, or the
+        // row timing out right after a press) still lands the selection.
+        if (switcherFocus.running) {
+            switcherFocus.stop();
+            focusSwitcherSelection();
+        }
         switcherHide.stop();
         switcherOpen = false;
         switcherWindows = [];
