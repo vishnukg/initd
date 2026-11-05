@@ -751,13 +751,13 @@ test('themeColors falls back to the whole default palette on a bad file', () => 
         assert.deepEqual(BarLogic.themeColors(text), BarLogic.THEME_DEFAULTS, text);
 });
 
-test('bannerTimeout defaults to 5 s, clamps requests to 3-15 s, and pins critical', () => {
-    assert.equal(BarLogic.bannerTimeout(-1, false), 5000);
-    assert.equal(BarLogic.bannerTimeout(0, false), 5000);
-    assert.equal(BarLogic.bannerTimeout(undefined, false), 5000);
-    assert.equal(BarLogic.bannerTimeout(1, false), 3000);
-    assert.equal(BarLogic.bannerTimeout(8, false), 8000);
-    assert.equal(BarLogic.bannerTimeout(600, false), 15000);
+test('bannerTimeout defaults to 3 s, clamps requests to 2-8 s, and pins critical', () => {
+    assert.equal(BarLogic.bannerTimeout(-1, false), 3000);
+    assert.equal(BarLogic.bannerTimeout(0, false), 3000);
+    assert.equal(BarLogic.bannerTimeout(undefined, false), 3000);
+    assert.equal(BarLogic.bannerTimeout(1, false), 2000);
+    assert.equal(BarLogic.bannerTimeout(5, false), 5000);
+    assert.equal(BarLogic.bannerTimeout(600, false), 8000);
     assert.equal(BarLogic.bannerTimeout(8, true), 0);
 });
 

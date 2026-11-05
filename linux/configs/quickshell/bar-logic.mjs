@@ -441,14 +441,15 @@ export function themeColors(text) {
 // How long a banner stays up, in ms. `expireTimeout` is the app's request in
 // seconds as Quickshell reports it (<= 0: "server default"). Critical ones
 // stay until dismissed (0 = no timer); everything else gets the request
-// clamped to 3-15 s, or 5 s by default, so no app can pin a banner.
+// clamped to 2-8 s, or 3 s by default, so no app can pin a banner. Short on
+// purpose: the history in quick settings keeps what a banner only glances at.
 export function bannerTimeout(expireTimeout, critical) {
     if (critical)
         return 0;
     const seconds = Number(expireTimeout);
     if (!(seconds > 0))
-        return 5000;
-    return Math.round(Math.min(15, Math.max(3, seconds)) * 1000);
+        return 3000;
+    return Math.round(Math.min(8, Math.max(2, seconds)) * 1000);
 }
 
 // --- Wi-Fi page (QuickSettings.qml) ---
