@@ -15,6 +15,7 @@ Update dnf packages, mise-managed tools, and the active Firefox profile config.
 Runs:
   sudo dnf upgrade --refresh -y
   sudo dnf autoremove -y
+  linux/scripts/hyprmoncfg-install.sh   (upstream release rpm; not in any repo)
   sudo fwupdmgr refresh / update   (firmware; never reboots, only stages)
   mise self-update --yes
   mise -C "${ROOT_DIR}" upgrade --yes
@@ -67,6 +68,12 @@ main() {
 
   log "Removing obsolete packages..."
   sudo dnf autoremove -y
+
+  # hyprmoncfg comes from its upstream release rpm, not a repo dnf upgrade
+  # would see; see linux/scripts/hyprmoncfg-install.sh. Not fatal.
+  log "Updating hyprmoncfg from its upstream release..."
+  "${ROOT_DIR}/linux/scripts/hyprmoncfg-install.sh" \
+    || log_warn "hyprmoncfg update failed; re-run linux/scripts/hyprmoncfg-install.sh."
 
   update_firmware
 

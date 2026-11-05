@@ -204,9 +204,11 @@ ensure_video_codecs() {
 queue_listed_packages() {
   [[ -f "${PACKAGES_FILE}" ]] || { log_error "Missing ${PACKAGES_FILE}"; exit 1; }
 
-  # Fedora's own repos don't carry the Hyprland ecosystem, hyprmoncfg, or
-  # Ghostty. Enable their COPRs before resolving packages.txt.
-  ensure_coprs "sdegler/hyprland" "paolino/hyprmoncfg" "scottames/ghostty"
+  # Fedora's own repos don't carry the Hyprland ecosystem or Ghostty. Enable
+  # their COPRs before resolving packages.txt. (hyprmoncfg used to come from a
+  # third COPR, paolino/hyprmoncfg, which stalled at 1.17.0; it is installed
+  # from its upstream release rpm by ensure_hyprmoncfg instead.)
+  ensure_coprs "sdegler/hyprland" "scottames/ghostty"
 
   local packages=() pkg before="${#DNF_QUEUE[@]}"
   # Strip comments and blank lines.
@@ -391,6 +393,14 @@ setup_git_profile() {
   run_node "${SHARED_DIR}/lib/git-profile.mjs"
 }
 
+ensure_hyprmoncfg() {
+  # After install_queued_packages: the rpm requires hyprland. Upstream's
+  # release rpm, not a COPR; the why is at the top of the script. Not fatal,
+  # so a machine without GitHub access still finishes bootstrap.
+  "${ROOT_DIR}/linux/scripts/hyprmoncfg-install.sh" \
+    || log_warn "hyprmoncfg install failed; re-run linux/scripts/hyprmoncfg-install.sh."
+}
+
 run_update() {
   # Every bootstrap ends with a full upgrade (OS packages, mise tools; see
   # linux/update.sh): bootstrap itself only installs what is missing. Not
@@ -414,6 +424,7 @@ main() {
   ensure_google_chrome
   queue_docker
   install_queued_packages
+  ensure_hyprmoncfg
   ensure_docker
   ensure_mise
 

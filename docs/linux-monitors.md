@@ -116,6 +116,30 @@ event. Resume then raced the monitor's USB-C link renegotiation (the Dell drops
 off DP and its USB hub for ~15 s) while hyprlock held the session, leaving a lit
 but unresponsive screen. On battery, closing the lid still suspends.
 
+**A monitor that stays dark after a long display sleep** (2026-11-05): left
+plugged in and closed overnight, the laptop never suspended (on the charger
+hypridle's suspend step does not fire, by design), hypridle turned the display
+off at 630 s, and eleven hours later the Bluetooth keyboard woke the session:
+hypridle sent DPMS on, the kernel saw a hotplug and reported DP-1 connected
+with a CRTC, hyprlock was alive, mouse clicks reached the compositor, and the
+Dell stayed black. Nothing on the software side logged an error. A 45-minute
+dark period the evening before had woken fine. Unplugging then suspended the
+laptop (charger gone, lid closed, logind's battery rule) and opening the lid
+resumed it, which is why that "worked". This is upstream hyprmoncfg issue #67,
+"outputs wake modeless after DPMS display sleep", and the fixes are in
+hyprmoncfg 1.20–1.25: the wake is retried while a display still reports off,
+the laptop panel is lit with a real mode when no external shows a picture
+(that is what brought another lid-closed Intel laptop's external back), and an
+enabled display that never wakes rolls the apply back. The paolino COPR stopped
+at 1.17.0, so `linux/scripts/hyprmoncfg-install.sh` now installs the upstream
+release rpm. If it happens again on 1.28+, the next step is diagnosis, not a
+workaround: `ddcutil detect` / `ddcutil getvcp D6` from the laptop panel
+(a monitor that answers DDC has a live link and a standby problem of its own),
+and DRM debug logging for one night (`echo 0x1e | sudo tee
+/sys/module/drm/parameters/debug`, off again at the next boot). On the monitor
+itself, check that Personalize → **Fast Wakeup** is On; the user guide
+describes it as "Speed up recovery time from sleep mode".
+
 Two things this does not cover:
 
 - A laptop that is closed on battery is asleep, and plugging a monitor into it

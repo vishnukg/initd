@@ -24,7 +24,7 @@ export function configureLinks({
         [path.join(home, '.gtkrc-2.0'), path.join(configs, 'gtkrc-2.0')],
         [path.join(home, '.icons/default/index.theme'), path.join(configs, 'icons-default/index.theme')],
     ];
-    for (const name of ['night-light-toggle.mjs', 'weather-popup.mjs', 'docker-menu.mjs', 'audio-ports.mjs', 'screenshot.mjs', 'theme.mjs', 'wallpaper.mjs', 'idle.sh']) {
+    for (const name of ['night-light-toggle.mjs', 'weather-popup.mjs', 'docker-menu.mjs', 'audio-ports.mjs', 'screenshot.mjs', 'theme.mjs', 'wallpaper.mjs', 'idle.sh', 'brightness.sh']) {
         links.push([path.join(home, '.config', name), path.join(scripts, name)]);
     }
     for (const [file, source] of links) installLink(file, source, options);

@@ -117,6 +117,21 @@ hl.on("hyprland.start", function()
     -- it. Quickshell (the bar) is a unit so a crash restarts it in a second
     -- (initd-quickshell.service); restarted rather than just started so a
     -- second login never keeps a bar holding the previous session's env.
+    --
+    -- Hyprland 0.57 does most of this itself: it imports WAYLAND_DISPLAY,
+    -- DISPLAY, HYPRLAND_INSTANCE_SIGNATURE, XDG_CURRENT_DESKTOP,
+    -- QT_QPA_PLATFORMTHEME, PATH and XDG_DATA_DIRS into systemd and D-Bus,
+    -- and runs `systemctl --user start hyprland-session.target`, which binds
+    -- graphical-session.target (the wiki now says to drop manual systemctl
+    -- calls). That start fails silently here because the sdegler COPR
+    -- installs the target under /usr/lib64/systemd/user/, which is not on
+    -- the user manager's unit path (`systemd-analyze --user unit-paths`), so
+    -- initd-hyprland-session.service stays the thing that reaches the
+    -- target, and the import below carries the five variables Hyprland does
+    -- not export (the full list is kept: re-importing the others is
+    -- harmless, and it does not depend on which runs first). Once the
+    -- package puts the target where systemd looks, the service and the
+    -- start line can go.
     hl.exec_cmd("sh -c '"
         .. "dbus-update-activation-environment --systemd " .. session_vars
         .. " && systemctl --user import-environment " .. session_vars
@@ -155,8 +170,13 @@ hl.bind("XF86AudioRaiseVolume",  hl.dsp.exec_cmd("pactl set-sink-volume @DEFAULT
 hl.bind("XF86AudioLowerVolume",  hl.dsp.exec_cmd("pactl set-sink-volume @DEFAULT_SINK@ -5%"),   { locked = true, repeating = true })
 hl.bind("XF86AudioMute",         hl.dsp.exec_cmd("pactl set-sink-mute @DEFAULT_SINK@ toggle"),  { locked = true })
 hl.bind("XF86AudioMicMute",      hl.dsp.exec_cmd("pactl set-source-mute @DEFAULT_SOURCE@ toggle"), { locked = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("bash -c 'brightnessctl --min-val=2 -q set 5%- && qs ipc --any-display call bar refreshBrightness'"), { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("bash -c 'brightnessctl -q set 5%+ && qs ipc --any-display call bar refreshBrightness'"),             { locked = true, repeating = true })
+-- Brightness follows the FOCUSED monitor (linux/scripts/brightness.sh, linked
+-- to ~/.config/brightness.sh): brightnessctl for the laptop panel, DDC/CI via
+-- ddcutil for an external monitor -- so in clamshell mode the keys reach the
+-- Dell instead of a panel nobody can see. Repeats that land mid-write are
+-- dropped by the script, so `repeating` is safe on the ~0.35 s DDC path.
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("~/.config/brightness.sh down"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("~/.config/brightness.sh up"),   { locked = true, repeating = true })
 
 -- Screenshots land in ~/Pictures/Screenshots; region also copies to the clipboard.
 -- linux/scripts/screenshot.mjs, linked by linux/scripts/config-links.mjs.

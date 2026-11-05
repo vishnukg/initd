@@ -1,6 +1,7 @@
-// linux/scripts/idle.sh: hypridle's dim / undim / suspend-on-battery, run
-// against stub brightnessctl, systemctl and playerctl and a fake
-// /sys/class/power_supply, so nothing touches the real screen or suspends.
+// linux/scripts/idle.sh: hypridle's dim / undim / can-suspend, run against
+// stub brightnessctl and playerctl and a fake /sys/class/power_supply, so
+// nothing touches the real screen. can-suspend is a condition_cmd: its exit
+// status is the answer, and hypridle itself runs `systemctl suspend`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -55,29 +56,28 @@ test('dim never brightens a screen already at or below 20%', () => {
     assert.deepEqual(f.calls().filter((c) => !c.includes(' -m')), []);
 });
 
-test('suspend-on-battery suspends a laptop on battery with nothing playing', () => {
+test('can-suspend allows a laptop on battery with nothing playing', () => {
     const f = fixture({ supplies: laptopOnBattery });
-    f.run('suspend-on-battery');
-    assert.ok(f.calls().includes('systemctl suspend'), f.calls().join('\n'));
+    const result = f.run('can-suspend');
+    assert.equal(result.status, 0, result.stderr);
+    // The decision is the exit status; the script never suspends by itself.
+    assert.ok(!f.calls().some((c) => c.startsWith('systemctl')), f.calls().join('\n'));
 });
 
-test('suspend-on-battery stays awake on the barrel charger or USB-C power', () => {
+test('can-suspend refuses on the barrel charger or USB-C power', () => {
     for (const charger of ['ADP1', 'ucsi-1']) {
         const supplies = structuredClone(laptopOnBattery);
         supplies[charger].online = 1;
         const f = fixture({ supplies });
-        f.run('suspend-on-battery');
-        assert.ok(!f.calls().includes('systemctl suspend'), charger);
+        assert.equal(f.run('can-suspend').status, 1, charger);
     }
 });
 
-test('suspend-on-battery stays awake while media plays, and never on a machine without a battery', () => {
+test('can-suspend refuses while media plays, and always on a machine without a battery', () => {
     const playing = fixture({ supplies: laptopOnBattery, playing: true });
-    playing.run('suspend-on-battery');
-    assert.ok(!playing.calls().includes('systemctl suspend'));
+    assert.equal(playing.run('can-suspend').status, 1);
     const desktop = fixture({ supplies: { ADP1: { type: 'Mains', online: 0 } } });
-    desktop.run('suspend-on-battery');
-    assert.ok(!desktop.calls().includes('systemctl suspend'));
+    assert.equal(desktop.run('can-suspend').status, 1);
 });
 
 test('an unknown command is a usage error', () => {

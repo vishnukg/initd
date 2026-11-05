@@ -4,7 +4,8 @@
 #
 #   idle.sh dim                 dim to 20% (never brightens an already-dim screen)
 #   idle.sh undim               restore the brightness `dim` saved, if it dimmed
-#   idle.sh suspend-on-battery  suspend, but only on battery and with nothing playing
+#   idle.sh can-suspend         exit 0 on battery with nothing playing, else 1
+#                               (hypridle's condition_cmd for the suspend step)
 #   idle.sh lock                run hyprlock, and run it again if it crashes
 set -u
 
@@ -44,13 +45,18 @@ on_battery() {
   [[ "${has_battery}" == true ]]
 }
 
-suspend_on_battery() {
-  on_battery || return 0
+can_suspend() {
+  # hypridle runs this as the suspend listener's condition_cmd and suspends
+  # only on exit 0; with condition_retry it asks again every 30 s while the
+  # machine stays idle, so a charger unplugged after the timeout still leads
+  # to a suspend. The old form (this check inside on-timeout, which ran once)
+  # never did. Kept fast: hypridle runs it synchronously on its event loop.
+  on_battery || return 1
   # Music or a call keeps going: idle input does not mean idle machine.
   if playerctl -a status 2>/dev/null | grep -qx Playing; then
-    return 0
+    return 1
   fi
-  systemctl suspend
+  return 0
 }
 
 lock() {
@@ -81,10 +87,10 @@ lock() {
 case "${1:-}" in
   dim) dim ;;
   undim) undim ;;
-  suspend-on-battery) suspend_on_battery ;;
+  can-suspend) can_suspend ;;
   lock) lock ;;
   *)
-    echo "usage: ${0##*/} dim | undim | suspend-on-battery | lock" >&2
+    echo "usage: ${0##*/} dim | undim | can-suspend | lock" >&2
     exit 2
     ;;
 esac

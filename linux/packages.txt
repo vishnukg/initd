@@ -1,10 +1,12 @@
 # dnf packages installed by linux/bootstrap.sh.
 # One package per line, comments start with #.
 # Targets Fedora Workstation 44+. hyprland/hyprlock/hypridle/hyprpaper/
-# xdg-desktop-portal-hyprland come from the sdegler/hyprland COPR, hyprmoncfg
-# from paolino/hyprmoncfg, and ghostty from scottames/ghostty — none are in
-# Fedora's official repos. install_packages() enables all three COPRs before
-# resolving this list.
+# xdg-desktop-portal-hyprland come from the sdegler/hyprland COPR and ghostty
+# from scottames/ghostty — neither is in Fedora's official repos.
+# queue_listed_packages() enables both COPRs before resolving this list.
+# hyprmoncfg is deliberately NOT here: it is installed from its upstream
+# release rpm by linux/scripts/hyprmoncfg-install.sh (the paolino COPR that
+# used to carry it stopped at 1.17.0, before the wake-recovery fixes).
 #
 # kitty is the one package here that exists in BOTH: Fedora ships 0.47.1 in
 # updates, and sdegler/hyprland carries 0.48.2, so dnf resolves it from the COPR
@@ -33,7 +35,12 @@ libnotify
 # it gets adw-gtk3-dark like every other GTK app; lxpolkit, used before, is GTK2,
 # which no installed theme covers, so its prompt drew in the old default look.
 mate-polkit
-hyprmoncfg
+# DDC/CI over the DisplayPort AUX channel (i2c-dev is already loaded on this
+# kernel): reads and sets an external monitor's brightness, input and power
+# state (VCP D6), and doubles as the diagnostic for a monitor that stays dark
+# after display sleep — one that answers DDC has a live link and a standby
+# problem of its own. `ddcutil detect`, `ddcutil getvcp D6`.
+ddcutil
 grim
 slurp
 wl-clipboard
