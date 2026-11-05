@@ -100,7 +100,16 @@ hl.config({
             tap_to_click = true,
         },
     },
+    -- The cursor hides while typing and comes back on the first movement.
+    cursor = {
+        hide_on_key_press = true,
+    },
 })
+
+-- Three fingers left or right switch workspace, the same motion as the
+-- workspaces animation below (slidefade), so the swipe and the switch read as
+-- one movement.
+hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 
 -- ── Autostart ─────────────────────────────────────────────────────────────────
 -- Everything below is started explicitly because XDG autostart never fires
@@ -336,6 +345,11 @@ hl.config({
         },
         layout = "dwindle",
         resize_on_border = true,
+        -- Floating windows snap to each other and to the screen edge while
+        -- dragged, instead of landing a few pixels off.
+        snap = {
+            enabled = true,
+        },
     },
 
     dwindle = {
@@ -353,8 +367,12 @@ hl.config({
         groupbar = {
             font_family = "Inter",
             font_size = 11,
+            -- The theme's blue (DEFAULT_THEME in linux/scripts/theme.mjs) for the
+            -- active tab, a flat dark for the rest, no gradient: the tab bar
+            -- then matches the bar and quick settings instead of the old green.
+            gradients = false,
             col = {
-                active = "rgb(7fb99a)",
+                active = "rgb(8fb7e8)",
                 inactive = "rgb(1d202b)",
             },
             text_color = "rgb(ececf1)",
@@ -365,6 +383,9 @@ hl.config({
     -- do not expose their own transparency setting.
     decoration = {
         rounding = 14,
+        -- 2 is a circular corner; 3 flattens the curve into the squircle that
+        -- macOS and iOS windows use, which reads as softer at the same radius.
+        rounding_power = 3,
         active_opacity = 0.96,
         inactive_opacity = 0.90,
         fullscreen_opacity = 1.0,
@@ -384,6 +405,9 @@ hl.config({
             -- cache tiled windows already use. Tiled windows sit on the wallpaper
             -- anyway, so only overlapping floats look different.
             xray = true,
+            -- Right-click menus and dropdowns get the same frosted glass as
+            -- the windows they belong to; they exist only while open.
+            popups = true,
         },
         -- macOS-style focus model: unfocused windows dim slightly, so focus
         -- reads as "the bright window", lifted by the only full shadow.
@@ -432,6 +456,10 @@ hl.config({
     -- pass entirely (video, games). No effect on tiled/windowed rendering.
     render = {
         direct_scanout = true,
+        -- Triple buffering only when a frame is about to be missed, which on
+        -- this iGPU is a busy blur frame; otherwise double buffering and its
+        -- lower latency.
+        new_render_scheduling = true,
     },
 
     -- Crisp XWayland apps under fractional scale.
@@ -502,12 +530,14 @@ hl.curve("easeOut", { type = "bezier", points = { { 0.16, 1 }, { 0.3, 1 } } })
 -- stays at 2 — closing is not a wait.
 hl.animation({ leaf = "windows",    enabled = true, speed = 1, bezier = "easeOut", style = "popin 90%" })
 hl.animation({ leaf = "windowsOut", enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
-hl.animation({ leaf = "fade",       enabled = true, speed = 3, bezier = "default" })
+hl.animation({ leaf = "fade",       enabled = true, speed = 2, bezier = "easeOut" })
 hl.animation({ leaf = "layersIn",   enabled = true, speed = 2, bezier = "easeOut", style = "popin 90%" })
 hl.animation({ leaf = "layersOut",  enabled = true, speed = 2, bezier = "easeOut", style = "fade" })
 -- slidefade 20%: the new workspace slides a fifth of the width while fading
 -- in, rather than a whole screen; direction still reads, at less motion.
-hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "easeOut", style = "slidefade 20%" })
+-- 2 (200 ms) rather than 3: a switch is a wait too, and the fade above
+-- matches it.
+hl.animation({ leaf = "workspaces", enabled = true, speed = 2, bezier = "easeOut", style = "slidefade 20%" })
 
 -- Each Quickshell surface enters from where it lives: banners from the right
 -- edge, quick settings and the volume/brightness pill down from
