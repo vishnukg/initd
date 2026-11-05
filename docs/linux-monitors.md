@@ -267,3 +267,21 @@ modeset.
 Fix: `hl.env("HYPRLAND_NO_RT", "1")` in `hyprland.lua`. Hyprland reads it once
 at startup, so log out and back in after changing it, then check with
 `ps -o cls -p $(pgrep -x Hyprland)` (`TS` means realtime is off, `RR` means it is on).
+
+## Shims, and when each can go
+
+Three pieces of this setup exist only because something upstream is broken or
+missing. Each is a plain switch or file, each is documented where it lives,
+and each should be removed the day its condition below holds. Nothing else in
+the display setup is tuned by hand: `hyprmoncfgd` runs with no flags, and the
+timeouts in `hypridle.conf` are the schedule, not workarounds.
+
+| Shim | Where | Why it exists | Remove when |
+| --- | --- | --- | --- |
+| `hl.env("HYPRLAND_NO_RT", "1")` | `linux/configs/hypr/hyprland.lua` | Hyprland 0.57 runs its main thread with a 200 ms realtime budget; a DisplayPort probe on the Dell's hotplug overran it and the kernel SIGKILLed the compositor (no core, safe-mode restart). [Hyprland discussion #16648](https://github.com/hyprwm/Hyprland/discussions/16648); Omarchy ships the same default. | A Hyprland release includes the realtime watchdog (PR #16737 or its successor). Test: drop the line, log in again, hotplug the Dell three times; `journalctl --user -b` must show no Hyprland restart. |
+| `initd-hyprland-session.service` and the `systemctl --user start` of it in the `hyprland.start` block | `linux/configs/systemd/user/`, `hyprland.lua` | 0.57 starts `hyprland-session.target` itself, but the sdegler COPR installs it under `/usr/lib64/systemd/user/`, which is not on the user manager's unit path (`systemd-analyze --user unit-paths`). Without the shim `graphical-session.target` is never reached and hyprmoncfgd, Quickshell and the portals never start. | `systemctl --user list-unit-files hyprland-session.target` finds the unit after a package update. Then drop the service, its `MANAGED_LINKS` entry, the start line, and the five extra variables in the import. |
+| Fixed `hl.monitor` rules for the Dell and the BenQ at their profiles' mode and scale | `hyprland.lua`, Monitors section | hyprmoncfg's generated file names only the active profile's outputs, so a monitor hotplugged after `laptop` arrived through the catch-all at 60 Hz and was switched to 120 Hz seconds later; hyprlock loses its surface on that mode change. | hyprmoncfg emits rules for every saved profile's monitors (worth a feature request), or hyprlock survives a mode change (hyprwm/hyprlock#678 closed). Until then, a mode or scale change in `hyprmoncfg tui` must be mirrored in the rule. |
+
+Retired so far: the `--wake-settle 8s` override (1.17 → 1.28, 2026-11-05), the
+USB/Bluetooth wake rule (2026-11-04), the DPMS keybind and the retrain idea
+(never shipped).

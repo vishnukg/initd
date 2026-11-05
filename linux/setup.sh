@@ -154,25 +154,6 @@ configure_lid_switch() {
   log_success "Lid close on external power no longer suspends."
 }
 
-remove_wakeup_rule() {
-  # Migration (2026-11-04): a udev rule briefly let a USB connect and the
-  # Bluetooth controller wake the sleeping laptop, so plugging the monitor in
-  # with the lid closed would bring it up. Removed: the Bluetooth controller
-  # never woke the machine (its wakeup counters stayed at zero), and a USB-C
-  # monitor whose plug-in is the wake event comes up with a flickering link,
-  # since the kernel brings up DisplayPort while still resuming (the typec
-  # "parent port should not be sleeping" warning marks that path). Waking by
-  # lid or power button with the monitor already attached works every time;
-  # docs/linux-monitors.md has the routine. The rule re-enabled wake at every
-  # boot, so it must go; the sysfs flags reset to disabled on reboot.
-  local target="${UDEV_RULES_DIR:-/etc/udev/rules.d}/90-initd-wakeup.rules"
-  [[ -e "${target}" ]] || return 0
-  log "Removing the USB/Bluetooth wake rule (plug-in wake comes up flickering)..."
-  sudo rm -f "${target}"
-  sudo udevadm control --reload
-  log_success "Wake the laptop by lid or power button; the monitor is picked up on resume."
-}
-
 configure_initramfs_bluetooth() {
   # A Bluetooth keyboard at the LUKS passphrase prompt (the reason is in the
   # drop-in itself). Copied like the logind drop-in, and only when it differs.
@@ -468,7 +449,6 @@ main() {
   install_symbols_nerd_font
   disable_unused_daemons
   configure_lid_switch
-  remove_wakeup_rule
   configure_initramfs_bluetooth
   check_hyprland_session
   mask_desktop_user_units
@@ -486,7 +466,6 @@ main() {
   configure_chrome
   configure_ghostty_launcher
   add_user_to_video_group
-
 
   log_success "Linux tweaks applied."
 }

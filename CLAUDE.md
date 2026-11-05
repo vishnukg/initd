@@ -338,7 +338,7 @@ The Linux desktop is **Wayland-only**: Hyprland installed alongside Fedora's sto
 - `docs/mise.md` — mise tool management
 - `docs/colima.md` — Colima (Docker without Docker Desktop) setup and daily use
 - `docs/git-branching-conflicts.md` — Git branching and conflict resolution
-- `docs/linux-monitors.md` — monitor hotplug/lid switching, manual per-monitor overrides, per-monitor scale
+- `docs/linux-monitors.md` — monitor hotplug/lid switching, manual per-monitor overrides, per-monitor scale, and the register of display shims (HYPRLAND_NO_RT, the session-target service, the fixed monitor rules) with the condition for removing each
 - `docs/tmux-nvim.md` — tmux and Neovim workspace concepts
 - `docs/tmux-sessions.md` — tmux session/window/pane workflow and keybindings
 - `docs/remote-dev-box.md` — the exe.dev dev box (`ssh dev`): how it fits together, setting up a new personal machine, rebuilding the VM
