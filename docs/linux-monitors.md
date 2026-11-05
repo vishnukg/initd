@@ -135,13 +135,30 @@ at 1.17.0, so `linux/scripts/hyprmoncfg-install.sh` now installs the upstream
 release rpm. If it happens again on 1.28+, the next step is diagnosis, not a
 workaround: `ddcutil detect` / `ddcutil getvcp D6` from the laptop panel
 (a monitor that answers DDC has a live link and a standby problem of its own),
-and DRM debug logging for one night (`echo 0x1e | sudo tee
+and DRM debug logging for one night (`echo 0x04 | sudo tee
 /sys/module/drm/parameters/debug`, off again at the next boot). On the monitor
 itself, Personalize → **Fast Wakeup** must be On; the user guide describes it
 as "Speed up recovery time from sleep mode", and it was found **Off** on this
 Dell on 2026-11-05, the same day as the upgrade, so the two fixes went in
-together and the overnight test that followed does not tell them apart. A
-monitor reset to factory settings loses it again.
+together. A monitor reset to factory settings loses it again.
+
+Neither was the fix. With 1.28 running and Fast Wakeup on, the same day: an
+81-minute display sleep (lid closed, charger, no suspend) woke dark again,
+with the daemon applying the Dell profile error-free, the compositor's log
+showing DP-1 modeset to 3840x2160@120 with no refused commit, and hyprlock
+logging the password typed into a screen nobody could see; the next sleep,
+six hours long, woke fine, with the kernel (debug on by then) logging
+`Link Training passed` through the cable's LTTPR. So it is intermittent,
+not a function of time asleep, and it sits below Hyprland. The one thing the
+kernel log shows only while the Dell sleeps: with every output off the xe
+driver loses HPD and falls back to polling, and each poll (every 5-10 s,
+3,127 times in that six hours) connects the USB-C port (`TC port mode reset
+(disconnected -> dp-alt)`), reads the DPCD and EDID, and releases it again.
+A wake that lands inside one of those cycles is the leading suspicion; the
+log of a failing wake with `drm.debug=0x04` on is what would confirm it, and
+is the next thing to collect. Until then: if the Dell stays dark, do not
+unplug; open the lid and read `ddcutil --bus 14 getvcp D6` and the kernel's
+link-training lines from the moment of the wake.
 
 Two things this does not cover:
 
@@ -173,12 +190,16 @@ Two things this does not cover:
   `@kernel-vanilla/mainline-wo-mergew` COPR has it for F44 if it is wanted
   sooner (Secure Boot is off on this machine, so an unsigned kernel boots).
 
-  `hyprmoncfgd` runs with `--wake-settle 8s` (its drop-in). With the default
-  2 s it picked a profile before a monitor arriving 4-5 s after resume
-  existed, so a closed laptop got `laptop` (panel lit inside the lid) and the
-  monitor profile a moment later; every event during the settle restarts it,
-  so 8 s gives one apply with the monitor present. The cost is ~8 s instead of
-  ~2 s to the panel after opening the lid when the last profile had it off.
+  `hyprmoncfgd` runs at its default 2 s wake settle. Under 1.17 its drop-in
+  carried `--wake-settle 8s`: 2 s had it pick a profile before a monitor
+  arriving 4-5 s after resume existed, so a closed laptop got `laptop`
+  (panel lit inside the lid) and the monitor profile a moment later, during
+  link training. The cost was the other direction: every event during the
+  settle restarts it, so opening the lid after an unplugged suspend showed
+  the panel after 8-13 s. On 1.28 (hotplug debounce, wake retries) the
+  plug-in resume was retested on 2026-11-05 at the default: the Dell was
+  detected 0.6 s after resume, its profile applied 3.6 s after resume in one
+  step, no refused commits, panel never lit. The override is gone.
 
   `hyprland.lua` also carries fixed rules for the Dell and the BenQ at their
   profiles' mode and scale. The generated file names only the outputs of the
