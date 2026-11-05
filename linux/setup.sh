@@ -281,8 +281,8 @@ configure_firefox() {
   run_node "${SCRIPTS_DIR}/firefox-profile.mjs" setup
 }
 
-configure_chrome() {
-  run_node "${SCRIPTS_DIR}/chrome-profile.mjs"
+configure_brave() {
+  run_node "${SCRIPTS_DIR}/brave-profile.mjs"
 }
 
 # Shadows Fedora's Ghostty desktop entry so rofi/.desktop launches get one
@@ -421,13 +421,13 @@ grant_i2c_access() {
 
 usage() {
   cat <<EOF
-Usage: ${0##*/} [--firefox-only | --chrome-only]
+Usage: ${0##*/} [--firefox-only | --brave-only]
 
 Apply Linux system tweaks and managed configuration.
 
 Options:
-  --chrome-only  Refresh Chrome interface scaling, page zoom and font sizes.
-                  Close Chrome first to allow profile settings to be updated.
+  --brave-only  Refresh Brave interface scaling, page zoom and font sizes.
+                  Close Brave first to allow profile settings to be updated.
   --firefox-only  Refresh only the Firefox profile glue (userChrome.css,
                   user.js, default zoom) without the rest of setup.sh —
                   useful right after installing Firefox for the first time,
@@ -441,12 +441,12 @@ EOF
 main() {
   if [[ "$#" -gt 0 ]]; then
     case "$1" in
-      --chrome-only)
+      --brave-only)
         if [[ "$#" -ne 1 ]]; then
-          log_error "--chrome-only does not accept additional arguments."
+          log_error "--brave-only does not accept additional arguments."
           exit 1
         fi
-        configure_chrome
+        configure_brave
         return
         ;;
       --firefox-only)
@@ -492,7 +492,7 @@ main() {
   apply_gsettings_keyboard
   configure_blueman_headless
   configure_firefox
-  configure_chrome
+  configure_brave
   configure_ghostty_launcher
   add_user_to_video_group
   grant_i2c_access

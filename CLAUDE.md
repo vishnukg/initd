@@ -164,9 +164,9 @@ linux/bootstrap.sh
   ├─ queue_listed_packages                     # enables the sdegler/hyprland and
   │                                               scottames/ghostty COPRs,
   │                                               queues missing packages.txt entries + @c-development
-  ├─ ensure_video_codecs, ensure_gh, ensure_1password, ensure_google_chrome,
+  ├─ ensure_video_codecs, ensure_gh, ensure_1password, ensure_brave,
   │  queue_docker                             # each adds its repo (RPM Fusion, gh, 1Password,
-  │                                               Chrome, Docker) and QUEUES what is missing
+  │                                               Brave, Docker) and QUEUES what is missing
   ├─ install_queued_packages                  # ONE dnf transaction for the whole queue (one
   │                                               rpm -q finds what is missing; a re-run installs nothing)
   ├─ ensure_hyprmoncfg                        # linux/scripts/hyprmoncfg-install.sh: upstream release rpm,

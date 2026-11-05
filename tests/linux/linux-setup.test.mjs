@@ -424,7 +424,7 @@ queue_listed_packages
 ensure_video_codecs
 ensure_gh
 ensure_1password
-ensure_google_chrome
+ensure_brave
 queue_docker
 install_queued_packages
 install_queued_packages
@@ -436,10 +436,10 @@ install_queued_packages
     const installs = calls.filter(call => call.startsWith('dnf install -y --setopt'));
     assert.equal(installs.length, 1, calls.join('\n'));
     for (const pkg of ['hyprland', 'kitty', 'fish', '@c-development', 'ffmpeg-free', 'gh', '1password',
-        'google-chrome-stable', 'docker-ce', 'docker-compose-plugin']) {
+        'brave-browser', 'docker-ce', 'docker-compose-plugin']) {
         assert.ok(installs[0].split(' ').includes(pkg), `${pkg} missing from: ${installs[0]}`);
     }
-    assert.ok(calls.every(call => !/^dnf (group )?install -y (gh|1password|google-chrome-stable|docker-ce|c-development)\b/.test(call)));
+    assert.ok(calls.every(call => !/^dnf (group )?install -y (gh|1password|brave-browser|docker-ce|c-development)\b/.test(call)));
     assert.match(result.stdout, /No dnf packages to install/, 'the queue is emptied after installing');
 });
 

@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { configureChrome, setDefaultBrowser, BROWSER } from '../../linux/scripts/chrome-profile.mjs';
+import { configureBrave, setDefaultBrowser, BROWSER } from '../../linux/scripts/brave-profile.mjs';
 
 function fixture(t, status = 1) {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-chrome-'));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-brave-'));
     t.after(() => fs.rmSync(home, { recursive: true, force: true }));
     const configHome = path.join(home, '.config');
     const dataHome = path.join(home, '.local/share');
-    const root = path.join(configHome, 'google-chrome');
+    const root = path.join(configHome, 'BraveSoftware', 'Brave-Browser');
     const profile = path.join(root, 'Profile 2');
     fs.mkdirSync(profile, { recursive: true });
     fs.writeFileSync(path.join(root, 'Local State'), JSON.stringify({ profile: { last_used: 'Profile 2' } }));
@@ -18,20 +18,20 @@ function fixture(t, status = 1) {
     const current = { partition: { per_host_zoom_levels: { x: { 'example.org': { zoom_level: 2 } } } }, webkit: { webprefs: { fonts: { standard: { Zyyy: 'My Font' } } } }, browser: { theme: { color_scheme2: 2 } } };
     fs.writeFileSync(preferences, JSON.stringify(current));
     const desktop = path.join(home, 'system.desktop');
-    fs.writeFileSync(desktop, '[Desktop Entry]\nExec=/usr/bin/google-chrome-stable %U\n[Desktop Action new-window]\nExec=/usr/bin/google-chrome-stable\n[Desktop Action new-private-window]\nExec=/usr/bin/google-chrome-stable --incognito\n');
+    fs.writeFileSync(desktop, '[Desktop Entry]\nExec=/usr/bin/brave-browser-stable %U\n[Desktop Action new-window]\nExec=/usr/bin/brave-browser-stable\n[Desktop Action new-private-window]\nExec=/usr/bin/brave-browser-stable --incognito\n');
     return { preferences, profile, current, options: { home, configHome, dataHome, desktop, run: () => ({ status }), log() {}, warn() {} } };
 }
 
-test('Chrome setup preserves user choices and site zoom, backs up once and scales every launcher action', t => {
+test('Brave setup preserves user choices and site zoom, backs up once and scales every launcher action', t => {
     // Arrange
     const f = fixture(t);
     const before = fs.readFileSync(f.preferences, 'utf8');
 
     // Act
-    configureChrome(f.options);
-    configureChrome(f.options);
+    configureBrave(f.options);
+    configureBrave(f.options);
     const actual = JSON.parse(fs.readFileSync(f.preferences, 'utf8'));
-    const launcher = fs.readFileSync(path.join(f.options.dataHome, 'applications/google-chrome.desktop'), 'utf8');
+    const launcher = fs.readFileSync(path.join(f.options.dataHome, 'applications/brave-browser.desktop'), 'utf8');
     const backups = fs.readdirSync(f.profile).filter(name => name.includes('.initd-backup-'));
 
     // Assert
@@ -49,13 +49,13 @@ test('Chrome setup preserves user choices and site zoom, backs up once and scale
 });
 
 for (const status of [0, 2, null]) {
-    test(`Chrome profile remains untouched when process check returns ${status}`, t => {
+    test(`Brave profile remains untouched when process check returns ${status}`, t => {
         // Arrange
         const f = fixture(t, status);
         const before = fs.readFileSync(f.preferences, 'utf8');
 
         // Act
-        configureChrome(f.options);
+        configureBrave(f.options);
 
         // Assert
         assert.equal(fs.readFileSync(f.preferences, 'utf8'), before);
@@ -64,7 +64,7 @@ for (const status of [0, 2, null]) {
 }
 
 // Records every command and answers xdg-settings from `answers`, pgrep with 1
-// (Chrome not running).
+// (Brave not running).
 function recorder(answers) {
     const calls = [];
     const run = (command, args) => {
@@ -75,7 +75,7 @@ function recorder(answers) {
     return { calls, run };
 }
 
-test('Chrome becomes the default browser when something else is', () => {
+test('Brave becomes the default browser when something else is', () => {
     // Arrange
     const { calls, run } = recorder({ get: { status: 0, stdout: 'org.mozilla.firefox.desktop\n' }, set: { status: 0 } });
     const warnings = [];
@@ -88,7 +88,7 @@ test('Chrome becomes the default browser when something else is', () => {
     assert.deepEqual(warnings, []);
 });
 
-test('Default browser is left alone when Chrome already holds it', () => {
+test('Default browser is left alone when Brave already holds it', () => {
     // Arrange
     const { calls, run } = recorder({ get: { status: 0, stdout: `${BROWSER}\n` } });
 
@@ -106,11 +106,11 @@ test('A failed default-browser change warns and the profile is still configured'
     const warnings = [];
 
     // Act
-    configureChrome({ ...f.options, run, warn: message => warnings.push(message) });
+    configureBrave({ ...f.options, run, warn: message => warnings.push(message) });
     const actual = JSON.parse(fs.readFileSync(f.preferences, 'utf8'));
 
     // Assert
     assert.ok(calls.some(call => call.join(' ') === `xdg-settings set default-web-browser ${BROWSER}`));
-    assert.deepEqual(warnings, ['Could not make Chrome the default browser: xdg-settings: boom']);
+    assert.deepEqual(warnings, ['Could not make Brave the default browser: xdg-settings: boom']);
     assert.equal(actual.webkit.webprefs.default_font_size, 17);
 });

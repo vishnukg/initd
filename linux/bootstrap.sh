@@ -292,26 +292,27 @@ EOF
   log "Queued 1Password from its official dnf repo."
 }
 
-ensure_google_chrome() {
-  if command -v google-chrome-stable >/dev/null 2>&1; then
-    log_success "Google Chrome already installed."
+ensure_brave() {
+  if command -v brave-browser >/dev/null 2>&1; then
+    log_success "Brave already installed."
     return
   fi
 
-  # Proprietary — not in Fedora's repos. Official dnf repo per
-  # https://www.google.com/linuxrepositories/
-  sudo rpm --import https://dl.google.com/linux/linux_signing_key.pub
-  sudo tee /etc/yum.repos.d/google-chrome.repo >/dev/null <<'EOF'
-[google-chrome]
-name=google-chrome
-baseurl=https://dl.google.com/linux/chrome/rpm/stable/$basearch
+  # Not in Fedora's repos. Official rpm repo per https://brave.com/linux/
+  # (the same file `dnf config-manager addrepo --from-repofile` would fetch,
+  # written here so the key and URL are pinned in the repo).
+  sudo rpm --import https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+  sudo tee /etc/yum.repos.d/brave-browser.repo >/dev/null <<'EOF'
+[brave-browser]
+name=Brave Browser
 enabled=1
 gpgcheck=1
-gpgkey=https://dl.google.com/linux/linux_signing_key.pub
+gpgkey=https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+baseurl=https://brave-browser-rpm-release.s3.brave.com/$basearch
 EOF
 
-  DNF_QUEUE+=(google-chrome-stable)
-  log "Queued Google Chrome from its official dnf repo."
+  DNF_QUEUE+=(brave-browser)
+  log "Queued Brave from its official dnf repo."
 }
 
 ensure_gh_auth() {
@@ -421,7 +422,7 @@ main() {
   ensure_video_codecs
   ensure_gh
   ensure_1password
-  ensure_google_chrome
+  ensure_brave
   queue_docker
   install_queued_packages
   ensure_hyprmoncfg
