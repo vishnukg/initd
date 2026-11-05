@@ -83,8 +83,15 @@ ShellRoot {
     function altTab(step) {
         if (!switcherOpen) {
             const windows = BarLogic.switcherOrder(Hyprland.toplevels.values, Hyprland.activeToplevel);
-            if (windows.length < 2)
+            if (windows.length < 2) {
+                // A window opened since the last refresh has no IPC data yet
+                // (Quickshell fills lastIpcObject only on refreshToplevels),
+                // so it was filtered out. Refresh and retry this one press.
+                Hyprland.refreshToplevels();
+                switcherRetry.step = step;
+                switcherRetry.restart();
                 return;
+            }
             switcherWindows = windows;
             switcherIndex = 0;
             switcherOpen = true;
@@ -92,6 +99,27 @@ ShellRoot {
         switcherIndex = BarLogic.switcherStep(switcherIndex, step, switcherWindows.length);
         focusSwitcherSelection();
         switcherHide.restart();
+    }
+
+    Timer {
+        id: switcherRetry
+        property int step: 1
+        interval: 120
+        onTriggered: {
+            if (BarLogic.switcherOrder(Hyprland.toplevels.values, Hyprland.activeToplevel).length >= 2)
+                root.altTab(step);
+        }
+    }
+
+    // Keep every window's IPC data (geometry, focus history) current as
+    // windows come and go, so the switcher's first press after opening a new
+    // window already knows it. Open and close are rare; one query each.
+    Connections {
+        target: Hyprland
+        function onRawEvent(event) {
+            if (event.name === "openwindow" || event.name === "closewindow")
+                Hyprland.refreshToplevels();
+        }
     }
 
     function focusSwitcherSelection() {
