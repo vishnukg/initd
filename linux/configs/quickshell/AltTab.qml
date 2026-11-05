@@ -3,14 +3,14 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Wayland
 
-// Window switcher ($mod+Tab), Windows Alt+Tab style: the open windows in
-// most-recently-used order as a row of still previews, the previous window
-// selected on the first press, each further Tab moving the selection, and
-// releasing $mod focusing it. The keys are handled by a Hyprland submap in
-// hyprland.lua (Tab, Shift+Tab, Escape, the release of Super) which drives
-// shell.qml's altTab/altTabCommit/altTabCancel; this file only draws, so it
-// takes no keyboard focus. Clicking a card commits too. shell.qml creates it
-// through a LazyLoader only while open; the previews are single frames.
+// Window switcher (Alt+Tab): the open windows in most-recently-used order as
+// a row of still previews. Each Alt+Tab press selects AND focuses the next
+// window along (Alt+Shift+Tab the one back); the row stays up for 1.2 s
+// after the last press. hyprland.lua's binds drive shell.qml's altTab; this
+// file only draws, so it takes no keyboard focus. Clicking a card focuses it
+// and closes the row, a click on the backdrop just closes it. shell.qml
+// creates it through a LazyLoader only while open; the previews are single
+// frames.
 PanelWindow {
     id: switcher
 

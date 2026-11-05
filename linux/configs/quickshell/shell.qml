@@ -66,48 +66,63 @@ ShellRoot {
     // Workspace overview (Overview.qml), created only while open.
     property bool overviewOpen: false
 
-    // Window switcher (AltTab.qml), Windows Alt+Tab style. The list is the
-    // open windows in most-recently-used order, taken once when it opens so
-    // the row does not reshuffle under the selection; the focused window is
-    // first and the previous one is selected on the first press. Driven by
-    // the "switcher" submap in hyprland.lua through the IPC calls below.
+    // Window switcher (AltTab.qml) on Alt+Tab. The list is the open windows
+    // in most-recently-used order, taken once when the row opens so it does
+    // not reshuffle under the selection. Every press moves the selection AND
+    // focuses it at once: one Alt+Tab is the previous window, a second Tab
+    // while the row is up is the one before that, and so on, wrapping. The
+    // row closes 1.2 s after the last press (switcherHide), and with it the
+    // snapshot, so the next Alt+Tab starts from the new order. There is no
+    // "release Alt to commit": Hyprland suppresses a bare Alt release bind
+    // once Alt+Tab has fired (src/keybinds/Manager.cpp, suppressSubChords),
+    // so a release can never be observed from a bind.
     property bool switcherOpen: false
     property int switcherIndex: 0
     property var switcherWindows: []
 
     function altTab(step) {
         if (!switcherOpen) {
-            const active = Hyprland.activeToplevel;
-            const windows = BarLogic.switcherOrder(Hyprland.toplevels.values, active);
+            const windows = BarLogic.switcherOrder(Hyprland.toplevels.values, Hyprland.activeToplevel);
             if (windows.length < 2)
                 return;
             switcherWindows = windows;
-            switcherIndex = 1;
+            switcherIndex = 0;
             switcherOpen = true;
-            // Current geometry and history for the next open; the previews
-            // this one shows are captured from the live surfaces regardless.
-            Hyprland.refreshToplevels();
-            return;
         }
         switcherIndex = BarLogic.switcherStep(switcherIndex, step, switcherWindows.length);
+        focusSwitcherSelection();
+        switcherHide.restart();
     }
 
-    function altTabCommit() {
-        if (!switcherOpen)
-            return;
+    function focusSwitcherSelection() {
         const chosen = switcherWindows[switcherIndex];
         const ipc = chosen ? chosen.lastIpcObject : null;
-        switcherOpen = false;
-        switcherWindows = [];
         if (ipc && ipc.address) {
             Hyprland.dispatch("hl.dsp.focus({ window = \"address:" + ipc.address + "\" })");
             Hyprland.dispatch("hl.dsp.window.alter_zorder({ mode = \"top\" })");
         }
     }
 
+    // A click on a card: select and focus it, and close at once.
+    function altTabCommit() {
+        if (!switcherOpen)
+            return;
+        focusSwitcherSelection();
+        altTabCancel();
+    }
+
     function altTabCancel() {
+        switcherHide.stop();
         switcherOpen = false;
         switcherWindows = [];
+        // Geometry and focus history current for the next open.
+        Hyprland.refreshToplevels();
+    }
+
+    Timer {
+        id: switcherHide
+        interval: 1200
+        onTriggered: root.altTabCancel()
     }
 
     function togglePanel() {
@@ -490,9 +505,9 @@ ShellRoot {
             root.overviewOpen = !root.overviewOpen;
         }
 
-        // The switcher: `altTab 1` opens it (or moves the selection forward
-        // once open), `altTab -1` moves it back, commit focuses the selected
-        // window, cancel closes without a change.
+        // The switcher: `altTab 1` opens the row and focuses the previous
+        // window (or, while the row is up, the next one along), `altTab -1`
+        // goes the other way; commit and cancel close it (a card click, Esc).
         function altTab(step: int): void {
             root.altTab(step);
         }
