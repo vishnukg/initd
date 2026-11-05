@@ -1,0 +1,5 @@
+{
+  "brave.p3a.enabled": false,
+  "brave.p3a.notice_acknowledged": true,
+  "user_experience_metrics.reporting_enabled": false
+}

@@ -5,11 +5,36 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const filename = fileURLToPath(import.meta.url);
-const appearance = JSON.parse(fs.readFileSync(new URL('../configs/brave/appearance.json', import.meta.url), 'utf8'));
+const readConfig = name => JSON.parse(fs.readFileSync(new URL(`../configs/brave/${name}`, import.meta.url), 'utf8'));
+const appearance = readConfig('appearance.json');
+// Dotted preference paths -> values, captured from a hand-configured profile
+// (the README lists what they are): Leo, Rewards, Wallet and News UI off,
+// wide address bar with full URLs, Google as the search engine in normal and
+// private windows. Arrays and objects replace the stored value whole.
+export const PREFERENCES = readConfig('preferences.json');
+// The same for `Local State` (browser-wide, not per profile): P3A and
+// metrics reporting off.
+export const LOCAL_STATE = readConfig('local-state.json');
+
+// Set each "a.b.c" path on a deep copy, creating objects on the way; every
+// other key the browser wrote is kept, so private profile data is untouched.
+export function withSettings(current, settings) {
+    const next = structuredClone(current);
+    for (const [dotted, value] of Object.entries(settings)) {
+        const keys = dotted.split('.');
+        let node = next;
+        for (const key of keys.slice(0, -1)) {
+            if (typeof node[key] !== 'object' || node[key] === null || Array.isArray(node[key])) node[key] = {};
+            node = node[key];
+        }
+        node[keys.at(-1)] = structuredClone(value);
+    }
+    return next;
+}
 
 // Preserve private profile data and site-specific zoom; never track Preferences.
 export function appearancePreferences(current) {
-    const next = structuredClone(current);
+    const next = withSettings(current, PREFERENCES);
     const web = (next.webkit ??= {}).webprefs ??= {};
     web.default_font_size = appearance.fontSize;
     web.default_fixed_font_size = appearance.monospaceFontSize;
@@ -96,7 +121,10 @@ export function configureBrave({
     const current = JSON.parse(fs.readFileSync(preferences, 'utf8'));
     const next = appearancePreferences(current);
     if (JSON.stringify(current) !== JSON.stringify(next)) replaceWithBackup(preferences, JSON.stringify(next));
-    log('Brave profile: 115% page zoom, 17px standard font, 14px monospace font.');
+    log('Brave profile: 115% page zoom, 17px standard font, 14px monospace font, Google search, Leo/Rewards/Wallet/News UI off.');
+    const nextState = withSettings(state, LOCAL_STATE);
+    if (JSON.stringify(state) !== JSON.stringify(nextState)) replaceWithBackup(stateFile, JSON.stringify(nextState));
+    log('Brave: P3A and metrics reporting off.');
 }
 
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === filename) {
