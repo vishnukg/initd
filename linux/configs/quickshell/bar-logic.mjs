@@ -256,6 +256,27 @@ export function backlightPercent(brightness, maxBrightness) {
     return Math.round(Math.min(value, max) * 100 / max);
 }
 
+// Whether an output name is the laptop's own panel (the kernel's DRM
+// connector names for internal panels), which brightness.sh steers through
+// the backlight; anything else is an external monitor reached over DDC/CI.
+// No name at all (no focused monitor yet) counts as the panel.
+export function isInternalOutput(name) {
+    return !name || /^(eDP|LVDS|DSI)/.test(name);
+}
+
+// The level brightness.sh publishes for an external monitor: a line
+// "<output> <percent>". NaN unless it is for the output asked about, so a
+// stale line left by the other monitor is never shown as this one's level.
+export function externalBrightness(levelText, output) {
+    const fields = (levelText || "").trim().split(/\s+/);
+    if (fields.length !== 2 || fields[0] !== output)
+        return NaN;
+    const percent = parseInt(fields[1], 10);
+    if (isNaN(percent) || percent < 0 || percent > 100 || String(percent) !== fields[1])
+        return NaN;
+    return percent;
+}
+
 // `df -P -B1 /`: a header, then "fs size used available capacity mountpoint"
 // in bytes. The percentage is used / (used + available), which is how df
 // computes Capacity -- on btrfs size != used + available (metadata, reserved

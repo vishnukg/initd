@@ -11,6 +11,7 @@ import {
     loadColor, deviceKind, kindRank, KIND_ORDER,
     cpuTimes, cpuPercent, memoryUsage, batteryPercent,
     bluetoothDeviceIcon, compareBluetoothDevices, trayRole, backlightPercent,
+    isInternalOutput, externalBrightness,
     diskUsage, formatGiB, netBytes, netRate, formatRate,
 } from '../../linux/configs/quickshell/bar-logic.mjs';
 import * as BarLogic from '../../linux/configs/quickshell/bar-logic.mjs';
@@ -501,6 +502,49 @@ for (const { name, brightness, max } of [
     test(`backlight percent is unknown for ${name}`, () => {
         // Act
         const percent = backlightPercent(brightness, max);
+
+        // Assert
+        assert.ok(Number.isNaN(percent));
+    });
+}
+
+for (const { name, output, internal } of [
+    { name: 'the laptop panel', output: 'eDP-1', internal: true },
+    { name: 'an older LVDS panel', output: 'LVDS-1', internal: true },
+    { name: 'no focused monitor yet', output: '', internal: true },
+    { name: 'the Dell over USB-C', output: 'DP-1', internal: false },
+    { name: 'an HDMI monitor', output: 'HDMI-A-1', internal: false },
+]) {
+    test(`brightness source for ${name} is ${internal ? 'the backlight' : 'DDC'}`, () => {
+        // Act
+        const isPanel = isInternalOutput(output);
+
+        // Assert
+        assert.equal(isPanel, internal);
+    });
+}
+
+test('an external level published for the focused monitor is read as a percent', () => {
+    // Arrange: what brightness.sh writes to $XDG_RUNTIME_DIR/initd-brightness/level
+    const published = 'DP-1 66\n';
+
+    // Act
+    const percent = externalBrightness(published, 'DP-1');
+
+    // Assert
+    assert.equal(percent, 66);
+});
+
+for (const { name, text, output } of [
+    { name: 'a level left by the other monitor', text: 'DP-1 66\n', output: 'DP-2' },
+    { name: 'no file yet', text: '', output: 'DP-1' },
+    { name: 'a half-written line', text: 'DP-1\n', output: 'DP-1' },
+    { name: 'a value past 100', text: 'DP-1 140\n', output: 'DP-1' },
+    { name: 'a non-number', text: 'DP-1 lots\n', output: 'DP-1' },
+]) {
+    test(`external level is unknown for ${name}`, () => {
+        // Act
+        const percent = externalBrightness(text, output);
 
         // Assert
         assert.ok(Number.isNaN(percent));

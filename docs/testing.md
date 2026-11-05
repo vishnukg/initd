@@ -56,7 +56,7 @@ The individual files are organized as follows:
 | `linux/wallpaper.test.mjs` | Wallpaper collections, ordering, monitor sizing and cache keys |
 | `linux/hyprlock-config.test.mjs` | `hyprlock.conf` parses with no config errors (against a nonexistent display, so nothing locks) |
 | `linux/idle.test.mjs` | hypridle's `idle.sh`: dim/undim, and the `can-suspend` gate (battery only, nothing playing) |
-| `linux/brightness.test.mjs` | The brightness keys: backlight for the laptop panel, DDC/CI (ddcutil, cached bus, dropped overlapping presses) for an external monitor |
+| `linux/brightness.test.mjs` | `brightness.sh`: the keys, the slider's `set` and the bar's `refresh`; backlight for the laptop panel, DDC/CI for an external monitor (bus and level cached, absolute writes, published level, dropped overlapping key presses) |
 | `linux/hyprmoncfg-install.test.mjs` | The upstream hyprmoncfg rpm install: version check, checksum verification, COPR retirement, daemon restart, offline is a warning |
 
 The remaining files cover bootstrap configs, installation, Linux setup, Fish,

@@ -38,9 +38,14 @@ ShellRoot {
     property string weatherCondition: "Unavailable"
     property string weatherSunrise: ""
     property string weatherSunset: ""
+    // Brightness of the focused monitor: the panel's backlight from sysfs, an
+    // external monitor's DDC level from the file brightness.sh publishes.
     property string backlightText: "--%"
     property real backlightValue: 0
     property bool brightnessFromKeys: false
+    readonly property string focusedOutput: Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
+    readonly property bool focusedIsPanel: BarLogic.isInternalOutput(focusedOutput)
+    onFocusedOutputChanged: refreshBrightnessSource()
     readonly property var clockDate: clock.date
 
     // Quick settings (QuickSettings.qml), created only while open.
@@ -48,7 +53,14 @@ ShellRoot {
     // When the sheet last closed: a click on the bar button first clears the
     // sheet's focus grab (closing it), and must not then reopen it.
     property real panelClosedAt: 0
-    onPanelOpenChanged: if (!panelOpen) panelClosedAt = Date.now()
+    onPanelOpenChanged: {
+        if (!panelOpen)
+            panelClosedAt = Date.now();
+        // The slider is about to show; an external monitor's level may have
+        // moved on its own OSD since it was last asked, so ask once.
+        else if (!focusedIsPanel)
+            start(brightnessRefreshProcess);
+    }
     // Inhibits idle (no auto-lock or screen-off) through every bar window.
     property bool keepAwake: false
     // Workspace overview (Overview.qml), created only while open.
@@ -64,17 +76,38 @@ ShellRoot {
         start(nightLightToggleProcess);
     }
 
-    // The brightness slider fires on every pixel of a drag; run brightnessctl
-    // one at a time and always finish on the latest value.
+    // The brightness slider fires on every pixel of a drag; run brightness.sh
+    // one at a time and always finish on the latest value. `set` does not
+    // ping refreshBrightness (only the keys do), so the slider never raises
+    // the indicator; the exit handler reloads the level instead.
     property int brightnessPending: -1
     function setBrightness(fraction) {
         brightnessPending = Math.round(Math.max(0.02, Math.min(1, fraction)) * 100);
         backlightValue = brightnessPending / 100;
         if (!brightnessProcess.running) {
-            brightnessProcess.command = ["brightnessctl", "-q", "set", brightnessPending + "%"];
+            brightnessProcess.command = [Quickshell.env("HOME") + "/.config/brightness.sh", "set", String(brightnessPending)];
             brightnessPending = -1;
             brightnessProcess.running = true;
         }
+    }
+
+    // Re-read the focused monitor's level from its source: the sysfs file for
+    // the panel; for an external monitor, ask brightness.sh to query it over
+    // DDC and publish (one ~0.4 s process, only on a focus change or when the
+    // quick settings open -- the keys and the slider publish as they write).
+    function refreshBrightnessSource() {
+        brightnessFromKeys = false;
+        if (focusedIsPanel)
+            backlightFile.reload();
+        else
+            start(brightnessRefreshProcess);
+    }
+
+    function reloadBrightness() {
+        if (focusedIsPanel)
+            backlightFile.reload();
+        else
+            brightnessLevelFile.reload();
     }
     property bool nightLightOn: false
     // Straight off NetworkManager's D-Bus signals, so the tray icon flips the
@@ -409,7 +442,7 @@ ShellRoot {
             // Only the brightness keys ping this, so only they bring up the
             // indicator -- not hypridle's idle dim, which the 30s reload sees.
             root.brightnessFromKeys = true;
-            backlightFile.reload();
+            root.reloadBrightness();
         }
 
         function refreshNightLight(): void {
@@ -464,10 +497,16 @@ ShellRoot {
     Process {
         id: brightnessProcess
         onExited: {
-            backlightFile.reload();
+            root.reloadBrightness();
             if (root.brightnessPending >= 0)
                 root.setBrightness(root.brightnessPending / 100);
         }
+    }
+
+    Process {
+        id: brightnessRefreshProcess
+        command: [Quickshell.env("HOME") + "/.config/brightness.sh", "refresh"]
+        onExited: root.reloadBrightness()
     }
 
     LazyLoader {
@@ -605,8 +644,19 @@ ShellRoot {
         onLoaded: root.updateBacklight()
     }
 
+    // An external monitor's level, as brightness.sh last read or wrote it.
+    FileView {
+        id: brightnessLevelFile
+        path: Quickshell.env("XDG_RUNTIME_DIR") + "/initd-brightness/level"
+        // Absent until an external monitor has been adjusted or asked once.
+        printErrors: false
+        onLoaded: root.updateBacklight()
+    }
+
     function updateBacklight() {
-        const percent = BarLogic.backlightPercent(backlightFile.text(), backlightMaxFile.text());
+        const percent = focusedIsPanel
+            ? BarLogic.backlightPercent(backlightFile.text(), backlightMaxFile.text())
+            : BarLogic.externalBrightness(brightnessLevelFile.text(), focusedOutput);
         if (isNaN(percent))
             return;
         const changed = backlightText !== percent + "%";
@@ -691,7 +741,8 @@ ShellRoot {
         interval: 30000
         repeat: true
         running: true
-        onTriggered: backlightFile.reload()
+        // The panel only: an external monitor is never polled over DDC.
+        onTriggered: if (root.focusedIsPanel) backlightFile.reload()
     }
 
     Timer {
