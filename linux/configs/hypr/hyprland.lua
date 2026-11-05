@@ -225,7 +225,7 @@ hl.bind(mod .. " + SHIFT + q", hl.dsp.window.close())
 hl.bind(mod .. " + d",   hl.dsp.exec_cmd("rofi -show drun"))
 -- Window switcher on Alt+Tab (AltTab.qml): the first press shows the open
 -- windows most-recently-used first and focuses the previous one at once;
--- each further Alt+Tab while the row is up (1.2 s after the last press)
+-- each further Alt+Tab while the row is up (0.6 s after the last press)
 -- focuses the next one along, Alt+Shift+Tab the one back. No "release Alt to
 -- commit": Hyprland suppresses a bare Alt release bind once Alt+Tab has fired
 -- (src/keybinds/Manager.cpp, suppressSubChords; a release bind inside a

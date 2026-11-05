@@ -71,7 +71,7 @@ ShellRoot {
     // not reshuffle under the selection. Every press moves the selection AND
     // focuses it at once: one Alt+Tab is the previous window, a second Tab
     // while the row is up is the one before that, and so on, wrapping. The
-    // row closes 1.2 s after the last press (switcherHide), and with it the
+    // row closes 0.6 s after the last press (switcherHide: long enough for the next Tab of a run, short enough to be gone when you stop), and with it the
     // snapshot, so the next Alt+Tab starts from the new order. There is no
     // "release Alt to commit": Hyprland suppresses a bare Alt release bind
     // once Alt+Tab has fired (src/keybinds/Manager.cpp, suppressSubChords),
@@ -121,7 +121,7 @@ ShellRoot {
 
     Timer {
         id: switcherHide
-        interval: 1200
+        interval: 600
         onTriggered: root.altTabCancel()
     }
 
