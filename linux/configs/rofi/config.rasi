@@ -15,6 +15,16 @@ configuration {
     show-icons:          true;
     icon-theme:          "Papirus-Dark";
     drun-display-format: "{name}";
+    /* Matching: fuzzy, so "fx" reaches Firefox, and the list is RANKED by
+       match quality (fzf scoring) instead of staying alphabetical with the
+       non-matches filtered out -- the best match is the first row as you
+       type. drun matches on the app name, generic name and keywords only:
+       the defaults also searched the Exec line and the categories, which put
+       half the menu under "files". */
+    matching:            "fuzzy";
+    sort:                true;
+    sorting-method:      "fzf";
+    drun-match-fields:   "name,generic,keywords";
     display-drun:        "󰍉";
     display-window:      "󰖴";
     display-run:         "󰍉";
