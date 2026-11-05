@@ -137,8 +137,11 @@ workaround: `ddcutil detect` / `ddcutil getvcp D6` from the laptop panel
 (a monitor that answers DDC has a live link and a standby problem of its own),
 and DRM debug logging for one night (`echo 0x1e | sudo tee
 /sys/module/drm/parameters/debug`, off again at the next boot). On the monitor
-itself, check that Personalize → **Fast Wakeup** is On; the user guide
-describes it as "Speed up recovery time from sleep mode".
+itself, Personalize → **Fast Wakeup** must be On; the user guide describes it
+as "Speed up recovery time from sleep mode", and it was found **Off** on this
+Dell on 2026-11-05, the same day as the upgrade, so the two fixes went in
+together and the overnight test that followed does not tell them apart. A
+monitor reset to factory settings loses it again.
 
 Two things this does not cover:
 
