@@ -211,6 +211,46 @@ Two things this does not cover:
 - A closed laptop on a charger with no monitor stays awake, with the panel on
   until hypridle's screen-off.
 
+## Recovering dead keybinds
+
+If every Hyprland keybind stops responding at once (no terminal, no
+launcher, no exit prompt) while the keyboard still types into windows, the
+compositor is up and only its bind matching has been switched off. Three
+things do that, and none needs a reboot:
+
+- **A submap is active.** Only that submap's keys work; `resize`
+  (`$mod+r`) is the one in this config, and `Return` or `Escape` leaves it.
+- **A window holds a keyboard-shortcuts inhibitor.** Chromium-based
+  browsers (Brave) request one when a page uses the keyboard-lock API,
+  which they allow only in fullscreen; VMs and remote-desktop clients do
+  too. Binds are dead while that window is focused and return when it is
+  unfocused or closed. `binds:disable_keybind_grabbing = true` would refuse
+  every such request; it is off here until this is seen to be the cause.
+- **A stale press record.** Hyprland folds every key it still believes is
+  held into the modifier mask it matches binds against, so a modifier whose
+  release it never saw (a Bluetooth keyboard dropping mid-chord, say) makes
+  every chord mismatch. Pressing and releasing that key clears it.
+
+From a text console (`Ctrl+Alt+F3`, log in):
+
+```sh
+export HYPRLAND_INSTANCE_SIGNATURE="$(ls -t /run/user/1000/hypr | head -1)"
+hyprctl dispatch 'hl.dsp.submap("reset")'   # 1. leave any submap
+hyprctl -j clients | grep -E '"(class|fullscreen)"'   # 2. a fullscreen browser?
+hyprctl dispatch 'hl.dsp.window.close()'    # 3. close the focused window
+hyprctl dispatch 'hl.dsp.exit()'            # last resort: log out, not reboot
+```
+
+Then `Ctrl+Alt+F1` back to the session. On 2026-11-05 this happened once
+(binds dead for ~3 min, a browser window closed a minute before a power-key
+shutdown) and the cause was not recorded; the compositor keeps its log under
+`/run/user/1000/hypr/<signature>/hyprland.log`, which a reboot erases, so
+copy it from the console before restarting if it happens again:
+
+```sh
+cp /run/user/1000/hypr/*/hyprland.log ~/hyprland-deadkeys.log
+```
+
 ## Recovering a stuck lock screen
 
 If the monitor is on but nothing responds after a resume or a hotplug, the
