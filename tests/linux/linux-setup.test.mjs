@@ -567,3 +567,54 @@ ensure_fish
     assert.equal(result.status, 0, result.error?.message ?? result.stderr);
     assert.match(result.stdout, /fisher-synced/);
 });
+
+for (const { name, writable, ruleInstalled, expectedSudo } of [
+    { name: 'already accessible i2c devices need nothing', writable: true, ruleInstalled: true, expectedSudo: [] },
+    { name: 'root-only i2c devices get the udev add re-triggered once', writable: false, ruleInstalled: true, expectedSudo: ['udevadm trigger --subsystem-match=i2c-dev --action=add'] },
+    { name: 'root-only i2c devices without ddcutil are left alone', writable: false, ruleInstalled: false, expectedSudo: [] },
+]) {
+    test(`i2c access: ${name}`, t => {
+        // Arrange
+        const shell = fixture(t);
+        const devices = path.join(shell.home, 'dev');
+        const rules = path.join(shell.home, 'rules.d');
+        const calls = path.join(shell.home, 'calls');
+        fs.mkdirSync(devices);
+        fs.mkdirSync(rules);
+        for (const n of [13, 14])
+            fs.writeFileSync(path.join(devices, `i2c-${n}`), '', { mode: writable ? 0o600 : 0o000 });
+        if (ruleInstalled)
+            fs.writeFileSync(path.join(rules, '60-ddcutil-i2c.rules'), 'SUBSYSTEM=="i2c-dev", TAG+="uaccess"\n');
+        const script = `
+export I2C_DEV_GLOB=${JSON.stringify(path.join(devices, 'i2c-*'))}
+export UDEV_SYSTEM_RULES_DIR=${JSON.stringify(rules)}
+sudo() { echo "$*" >> ${JSON.stringify(calls)}; }
+grant_i2c_access
+`;
+
+        // Act
+        const result = shell.run(script);
+
+        // Assert
+        assert.equal(result.status, 0, result.stderr || result.stdout);
+        const sudoCalls = fs.existsSync(calls) ? fs.readFileSync(calls, 'utf8').trim().split('\n') : [];
+        assert.deepEqual(sudoCalls, expectedSudo);
+    });
+}
+
+test('i2c access: no devices at all is nothing to do', t => {
+    // Arrange
+    const shell = fixture(t);
+    const script = `
+export I2C_DEV_GLOB=${JSON.stringify(path.join(shell.home, 'none/i2c-*'))}
+sudo() { echo "unexpected sudo $*" >&2; exit 1; }
+grant_i2c_access
+`;
+
+    // Act
+    const result = shell.run(script);
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /nothing to do/i);
+});

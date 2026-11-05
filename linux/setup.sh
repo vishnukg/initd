@@ -4,7 +4,8 @@ set -euo pipefail
 # Linux system tweaks and config glue that don't fit the standard symlink flow:
 #   - Fonts (FiraCode Nerd Font, Symbols Nerd Font)
 #   - System fixes that need sudo (unused ModemManager/abrt/rsyslog off,
-#     `video` group for the backlight keys, lid ignored on external power)
+#     `video` group for the backlight keys, i2c access for DDC brightness,
+#     lid ignored on external power)
 #   - Session/user-unit state: masking the hypridle/hyprpaper units this repo
 #     autostarts from hyprland.lua instead, enabling hyprmoncfgd and the
 #     night-light schedule timer
@@ -390,6 +391,34 @@ add_user_to_video_group() {
   log_warn "Log out and back in for the video group to take effect."
 }
 
+grant_i2c_access() {
+  # The brightness keys reach an external monitor over DDC/CI through the
+  # GPU's i2c devices. ddcutil's udev rule (60-ddcutil-i2c.rules, uaccess)
+  # hands them to the seat user, but udev applies it on a device add, so a
+  # fresh install leaves /dev/i2c-* root-only until the next boot. Re-trigger
+  # the add once; from then on every boot does it. Nothing to do when a device
+  # is already writable, when there is none yet, or when ddcutil is absent.
+  local glob="${I2C_DEV_GLOB:-/dev/i2c-*}" rules="${UDEV_SYSTEM_RULES_DIR:-/usr/lib/udev/rules.d}" dev devices=()
+  for dev in ${glob}; do [[ -e "${dev}" ]] && devices+=("${dev}"); done
+  if [[ ${#devices[@]} -eq 0 ]]; then
+    log_success "No i2c devices to grant (nothing to do)."
+    return
+  fi
+  for dev in "${devices[@]}"; do
+    if [[ -w "${dev}" ]]; then
+      log_success "i2c devices already accessible (external monitor brightness)."
+      return
+    fi
+  done
+  if [[ ! -f "${rules}/60-ddcutil-i2c.rules" ]]; then
+    log_warn "ddcutil's udev rule is missing; external monitor brightness needs the ddcutil package."
+    return
+  fi
+  log "Applying ddcutil's udev rule to the i2c devices (external monitor brightness)..."
+  sudo udevadm trigger --subsystem-match=i2c-dev --action=add
+  log_success "i2c devices granted to the seat user; no reboot needed."
+}
+
 usage() {
   cat <<EOF
 Usage: ${0##*/} [--firefox-only | --chrome-only]
@@ -466,6 +495,7 @@ main() {
   configure_chrome
   configure_ghostty_launcher
   add_user_to_video_group
+  grant_i2c_access
 
   log_success "Linux tweaks applied."
 }
