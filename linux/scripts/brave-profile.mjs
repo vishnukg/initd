@@ -16,6 +16,18 @@ export const PREFERENCES = readConfig('preferences.json');
 // metrics reporting off.
 export const LOCAL_STATE = readConfig('local-state.json');
 
+const isObject = value => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+// A captured object is merged into the stored one key by key (so the search
+// engine dictionaries keep the ids and timestamps the browser assigned);
+// arrays and scalars replace the stored value.
+function merged(stored, captured) {
+    if (!isObject(captured)) return structuredClone(captured);
+    const result = isObject(stored) ? structuredClone(stored) : {};
+    for (const [key, value] of Object.entries(captured)) result[key] = merged(result[key], value);
+    return result;
+}
+
 // Set each "a.b.c" path on a deep copy, creating objects on the way; every
 // other key the browser wrote is kept, so private profile data is untouched.
 export function withSettings(current, settings) {
@@ -24,10 +36,10 @@ export function withSettings(current, settings) {
         const keys = dotted.split('.');
         let node = next;
         for (const key of keys.slice(0, -1)) {
-            if (typeof node[key] !== 'object' || node[key] === null || Array.isArray(node[key])) node[key] = {};
+            if (!isObject(node[key])) node[key] = {};
             node = node[key];
         }
-        node[keys.at(-1)] = structuredClone(value);
+        node[keys.at(-1)] = merged(node[keys.at(-1)], value);
     }
     return next;
 }

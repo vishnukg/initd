@@ -74,16 +74,22 @@ test('Brave setup applies the captured toggles, Google search and Local State, k
     assert.equal(state.profile.last_used, 'Profile 2');
 });
 
-test('withSettings sets dotted paths on a copy and replaces arrays whole', () => {
-    // Arrange
-    const current = { a: { keep: 1, list: [1, 2, 3] }, scalar: 'x' };
+test('withSettings sets dotted paths on a copy, merges objects and replaces arrays whole', () => {
+    // Arrange: `engine` stands for a search dictionary the browser already wrote, ids included
+    const current = { a: { keep: 1, list: [1, 2, 3] }, scalar: 'x', engine: { id: '4', short_name: 'Brave', urls: ['old'] } };
 
     // Act
-    const next = withSettings(current, { 'a.list': [9], 'a.b.c': true, 'scalar.now': 'object' });
+    const next = withSettings(current, {
+        'a.list': [9], 'a.b.c': true, 'scalar.now': 'object',
+        engine: { short_name: 'Google', urls: ['new'] },
+    });
 
     // Assert
-    assert.deepEqual(next, { a: { keep: 1, list: [9], b: { c: true } }, scalar: { now: 'object' } });
-    assert.deepEqual(current, { a: { keep: 1, list: [1, 2, 3] }, scalar: 'x' }, 'the input is not mutated');
+    assert.deepEqual(next, {
+        a: { keep: 1, list: [9], b: { c: true } }, scalar: { now: 'object' },
+        engine: { id: '4', short_name: 'Google', urls: ['new'] },
+    });
+    assert.deepEqual(current.engine, { id: '4', short_name: 'Brave', urls: ['old'] }, 'the input is not mutated');
 });
 
 test('every captured preference and Local State key is a dotted path with a JSON value', () => {
