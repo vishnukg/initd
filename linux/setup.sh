@@ -344,38 +344,49 @@ apply_gsettings_keyboard() {
 
 configure_blueman_headless() {
   # Bluetooth lives in Quickshell's quick settings (the Bluetooth page), so
-  # blueman's tray icon would be a duplicate. Only its StatusIcon plugin goes:
-  # that is what spawns blueman-tray (~50 MB), while blueman-applet keeps
-  # running as BlueZ's pairing agent (PIN/passkey prompts) and OBEX receiver,
-  # which Quickshell does not provide. Appended to the existing plugin-list
-  # rather than replacing it, and a no-op once present.
+  # blueman's tray icon would be a duplicate. blueman-applet keeps running as
+  # BlueZ's pairing agent (PIN/passkey prompts) and OBEX receiver, which
+  # Quickshell does not provide; what goes is the tray (~50 MB, its own
+  # process). Three plugins have to be off for that, not one: StatusIcon is
+  # what launches blueman-tray, but blueman loads a disabled plugin anyway
+  # when another plugin depends on it (PluginManager.__load_plugin loads
+  # __depends__ unconditionally), and ShowConnected depends on StatusIcon;
+  # StatusNotifierItem is the tray's registration. With only '!StatusIcon'
+  # the tray came back at every login (found 2026-11-05). Each missing entry
+  # is appended to the existing plugin-list; a no-op once all are present.
   if ! command -v gsettings >/dev/null 2>&1 \
       || ! gsettings list-schemas 2>/dev/null | grep -qx org.blueman.general; then
     log_warn "blueman gsettings schema not available — skipping tray icon disable."
     return
   fi
-  local plugins
+  local plugins plugin missing=()
   plugins="$(gsettings get org.blueman.general plugin-list)"
-  if [[ "${plugins}" == *"'!StatusIcon'"* ]]; then
-    log_success "blueman runs headless (StatusIcon plugin disabled)."
+  for plugin in StatusIcon ShowConnected StatusNotifierItem; do
+    [[ "${plugins}" == *"'!${plugin}'"* ]] || missing+=("'!${plugin}'")
+  done
+  if [[ ${#missing[@]} -eq 0 ]]; then
+    log_success "blueman runs headless (tray plugins disabled)."
     return
   fi
+  local joined
+  joined="$(IFS=,; echo "${missing[*]}")"
+  joined="${joined//,/, }"
   # GVariant string array: "@as []" when empty, "['A', 'B']" otherwise.
   if [[ "${plugins}" == *"[]" ]]; then
-    plugins="['!StatusIcon']"
+    plugins="[${joined}]"
   else
-    plugins="${plugins%]}, '!StatusIcon']"
+    plugins="${plugins%]}, ${joined}]"
   fi
   gsettings set org.blueman.general plugin-list "${plugins}"
-  # blueman-applet unloads the plugin live, but the tray process it already
+  # blueman-applet unloads the plugins live, but the tray process it already
   # launched outlives that -- and the unload itself fires blueman's
   # plugins-changed handler, which relaunches blueman-tray one last time
-  # (measured). Let that happen first, then reap it; nothing respawns it after.
+  # before StatusIcon is gone. Reap it once it has settled.
   if pgrep -x blueman-applet >/dev/null 2>&1; then
     sleep 1
     pkill -x blueman-tray 2>/dev/null || true
   fi
-  log_success "blueman tray icon disabled; blueman-applet stays as the pairing agent."
+  log_success "blueman tray disabled; blueman-applet stays as the pairing agent."
 }
 
 add_user_to_video_group() {

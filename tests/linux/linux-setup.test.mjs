@@ -618,3 +618,34 @@ grant_i2c_access
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /nothing to do/i);
 });
+
+for (const { name, current, expectedSet } of [
+    { name: 'an empty plugin list gets all three tray plugins disabled', current: '@as []', expectedSet: "['!StatusIcon', '!ShowConnected', '!StatusNotifierItem']" },
+    { name: 'a list with only StatusIcon off (the old step) gains the other two', current: "['!StatusIcon']", expectedSet: "['!StatusIcon', '!ShowConnected', '!StatusNotifierItem']" },
+    { name: 'a list with all three off is left alone', current: "['!StatusIcon', '!ShowConnected', '!StatusNotifierItem']", expectedSet: null },
+]) {
+    test(`blueman headless: ${name}`, t => {
+        // Arrange
+        const shell = fixture(t);
+        const calls = path.join(shell.home, 'calls');
+        const script = `
+gsettings() {
+    echo "$*" >> ${JSON.stringify(calls)}
+    case "$1" in
+        list-schemas) echo org.blueman.general ;;
+        get) echo ${JSON.stringify(current)} ;;
+    esac
+}
+pgrep() { return 1; }
+configure_blueman_headless
+`;
+
+        // Act
+        const result = shell.run(script);
+
+        // Assert
+        assert.equal(result.status, 0, result.stderr || result.stdout);
+        const sets = fs.readFileSync(calls, 'utf8').trim().split('\n').filter(c => c.startsWith('set '));
+        assert.deepEqual(sets, expectedSet === null ? [] : [`set org.blueman.general plugin-list ${expectedSet}`]);
+    });
+}
