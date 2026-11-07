@@ -117,7 +117,7 @@ hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 -- but xdg-desktop-autostart.target is started by the session manager (GNOME
 -- does, Hyprland doesn't), so nm-applet's, blueman's and 1Password's
 -- /etc/xdg/autostart entries would otherwise be skipped.
-local session_vars = "WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORM QT_QPA_PLATFORMTHEME XCURSOR_THEME XCURSOR_SIZE GTK_A11Y NO_AT_BRIDGE"
+local session_vars = "WAYLAND_DISPLAY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORM QT_QPA_PLATFORMTHEME XCURSOR_THEME XCURSOR_SIZE GTK_A11Y NO_AT_BRIDGE"
 hl.on("hyprland.start", function()
     -- Make portals (screenshare, file pickers) and D-Bus- or systemd-started
     -- apps see the session environment (the QT_QPA_* pair included, so a
@@ -136,9 +136,12 @@ hl.on("hyprland.start", function()
     -- installs the target under /usr/lib64/systemd/user/, which is not on
     -- the user manager's unit path (`systemd-analyze --user unit-paths`), so
     -- initd-hyprland-session.service stays the thing that reaches the
-    -- target, and the import below carries the five variables Hyprland does
-    -- not export (the full list is kept: re-importing the others is
-    -- harmless, and it does not depend on which runs first). Once the
+    -- target, and the import below carries the variables Hyprland does not
+    -- export (the full list is kept: re-importing the others is harmless,
+    -- and it does not depend on which runs first). XDG_SESSION_TYPE is one:
+    -- GDM sets it on Hyprland, but without it in systemd's environment every
+    -- app the bar launches (initd-quickshell.service) took itself for a
+    -- non-Wayland session, and Chromium/Brave then picked XWayland. Once the
     -- package puts the target where systemd looks, the service and the
     -- start line can go.
     hl.exec_cmd("sh -c '"
