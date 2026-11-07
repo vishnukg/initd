@@ -34,7 +34,10 @@
     icon_position     = left
     min_icon_size     = 32
     max_icon_size     = 32
-    icon_path         = /usr/share/icons/Papirus-Dark/48x48/status/:/usr/share/icons/Papirus-Dark/48x48/devices/
+    # Looked up by theme name, like every GTK app here, not by fixed
+    # directories inside one theme.
+    enable_recursive_icon_lookup = true
+    icon_theme        = Adwaita
     sticky_history    = yes
     history_length    = 20
     browser           = /usr/bin/xdg-open

@@ -76,10 +76,8 @@ lv2-zam-plugins
 # ── Theming ───────────────────────────────────────────────────────────────────
 # The icon theme is Fedora's stock Adwaita (always installed with GTK), so
 # apps show their own upstream icons. Candy and Reversal were tried on
-# 2026-11-07 and dropped. Papirus-Dark is still installed only because
-# TrayIcon.qml and dunstrc point at specific files in it.
-papirus-icon-theme
-papirus-icon-theme-dark
+# 2026-11-07 and dropped, and Papirus went the same day once nothing pointed
+# at its files any more (dunst looks icons up by theme name).
 adw-gtk3-theme
 google-noto-sans-fonts
 rsms-inter-fonts
