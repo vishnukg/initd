@@ -310,62 +310,6 @@ export function formatGiB(gib) {
     return Math.round(gib) + "G";
 }
 
-// Interfaces whose traffic is either local or already counted on a physical
-// link: loopback, container/VM bridges and veths, and VPN tunnels (a packet
-// through wg0 also crosses the Wi-Fi underneath it, so summing both would
-// double it).
-const VIRTUAL_INTERFACE = /^(lo|docker\d*|br-|veth|virbr|vnet|tun|tap|wg|tailscale|zt)/;
-
-// /proc/net/dev: two header lines, then "iface: rx_bytes ... tx_bytes ...",
-// where rx bytes is the first number and tx bytes the ninth. Sums every
-// physical interface and lists them for the tooltip. Null when nothing
-// parses.
-export function netBytes(procNetDev) {
-    let rx = 0, tx = 0;
-    const interfaces = [];
-    for (const line of (procNetDev || "").split("\n")) {
-        const match = /^\s*([^:\s]+):\s*(.*)$/.exec(line);
-        if (!match || VIRTUAL_INTERFACE.test(match[1]))
-            continue;
-        const fields = match[2].trim().split(/\s+/).map(Number);
-        if (fields.length < 9 || isNaN(fields[0]) || isNaN(fields[8]))
-            continue;
-        rx += fields[0];
-        tx += fields[8];
-        interfaces.push(match[1]);
-    }
-    return interfaces.length ? { rx: rx, tx: tx, interfaces: interfaces } : null;
-}
-
-// Bytes per second between two netBytes() readings taken `seconds` apart.
-// Null until there are two readings; a counter that went backwards (an
-// interface vanished, or a driver reset) reads as 0 rather than negative.
-export function netRate(previous, current, seconds) {
-    if (!previous || !current || !(seconds > 0))
-        return null;
-    return {
-        down: Math.max(0, current.rx - previous.rx) / seconds,
-        up: Math.max(0, current.tx - previous.tx) / seconds,
-    };
-}
-
-// At most four characters, so the item's width barely moves: "0K", "9.5K",
-// "340K", "1.2M", "45M", "1.1G". KiB-based, like the other readouts.
-export function formatRate(bytesPerSecond) {
-    if (!isFinite(bytesPerSecond) || bytesPerSecond < 0)
-        return "--";
-    const units = ["K", "M", "G"];
-    let value = bytesPerSecond / 1024;
-    let unit = 0;
-    while (value >= 999.5 && unit < units.length - 1) {
-        value /= 1024;
-        unit += 1;
-    }
-    if (value < 0.05)
-        return "0" + units[unit];
-    return (value < 9.95 ? value.toFixed(1) : String(Math.round(value))) + units[unit];
-}
-
 // --- Desktop widgets (DesktopWidgets.qml) ---
 
 // The greeting over the desktop clock. Night owls get "Good night" until 5,

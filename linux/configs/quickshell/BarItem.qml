@@ -22,11 +22,6 @@ Rectangle {
     // (brightness) none; items override this to keep ~10 device px of
     // visible gap between ink and number.
     property int iconSpacing: 6
-    // Tabular (equal-width) digits, for readouts that change every tick
-    // (network speed): "2.7K" -> "8.1K" then keeps the same width, so only a
-    // change in the number of characters moves anything. Reserving a fixed
-    // width was tried and dropped -- at typical speeds it read as a gap.
-    property bool tabularDigits: false
     property var barWindow: null
     property string tooltipTitle: ""
     property string tooltipBody: ""
@@ -86,7 +81,6 @@ Rectangle {
         Text {
             visible: root.text !== ""
             anchors.verticalCenter: parent.verticalCenter
-            font.features: root.tabularDigits ? { "tnum": 1 } : ({})
             text: root.text
             color: root.foreground
             font.family: "Inter"

@@ -25,12 +25,6 @@ ShellRoot {
     property string memoryPercent: "--%"
     property string memoryTooltip: "Memory usage unavailable"
     property string diskText: "--"
-    property string netDown: "--"
-    property string netUp: "--"
-    property string netTooltip: "Network usage unavailable"
-    // Last /proc/net/dev reading and when it was taken; the rate is the delta.
-    property var netSample: null
-    property real netSampleTime: 0
     property string diskPercent: "--%"
     property string diskTooltip: "Disk usage unavailable"
     property string dockerText: "0"
@@ -307,26 +301,6 @@ ShellRoot {
             return;
         cpuText = percent + "%";
         cpuTooltip = "CPU usage: " + percent + "%";
-    }
-
-    function updateNetwork(procNetDev) {
-        const sample = BarLogic.netBytes(procNetDev);
-        const now = Date.now();
-        const rate = BarLogic.netRate(netSample, sample, (now - netSampleTime) / 1000);
-        netSample = sample;
-        netSampleTime = now;
-        if (!sample) {
-            netDown = "--";
-            netUp = "--";
-            netTooltip = "No network interface";
-            return;
-        }
-        if (!rate)
-            return;
-        netDown = BarLogic.formatRate(rate.down);
-        netUp = BarLogic.formatRate(rate.up);
-        netTooltip = "Download: " + netDown + "B/s\nUpload: " + netUp + "B/s"
-            + "\nInterfaces: " + sample.interfaces.join(", ");
     }
 
     function updateMemory(meminfo) {
@@ -694,12 +668,6 @@ ShellRoot {
     }
 
     FileView {
-        id: netDevFile
-        path: "/proc/net/dev"
-        onLoaded: root.updateNetwork(text())
-    }
-
-    FileView {
         id: memInfoFile
         path: "/proc/meminfo"
         onLoaded: root.updateMemory(text())
@@ -872,7 +840,6 @@ ShellRoot {
         onTriggered: {
             statFile.reload();
             memInfoFile.reload();
-            netDevFile.reload();
         }
     }
 
@@ -967,64 +934,112 @@ ShellRoot {
                     RowLayout {
                         anchors {
                             fill: parent
-                            // The workspace pills start the row, so the left inset
-                            // matches top/bottom: an active pill hugs the island
-                            // evenly on three sides. The right end is plain text
-                            // (the clock), which wants the wider inset.
-                            leftMargin: 2
+                            // The launchers start the row: 31 px tall in a 35 px row
+                            // with a 2 px margin, a hovered one sits 4 px from the
+                            // island's top and bottom, so the left inset is 4 to
+                            // match. The right end is plain text (the clock), which
+                            // wants the wider inset.
+                            leftMargin: 4
                             rightMargin: 8
                             topMargin: 2
                             bottomMargin: 2
                         }
                         spacing: 4
 
+                        // Launchers for the apps opened most; everything else is
+                        // $mod+d (rofi). Glyphs nf-md-folder, -web, -cat, -ghost,
+                        // sized per glyph like BarItem's. Folder blue and globe
+                        // green are workspaces 1 and 2's pastels, kitty the amber of
+                        // 5, Ghostty a deeper indigo than the folder.
                         Repeater {
-                            model: 10
+                            model: [
+                                { id: "org.gnome.Nautilus", glyph: "\u{f024b}", size: 25, tint: "#8fb7e8" },
+                                { id: "brave-browser", glyph: "\u{f059f}", size: 25, tint: "#8fd6b8" },
+                                { id: "kitty", glyph: "\u{f011b}", size: 26, tint: "#e8b87a" },
+                                { id: "com.mitchellh.ghostty", glyph: "\u{f02a0}", size: 25, tint: "#7f95e6" }
+                            ]
 
-                            delegate: Rectangle {
-                                id: workspaceButton
+                            delegate: AppLauncher {
+                                required property var modelData
+                                desktopId: modelData.id
+                                glyph: modelData.glyph
+                                iconSize: modelData.size
+                                tint: modelData.tint
+                                barWindow: panel
+                            }
+                        }
 
-                                required property int index
-                                property int workspaceId: index + 1
-                                property var workspace: root.workspaceForId(workspaceId, panel.screen)
-                                property bool active: workspace && workspace.active
+                        // Three times the right spacer's share, so the workspaces sit
+                        // three quarters of the way across the free space, near the
+                        // middle while still clear of the weather.
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.horizontalStretchFactor: 3
+                        }
 
-                                visible: workspace !== null
-                                Layout.preferredWidth: visible ? 29 : 0
-                                Layout.fillHeight: true
-                                radius: 8
-                                color: active
-                                    ? root.workspaceColor(workspaceId)
-                                    : workspaceHover.hovered ? "#18ffffff" : "transparent"
+                        // Workspaces, placed in the free space between the launchers
+                        // and the readouts by the two spacers' 3:1 split, so they sit
+                        // near the middle without ever touching either side.
+                        RowLayout {
+                            // A nested layout fills by default; this one must not,
+                            // or it would split the free space with the spacers.
+                            Layout.fillWidth: false
+                            Layout.fillHeight: true
+                            spacing: 4
 
-                                Behavior on color {
-                                    ColorAnimation { duration: 150 }
-                                }
+                            Repeater {
+                                model: 10
 
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: workspaceButton.workspaceId
-                                    // Every pastel is light, so one dark label reads on all of them.
-                                    color: workspaceButton.active ? "#0b0c10" : Theme.textMuted
-                                    font.family: "Inter"
-                                    font.pixelSize: 18
-                                    font.weight: workspaceButton.active ? Font.Bold : Font.DemiBold
-                                }
+                                delegate: Rectangle {
+                                    id: workspaceButton
 
-                                HoverHandler {
-                                    id: workspaceHover
-                                    cursorShape: Qt.PointingHandCursor
-                                }
+                                    required property int index
+                                    property int workspaceId: index + 1
+                                    property var workspace: root.workspaceForId(workspaceId, panel.screen)
+                                    property bool active: workspace && workspace.active
 
-                                TapHandler {
-                                    acceptedButtons: Qt.LeftButton
-                                    onTapped: root.activateWorkspace(workspaceButton.workspaceId)
+                                    visible: workspace !== null
+                                    // A circle, the height of every other bar item.
+                                    Layout.preferredWidth: visible ? 31 : 0
+                                    Layout.preferredHeight: 31
+                                    Layout.alignment: Qt.AlignVCenter
+                                    radius: height / 2
+                                    color: active
+                                        ? root.workspaceColor(workspaceId)
+                                        : workspaceHover.hovered ? "#18ffffff" : "transparent"
+
+                                    Behavior on color {
+                                        ColorAnimation { duration: 150 }
+                                    }
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: workspaceButton.workspaceId
+                                        // Every pastel is light, so one dark label reads on all of them.
+                                        color: workspaceButton.active ? "#0b0c10" : Theme.textMuted
+                                        font.family: "Inter"
+                                        font.pixelSize: 18
+                                        font.weight: workspaceButton.active ? Font.Bold : Font.DemiBold
+                                    }
+
+                                    HoverHandler {
+                                        id: workspaceHover
+                                        cursorShape: Qt.PointingHandCursor
+                                    }
+
+                                    TapHandler {
+                                        acceptedButtons: Qt.LeftButton
+                                        onTapped: root.activateWorkspace(workspaceButton.workspaceId)
+                                    }
                                 }
                             }
                         }
 
                         Item {
                             Layout.fillWidth: true
+                            // Explicit: an unset factor gets none of the space once
+                            // another item in the row sets one.
+                            Layout.horizontalStretchFactor: 1
                         }
 
                         // Outside: weather.
@@ -1111,18 +1126,6 @@ ShellRoot {
                                 barWindow: panel
                                 tooltipTitle: "Disk"
                                 tooltipBody: root.diskTooltip
-                            }
-
-                            BarItem {
-                                // Download/upload across the physical interfaces, from /proc/net/dev
-                                // byte counters on the 3s tick (no process). The arrows stand in for
-                                // an icon. Natural width with tabular digits: digit changes keep the
-                                // width, only a change in length (9.9K -> 10K) shifts the items left of it.
-                                text: "\u2193" + root.netDown + "  \u2191" + root.netUp
-                                tabularDigits: true
-                                barWindow: panel
-                                tooltipTitle: "Network"
-                                tooltipBody: root.netTooltip
                             }
                         }
 
