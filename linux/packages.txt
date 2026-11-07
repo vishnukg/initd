@@ -74,13 +74,10 @@ lv2-calf-plugins
 lv2-zam-plugins
 
 # ── Theming ───────────────────────────────────────────────────────────────────
-# Reversal-dark (reversal-icon-theme) is the icon theme: one rounded-square
-# shape for every app. Picked on 2026-11-07 from rendered side-by-sides of the
-# installed apps; Candy was tried first and rejected, and We10X, Pop and COSMIC
-# fell back to stock hicolor icons for about half the apps. It inherits
-# hicolor -> breeze for anything it lacks. Papirus-Dark stays installed because
+# The icon theme is Fedora's stock Adwaita (always installed with GTK), so
+# apps show their own upstream icons. Candy and Reversal were tried on
+# 2026-11-07 and dropped. Papirus-Dark is still installed only because
 # TrayIcon.qml and dunstrc point at specific files in it.
-reversal-icon-theme
 papirus-icon-theme
 papirus-icon-theme-dark
 adw-gtk3-theme

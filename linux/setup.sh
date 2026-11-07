@@ -300,7 +300,7 @@ apply_gsettings_theme() {
     return
   fi
   gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark"
-  gsettings set org.gnome.desktop.interface icon-theme "Reversal-dark"
+  gsettings set org.gnome.desktop.interface icon-theme "Adwaita"
   gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"
   # Breeze (breeze-cursor-theme, packages.txt) when installed, else Adwaita,
   # which is always present -- the same choice hyprland.lua makes for
