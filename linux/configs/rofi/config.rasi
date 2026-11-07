@@ -13,7 +13,7 @@ configuration {
     modi:                "drun,window,run";
     font:                "Inter Medium 14";
     show-icons:          true;
-    icon-theme:          "Candy";
+    icon-theme:          "Reversal-dark";
     drun-display-format: "{name}";
     /* Matching: fuzzy, so "fx" reaches Firefox, and the list is RANKED by
        match quality (fzf scoring) instead of staying alphabetical with the
