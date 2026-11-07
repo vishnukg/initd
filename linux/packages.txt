@@ -74,8 +74,13 @@ lv2-calf-plugins
 lv2-zam-plugins
 
 # ── Theming ───────────────────────────────────────────────────────────────────
-# apply_gsettings_theme sets icon-theme to "Papirus-Dark" specifically; the
-# base papirus-icon-theme package doesn't include those files, only this does.
+# Candy (candy-icon-theme) is the icon theme: gradient app icons that suit the
+# frosted blue palette, chosen over Yaru and Numix Circle from a rendered
+# side-by-side of the installed apps on 2026-11-07. It covers ~2900 apps plus
+# folders and mimetypes and inherits breeze-dark -> Adwaita -> hicolor for the
+# rest, so every .desktop entry still gets an icon. Papirus-Dark stays
+# installed because TrayIcon.qml and dunstrc point at specific files in it.
+candy-icon-theme
 papirus-icon-theme
 papirus-icon-theme-dark
 adw-gtk3-theme
