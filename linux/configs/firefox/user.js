@@ -13,9 +13,12 @@
 // already saved to prefs.js.
 user_pref("ui.textScaleFactor", 100);
 
-// Compact UI density (0 normal, 1 compact). compactmode.show keeps "Compact"
-// offered in Customize Toolbar → Density, which Firefox otherwise hides.
-user_pref("browser.uidensity", 1);
+// Normal UI density (0 normal, 1 compact): compact capped the address bar and
+// tabs at a height that left the 18px toolbar text looking cramped and small,
+// so the toolbar now gets normal density's taller rows and padding. Pinned
+// rather than omitted, since an earlier user.js set it to 1. compactmode.show
+// keeps "Compact" offered in Customize Toolbar → Density to switch back by hand.
+user_pref("browser.uidensity", 0);
 user_pref("browser.compactmode.show", true);
 
 // Load chrome/userChrome.css, which hides Firefox's own minimise/maximise/close
