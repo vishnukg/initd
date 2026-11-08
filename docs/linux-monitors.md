@@ -145,6 +145,16 @@ the kernel's debug log (`drm.debug=0x114`) shows why:
   Dell's firmware; Dell's current release is M2T102, updatable from a Mac
   on macOS 26.2+ with Dell Display and Peripheral Manager).
 
+  **Outcome: a new cable fixed it** (2026-11-08, 23:25). Three plug-in
+  wakes in a row came up clean (23:25, 23:28, 23:31), the layout confirmed
+  within 1-2 s of resume, no retrain, no black. That is consistent with the
+  repeater (`LTTPR 1`) having been in the old cable, an active one, so the
+  failing segment "beyond the repeater" was the cable's far end, not the
+  monitor; unverified, since display debug logging was off by then. The
+  MacBook working on the old cable proves nothing about this path: it
+  tunnels DisplayPort over Thunderbolt, which this laptop cannot do. If the
+  black wakes return, suspect the cable first.
+
 If 120 Hz is ever wanted back, the profile also has to be applied with the
 panel off first, and the starting point is booting the last Fedora 44 kernel
 to split kernel from userspace.
@@ -233,9 +243,11 @@ Two caveats:
   from the journal (no `Suspending` / `suspend requested` while `ADP1` is
   online). The one unwanted suspend seen, at 17:51 that day, came from the
   earlier version of the check, which trusted the battery's status alone.
-- The Dell's link is marginal, so an occasional slow start (up to about 20
-  seconds, a Dell-requested link retrain) or a flicker is possible. If it
-  starts happening, swap the cable first.
+- The Dell's link was marginal on the original cable: a slow start (up to
+  about 20 seconds, a Dell-requested link retrain), a flicker, or a black
+  wake with the software side reporting success. A new cable on 2026-11-08
+  resolved all three (details in the clamshell section). If any returns,
+  swap the cable first.
 
 Three more things about sleep, wake and the lid:
 
