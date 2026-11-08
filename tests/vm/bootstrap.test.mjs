@@ -272,3 +272,75 @@ test('ensure_github_ssh only warns about an unregistered key when nobody is at t
     assert.match(result.stdout + result.stderr, /not on GitHub/);
     assert.equal(env.calls().some(call => call.startsWith('gh auth refresh') || call.startsWith('gh ssh-key')), false);
 });
+
+function securityUpdatesFixture({ installed = true } = {}) {
+    const env = fixture();
+    env.stub('sudo', '"$@"');
+    env.stub('apt-get');
+    env.stub('systemctl');
+    env.stub('dpkg-query', installed ? `echo 'install ok installed'` : '');
+    const conf = path.join(newHome('apt'), '99initd-security-updates');
+    return { env, conf };
+}
+
+test('ensure_security_updates turns the masked apt timers back on for security fixes only', () => {
+    // Arrange
+    const { env, conf } = securityUpdatesFixture();
+
+    // Act
+    const result = env.run(`SECURITY_UPDATES_CONF='${conf}'; ensure_security_updates`);
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    const written = fs.readFileSync(conf, 'utf8');
+    assert.match(written, /APT::Periodic::Enable "1";/);
+    assert.match(written, /APT::Periodic::Unattended-Upgrade "1";/);
+    assert.match(written, /#clear Unattended-Upgrade::Allowed-Origins;/);
+    const origins = [...written.matchAll(/^\s+"([^"]+)";$/gm)].map(match => match[1]);
+    assert.ok(origins.length > 0 && origins.every(origin => origin.endsWith('-security')), origins.join(', '));
+    const units = 'apt-daily.timer apt-daily-upgrade.timer unattended-upgrades.service';
+    assert.deepEqual(env.calls().filter(call => call.startsWith('systemctl ')), [
+        `systemctl unmask ${units}`,
+        `systemctl enable --now ${units}`,
+    ]);
+    assert.equal(env.calls().some(call => call.startsWith('apt-get')), false);
+});
+
+test('ensure_security_updates installs unattended-upgrades when the image lacks it', () => {
+    // Arrange
+    const { env, conf } = securityUpdatesFixture({ installed: false });
+
+    // Act
+    const result = env.run(`SECURITY_UPDATES_CONF='${conf}'; ensure_security_updates`);
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(env.calls().some(call => /^apt-get .* install .*unattended-upgrades$/.test(call)));
+});
+
+test('drop_key_scope leaves a token without admin:public_key alone', () => {
+    // Arrange
+    const env = fixture();
+    env.stub('gh', `[ "$1 $2" = 'auth status' ] && echo "  - Token scopes: 'gist', 'read:org', 'repo'"`);
+
+    // Act
+    const result = env.run('drop_key_scope </dev/null');
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(env.calls().some(call => call.startsWith('gh auth refresh')), false);
+});
+
+test('drop_key_scope only warns about a leftover admin:public_key when nobody is at the keyboard', () => {
+    // Arrange
+    const env = fixture();
+    env.stub('gh', `[ "$1 $2" = 'auth status' ] && echo "  - Token scopes: 'admin:public_key', 'repo'"`);
+
+    // Act
+    const result = env.run('drop_key_scope </dev/null');
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout + result.stderr, /gh auth refresh -h github\.com -r admin:public_key/);
+    assert.equal(env.calls().some(call => call.startsWith('gh auth refresh')), false);
+});

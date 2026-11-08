@@ -101,7 +101,10 @@ github.com/settings/keys. The new run registers its own.
 
 ## Day to day
 
-- Update the VM: `ssh -t dev '~/.config/initd/vm/update.sh'`
+- Update the VM: `ssh -t dev '~/.config/initd/vm/update.sh'`. Security fixes
+  also install on their own daily (unattended-upgrades, security pockets only,
+  turned back on by bootstrap after exe.dev's image masks it); everything else
+  waits for this.
 - exe.dev commands: `ssh exe.dev help`, `ssh exe.dev ls`, `ssh exe.dev rm <vm>`.
   Arguments with spaces need the whole command quoted:
   `ssh exe.dev "new --comment='a b'"`

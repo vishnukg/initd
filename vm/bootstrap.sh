@@ -117,6 +117,35 @@ ensure_trust_store() {
   log_success "System trust store is current."
 }
 
+# exe.dev's image masks the apt timers and unattended-upgrades, so without this
+# a VM gets security fixes only when vm/update.sh is run by hand. #clear drops
+# the stock origin list (which also carries the release pocket) so only the
+# security pockets install unattended; everything else still waits for
+# vm/update.sh. The file sorts after the image's docker-disable-periodic-update,
+# whose APT::Periodic::Enable "0" would otherwise switch the timers off again.
+SECURITY_UPDATES_CONF=/etc/apt/apt.conf.d/99initd-security-updates
+SECURITY_UPDATE_UNITS=(apt-daily.timer apt-daily-upgrade.timer unattended-upgrades.service)
+
+ensure_security_updates() {
+  apt_installed unattended-upgrades || apt_install unattended-upgrades
+
+  sudo tee "${SECURITY_UPDATES_CONF}" >/dev/null <<'EOF'
+// Written by initd vm/bootstrap.sh: install security fixes unattended, daily.
+APT::Periodic::Enable "1";
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+#clear Unattended-Upgrade::Allowed-Origins;
+Unattended-Upgrade::Allowed-Origins {
+  "${distro_id}:${distro_codename}-security";
+  "${distro_id}ESMApps:${distro_codename}-apps-security";
+  "${distro_id}ESM:${distro_codename}-infra-security";
+};
+EOF
+  sudo systemctl unmask "${SECURITY_UPDATE_UNITS[@]}"
+  sudo systemctl enable --now "${SECURITY_UPDATE_UNITS[@]}"
+  log_success "Unattended security updates enabled."
+}
+
 ensure_fish_ppa() {
   # Ubuntu 24.04's own fish is 3.7; the shared config is written against 4.x.
   local major=0
@@ -207,6 +236,22 @@ ensure_gh_auth() {
 # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
 GITHUB_ED25519_FINGERPRINT="SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"
 
+# admin:public_key is needed once, to register this box's key. Kept, it would
+# let anyone who got into the box (gh's token is plain text here, with no
+# keyring) add their own key to the account and outlive a rebuild, so it is
+# handed back as soon as the key works. gh refresh is a browser device-code
+# flow, so a non-interactive run only warns.
+drop_key_scope() {
+  gh auth status -h github.com 2>&1 | grep -q "admin:public_key" || return 0
+  if [[ ! -t 0 ]]; then
+    log_warn "gh's token still holds admin:public_key; run: gh auth refresh -h github.com -r admin:public_key"
+    return 0
+  fi
+  log "Handing back gh's admin:public_key scope (no longer needed)..."
+  gh auth refresh -h github.com -r admin:public_key \
+    || log_warn "Could not drop admin:public_key; run: gh auth refresh -h github.com -r admin:public_key"
+}
+
 # Git over SSH with a key that belongs to this box alone, so it can be revoked
 # on GitHub without touching any other machine. `gh auth login` alone is not
 # enough: ~/.gitconfig is the tracked shared config, so gh's credential helper
@@ -240,6 +285,7 @@ ensure_github_ssh() {
   greeting="$(ssh -T -o BatchMode=yes git@github.com </dev/null 2>&1 || true)"
   if [[ "${greeting}" == *'successfully authenticated'* ]]; then
     log_success "GitHub accepts this VM's SSH key."
+    drop_key_scope
   elif [[ ! -t 0 ]]; then
     log_warn "This VM's SSH key is not on GitHub, and bootstrap is not running interactively."
     log_info "Add ${key}.pub at github.com/settings/keys, then re-run vm/bootstrap.sh."
@@ -252,6 +298,7 @@ ensure_github_ssh() {
       log_info "Add it at github.com/settings/keys, then re-run vm/bootstrap.sh."
       return
     fi
+    drop_key_scope
   fi
 
   gh config set git_protocol ssh
@@ -342,6 +389,7 @@ main() {
 
   install_packages
   ensure_trust_store
+  ensure_security_updates
   ensure_fish_ppa
   ensure_docker
   ensure_gh

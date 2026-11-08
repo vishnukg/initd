@@ -190,10 +190,11 @@ vm/bootstrap.sh                               # bash bootstrap.sh vm — never p
   ├─ ensure_user_context, ensure_ubuntu
   ├─ install_packages (vm/packages.txt via apt)
   ├─ ensure_trust_store                       # --only-upgrade ca-certificates (images ship it, so install_packages skips it), then fails if a DISTRUSTED_ROOTS entry (emSign ECC G3 and Comodo AAA, the eMudhra compromise and its Sectigo cross-signs) is still in /etc/ssl/certs
+  ├─ ensure_security_updates                  # exe.dev's image masks the apt timers and unattended-upgrades; unmasks them and writes /etc/apt/apt.conf.d/99initd-security-updates (sorts after the image's docker-disable-periodic-update), so security pockets install daily and everything else waits for vm/update.sh
   ├─ ensure_fish_ppa (fish 4 — Ubuntu 24.04 ships 3.7)
   ├─ ensure_docker (skipped when present, as on exeuntu), ensure_gh (official apt repo), ensure_mise
   ├─ ensure_gh_auth                           # before mise install: credential_command is `gh auth token`
-  ├─ ensure_github_ssh                        # per-box key (verified github.com host key), gh ssh-key add, origin → SSH
+  ├─ ensure_github_ssh                        # per-box key (verified github.com host key), gh ssh-key add, origin → SSH, then drop_key_scope hands back gh's admin:public_key (the token is plain text on the box; kept, it would let an intruder add keys to the account)
   ├─ setup_git_profile                        # before linking and before mise install: every prompt comes first
   ├─ shared/lib/link.sh vm
   ├─ shared/lib/claude-statusline.mjs
