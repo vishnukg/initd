@@ -8,3 +8,11 @@
 .titlebar-buttonbox-container {
   display: none !important;
 }
+
+/* Toolbar text size: tabs, address bar, menus and panels all inherit it from
+ * the root. 17px, from rendered comparisons: clearly larger than the default
+ * while still fitting compact density (18px crowds the tab). It changes text
+ * only; icons and spacing stay at their compact sizes. */
+:root {
+  font-size: 17px !important;
+}

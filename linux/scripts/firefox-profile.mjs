@@ -80,7 +80,7 @@ const SETTING = 'browser.content.full-zoom';
 // rather than from any user.js pref, and a groupID of NULL is the global default
 // - the level applied to every site without its own saved zoom. Per-site rows
 // are left untouched.
-export function setDefaultZoom(file, { zoom = 1.33, now = Date.now() } = {}) {
+export function setDefaultZoom(file, { zoom = 1.5, now = Date.now() } = {}) {
     // Milliseconds here; the Python this replaced passed sqlite3 2 whole seconds.
     const db = new DatabaseSync(file, { timeout: 2000 });
     try {
@@ -153,7 +153,7 @@ export function configureFirefox({
     if (running.error || ![0, 1].includes(running.status)) {
         warn('!! Cannot determine whether Firefox is running — leaving default zoom unchanged.');
     } else if (running.status === 0) {
-        warn('!! Firefox is running — close it and rerun setup to set 133% zoom.');
+        warn('!! Firefox is running — close it and rerun setup to set 150% zoom.');
     } else {
         const database = path.join(profile, 'content-prefs.sqlite');
         if (!pathStat(database)?.isFile()) {
@@ -161,7 +161,7 @@ export function configureFirefox({
         } else {
             try {
                 setDefaultZoom(database);
-                log('OK Set Firefox default zoom to 133%.');
+                log('OK Set Firefox default zoom to 150%.');
             } catch (error) {
                 warn(`!! Could not update Firefox zoom: ${error.message}`);
             }

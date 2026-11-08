@@ -539,7 +539,7 @@ test('the Firefox default zoom is set globally without touching per-site levels'
         join settings s on s.id = p.settingID
         where p.groupID is null and s.name = 'browser.content.full-zoom'`).all().map(row => ({ ...row }));
 
-    assert.deepEqual(globals(), [{ value: 1.33, timestamp: 1_700_000_000 }]);
+    assert.deepEqual(globals(), [{ value: 1.5, timestamp: 1_700_000_000 }]);
     // The setting row was added rather than replacing the unrelated one.
     assert.equal(db.prepare('select count(*) as n from settings').get().n, 2);
     const settingId = db.prepare("select id from settings where name = 'browser.content.full-zoom'").get().id;
