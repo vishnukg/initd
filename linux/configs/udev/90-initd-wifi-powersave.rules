@@ -1,0 +1,7 @@
+# Installed to /etc/udev/rules.d/ by linux/setup.sh:configure_wifi_powersave
+# (copied, not linked: udev reads it as root).
+#
+# Re-applies Wi-Fi power save whenever the AC adapter is plugged in or pulled:
+# off on AC, on on battery. The script that decides is the NetworkManager
+# dispatcher script installed beside it, which also covers each new connection.
+ACTION=="change", SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="/etc/NetworkManager/dispatcher.d/90-initd-wifi-powersave apply"

@@ -358,6 +358,79 @@ configure_wakeup_sources
     assert.match(sudoCalls[2], /^udevadm trigger --action=add --subsystem-match=usb /);
 });
 
+test('Wi-Fi power save switch installs both files once, applies now, and is idempotent', t => {
+    // Arrange
+    const shell = fixture(t);
+    const dispatcher = path.join(shell.home, 'dispatcher.d');
+    const rules = path.join(shell.home, 'rules.d');
+    const calls = path.join(shell.home, 'calls');
+    const script = `
+export NM_DISPATCHER_DIR=${JSON.stringify(dispatcher)} UDEV_RULES_DIR=${JSON.stringify(rules)}
+sudo() {
+    echo "$*" >> ${JSON.stringify(calls)}
+    if [[ "$1" == install ]]; then "$@"; fi
+}
+configure_wifi_powersave
+configure_wifi_powersave
+`;
+
+    // Act
+    const result = shell.run(script);
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const installedScript = path.join(dispatcher, '90-initd-wifi-powersave');
+    assert.equal(fs.readFileSync(installedScript, 'utf8'),
+        fs.readFileSync(path.join(root, 'linux/configs/networkmanager/90-initd-wifi-powersave'), 'utf8'));
+    assert.equal(fs.statSync(installedScript).mode & 0o777, 0o755, 'NetworkManager runs only root-owned, non-writable scripts');
+    const rule = fs.readFileSync(path.join(rules, '90-initd-wifi-powersave.rules'), 'utf8');
+    assert.match(rule, /SUBSYSTEM=="power_supply", ATTR\{type\}=="Mains", RUN\+="\/etc\/NetworkManager\/dispatcher\.d\/90-initd-wifi-powersave apply"/);
+    const sudoCalls = fs.readFileSync(calls, 'utf8').trim().split('\n');
+    assert.equal(sudoCalls.length, 4, 'the second run must not invoke sudo');
+    assert.equal(sudoCalls[2], 'udevadm control --reload');
+    assert.equal(sudoCalls[3], `${installedScript} apply`);
+});
+
+test('Wi-Fi power save script turns it off on AC, on on battery, and only for wireless interfaces', t => {
+    // Arrange
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-wifi-powersave-'));
+    t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+    const sys = path.join(home, 'sys');
+    const write = (file, text) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
+    write(path.join(sys, 'class/power_supply/ADP1/type'), 'Mains\n');
+    write(path.join(sys, 'class/power_supply/BAT0/type'), 'Battery\n');
+    write(path.join(sys, 'class/power_supply/ucsi-source-psy-USBC000:001/type'), 'USB\n');
+    write(path.join(sys, 'class/power_supply/ucsi-source-psy-USBC000:001/online'), '1\n');
+    fs.mkdirSync(path.join(sys, 'class/net/wlan0/wireless'), { recursive: true });
+    fs.mkdirSync(path.join(sys, 'class/net/eth0'), { recursive: true });
+    const bin = path.join(home, 'bin');
+    const calls = path.join(home, 'calls');
+    write(path.join(bin, 'iw'), `#!/bin/sh\necho "$*" >> ${JSON.stringify(calls)}\n`);
+    fs.chmodSync(path.join(bin, 'iw'), 0o755);
+    const script = path.join(root, 'linux/configs/networkmanager/90-initd-wifi-powersave');
+    const run = (...args) => {
+        fs.rmSync(calls, { force: true });
+        const result = spawnSync(script, args, {
+            env: { PATH: `${bin}:/usr/bin:/bin`, INITD_SYS: sys }, encoding: 'utf8', timeout: 10000,
+        });
+        assert.equal(result.status, 0, result.stderr);
+        return fs.existsSync(calls) ? fs.readFileSync(calls, 'utf8').trim().split('\n') : [];
+    };
+
+    // Act / Assert: on AC
+    write(path.join(sys, 'class/power_supply/ADP1/online'), '1\n');
+    assert.deepEqual(run('apply'), ['dev wlan0 set power_save off']);
+    assert.deepEqual(run('wlan0', 'up'), ['dev wlan0 set power_save off']);
+
+    // Act / Assert: on battery - a UCSI supply still reading online=1 must not count as AC
+    write(path.join(sys, 'class/power_supply/ADP1/online'), '0\n');
+    assert.deepEqual(run('apply'), ['dev wlan0 set power_save on']);
+
+    // Act / Assert: other dispatcher events and wired interfaces change nothing
+    assert.deepEqual(run('wlan0', 'down'), []);
+    assert.deepEqual(run('eth0', 'up'), []);
+});
+
 test('initramfs Bluetooth drop-in installs once, rebuilds every kernel, and is idempotent', t => {
     // Arrange
     const shell = fixture(t);

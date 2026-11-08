@@ -1,0 +1,52 @@
+#!/bin/bash
+# Wi-Fi power save off on AC, on on battery. Installed (copied, root-owned -
+# NetworkManager refuses a dispatcher script anyone else can write) to
+# /etc/NetworkManager/dispatcher.d/ by linux/setup.sh:configure_wifi_powersave.
+#
+# Two callers:
+#   - NetworkManager, as a dispatcher script (`<interface> <action>`): on "up",
+#     because NM applies its own powersave setting (on, by default) every time
+#     a connection activates - after a reconnect, a roam or a resume.
+#   - 90-initd-wifi-powersave.rules, as `apply`, when the AC adapter's online
+#     state changes - plugging in or unplugging.
+#
+# Why: power save lets the card doze between packets, and waking it costs
+# latency. With it on, pings to the router ranged 1.3-16 ms, and SSH typing to
+# the dev box - a trickle of small packets, the pattern it handles worst - felt
+# it. On battery it is part of the ~3.6 W idle draw (the 2026-11-02 efficiency
+# review), so it stays on there.
+#
+# AC is read off the Mains supply (ADP1 here, which also reports USB-C power),
+# never a UCSI supply's `online`: that one stayed 1 for minutes after an unplug
+# once the controller timed out a command (see linux/scripts/idle.sh).
+
+set -u
+
+SYS="${INITD_SYS:-/sys}"
+# udev and NetworkManager run this with a minimal PATH; iw is in /usr/bin on
+# Fedora, /usr/sbin on others. Appended, so a test's fake iw comes first.
+export PATH="${PATH:-}:/usr/sbin:/usr/bin"
+
+on_ac() {
+  local supply
+  for supply in "${SYS}"/class/power_supply/*; do
+    [[ "$(cat "${supply}/type" 2>/dev/null)" == Mains ]] || continue
+    [[ "$(cat "${supply}/online" 2>/dev/null)" == 1 ]] && return 0
+  done
+  return 1
+}
+
+apply() {
+  local mode=on interface
+  on_ac && mode=off
+  for interface in "${SYS}"/class/net/*; do
+    [[ -d "${interface}/wireless" ]] || continue
+    iw dev "${interface##*/}" set power_save "${mode}" || true
+  done
+}
+
+case "${1:-}:${2:-}" in
+  apply:*) apply ;;
+  *:up) [[ -d "${SYS}/class/net/${1}/wireless" ]] && apply ;;
+esac
+exit 0

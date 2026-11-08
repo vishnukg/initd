@@ -174,6 +174,30 @@ configure_wakeup_sources() {
   log_success "Plugging in the monitor now wakes the laptop."
 }
 
+configure_wifi_powersave() {
+  # Wi-Fi power save off on AC, on on battery (the reason is in the dispatcher
+  # script). Two root-owned copies, each only when it differs: the dispatcher
+  # script, which NetworkManager runs on every connection "up" (NM turns power
+  # save back on at each activation), and a udev rule that re-runs it on plug
+  # and unplug. The script runs once at the end so it applies now.
+  local script_source="${CONFIGS_DIR}/networkmanager/90-initd-wifi-powersave"
+  local rule_source="${CONFIGS_DIR}/udev/90-initd-wifi-powersave.rules"
+  local dispatcher_dir="${NM_DISPATCHER_DIR:-/etc/NetworkManager/dispatcher.d}"
+  local rules_dir="${UDEV_RULES_DIR:-/etc/udev/rules.d}"
+  local script_target="${dispatcher_dir}/90-initd-wifi-powersave"
+  local rule_target="${rules_dir}/90-initd-wifi-powersave.rules"
+  if cmp -s "${script_source}" "${script_target}" && cmp -s "${rule_source}" "${rule_target}"; then
+    log_success "Wi-Fi power save already follows AC (off plugged in, on on battery)."
+    return
+  fi
+  log "Installing Wi-Fi power save switch: off on AC, on on battery..."
+  sudo install -D -m 0755 "${script_source}" "${script_target}"
+  sudo install -D -m 0644 "${rule_source}" "${rule_target}"
+  sudo udevadm control --reload
+  sudo "${script_target}" apply
+  log_success "Wi-Fi power save now follows AC."
+}
+
 configure_initramfs_bluetooth() {
   # A Bluetooth keyboard at the LUKS passphrase prompt (the reason is in the
   # drop-in itself). Copied like the logind drop-in, and only when it differs.
@@ -510,6 +534,7 @@ main() {
   disable_unused_daemons
   configure_lid_switch
   configure_wakeup_sources
+  configure_wifi_powersave
   configure_initramfs_bluetooth
   check_hyprland_session
   mask_desktop_user_units
