@@ -35,7 +35,7 @@ function fixture({ brightness = 44, supplies = {}, playing = false } = {}) {
     return { run, calls };
 }
 
-const laptopOnBattery = { ADP1: { type: 'Mains', online: 0 }, BAT0: { type: 'Battery' }, 'ucsi-1': { type: 'USB', online: 0 } };
+const laptopOnBattery = { ADP1: { type: 'Mains', online: 0 }, BAT0: { type: 'Battery', status: 'Discharging' }, 'ucsi-1': { type: 'USB', online: 0 } };
 
 test('dim saves and drops to 20%, and undim restores only after a dim', () => {
     // Arrange
@@ -64,13 +64,26 @@ test('can-suspend allows a laptop on battery with nothing playing', () => {
     assert.ok(!f.calls().some((c) => c.startsWith('systemctl')), f.calls().join('\n'));
 });
 
-test('can-suspend refuses on the barrel charger or USB-C power', () => {
-    for (const charger of ['ADP1', 'ucsi-1']) {
+test('can-suspend refuses whenever the battery is not discharging', () => {
+    for (const status of ['Charging', 'Full', 'Not charging']) {
+        // Arrange: on a charger the battery reports anything but Discharging.
         const supplies = structuredClone(laptopOnBattery);
-        supplies[charger].online = 1;
+        supplies.ADP1.online = 1;
+        supplies.BAT0.status = status;
         const f = fixture({ supplies });
-        assert.equal(f.run('can-suspend').status, 1, charger);
+        // Act / Assert
+        assert.equal(f.run('can-suspend').status, 1, status);
     }
+});
+
+test('can-suspend trusts a discharging battery over a stale USB-C online flag', () => {
+    // Arrange: the UCSI driver missed the unplug (2026-11-08) and still
+    // reports the monitor's power as online, while the battery discharges.
+    const supplies = structuredClone(laptopOnBattery);
+    supplies['ucsi-1'].online = 1;
+    const f = fixture({ supplies });
+    // Act / Assert
+    assert.equal(f.run('can-suspend').status, 0);
 });
 
 test('can-suspend refuses while media plays, and always on a machine without a battery', () => {

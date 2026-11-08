@@ -32,17 +32,20 @@ undim() {
 }
 
 on_battery() {
-  local supply has_battery=false
+  # The battery's own status decides, not the chargers' online flags. On a
+  # charger it reads Charging, Full or Not charging; only Discharging means
+  # running on it. The USB-C (UCSI) power supply's online flag can go stale:
+  # on 2026-11-08 the controller timed out one command
+  # (GET_CONNECTOR_STATUS failed (-110)), the driver stopped seeing plug
+  # events, and the Dell's supply read online=1 for minutes after it was
+  # unplugged while the battery correctly read Discharging. A machine with no
+  # battery never matches, so it is never "on battery".
+  local supply
   for supply in "${POWER_SUPPLY}"/*; do
-    case "$(cat "${supply}/type" 2>/dev/null)" in
-      Battery) has_battery=true ;;
-      # Any charger online (the barrel jack, or USB-C power delivery) means
-      # plugged in.
-      Mains | USB*) [[ "$(cat "${supply}/online" 2>/dev/null)" == 1 ]] && return 1 ;;
-    esac
+    [[ "$(cat "${supply}/type" 2>/dev/null)" == Battery ]] || continue
+    [[ "$(cat "${supply}/status" 2>/dev/null)" == Discharging ]] && return 0
   done
-  # A machine with no battery is never "on battery".
-  [[ "${has_battery}" == true ]]
+  return 1
 }
 
 can_suspend() {
