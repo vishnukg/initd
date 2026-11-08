@@ -98,6 +98,38 @@ so the static fallback rules in `hyprland.lua` apply until the first profile doe
 Keep one profile per real desk, dock, projector, or travel setup; every JSON
 profile is considered when the daemon chooses a match.
 
+## The Dell runs at 4K 60 Hz, not 120 Hz
+
+Since 2026-11-08 the Dell U2725QE's profile and its fixed rule in
+`hyprland.lua` ask for `3840x2160@60`. 120 Hz worked only in some cases, and
+the kernel's debug log (`drm.debug=0x114`) shows why:
+
+- 4K at 120 Hz is a 1188 MHz pixel clock. One display pipe on this laptop's
+  Wildcat Lake iGPU cannot drive that, so the xe driver has to join two pipes
+  (A+B). Whenever the laptop panel holds pipe B the commit is refused
+  (`secondary is enabled as normal CRTC, but ... claiming this CRTC for
+  joiner`, atomic check `-22`). Plugging the Dell in with the lid open
+  therefore never got 120 Hz; it only came up when the laptop resumed with
+  the lid already closed and the panel off. A plug-in with the lid open once
+  turned the panel off while the Dell was refused, leaving both screens dark.
+- After the Fedora 45 upgrade on 2026-11-08, 120 Hz was refused in every
+  path tried (lid closed, resume, 2 and 4 lanes) with no kernel-side reason
+  logged; Hyprland and aquamarine were the same upstream versions. That was
+  not chased further: 60 Hz needs one pipe, so it works in any order, lid
+  open or closed, with the panel on or off.
+- The laptop has no Thunderbolt, so the Dell runs DisplayPort alt mode. Its
+  **USB-C Prioritization** setting decides the lane split: High Data Speed
+  gives 2 lanes (`pin assignment: D`) plus USB 3 on the Dell's hub; High
+  Resolution gives 4 lanes (`pin assignment: C`) and drops the hub to USB 2.
+  4K 60 Hz uses about 99% of 2 lanes uncompressed, and on 2026-11-08 one
+  60 Hz fallback on 2 lanes trained the link and still showed nothing; on 4
+  lanes it has room to spare. If the Dell is ever black at 60 Hz, switch the
+  setting to High Resolution first.
+
+If 120 Hz is ever wanted back, the profile also has to be applied with the
+panel off first, and the starting point is booting the last Fedora 44 kernel
+to split kernel from userspace.
+
 ## Clamshell mode (lid closed, external monitor only)
 
 With the lid closed, `hyprmoncfgd` turns the laptop panel off whichever profile
@@ -160,35 +192,46 @@ is the next thing to collect. Until then: if the Dell stays dark, do not
 unplug; open the lid and read `ddcutil --bus 14 getvcp D6` and the kernel's
 link-training lines from the moment of the wake.
 
-Two things this does not cover:
+Three more things about sleep, wake and the lid:
 
-- A laptop that is closed on battery is asleep, and plugging a monitor into it
-  does not wake it. **Plug the monitor in, then open the lid and close it
-  again** (or press the power button): the laptop resumes with the monitor
-  already attached, and `hyprmoncfgd` applies its profile with the panel off.
-  This has worked on every wake tried; the lock screen comes up on the
-  monitor and unlocks there.
+- **Plugging the monitor into a sleeping, closed laptop wakes it.**
+  `linux/configs/udev/90-initd-wakeup.rules` (installed by
+  `linux/setup.sh:configure_wakeup_sources`) enables wakeup on the USB root
+  hubs, so the Dell's hub coming up on the cable wakes the machine, the
+  profile applies with the panel off, and the Dell's power delivery keeps
+  logind off the closed lid. Verified 2026-11-08: suspend at 16:59:49, the
+  plug-in woke it at 17:00:28 with no lid event, profile applied 3 s later,
+  steady picture at 4K 60 Hz. Opening and closing the lid (or the power
+  button) still works as the fallback; a key on the Bluetooth keyboard does
+  not wake it.
 
-  Waking *by* the plug-in was tried on 2026-11-04 (a udev rule enabling
-  wakeup on the USB root hubs and the Bluetooth controller) and retired the
-  same day. The USB wake worked, but the Dell's DisplayPort link then comes up
-  while the kernel is still resuming (`typec port0-partner: PM: parent port0
-  should not be sleeping` marks that path) and the picture flickers until
-  unplugged, even once the daemon's wake settle (below) had reduced the
-  software side to a single profile apply. The Bluetooth controller never
-  woke the machine at all (`/sys/bus/pci/devices/0000:00:14.7/power/wakeup_count`
-  stayed 0). The same cable and monitor are fine on a MacBook, so it is the
-  kernel's bring-up, not the hardware. If it is ever worth another go: turn
-  on DRM debug logging (`echo 0x1e > /sys/module/drm/parameters/debug`),
-  install `drm_info`, re-enable the root hubs' wakeup for one boot, and read
-  the link training and `link-status` during the flicker; a DPMS off/on of
-  the output (a link retrain) or a 60 Hz mode are the two things to try live.
-  **Retest first on a 7.4 kernel**: mainline commit a2463e2394 ("usb: typec:
-  ucsi: allow retries of ucsi_resume_work", in v7.4-rc1, not tagged for
-  stable) fixes the UCSI driver losing connection-status changes when the
-  USB-C controller is busy during system resume, which is this path. Fedora's
-  `@kernel-vanilla/mainline-wo-mergew` COPR has it for F44 if it is wanted
-  sooner (Secure Boot is off on this machine, so an unsigned kernel boots).
+  This was first tried on 2026-11-04 (with the Bluetooth controller too) and
+  retired the same day: the wake worked, but the Dell's picture then
+  flickered until unplugged. The Dell ran at 4K 120 Hz then, which over the
+  2-lane link needs DSC and two joined display pipes (see "The Dell runs at
+  4K 60 Hz" above); at 60 Hz neither is involved and the flicker did not
+  appear. The kernel still logs `typec port0-partner: PM: parent port0 should
+  not be sleeping` on every such resume: the UCSI driver is busy during
+  resume, which mainline a2463e2394 ("usb: typec: ucsi: allow retries of
+  ucsi_resume_work", v7.4-rc1) addresses. If the plug-in wake ever starts
+  flickering again, turn on DRM debug logging (`echo 0x114 | sudo tee
+  /sys/module/drm/parameters/debug`) and read the link training, and retest
+  on a 7.4 kernel before anything else. The Bluetooth controller never woke
+  the machine (`/sys/bus/pci/devices/0000:00:14.7/power/wakeup_count`
+  stayed 0), so that half of the old rule is not back.
+
+- **A stuck USB-C controller keeps a closed laptop awake on battery.** On
+  2026-11-08 the controller timed out one command right after a plug-in
+  (`ucsi_handle_connector_change: GET_CONNECTOR_STATUS failed (-110)`), and
+  from then on the UCSI driver saw no plug or unplug events: the Dell's
+  power supply (`ucsi-source-psy-USBC000:001`) read `online=1` after it
+  was unplugged, logind reported `OnExternalPower=true`, and closing the lid
+  did nothing. The battery's own status read `Discharging` throughout, which
+  is why `idle.sh can-suspend` now trusts that instead (so the 20-minute
+  idle suspend still happens). To recover at once:
+  `sudo modprobe -r ucsi_acpi && sudo modprobe ucsi_acpi` (or reboot).
+  Upstream treats the timeout as controller firmware never completing a
+  command; a Dell-specific extra-ACK workaround was proposed as an RFC.
 
   `hyprmoncfgd` runs at its default 2 s wake settle. Under 1.17 its drop-in
   carried `--wake-settle 8s`: 2 s had it pick a profile before a monitor

@@ -82,7 +82,7 @@ hl.monitor({ output = "",      mode = "preferred", position = "auto", scale = "1
 -- symptom; hyprwm/hyprlock#779 is the nearest open report). With these the monitor arrives in its final mode, and the profile
 -- switch that follows only moves it and turns the panel off. Position is left
 -- to the profile.
-hl.monitor({ output = "desc:Dell Inc. DELL U2725QE 3VSH584", mode = "3840x2160@120", position = "auto", scale = "1.33333" })
+hl.monitor({ output = "desc:Dell Inc. DELL U2725QE 3VSH584", mode = "3840x2160@60",  position = "auto", scale = "1.33333" })
 hl.monitor({ output = "desc:BNQ BenQ RD320U V9R01600019",    mode = "3840x2160@60",  position = "auto", scale = "1.06667" })
 
 -- ── Input ─────────────────────────────────────────────────────────────────────

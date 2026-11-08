@@ -2,7 +2,7 @@
 
 hl.monitor({
   output = "desc:Dell Inc. DELL U2725QE 3VSH584",
-  mode = "3840x2160@120.00",
+  mode = "3840x2160@60.00",
   position = "0x0",
   scale = 1.33333,
   sdr_min_luminance = 0.2,
