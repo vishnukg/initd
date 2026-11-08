@@ -1,13 +1,13 @@
 import QtQuick
 import Quickshell
 
-// One launcher at the bar's left end: a Nerd Font glyph in a soft pastel
-// from the workspace palette, rather than the app's full-colour theme icon,
-// which read as clutter beside the rest. The tint marks the launchers as their
-// own group; it is the one place colour on the bar is not state.
+// One launcher at the bar's left end. By default it draws the app's own
+// full-colour icon from its desktop entry (resolved through the icon theme);
+// given a glyph it draws that Nerd Font glyph in a soft pastel instead, which
+// only the Files launcher uses (chosen 2026-11-08).
 // Apps start through their desktop entry, so they get the same Exec line as
 // rofi and xdg-open -- the shadowed entries in ~/.local/share/applications
-// included (Brave's 120% scaling, Ghostty without --gtk-single-instance).
+// included (Ghostty without --gtk-single-instance).
 Rectangle {
     id: root
 
@@ -38,8 +38,26 @@ Rectangle {
         ColorAnimation { duration: 140 }
     }
 
+    Image {
+        anchors.centerIn: parent
+        visible: root.glyph === "" && status === Image.Ready
+        width: root.iconSize
+        height: root.iconSize
+        // Rasterised at twice the drawn size so the scaled 1.33x panel and
+        // the 4K monitor both get a sharp icon.
+        sourceSize.width: root.iconSize * 2
+        sourceSize.height: root.iconSize * 2
+        source: root.glyph === "" && root.entry && root.entry.icon
+            ? Quickshell.iconPath(root.entry.icon, true) : ""
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        mipmap: true
+        asynchronous: true
+    }
+
     Text {
         anchors.centerIn: parent
+        visible: root.glyph !== ""
         text: root.glyph
         color: root.tint
         font.family: "FiraCode Nerd Font"

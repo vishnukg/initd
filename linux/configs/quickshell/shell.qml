@@ -947,16 +947,14 @@ ShellRoot {
                         spacing: 4
 
                         // Launchers for the apps opened most; everything else is
-                        // $mod+d (rofi). Glyphs nf-md-folder, -web, -cat, -ghost,
-                        // sized per glyph like BarItem's. Folder blue and globe
-                        // green are workspaces 1 and 2's pastels, kitty the amber of
-                        // 5, Ghostty a deeper indigo than the folder.
+                        // $mod+d (rofi). Files keeps the nf-md-folder glyph in
+                        // workspace 1's blue; the others draw their own app icon.
                         Repeater {
                             model: [
                                 { id: "org.gnome.Nautilus", glyph: "\u{f024b}", size: 25, tint: "#8fb7e8" },
-                                { id: "brave-browser", glyph: "\u{f059f}", size: 25, tint: "#8fd6b8" },
-                                { id: "kitty", glyph: "\u{f011b}", size: 26, tint: "#e8b87a" },
-                                { id: "com.mitchellh.ghostty", glyph: "\u{f02a0}", size: 25, tint: "#7f95e6" }
+                                { id: "org.mozilla.firefox", glyph: "", size: 22, tint: "transparent" },
+                                { id: "kitty", glyph: "", size: 22, tint: "transparent" },
+                                { id: "com.mitchellh.ghostty", glyph: "", size: 22, tint: "transparent" }
                             ]
 
                             delegate: AppLauncher {
