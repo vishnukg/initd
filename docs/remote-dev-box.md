@@ -108,5 +108,7 @@ github.com/settings/keys. The new run registers its own.
 - exe.dev commands: `ssh exe.dev help`, `ssh exe.dev ls`, `ssh exe.dev rm <vm>`.
   Arguments with spaces need the whole command quoted:
   `ssh exe.dev "new --comment='a b'"`
-- Plan limits (`ssh exe.dev billing plan`): 2 vCPU / 4 GB RAM / 100 GB disk
-  shared across all VMs.
+- Plan limits (`ssh exe.dev billing plan`): 4 vCPU / 8 GB RAM / 200 GB disk
+  shared across all VMs. A new VM does not get all of it: videv started at
+  2 vCPU and was raised with `ssh exe.dev resize videv --cpu=4` (a restart).
+  Check a VM's size with `ssh exe.dev resize <vm>`.
