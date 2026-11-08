@@ -130,7 +130,20 @@ the kernel's debug log (`drm.debug=0x114`) shows why:
   `Reducing link parameters`), and one plug-in wake was followed 20 s later
   by a Dell-requested retrain that passed. If either keeps happening, try the
   cable that came with the Dell or a short certified USB4 / 40 Gbps cable
-  before anything in software.
+  before anything in software. The 23:09 plug-in wake that day went black
+  with the compositor's log identical, line for line, to a working wake
+  five minutes earlier (Dell connected, 4K 60 modeset, panel off, hyprlock
+  taking keystrokes), so the fault sits below Hyprland. In the one recorded
+  training failure (17:17:45) the segment up to the repeater (`LTTPR 1`)
+  passed and the segment from it to the Dell's receiver (`DPRX`) failed,
+  after which the kernel halved the link rate to 4x270000, where 4K 60 Hz
+  no longer fits; at 17:20:33 the Dell itself requested a retrain. Both put
+  the weak point on the monitor side of the repeater. Next black wake: do
+  not unplug; with `drm.debug=0x104` on (KMS + DP, without the per-frame
+  atomic spam of 0x114) read the training lines and `ddcutil --bus 14
+  getvcp D6` (power mode; `sl=0x01` is fully on) and `getvcp C9` (the
+  Dell's firmware; Dell's current release is M2T102, updatable from a Mac
+  on macOS 26.2+ with Dell Display and Peripheral Manager).
 
 If 120 Hz is ever wanted back, the profile also has to be applied with the
 panel off first, and the starting point is booting the last Fedora 44 kernel
@@ -266,16 +279,28 @@ Three more things about sleep, wake and the lid:
   Upstream treats the timeout as controller firmware never completing a
   command; a Dell-specific extra-ACK workaround was proposed as an RFC.
 
-  `hyprmoncfgd` runs at its default 2 s wake settle. Under 1.17 its drop-in
-  carried `--wake-settle 8s`: 2 s had it pick a profile before a monitor
-  arriving 4-5 s after resume existed, so a closed laptop got `laptop`
-  (panel lit inside the lid) and the monitor profile a moment later, during
-  link training. The cost was the other direction: every event during the
-  settle restarts it, so opening the lid after an unplugged suspend showed
-  the panel after 8-13 s. On 1.28 (hotplug debounce, wake retries) the
-  plug-in resume was retested on 2026-11-05 at the default: the Dell was
-  detected 0.6 s after resume, its profile applied 3.6 s after resume in one
-  step, no refused commits, panel never lit. The override is gone.
+  `hyprmoncfgd` runs with `--wake-settle 1s` (its drop-in; the daemon's
+  default is 2 s). The settle is the quiet period after a resume before a
+  profile is picked, restarted by every event that lands inside it, and it
+  is the one timer on every wake path. Measured on 2026-11-08 at the
+  default: a plug-in wake took 3.3 s (2.0 s settle + 1.2 s apply), and a
+  lid-open after an unplugged suspend 4.5 s, because Hyprland emits no
+  removal for a monitor lost during suspend, so the daemon learned the Dell
+  was gone from its 5 s poll 1.9 s in, which restarted the settle for
+  another 2 s before the 0.5 s apply. At 1 s the same two paths measured
+  3.1 s (the Dell took 0.8 s to be detected, then 1.0 s settle, 1.2 s
+  apply) and 1.65 s. In every plug-in wake that day the Dell was reported
+  within 0.8 s of resume, which is what makes 1 s safe; if a monitor ever
+  arrives later than that, the panel lights inside the closed lid for a
+  moment and the retry switches it, and the default should come back.
+
+  History: under 1.17 the drop-in carried `--wake-settle 8s`, because 2 s
+  had it pick a profile before a monitor arriving 4-5 s after resume
+  existed, so a closed laptop got `laptop` (panel lit inside the lid) and
+  the monitor profile a moment later, during link training. Opening the lid
+  after an unplugged suspend then showed the panel after 8-13 s. 1.28
+  (hotplug debounce, wake retries) and the Dell at 60 Hz (one pipe, no DSC)
+  are what shortened the window.
 
   `hyprland.lua` also carries fixed rules for the Dell and the BenQ at their
   profiles' mode and scale. The generated file names only the outputs of the
@@ -401,6 +426,8 @@ timeouts in `hypridle.conf` are the schedule, not workarounds.
 | `initd-hyprland-session.service` and the `systemctl --user start` of it in the `hyprland.start` block | `linux/configs/systemd/user/`, `hyprland.lua` | 0.57 starts `hyprland-session.target` itself, but the sdegler COPR installs it under `/usr/lib64/systemd/user/`, which is not on the user manager's unit path (`systemd-analyze --user unit-paths`). Without the shim `graphical-session.target` is never reached and hyprmoncfgd, Quickshell and the portals never start. | `systemctl --user list-unit-files hyprland-session.target` finds the unit after a package update. Then drop the service, its `MANAGED_LINKS` entry, the start line, and the five extra variables in the import. |
 | Fixed `hl.monitor` rules for the Dell and the BenQ at their profiles' mode and scale | `hyprland.lua`, Monitors section | hyprmoncfg's generated file names only the active profile's outputs, so a monitor hotplugged after `laptop` arrived through the catch-all at 60 Hz and was switched to 120 Hz seconds later; hyprlock loses its surface on that mode change. | hyprmoncfg emits rules for every saved profile's monitors (worth a feature request), or hyprlock survives a mode change. No issue tracks that (the nearest is [hyprwm/hyprlock#779](https://github.com/hyprwm/hyprlock/issues/779)), so test it on a new hyprlock release: drop the two rules, lock on the `laptop` profile, plug the Dell in, and the lock screen must still draw on it once it switches to 120 Hz. Until then, a mode or scale change in `hyprmoncfg tui` must be mirrored in the rule. |
 
-Retired so far: the `--wake-settle 8s` override (1.17 → 1.28, 2026-11-05), the
-USB/Bluetooth wake rule (2026-11-04), the DPMS keybind and the retrain idea
-(never shipped).
+Retired so far: the `--wake-settle 8s` override (1.17 → 1.28, 2026-11-05;
+a 1 s override replaced the default on 2026-11-08, see the clamshell
+section), the Bluetooth half of the wake rule (2026-11-04; the USB half is
+back since 2026-11-08), the DPMS keybind and the retrain idea (never
+shipped).
