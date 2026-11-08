@@ -2,6 +2,13 @@
 Description=initd Hyprland graphical session
 Requires=graphical-session.target
 After=graphical-session.target
+# The Secret Service (gh's token, Wi-Fi secrets, browser passwords). Fedora 45
+# replaced gnome-keyring with oo7, and oo7-daemon is not bus-activatable: GNOME
+# starts it from gnome-session-services.target, which a Hyprland session never
+# reaches. Without this nothing serves org.freedesktop.secrets, and pam_oo7's
+# login helper times out after 120 s waiting for a daemon to hand the login
+# password to. Wants= on a unit that does not exist (Fedora 44) is a no-op.
+Wants=oo7-daemon.service
 
 [Service]
 Type=oneshot
