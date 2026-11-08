@@ -344,16 +344,16 @@ hl.config({
     general = {
         gaps_in = 5,
         gaps_out = 14,
-        -- No border: windows are separated by the gaps, rounding and the soft
-        -- shadow, and focus is carried by dim_inactive, the opacity split and the
-        -- active-window shadow. The colours below are kept for the day a border
-        -- comes back (they would draw as an ~8% white hairline); at size 0
-        -- nothing draws them. resize_on_border still works: Hyprland's grab
-        -- area extends past the window edge.
-        border_size = 0,
+        -- Focus is a border on the focused window only, in the theme's blue
+        -- (DEFAULT_THEME.accent in linux/scripts/theme.mjs). Inactive windows
+        -- keep a fully transparent border of the same size, so nothing shifts
+        -- when focus moves. It replaced dim_inactive (2026-11-09): dimming every
+        -- unfocused window made each focus change a brightness dip across the
+        -- screen, which was more distracting than it was informative.
+        border_size = 2,
         col = {
-            active_border = "rgba(ffffff14)",
-            inactive_border = "rgba(ffffff0a)",
+            active_border = "rgb(8fb7e8)",
+            inactive_border = "rgba(00000000)",
         },
         layout = "dwindle",
         resize_on_border = true,
@@ -398,8 +398,10 @@ hl.config({
         -- 2 is a circular corner; 3 flattens the curve into the squircle that
         -- macOS and iOS windows use, which reads as softer at the same radius.
         rounding_power = 3,
+        -- Same focused and unfocused: the active border is the only focus cue,
+        -- so nothing else changes when focus moves.
         active_opacity = 0.96,
-        inactive_opacity = 0.90,
+        inactive_opacity = 0.96,
         fullscreen_opacity = 1.0,
         blur = {
             enabled = true,
@@ -421,22 +423,17 @@ hl.config({
             -- the windows they belong to; they exist only while open.
             popups = true,
         },
-        -- macOS-style focus model: unfocused windows dim slightly, so focus
-        -- reads as "the bright window", lifted by the only full shadow.
-        dim_inactive = true,
-        -- 0.20 rather than 0.12: with no border, dimming is the main focus cue,
-        -- so it has to be obvious at a glance.
-        dim_strength = 0.20,
-        -- A wide, soft drop shadow lifts windows off the wallpaper instead of a
-        -- border outlining them. Full strength on the focused window only:
-        -- inactive ones get a faint one, which is both a second focus cue and
-        -- less shadow area to blend per frame on this iGPU.
+        -- No dimming: the active border carries focus (see general.border_size),
+        -- and a brightness change on every focus switch was distracting.
+        dim_inactive = false,
+        -- A wide, soft drop shadow lifts windows off the wallpaper. Same on
+        -- every window: the active border is the only focus cue.
         shadow = {
             enabled = true,
             range = 20,
             render_power = 3,
             color = "rgba(00000066)",
-            color_inactive = "rgba(00000022)",
+            color_inactive = "rgba(00000066)",
         },
         -- Off: it samples the framebuffer again on every frame of a move or
         -- resize, which is exactly when the compositor is already busiest, and
@@ -489,18 +486,19 @@ hl.config({
 -- Rule opacity multiplies decoration.active/inactive_opacity unless each value
 -- carries `override`, and both multiply the client's own background alpha.
 
--- Both terminals: 0.80 focused, 0.70 unfocused, opaque fullscreen, on top of
--- their own 0.92 background alpha (each terminal's linux.conf), so they match.
+-- Both terminals: 0.80 focused or not (the active border is the only focus
+-- cue), opaque fullscreen, on top of their own 0.92 background alpha (each
+-- terminal's linux.conf), so they match.
 hl.window_rule({
     name = "ghostty-opacity",
     match = { class = "com.mitchellh.ghostty" },
-    opacity = "0.80 override 0.70 override 1.0 override",
+    opacity = "0.80 override 0.80 override 1.0 override",
 })
 
 hl.window_rule({
     name = "kitty-opacity",
     match = { class = "kitty" },
-    opacity = "0.80 override 0.70 override 1.0 override",
+    opacity = "0.80 override 0.80 override 1.0 override",
 })
 
 -- Blur the wallpaper behind Quickshell's translucent island while ignoring the
