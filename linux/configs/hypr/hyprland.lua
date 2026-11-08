@@ -210,11 +210,12 @@ hl.bind(mod .. " + SHIFT + s",  hl.dsp.exec_cmd("~/.config/screenshot.mjs region
 -- process owning every window is exactly what turns that leak into a
 -- session-wide problem; separate processes hand the memory back on close.
 --
--- No per-launch flags on either: per-OS settings live in tracked config files
+-- No opacity flags on either: Linux's 0.92 is a tracked per-OS config file
 -- (kitty's linux.conf via `include ${KITTY_OS}.conf`; Ghostty's via the
 -- linux.conf link linux/setup.sh places next to the shared config), so every
 -- launcher agrees — these binds, rofi, .desktop entries, docker-menu.mjs. A
--- flag would only reach windows opened by that one keybind.
+-- flag would only reach windows opened by that one keybind and leave the rest
+-- at the shared config's macOS value (0.58 for both terminals).
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
 hl.bind(mod .. " + t", hl.dsp.exec_cmd("ghostty"))
 -- The browser follows the system default (xdg-settings, set to Firefox by
@@ -488,18 +489,18 @@ hl.config({
 -- Rule opacity multiplies decoration.active/inactive_opacity unless each value
 -- carries `override`, and both multiply the client's own background alpha.
 
--- Exempt both terminals from the global glass: they are fully opaque, focused
--- or not, so text stays readable over a bright wallpaper.
+-- Both terminals: 0.80 focused, 0.70 unfocused, opaque fullscreen, on top of
+-- their own 0.92 background alpha (each terminal's linux.conf), so they match.
 hl.window_rule({
     name = "ghostty-opacity",
     match = { class = "com.mitchellh.ghostty" },
-    opacity = "1.0 override 1.0 override",
+    opacity = "0.80 override 0.70 override 1.0 override",
 })
 
 hl.window_rule({
     name = "kitty-opacity",
     match = { class = "kitty" },
-    opacity = "1.0 override 1.0 override",
+    opacity = "0.80 override 0.70 override 1.0 override",
 })
 
 -- Blur the wallpaper behind Quickshell's translucent island while ignoring the
