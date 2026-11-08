@@ -932,6 +932,7 @@ ShellRoot {
                     border.width: 0
 
                     RowLayout {
+                        id: barRow
                         anchors {
                             fill: parent
                             // The launchers start the row: 31 px tall in a 35 px row
@@ -967,77 +968,12 @@ ShellRoot {
                             }
                         }
 
-                        // Three times the right spacer's share, so the workspaces sit
-                        // three quarters of the way across the free space, near the
-                        // middle while still clear of the weather.
+                        // The free space between the launchers and the readouts.
+                        // The workspaces are not in the row: they are centred on the
+                        // island below and only use this to stay clear of both sides.
                         Item {
+                            id: freeSpace
                             Layout.fillWidth: true
-                            Layout.horizontalStretchFactor: 3
-                        }
-
-                        // Workspaces, placed in the free space between the launchers
-                        // and the readouts by the two spacers' 3:1 split, so they sit
-                        // near the middle without ever touching either side.
-                        RowLayout {
-                            // A nested layout fills by default; this one must not,
-                            // or it would split the free space with the spacers.
-                            Layout.fillWidth: false
-                            Layout.fillHeight: true
-                            spacing: 4
-
-                            Repeater {
-                                model: 10
-
-                                delegate: Rectangle {
-                                    id: workspaceButton
-
-                                    required property int index
-                                    property int workspaceId: index + 1
-                                    property var workspace: root.workspaceForId(workspaceId, panel.screen)
-                                    property bool active: workspace && workspace.active
-
-                                    visible: workspace !== null
-                                    // A circle, the height of every other bar item.
-                                    Layout.preferredWidth: visible ? 31 : 0
-                                    Layout.preferredHeight: 31
-                                    Layout.alignment: Qt.AlignVCenter
-                                    radius: height / 2
-                                    color: active
-                                        ? root.workspaceColor(workspaceId)
-                                        : workspaceHover.hovered ? "#18ffffff" : "transparent"
-
-                                    Behavior on color {
-                                        ColorAnimation { duration: 150 }
-                                    }
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: workspaceButton.workspaceId
-                                        // Every pastel is light, so one dark label reads on all of them.
-                                        color: workspaceButton.active ? "#0b0c10" : Theme.textMuted
-                                        font.family: "Inter"
-                                        font.pixelSize: 18
-                                        font.weight: workspaceButton.active ? Font.Bold : Font.DemiBold
-                                    }
-
-                                    HoverHandler {
-                                        id: workspaceHover
-                                        cursorShape: Qt.PointingHandCursor
-                                    }
-
-                                    TapHandler {
-                                        acceptedButtons: Qt.LeftButton
-                                        onTapped: root.activateWorkspace(workspaceButton.workspaceId)
-                                    }
-                                }
-                            }
-                        }
-
-                        Item {
-                            Layout.fillWidth: true
-                            // Explicit: an unset factor gets none of the space once
-                            // another item in the row sets one.
-                            Layout.horizontalStretchFactor: 1
                         }
 
                         // Outside: weather.
@@ -1249,6 +1185,70 @@ ShellRoot {
                                 id: calendar
                                 anchorItem: dateItem
                                 barWindow: panel
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        id: workspaceRow
+                        // Centred on the island, so the pills sit in the middle of
+                        // every monitor whatever its width. Clamped into the free
+                        // space between the launchers and the readouts (barGap),
+                        // so a long row on a narrow screen slides left instead of
+                        // running into the weather. The old placement, a 3:1 split
+                        // of that free space, sat at ~58% across the Dell.
+                        readonly property real barGap: 8
+                        readonly property real lowest: barRow.x + freeSpace.x + barGap
+                        readonly property real highest: barRow.x + freeSpace.x + freeSpace.width - width - barGap
+                        x: Math.max(lowest, Math.min((parent.width - width) / 2, highest))
+                        anchors.verticalCenter: parent.verticalCenter
+                        height: barRow.height
+                        spacing: 4
+
+                        Repeater {
+                            model: 10
+
+                            delegate: Rectangle {
+                                id: workspaceButton
+
+                                required property int index
+                                property int workspaceId: index + 1
+                                property var workspace: root.workspaceForId(workspaceId, panel.screen)
+                                property bool active: workspace && workspace.active
+
+                                visible: workspace !== null
+                                // A circle, the height of every other bar item.
+                                Layout.preferredWidth: visible ? 31 : 0
+                                Layout.preferredHeight: 31
+                                Layout.alignment: Qt.AlignVCenter
+                                radius: height / 2
+                                color: active
+                                    ? root.workspaceColor(workspaceId)
+                                    : workspaceHover.hovered ? "#18ffffff" : "transparent"
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 150 }
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: workspaceButton.workspaceId
+                                    // Every pastel is light, so one dark label reads on all of them.
+                                    color: workspaceButton.active ? "#0b0c10" : Theme.textMuted
+                                    font.family: "Inter"
+                                    font.pixelSize: 18
+                                    font.weight: workspaceButton.active ? Font.Bold : Font.DemiBold
+                                }
+
+                                HoverHandler {
+                                    id: workspaceHover
+                                    cursorShape: Qt.PointingHandCursor
+                                }
+
+                                TapHandler {
+                                    acceptedButtons: Qt.LeftButton
+                                    onTapped: root.activateWorkspace(workspaceButton.workspaceId)
+                                }
                             }
                         }
                     }
