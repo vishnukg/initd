@@ -935,12 +935,13 @@ ShellRoot {
                         id: barRow
                         anchors {
                             fill: parent
-                            // Both ends are 31 px circles or hover pills in a 35 px
-                            // row with a 2 px margin (workspaces left, quick settings
-                            // right), sitting 4 px from the island's top and bottom,
-                            // so both insets are 4 to match.
+                            // The workspace pills start the row: 31 px tall in a
+                            // 35 px row with a 2 px margin, an active one sits 4 px
+                            // from the island's top and bottom, so the left inset is
+                            // 4 to match. The right end is plain text (the clock),
+                            // which wants the wider inset.
                             leftMargin: 4
-                            rightMargin: 4
+                            rightMargin: 8
                             topMargin: 2
                             bottomMargin: 2
                         }
@@ -1196,24 +1197,21 @@ ShellRoot {
                                 : "No notifications"
                             onClicked: root.togglePanel()
                         }
-                    }
 
-                    // The clock, centred on the island rather than in the row, so
-                    // it sits in the middle of every monitor whatever the row holds.
-                    BarItem {
-                        id: dateItem
-                        x: (parent.width - width) / 2
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: Qt.formatDateTime(clock.date, "ddd, dd MMM  ·  HH:mm")
-                        barWindow: panel
-                        foreground: Theme.text
-                        clickable: true
-                        onClicked: calendar.open()
 
-                        CalendarPopup {
-                            id: calendar
-                            anchorItem: dateItem
+                        BarItem {
+                            id: dateItem
+                            text: Qt.formatDateTime(clock.date, "ddd, dd MMM  ·  HH:mm")
                             barWindow: panel
+                            foreground: Theme.text
+                            clickable: true
+                            onClicked: calendar.open()
+
+                            CalendarPopup {
+                                id: calendar
+                                anchorItem: dateItem
+                                barWindow: panel
+                            }
                         }
                     }
                 }
