@@ -205,7 +205,10 @@ Two things this does not cover:
   profiles' mode and scale. The generated file names only the outputs of the
   last profile, so a monitor hotplugged after `laptop` used to arrive through
   the catch-all rule at 60 Hz and be switched to 120 Hz seconds later, and
-  hyprlock 0.9.7 lost its lock surface on that mode change (hyprwm/hyprlock#678).
+  hyprlock 0.9.7 lost its lock surface on that mode change. No upstream issue tracks that
+  exact symptom; the nearest open report is
+  [hyprwm/hyprlock#779](https://github.com/hyprwm/hyprlock/issues/779) (a crash
+  while an external monitor is plugged in).
   With the rules it arrives in its final mode. If a profile's mode or scale is
   changed in `hyprmoncfg tui`, change the matching rule too.
 - A closed laptop on a charger with no monitor stays awake, with the panel on
@@ -318,9 +321,9 @@ timeouts in `hypridle.conf` are the schedule, not workarounds.
 
 | Shim | Where | Why it exists | Remove when |
 | --- | --- | --- | --- |
-| `hl.env("HYPRLAND_NO_RT", "1")` | `linux/configs/hypr/hyprland.lua` | Hyprland 0.57 runs its main thread with a 200 ms realtime budget; a DisplayPort probe on the Dell's hotplug overran it and the kernel SIGKILLed the compositor (no core, safe-mode restart). [Hyprland discussion #16648](https://github.com/hyprwm/Hyprland/discussions/16648); Omarchy ships the same default. | A Hyprland release includes the realtime watchdog (PR #16737 or its successor). Test: drop the line, log in again, hotplug the Dell three times; `journalctl --user -b` must show no Hyprland restart. |
+| `hl.env("HYPRLAND_NO_RT", "1")` | `linux/configs/hypr/hyprland.lua` | Hyprland 0.57 runs its main thread with a 200 ms realtime budget; a DisplayPort probe on the Dell's hotplug overran it and the kernel SIGKILLed the compositor (no core, safe-mode restart). [Hyprland discussion #16648](https://github.com/hyprwm/Hyprland/discussions/16648); Omarchy ships the same default. | A Hyprland release after 0.57.1 includes [PR #16843](https://github.com/hyprwm/Hyprland/pull/16843) (commit `b616b5474`, "init: stop acquiring realtime scheduling", merged 2026-11-04), which drops realtime entirely; the watchdog PR #16737 was closed in its favour. Test: drop the line, log in again, hotplug the Dell three times; `journalctl --user -b` must show no Hyprland restart. |
 | `initd-hyprland-session.service` and the `systemctl --user start` of it in the `hyprland.start` block | `linux/configs/systemd/user/`, `hyprland.lua` | 0.57 starts `hyprland-session.target` itself, but the sdegler COPR installs it under `/usr/lib64/systemd/user/`, which is not on the user manager's unit path (`systemd-analyze --user unit-paths`). Without the shim `graphical-session.target` is never reached and hyprmoncfgd, Quickshell and the portals never start. | `systemctl --user list-unit-files hyprland-session.target` finds the unit after a package update. Then drop the service, its `MANAGED_LINKS` entry, the start line, and the five extra variables in the import. |
-| Fixed `hl.monitor` rules for the Dell and the BenQ at their profiles' mode and scale | `hyprland.lua`, Monitors section | hyprmoncfg's generated file names only the active profile's outputs, so a monitor hotplugged after `laptop` arrived through the catch-all at 60 Hz and was switched to 120 Hz seconds later; hyprlock loses its surface on that mode change. | hyprmoncfg emits rules for every saved profile's monitors (worth a feature request), or hyprlock survives a mode change (hyprwm/hyprlock#678 closed). Until then, a mode or scale change in `hyprmoncfg tui` must be mirrored in the rule. |
+| Fixed `hl.monitor` rules for the Dell and the BenQ at their profiles' mode and scale | `hyprland.lua`, Monitors section | hyprmoncfg's generated file names only the active profile's outputs, so a monitor hotplugged after `laptop` arrived through the catch-all at 60 Hz and was switched to 120 Hz seconds later; hyprlock loses its surface on that mode change. | hyprmoncfg emits rules for every saved profile's monitors (worth a feature request), or hyprlock survives a mode change. No issue tracks that (the nearest is [hyprwm/hyprlock#779](https://github.com/hyprwm/hyprlock/issues/779)), so test it on a new hyprlock release: drop the two rules, lock on the `laptop` profile, plug the Dell in, and the lock screen must still draw on it once it switches to 120 Hz. Until then, a mode or scale change in `hyprmoncfg tui` must be mirrored in the rule. |
 
 Retired so far: the `--wake-settle 8s` override (1.17 → 1.28, 2026-11-05), the
 USB/Bluetooth wake rule (2026-11-04), the DPMS keybind and the retrain idea

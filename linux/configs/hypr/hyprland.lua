@@ -78,8 +78,8 @@ hl.monitor({ output = "",      mode = "preferred", position = "auto", scale = "1
 -- switched to its real mode a few seconds later, once hyprmoncfgd caught up.
 -- Waking a closed laptop by plugging the Dell in did exactly that while the
 -- session was locked, and hyprlock 0.9.7 lost its lock surface on the mode
--- change: a black, still-locked monitor (hyprwm/hyprlock#678 tracks the
--- family). With these the monitor arrives in its final mode, and the profile
+-- change: a black, still-locked monitor (no upstream issue for that exact
+-- symptom; hyprwm/hyprlock#779 is the nearest open report). With these the monitor arrives in its final mode, and the profile
 -- switch that follows only moves it and turns the panel off. Position is left
 -- to the profile.
 hl.monitor({ output = "desc:Dell Inc. DELL U2725QE 3VSH584", mode = "3840x2160@120", position = "auto", scale = "1.33333" })
