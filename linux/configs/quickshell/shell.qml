@@ -935,11 +935,11 @@ ShellRoot {
                         id: barRow
                         anchors {
                             fill: parent
-                            // The launchers start the row: 31 px tall in a 35 px row
-                            // with a 2 px margin, a hovered one sits 4 px from the
-                            // island's top and bottom, so the left inset is 4 to
-                            // match. The right end is plain text (the clock), which
-                            // wants the wider inset.
+                            // The workspace pills start the row: 31 px tall in a
+                            // 35 px row with a 2 px margin, an active one sits 4 px
+                            // from the island's top and bottom, so the left inset is
+                            // 4 to match. The right end is plain text (the clock),
+                            // which wants the wider inset.
                             leftMargin: 4
                             rightMargin: 8
                             topMargin: 2
@@ -947,32 +947,58 @@ ShellRoot {
                         }
                         spacing: 4
 
-                        // Launchers for the apps opened most; everything else is
-                        // $mod+d (rofi). Files keeps the nf-md-folder glyph in
-                        // workspace 1's blue; the others draw their own app icon.
+                        // Workspaces, at the left end of the row (the app
+                        // launchers that sat here were removed 2026-11-09;
+                        // $mod+d is the launcher).
                         Repeater {
-                            model: [
-                                { id: "org.gnome.Nautilus", glyph: "\u{f024b}", size: 25, tint: "#8fb7e8" },
-                                { id: "org.mozilla.firefox", glyph: "", size: 22, tint: "transparent" },
-                                { id: "kitty", glyph: "", size: 22, tint: "transparent" },
-                                { id: "com.mitchellh.ghostty", glyph: "", size: 22, tint: "transparent" }
-                            ]
+                            model: 10
 
-                            delegate: AppLauncher {
-                                required property var modelData
-                                desktopId: modelData.id
-                                glyph: modelData.glyph
-                                iconSize: modelData.size
-                                tint: modelData.tint
-                                barWindow: panel
+                            delegate: Rectangle {
+                                id: workspaceButton
+
+                                required property int index
+                                property int workspaceId: index + 1
+                                property var workspace: root.workspaceForId(workspaceId, panel.screen)
+                                property bool active: workspace && workspace.active
+
+                                visible: workspace !== null
+                                // A circle, the height of every other bar item.
+                                Layout.preferredWidth: 31
+                                Layout.preferredHeight: 31
+                                Layout.alignment: Qt.AlignVCenter
+                                radius: height / 2
+                                color: active
+                                    ? root.workspaceColor(workspaceId)
+                                    : workspaceHover.hovered ? "#18ffffff" : "transparent"
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 150 }
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: workspaceButton.workspaceId
+                                    // Every pastel is light, so one dark label reads on all of them.
+                                    color: workspaceButton.active ? "#0b0c10" : Theme.textMuted
+                                    font.family: "Inter"
+                                    font.pixelSize: 18
+                                    font.weight: workspaceButton.active ? Font.Bold : Font.DemiBold
+                                }
+
+                                HoverHandler {
+                                    id: workspaceHover
+                                    cursorShape: Qt.PointingHandCursor
+                                }
+
+                                TapHandler {
+                                    acceptedButtons: Qt.LeftButton
+                                    onTapped: root.activateWorkspace(workspaceButton.workspaceId)
+                                }
                             }
                         }
 
-                        // The free space between the launchers and the readouts.
-                        // The workspaces are not in the row: they are centred on the
-                        // island below and only use this to stay clear of both sides.
+                        // The free space between the workspaces and the readouts.
                         Item {
-                            id: freeSpace
                             Layout.fillWidth: true
                         }
 
@@ -1185,70 +1211,6 @@ ShellRoot {
                                 id: calendar
                                 anchorItem: dateItem
                                 barWindow: panel
-                            }
-                        }
-                    }
-
-                    RowLayout {
-                        id: workspaceRow
-                        // Centred on the island, so the pills sit in the middle of
-                        // every monitor whatever its width. Clamped into the free
-                        // space between the launchers and the readouts (barGap),
-                        // so a long row on a narrow screen slides left instead of
-                        // running into the weather. The old placement, a 3:1 split
-                        // of that free space, sat at ~58% across the Dell.
-                        readonly property real barGap: 8
-                        readonly property real lowest: barRow.x + freeSpace.x + barGap
-                        readonly property real highest: barRow.x + freeSpace.x + freeSpace.width - width - barGap
-                        x: Math.max(lowest, Math.min((parent.width - width) / 2, highest))
-                        anchors.verticalCenter: parent.verticalCenter
-                        height: barRow.height
-                        spacing: 4
-
-                        Repeater {
-                            model: 10
-
-                            delegate: Rectangle {
-                                id: workspaceButton
-
-                                required property int index
-                                property int workspaceId: index + 1
-                                property var workspace: root.workspaceForId(workspaceId, panel.screen)
-                                property bool active: workspace && workspace.active
-
-                                visible: workspace !== null
-                                // A circle, the height of every other bar item.
-                                Layout.preferredWidth: visible ? 31 : 0
-                                Layout.preferredHeight: 31
-                                Layout.alignment: Qt.AlignVCenter
-                                radius: height / 2
-                                color: active
-                                    ? root.workspaceColor(workspaceId)
-                                    : workspaceHover.hovered ? "#18ffffff" : "transparent"
-
-                                Behavior on color {
-                                    ColorAnimation { duration: 150 }
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: workspaceButton.workspaceId
-                                    // Every pastel is light, so one dark label reads on all of them.
-                                    color: workspaceButton.active ? "#0b0c10" : Theme.textMuted
-                                    font.family: "Inter"
-                                    font.pixelSize: 18
-                                    font.weight: workspaceButton.active ? Font.Bold : Font.DemiBold
-                                }
-
-                                HoverHandler {
-                                    id: workspaceHover
-                                    cursorShape: Qt.PointingHandCursor
-                                }
-
-                                TapHandler {
-                                    acceptedButtons: Qt.LeftButton
-                                    onTapped: root.activateWorkspace(workspaceButton.workspaceId)
-                                }
                             }
                         }
                     }
