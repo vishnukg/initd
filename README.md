@@ -128,7 +128,7 @@ Runtime paths in `$HOME` are symlinks back into this repo. Editing happens **ins
 | `~/.config/systemd/user/initd-hyprland-session.service` | `linux/configs/systemd/user/initd-hyprland-session.service` |
 | `~/.config/systemd/user/hyprmoncfgd.service.d` | `linux/configs/systemd/user/hyprmoncfgd.service.d` (Hyprland-only condition for the packaged daemon) |
 | `~/.config/systemd/user/night-light.service`, `night-light-schedule.service`, `night-light-schedule.timer` | `linux/configs/systemd/user/` (gammastep as a unit; warm 19:00–07:00) |
-| `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, Firefox profile glue | linked individually by `linux/setup.sh` (paths are dynamic or outside `~/.config/`) |
+| `~/.gtkrc-2.0`, `~/.icons/default/index.theme`, Firefox `user.js` and `chrome/userChrome.css` | linked individually by `linux/setup.sh` (paths are dynamic or outside `~/.config/`) |
 
 ## Machine-local secrets
 
@@ -184,7 +184,7 @@ Intel video decoding is configured by `ensure_video_codecs()` in `linux/bootstra
 - GTK theme + font/cursor gsettings (Fedora has no `fonts-ubuntu` or DMZ-cursor package, so this uses Inter from `rsms-inter-fonts` and the `Adwaita` cursor theme instead), plus matching keyboard gsettings so GNOME gets the same `ctrl:nocaps` and repeat rate as Hyprland
 - session scripts symlinked to absolute `~/.config/` paths that hyprland.lua/Quickshell invoke directly
 - the `hyprmoncfgd` user service for automatic monitor profile switching
-- special-case paths outside `~/.config/`: `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox profile files (profile path is dynamic; Firefox itself is unmanaged by bootstrap.sh — install it however you like, this glue configures whatever it finds)
+- special-case paths outside `~/.config/`: `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox `user.js` and `chrome/userChrome.css` (profile path is dynamic; Firefox itself is unmanaged by bootstrap.sh — install it however you like, this glue configures whatever it finds, sets it as the default browser and its default zoom)
 
 ## Adding a managed config
 

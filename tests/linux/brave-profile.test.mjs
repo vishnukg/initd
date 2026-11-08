@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { configureBrave, setDefaultBrowser, withSettings, BROWSER, PREFERENCES, LOCAL_STATE } from '../../linux/scripts/brave-profile.mjs';
+import { configureBrave, withSettings, PREFERENCES, LOCAL_STATE } from '../../linux/scripts/brave-profile.mjs';
 
 function fixture(t, status = 1) {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-brave-'));
@@ -116,52 +116,3 @@ for (const status of [0, 2, null]) {
 
 // Records every command and answers xdg-settings from `answers`, pgrep with 1
 // (Brave not running).
-function recorder(answers) {
-    const calls = [];
-    const run = (command, args) => {
-        calls.push([command, ...args]);
-        if (command === 'xdg-settings') return answers[args[0]];
-        return { status: 1 };
-    };
-    return { calls, run };
-}
-
-test('Brave becomes the default browser when something else is', () => {
-    // Arrange
-    const { calls, run } = recorder({ get: { status: 0, stdout: 'org.mozilla.firefox.desktop\n' }, set: { status: 0 } });
-    const warnings = [];
-
-    // Act
-    setDefaultBrowser({ run, log() {}, warn: message => warnings.push(message) });
-
-    // Assert
-    assert.deepEqual(calls.at(-1), ['xdg-settings', 'set', 'default-web-browser', BROWSER]);
-    assert.deepEqual(warnings, []);
-});
-
-test('Default browser is left alone when Brave already holds it', () => {
-    // Arrange
-    const { calls, run } = recorder({ get: { status: 0, stdout: `${BROWSER}\n` } });
-
-    // Act
-    setDefaultBrowser({ run, log() {}, warn() {} });
-
-    // Assert
-    assert.deepEqual(calls, [['xdg-settings', 'get', 'default-web-browser']]);
-});
-
-test('A failed default-browser change warns and the profile is still configured', t => {
-    // Arrange
-    const f = fixture(t);
-    const { calls, run } = recorder({ get: { status: 1 }, set: { status: 3, stderr: 'xdg-settings: boom\n' } });
-    const warnings = [];
-
-    // Act
-    configureBrave({ ...f.options, run, warn: message => warnings.push(message) });
-    const actual = JSON.parse(fs.readFileSync(f.preferences, 'utf8'));
-
-    // Assert
-    assert.ok(calls.some(call => call.join(' ') === `xdg-settings set default-web-browser ${BROWSER}`));
-    assert.deepEqual(warnings, ['Could not make Brave the default browser: xdg-settings: boom']);
-    assert.equal(actual.webkit.webprefs.default_font_size, 17);
-});

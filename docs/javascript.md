@@ -39,10 +39,9 @@ Read the small config helpers before the long-running tmux watcher:
 | `linux/scripts/docker-menu.mjs` | Present container actions through rofi and kitty |
 | `linux/scripts/weather-popup.mjs` | Fetch weather and display a notification |
 | `linux/scripts/screenshot.mjs` | Capture the screen or a slurp region to ~/Pictures/Screenshots (region also to the clipboard) |
-| `linux/scripts/firefox-profile.mjs` | Discover/init a profile, link managed files, and update default zoom transactionally |
+| `linux/scripts/firefox-profile.mjs` | Set Firefox as default browser, discover/init a profile, link user.js, and update default zoom transactionally |
 | `linux/scripts/config-links.mjs` | Install Linux's special-case config and session-script links |
 | `linux/scripts/night-light-toggle.mjs` | Apply the night-light schedule and safely start/stop gamma control |
-| `linux/configs/firefox/user.js` | Firefox preferences, loaded by Firefox rather than Node |
 | `shared/configs/tmux/.config/tmux/tmux.mjs` | Discover agent sessions, maintain caches, and publish tmux options |
 | `shared/configs/tmux/.config/tmux/status-renderer.mjs` | Format status pills, quotas, Git branches, and battery values |
 | `shared/configs/tmux/.config/tmux/claude-statusline-hook.mjs` | Pass Claude's stdin JSON to the hook handler |
@@ -94,7 +93,7 @@ Node exists. Both platform bootstraps install mise before calling it.
 Backups preserve broken symlinks and avoid replacing earlier backups.
 
 `linux/setup.sh` calls `config-links.mjs` once before enabling session services,
-then `firefox-profile.mjs setup` for profile discovery, linking, and zoom.
+then `firefox-profile.mjs setup` for profile discovery, the user.js link, and zoom.
 Firefox's profile is resolved once per setup call, with no shell-global cache.
 
 The night-light helper accepts `toggle`, `on`, `off`, and `auto`. Its small

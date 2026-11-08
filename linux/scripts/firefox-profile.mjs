@@ -1,6 +1,10 @@
 #!/usr/bin/env node
-// Discover/init a Firefox profile, install managed files, and set default zoom.
+// Make Firefox the default browser, discover/init its profile, link user.js
+// (text size, compact density) and chrome/userChrome.css (no window buttons),
+// and set the default page zoom. That is all that is managed in the profile:
+// theme, fonts and every other pref stay Firefox's own defaults.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
@@ -49,6 +53,27 @@ export function profilePath(text) {
     return legacy?.keys.get('path') || null;
 }
 
+// Fedora's packaged desktop ID. Firefox is the default browser; Brave stays
+// installed alongside it.
+export const BROWSER = 'org.mozilla.firefox.desktop';
+
+// xdg-settings writes ~/.config/mimeapps.list (text/html plus the http/https
+// handlers), which both Hyprland and GNOME read. Checked first so a re-run is a
+// no-op; skipped while Firefox is not installed, and a failure only warns.
+export function setDefaultBrowser({
+    desktop = path.join('/usr/share/applications', BROWSER), run = spawnSync, log = console.log, warn = console.warn,
+} = {}) {
+    if (!pathStat(desktop)?.isFile()) return;
+    const current = run('xdg-settings', ['get', 'default-web-browser'], { encoding: 'utf8' });
+    if (current.status === 0 && current.stdout?.trim() === BROWSER) {
+        log('Firefox is already the default browser.');
+        return;
+    }
+    const set = run('xdg-settings', ['set', 'default-web-browser', BROWSER], { encoding: 'utf8' });
+    if (set.status === 0) log('Firefox set as the default browser.');
+    else warn(`Could not make Firefox the default browser: ${set.stderr?.trim() || set.error?.message || `xdg-settings exited ${set.status}`}`);
+}
+
 const SETTING = 'browser.content.full-zoom';
 
 // Firefox's own Zoom UI reads per-site full-zoom levels from content-prefs.sqlite
@@ -85,9 +110,20 @@ export function findProfileDirectory({
     const findRoot = () => roots.find(root => pathStat(path.join(root, 'profiles.ini'))?.isFile());
     let root = findRoot();
     if (!root) {
-        const result = run('firefox', ['--headless', '--CreateProfile', 'default-release'], {
-            stdio: 'ignore', timeout: 15000, killSignal: 'SIGKILL',
-        });
+        // A headless first launch, not --CreateProfile: Firefox does not adopt a
+        // profile made that way (it records no install default), so the next
+        // real launch made its own "default-release-1" and everything linked
+        // here went to a profile nothing used. --screenshot exits by itself
+        // (~1 s) after the launch has written the [Install...] default.
+        const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-firefox-'));
+        let result;
+        try {
+            result = run('firefox', ['--headless', '--screenshot', path.join(scratch, 'first-run.png'), 'about:blank'], {
+                stdio: 'ignore', timeout: 30000, killSignal: 'SIGKILL',
+            });
+        } finally {
+            fs.rmSync(scratch, { recursive: true, force: true });
+        }
         if (result.error?.code === 'ENOENT') return null;
         if (result.error || result.status !== 0) {
             warn('!! Firefox could not initialize a profile — retry on the next setup run.');
@@ -109,11 +145,10 @@ export function configureFirefox({
         log('==> No Firefox profile present — skipping.');
         return null;
     }
-    for (const relative of ['user.js', 'chrome/userChrome.css', 'chrome/userContent.css']) {
-        const source = path.join(root, 'linux/configs/firefox', relative);
-        if (pathStat(source)?.isFile()) installLink(path.join(profile, relative), source, { home, backupRoot, log });
+    for (const relative of ['user.js', 'chrome/userChrome.css']) {
+        installLink(path.join(profile, relative), path.join(root, 'linux/configs/firefox', relative), { home, backupRoot, log });
     }
-    // Cosmetic zoom failures must not undo the links or abort system setup.
+    // Cosmetic zoom failures must not undo the link or abort system setup.
     const running = run('pgrep', ['-x', 'firefox'], { stdio: 'ignore', timeout: 3000, killSignal: 'SIGKILL' });
     if (running.error || ![0, 1].includes(running.status)) {
         warn('!! Cannot determine whether Firefox is running — leaving default zoom unchanged.');
@@ -136,7 +171,10 @@ export function configureFirefox({
 }
 
 function main([verb, file, ...extra]) {
-    if (verb === 'setup' && !file) return configureFirefox();
+    if (verb === 'setup' && !file) {
+        setDefaultBrowser();
+        return configureFirefox();
+    }
     if (!file || extra.length || !['path', 'zoom'].includes(verb)) throw new Error(usage);
     if (verb === 'path') {
         const found = profilePath(fs.readFileSync(file, 'utf8'));

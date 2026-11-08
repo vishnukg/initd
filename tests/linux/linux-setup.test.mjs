@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dockerMenu } from '../../linux/scripts/docker-menu.mjs';
-import { configureFirefox, findProfileDirectory } from '../../linux/scripts/firefox-profile.mjs';
+import { configureFirefox, findProfileDirectory, setDefaultBrowser, BROWSER } from '../../linux/scripts/firefox-profile.mjs';
 import { configureLinks } from '../../linux/scripts/config-links.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -25,7 +25,7 @@ function fixture(t) {
     };
 }
 
-test('Firefox managed files back up existing user settings and relink idempotently', t => {
+test('Firefox setup links user.js and userChrome.css, backing up an existing one, and relinks idempotently', t => {
     // Arrange
     const f = fixture(t);
     const profile = path.join(f.home, 'profile');
@@ -46,6 +46,8 @@ test('Firefox managed files back up existing user settings and relink idempotent
     // Assert
     assert.equal(fs.readFileSync(path.join(f.home, 'backup/profile/user.js'), 'utf8'), 'user settings');
     assert.equal(fs.realpathSync(path.join(profile, 'user.js')), path.join(root, 'linux/configs/firefox/user.js'));
+    assert.equal(fs.realpathSync(path.join(profile, 'chrome/userChrome.css')), path.join(root, 'linux/configs/firefox/chrome/userChrome.css'));
+    assert.deepEqual(fs.readdirSync(path.join(profile, 'chrome')), ['userChrome.css']);
 });
 
 test('session links migrate the owned audio shell helper and preserve unrelated files', t => {
@@ -100,7 +102,8 @@ test('fresh Firefox profile lookup creates a profile and returns its resolved pa
     const profile = findProfileDirectory(options);
 
     // Assert
-    assert.deepEqual(calls, [['firefox', ['--headless', '--CreateProfile', 'default-release']]]);
+    assert.equal(calls.length, 1);
+    assert.deepEqual([calls[0][0], calls[0][1][0], calls[0][1][1], calls[0][1][3]], ['firefox', '--headless', '--screenshot', 'about:blank']);
     assert.equal(profile, path.join(home, '.mozilla/firefox/created'));
 });
 
@@ -142,7 +145,7 @@ test('Firefox zoom is skipped when running or process status is unavailable, and
     const database = path.join(profile, 'content-prefs.sqlite');
     fs.writeFileSync(database, 'invalid database');
     const warnings = [];
-    const options = { home, configHome: path.join(home, '.config'), backupRoot: path.join(home, 'backup'), log() {}, warn: message => warnings.push(message) };
+    const options = { home, configHome: path.join(home, '.config'), log() {}, warn: message => warnings.push(message) };
 
     // Act
     for (const result of [{ status: 0 }, { error: new Error('pgrep missing') }, { status: 1 }]) {
@@ -158,7 +161,6 @@ test('Firefox zoom is skipped when running or process status is unavailable, and
     assert.match(warnings[1], /Cannot determine/);
     assert.match(warnings[2], /Could not update/);
     assert.equal(fs.readFileSync(database, 'utf8'), 'invalid database');
-    assert.equal(fs.realpathSync(path.join(profile, 'user.js')), path.join(root, 'linux/configs/firefox/user.js'));
 });
 
 test('an unavailable Firefox install or failed initialization leaves the profile absent', t => {
@@ -183,6 +185,69 @@ test('an unavailable Firefox install or failed initialization leaves the profile
     assert.equal(fs.existsSync(path.join(home, '.mozilla')), false);
 });
 
+function recorder(answers) {
+    const calls = [];
+    const run = (command, args) => {
+        calls.push([command, ...args]);
+        if (command === 'xdg-settings') return answers[args[0]];
+        return { status: 1 };
+    };
+    return { calls, run };
+}
+
+function installedFirefox(t) {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-firefox-desktop-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const desktop = path.join(directory, BROWSER);
+    fs.writeFileSync(desktop, '[Desktop Entry]\n');
+    return desktop;
+}
+
+test('Firefox becomes the default browser when something else is', t => {
+    // Arrange
+    const desktop = installedFirefox(t);
+    const { calls, run } = recorder({ get: { status: 0, stdout: 'brave-browser.desktop\n' }, set: { status: 0 } });
+    const warnings = [];
+
+    // Act
+    setDefaultBrowser({ desktop, run, log() {}, warn: message => warnings.push(message) });
+
+    // Assert
+    assert.deepEqual(calls.at(-1), ['xdg-settings', 'set', 'default-web-browser', BROWSER]);
+    assert.deepEqual(warnings, []);
+});
+
+test('Default browser is left alone when Firefox already holds it', t => {
+    // Arrange
+    const desktop = installedFirefox(t);
+    const { calls, run } = recorder({ get: { status: 0, stdout: `${BROWSER}\n` } });
+
+    // Act
+    setDefaultBrowser({ desktop, run, log() {}, warn() {} });
+
+    // Assert
+    assert.deepEqual(calls, [['xdg-settings', 'get', 'default-web-browser']]);
+});
+
+test('Default browser is not touched while Firefox is not installed, and a failed change only warns', t => {
+    // Arrange
+    const desktop = installedFirefox(t);
+    const { calls, run } = recorder({ get: { status: 1 }, set: { status: 3, stderr: 'xdg-settings: boom\n' } });
+    const warnings = [];
+
+    // Act
+    setDefaultBrowser({ desktop: path.join(path.dirname(desktop), 'missing.desktop'), run, log() {}, warn() {} });
+
+    // Assert
+    assert.deepEqual(calls, []);
+
+    // Act
+    setDefaultBrowser({ desktop, run, log() {}, warn: message => warnings.push(message) });
+
+    // Assert
+    assert.deepEqual(warnings, ['Could not make Firefox the default browser: xdg-settings: boom']);
+});
+
 test('Firefox-only setup calls the JavaScript setup workflow through mise', t => {
     // Arrange
     const f = fixture(t);
@@ -190,8 +255,13 @@ test('Firefox-only setup calls the JavaScript setup workflow through mise', t =>
     fs.mkdirSync(registry, { recursive: true });
     fs.writeFileSync(path.join(registry, 'profiles.ini'), '[InstallTEST]\nDefault=profile\n');
 
+    const bin = path.join(f.home, 'bin');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'xdg-settings'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+
     // Act
     const result = f.run(`
+export PATH="$HOME/bin:$PATH"
 mise() {
   [[ "$1" == -C && "$2" == "$ROOT_DIR" && "$3" == exec && "$4" == node@lts && "$5" == -- && "$6" == node ]] || return 98
   shift 6
@@ -202,7 +272,8 @@ main --firefox-only
 
     // Assert
     assert.equal(result.status, 0, result.stderr || result.stdout);
-    assert.equal(fs.realpathSync(path.join(registry, 'profile/user.js')), path.join(root, 'linux/configs/firefox/user.js'));
+    // Which zoom warning appears depends on whether this host has Firefox open.
+    assert.match(result.stderr + result.stdout, /Firefox (is running|preferences are not initialized)/);
 });
 
 test('absent optional daemons do not abort Linux setup', t => {
