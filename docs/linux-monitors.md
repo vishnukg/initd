@@ -198,6 +198,32 @@ is the next thing to collect. Until then: if the Dell stays dark, do not
 unplug; open the lid and read `ddcutil --bus 14 getvcp D6` and the kernel's
 link-training lines from the moment of the wake.
 
+### Expected sleep, wake and lid behaviour with the Dell
+
+As verified on 2026-11-08, after the Dell moved to 4K 60 Hz, the plug-in
+wake came back and `idle.sh can-suspend` was fixed:
+
+| Situation | What happens | Confirmed by |
+|---|---|---|
+| Lid closed, Dell unplugged | Sleeps at once | Watched it happen (16:54, 17:20, 17:30) |
+| Lid closed, on the Dell | Stays awake on the Dell | Watched it happen (16:55, 17:31) |
+| Sleeping laptop, plug in the Dell | Wakes, Dell comes up at 4K 60 Hz | Watched it happen (17:00, 17:20, 17:31) |
+| Lid open, plug in the Dell | Dell comes up, laptop screen off | Watched it happen (16:41) |
+| Idle 20 minutes on the Dell | Stays awake | The check says "don't sleep" live and in tests; no 20-minute idle has happened since the fix |
+| Idle 20 minutes on battery | Sleeps | Tests; unchanged in practice from before today |
+| USB-C driver stuck again | Closed lid won't sleep it, but the 20-minute idle will | Tests only; the stuck state isn't something I can reproduce on demand |
+
+Two caveats:
+
+- The idle-on-Dell row is only proven by the check and the tests so far;
+  the first 20-minute idle on the Dell after 2026-11-08 should be read back
+  from the journal (no `Suspending` / `suspend requested` while `ADP1` is
+  online). The one unwanted suspend seen, at 17:51 that day, came from the
+  earlier version of the check, which trusted the battery's status alone.
+- The Dell's link is marginal, so an occasional slow start (up to about 20
+  seconds, a Dell-requested link retrain) or a flicker is possible. If it
+  starts happening, swap the cable first.
+
 Three more things about sleep, wake and the lid:
 
 - **Plugging the monitor into a sleeping, closed laptop wakes it.**
