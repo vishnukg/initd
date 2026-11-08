@@ -86,6 +86,15 @@ test('can-suspend trusts a discharging battery over a stale USB-C online flag', 
     assert.equal(f.run('can-suspend').status, 0);
 });
 
+test('can-suspend refuses on a charger even if a full battery briefly reads Discharging', () => {
+    // Arrange: the ACPI adapter (which also reports USB-C power) is online.
+    const supplies = structuredClone(laptopOnBattery);
+    supplies.ADP1.online = 1;
+    const f = fixture({ supplies });
+    // Act / Assert
+    assert.equal(f.run('can-suspend').status, 1);
+});
+
 test('can-suspend refuses while media plays, and always on a machine without a battery', () => {
     const playing = fixture({ supplies: laptopOnBattery, playing: true });
     assert.equal(playing.run('can-suspend').status, 1);

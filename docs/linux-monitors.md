@@ -232,9 +232,10 @@ Three more things about sleep, wake and the lid:
   from then on the UCSI driver saw no plug or unplug events: the Dell's
   power supply (`ucsi-source-psy-USBC000:001`) read `online=1` after it
   was unplugged, logind reported `OnExternalPower=true`, and closing the lid
-  did nothing. The battery's own status read `Discharging` throughout, which
-  is why `idle.sh can-suspend` now trusts that instead (so the 20-minute
-  idle suspend still happens). To recover at once:
+  did nothing. `ADP1` (the ACPI adapter) dropped to 0 at once and the battery
+  read `Discharging`, which is why `idle.sh can-suspend` now asks those two
+  and ignores the UCSI supplies (so the 20-minute idle suspend still
+  happens). To recover at once:
   `sudo modprobe -r ucsi_acpi && sudo modprobe ucsi_acpi` (or reboot).
   Upstream treats the timeout as controller firmware never completing a
   command; a Dell-specific extra-ACK workaround was proposed as an RFC.

@@ -32,20 +32,24 @@ undim() {
 }
 
 on_battery() {
-  # The battery's own status decides, not the chargers' online flags. On a
-  # charger it reads Charging, Full or Not charging; only Discharging means
-  # running on it. The USB-C (UCSI) power supply's online flag can go stale:
-  # on 2026-11-08 the controller timed out one command
-  # (GET_CONNECTOR_STATUS failed (-110)), the driver stopped seeing plug
-  # events, and the Dell's supply read online=1 for minutes after it was
-  # unplugged while the battery correctly read Discharging. A machine with no
+  # On battery means: no Mains supply online AND a battery that reads
+  # Discharging. USB-type supplies (UCSI) are deliberately not consulted:
+  # their online flag can go stale. On 2026-11-08 the USB-C controller timed
+  # out one command (GET_CONNECTOR_STATUS failed (-110)), the driver stopped
+  # seeing plug events, and the Dell's UCSI supply read online=1 for minutes
+  # after it was unplugged, while ADP1 (the ACPI adapter, which reports
+  # USB-C power too) dropped to 0 at once and the battery read Discharging.
+  # Neither signal is enough alone: a full battery on a charger can read
+  # Discharging for a moment, so ADP1 has to agree. A machine with no
   # battery never matches, so it is never "on battery".
-  local supply
+  local supply discharging=false
   for supply in "${POWER_SUPPLY}"/*; do
-    [[ "$(cat "${supply}/type" 2>/dev/null)" == Battery ]] || continue
-    [[ "$(cat "${supply}/status" 2>/dev/null)" == Discharging ]] && return 0
+    case "$(cat "${supply}/type" 2>/dev/null)" in
+      Mains) [[ "$(cat "${supply}/online" 2>/dev/null)" == 1 ]] && return 1 ;;
+      Battery) [[ "$(cat "${supply}/status" 2>/dev/null)" == Discharging ]] && discharging=true ;;
+    esac
   done
-  return 1
+  [[ "${discharging}" == true ]]
 }
 
 can_suspend() {
