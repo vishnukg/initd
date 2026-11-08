@@ -121,10 +121,16 @@ the kernel's debug log (`drm.debug=0x114`) shows why:
   **USB-C Prioritization** setting decides the lane split: High Data Speed
   gives 2 lanes (`pin assignment: D`) plus USB 3 on the Dell's hub; High
   Resolution gives 4 lanes (`pin assignment: C`) and drops the hub to USB 2.
-  4K 60 Hz uses about 99% of 2 lanes uncompressed, and on 2026-11-08 one
-  60 Hz fallback on 2 lanes trained the link and still showed nothing; on 4
-  lanes it has room to spare. If the Dell is ever black at 60 Hz, switch the
-  setting to High Resolution first.
+  **Keep it on High Resolution.** On 2 lanes 4K 60 Hz only fits at 6 bpc
+  (`bpp input 18`), and on 2026-11-08 the Dell alternated between picture
+  and black for minutes with no link error in the kernel log; on 4 lanes it
+  runs 8 bpc uncompressed and has stayed steady. The link is marginal
+  either way: one 4-lane plug-in failed training at the Dell
+  (`DPRX Link Training failed at link rate = 540000, lane count = 4`, then
+  `Reducing link parameters`), and one plug-in wake was followed 20 s later
+  by a Dell-requested retrain that passed. If either keeps happening, try the
+  cable that came with the Dell or a short certified USB4 / 40 Gbps cable
+  before anything in software.
 
 If 120 Hz is ever wanted back, the profile also has to be applied with the
 panel off first, and the starting point is booting the last Fedora 44 kernel
