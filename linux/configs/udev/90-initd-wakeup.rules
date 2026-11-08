@@ -1,0 +1,20 @@
+# Installed to /etc/udev/rules.d/ by linux/setup.sh:configure_wakeup_sources
+# (copied, not linked: udev reads it as root, so it should not live in a
+# user-writable checkout).
+#
+# Closing the lid on battery suspends (s2idle), and out of the box only the
+# lid, the power button and the built-in keyboard/touchpad can wake it. With
+# wakeup enabled on the USB root hubs, a connect on any root port wakes the
+# machine: the USB-C monitor brings its USB hub up on that cable, so plugging
+# it in wakes the laptop, and since the monitor also charges it, logind then
+# sees external power and leaves the closed lid alone (initd-lid-switch.conf).
+# Any USB device plugged in while asleep wakes it too; on battery with the lid
+# closed it just suspends again after logind's holdoff.
+#
+# History: first added 2026-11-04 (57fd638) and retired the same day
+# (d472f65) because the Dell's picture flickered after a plug-in wake. It ran
+# at 4K 120 Hz then, which over this 2-lane USB-C link needs DSC and two
+# joined display pipes. Back on 2026-11-08 with the Dell at 4K 60 Hz, where
+# a plug-in wake came up steady. The Bluetooth half of the old rule is not
+# back: the controller never woke the machine (wakeup_count stayed 0).
+ACTION=="add", SUBSYSTEM=="usb", KERNEL=="usb[0-9]*", ATTR{bDeviceClass}=="09", ATTR{power/wakeup}="enabled"

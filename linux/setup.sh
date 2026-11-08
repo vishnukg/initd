@@ -155,6 +155,25 @@ configure_lid_switch() {
   log_success "Lid close on external power no longer suspends."
 }
 
+configure_wakeup_sources() {
+  # Wake a sleeping, closed laptop when the USB-C monitor is plugged in (the
+  # reason, and why it was once removed, is in the rule itself). Copied like
+  # the logind drop-in, and only when it differs. The trigger replays "add"
+  # for just the root hubs, so the rule applies now rather than at next boot.
+  local source="${CONFIGS_DIR}/udev/90-initd-wakeup.rules"
+  local rules_dir="${UDEV_RULES_DIR:-/etc/udev/rules.d}"
+  local target="${rules_dir}/90-initd-wakeup.rules"
+  if cmp -s "${source}" "${target}"; then
+    log_success "Plugging in a USB device already wakes the laptop from sleep."
+    return
+  fi
+  log "Installing udev rule: plugging in a USB device wakes from sleep..."
+  sudo install -D -m 0644 "${source}" "${target}"
+  sudo udevadm control --reload
+  sudo udevadm trigger --action=add --subsystem-match=usb --attr-match=bDeviceClass=09 --sysname-match='usb[0-9]*'
+  log_success "Plugging in the monitor now wakes the laptop."
+}
+
 configure_initramfs_bluetooth() {
   # A Bluetooth keyboard at the LUKS passphrase prompt (the reason is in the
   # drop-in itself). Copied like the logind drop-in, and only when it differs.
@@ -490,6 +509,7 @@ main() {
   install_symbols_nerd_font
   disable_unused_daemons
   configure_lid_switch
+  configure_wakeup_sources
   configure_initramfs_bluetooth
   check_hyprland_session
   mask_desktop_user_units
