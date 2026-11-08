@@ -1,6 +1,9 @@
 import QtQuick
 import Quickshell
 
+// The clock's dropdown: today's date large at the top, then the month grid.
+// Month title left, round ‹ › on the right, and a "Today" pill that appears
+// only once you have paged away from the current month.
 Scope {
     id: root
 
@@ -9,12 +12,21 @@ Scope {
     property date today: new Date()
     property int shownMonth: today.getMonth()
     property int shownYear: today.getFullYear()
+    readonly property bool onCurrentMonth: shownMonth === today.getMonth()
+        && shownYear === today.getFullYear()
+
+    readonly property int cellSize: 38
+    readonly property int cellGap: 4
 
     function open() {
         today = new Date();
+        showToday();
+        popup.visible = true;
+    }
+
+    function showToday() {
         shownMonth = today.getMonth();
         shownYear = today.getFullYear();
-        popup.visible = true;
     }
 
     function moveMonth(offset) {
@@ -35,14 +47,49 @@ Scope {
             && date.getDate() === today.getDate();
     }
 
+    component NavButton: Rectangle {
+        id: button
+        property string label: ""
+        signal tapped()
+
+        width: 32
+        height: 32
+        radius: 16
+        color: hover.hovered ? "#1fffffff" : "#0dffffff"
+
+        Behavior on color {
+            ColorAnimation { duration: 120 }
+        }
+
+        Text {
+            anchors.centerIn: parent
+            // Optical centring: the guillemets sit low and wide in Inter.
+            anchors.verticalCenterOffset: -1
+            text: button.label
+            color: Theme.text
+            font.family: "Inter"
+            font.pixelSize: 20
+            font.weight: Font.Medium
+        }
+
+        HoverHandler {
+            id: hover
+            cursorShape: Qt.PointingHandCursor
+        }
+
+        TapHandler {
+            onTapped: button.tapped()
+        }
+    }
+
     PopupWindow {
         id: popup
 
         visible: false
         color: "transparent"
         grabFocus: true
-        implicitWidth: 330
-        implicitHeight: 350
+        implicitWidth: card.implicitWidth
+        implicitHeight: card.implicitHeight
 
         anchor {
             window: root.barWindow
@@ -53,109 +100,136 @@ Scope {
         }
 
         Rectangle {
+            id: card
             anchors.fill: parent
+            implicitWidth: content.implicitWidth + 36
+            implicitHeight: content.implicitHeight + 36
             color: Theme.menu
             border.width: 1
-            border.color: "#24ffffff"
-            radius: 14
+            border.color: "#1fffffff"
+            radius: 18
 
             Column {
+                id: content
                 anchors {
-                    fill: parent
-                    margins: 14
+                    top: parent.top
+                    left: parent.left
+                    margins: 18
                 }
-                spacing: 10
+                spacing: 14
 
-                Item {
-                    width: parent.width
-                    height: 34
+                // Today, large.
+                Column {
+                    spacing: 2
 
-                    Rectangle {
-                        anchors {
-                            left: parent.left
-                            verticalCenter: parent.verticalCenter
-                        }
-                        width: 34
-                        height: 34
-                        radius: 8
-                        color: previousHover.hovered ? "#18ffffff" : "transparent"
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "‹"
-                            color: Theme.textMuted
-                            font.family: "Inter"
-                            font.pixelSize: 24
-                        }
-
-                        HoverHandler {
-                            id: previousHover
-                            cursorShape: Qt.PointingHandCursor
-                        }
-
-                        TapHandler {
-                            onTapped: root.moveMonth(-1)
-                        }
+                    Text {
+                        text: Qt.formatDate(root.today, "dddd")
+                        color: Theme.accent
+                        font.family: "Inter"
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
                     }
 
                     Text {
-                        anchors.centerIn: parent
+                        text: Qt.formatDate(root.today, "d MMMM yyyy")
+                        color: Theme.text
+                        font.family: "Inter"
+                        font.pixelSize: 24
+                        font.weight: Font.Bold
+                    }
+                }
+
+                Rectangle {
+                    width: grid.width
+                    height: 1
+                    color: "#14ffffff"
+                }
+
+                // Month title and navigation.
+                Item {
+                    width: grid.width
+                    height: 32
+
+                    Text {
+                        anchors {
+                            left: parent.left
+                            leftMargin: 4
+                            verticalCenter: parent.verticalCenter
+                        }
                         text: Qt.formatDate(new Date(root.shownYear, root.shownMonth, 1), "MMMM yyyy")
                         color: Theme.text
                         font.family: "Inter"
-                        font.pixelSize: 17
-                        font.weight: Font.Bold
+                        font.pixelSize: 16
+                        font.weight: Font.DemiBold
                     }
 
-                    Rectangle {
+                    Row {
                         anchors {
                             right: parent.right
                             verticalCenter: parent.verticalCenter
                         }
-                        width: 34
-                        height: 34
-                        radius: 8
-                        color: nextHover.hovered ? "#18ffffff" : "transparent"
+                        spacing: 6
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: "›"
-                            color: Theme.textMuted
-                            font.family: "Inter"
-                            font.pixelSize: 24
+                        Rectangle {
+                            visible: !root.onCurrentMonth
+                            width: todayLabel.implicitWidth + 24
+                            height: 32
+                            radius: 16
+                            color: todayHover.hovered ? "#1fffffff" : "#0dffffff"
+
+                            Text {
+                                id: todayLabel
+                                anchors.centerIn: parent
+                                text: "Today"
+                                color: Theme.accent
+                                font.family: "Inter"
+                                font.pixelSize: 13
+                                font.weight: Font.DemiBold
+                            }
+
+                            HoverHandler {
+                                id: todayHover
+                                cursorShape: Qt.PointingHandCursor
+                            }
+
+                            TapHandler {
+                                onTapped: root.showToday()
+                            }
                         }
 
-                        HoverHandler {
-                            id: nextHover
-                            cursorShape: Qt.PointingHandCursor
+                        NavButton {
+                            label: "‹"
+                            onTapped: root.moveMonth(-1)
                         }
 
-                        TapHandler {
+                        NavButton {
+                            label: "›"
                             onTapped: root.moveMonth(1)
                         }
                     }
                 }
 
                 Grid {
-                    width: parent.width
+                    id: grid
                     columns: 7
-                    rowSpacing: 5
-                    columnSpacing: 5
+                    rowSpacing: root.cellGap
+                    columnSpacing: root.cellGap
 
                     Repeater {
-                        model: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                        model: ["M", "T", "W", "T", "F", "S", "S"]
 
                         delegate: Text {
                             required property string modelData
-                            width: 38
-                            height: 24
+                            required property int index
+                            width: root.cellSize
+                            height: 22
                             text: modelData
-                            color: Theme.textDim
+                            color: index >= 5 ? Theme.textDisabled : Theme.textDim
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             font.family: "Inter"
                             font.pixelSize: 12
-                            font.weight: Font.DemiBold
+                            font.weight: Font.Bold
                         }
                     }
 
@@ -163,26 +237,34 @@ Scope {
                         model: 42
 
                         delegate: Rectangle {
+                            id: cell
                             required property int index
                             property date cellDate: root.cellDate(index)
                             property bool currentMonth: cellDate.getMonth() === root.shownMonth
                                 && cellDate.getFullYear() === root.shownYear
                             property bool todayCell: root.isToday(cellDate)
+                            property bool weekend: index % 7 >= 5
 
-                            width: 38
-                            height: 34
-                            radius: 9
-                            color: todayCell ? Theme.accent : "transparent"
+                            width: root.cellSize
+                            height: root.cellSize
+                            radius: width / 2
+                            color: todayCell ? Theme.accent
+                                : cellHover.hovered && currentMonth ? "#14ffffff" : "transparent"
 
                             Text {
                                 anchors.centerIn: parent
-                                text: parent.cellDate.getDate()
-                                color: parent.todayCell
-                                    ? Theme.onAccent
-                                    : parent.currentMonth ? Theme.text : Theme.textDisabled
+                                text: cell.cellDate.getDate()
+                                color: cell.todayCell ? Theme.onAccent
+                                    : !cell.currentMonth ? Theme.textDisabled
+                                    : cell.weekend ? Theme.textMuted : Theme.text
                                 font.family: "Inter"
                                 font.pixelSize: 14
-                                font.weight: parent.todayCell ? Font.Bold : Font.Medium
+                                font.weight: cell.todayCell ? Font.Bold : Font.Medium
+                                font.features: { "tnum": 1 }
+                            }
+
+                            HoverHandler {
+                                id: cellHover
                             }
                         }
                     }

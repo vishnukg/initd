@@ -1199,13 +1199,40 @@ ShellRoot {
                         }
 
 
+                        // Date muted, time bold: the time is what gets read at
+                        // a glance. Two Texts in one item, so BarItem's single
+                        // text is unused and the width comes from the row.
                         BarItem {
                             id: dateItem
-                            text: Qt.formatDateTime(clock.date, "ddd, dd MMM  ·  HH:mm")
+                            implicitWidth: clockRow.implicitWidth + horizontalPadding * 2
                             barWindow: panel
-                            foreground: Theme.text
                             clickable: true
                             onClicked: calendar.open()
+
+                            Row {
+                                id: clockRow
+                                anchors.centerIn: parent
+                                spacing: 10
+
+                                Text {
+                                    anchors.baseline: clockTime.baseline
+                                    text: Qt.formatDateTime(clock.date, "ddd d MMM")
+                                    color: Theme.textMuted
+                                    font.family: "Inter"
+                                    font.pixelSize: 16
+                                    font.weight: Font.Medium
+                                }
+
+                                Text {
+                                    id: clockTime
+                                    text: Qt.formatDateTime(clock.date, "HH:mm")
+                                    color: Theme.text
+                                    font.family: "Inter"
+                                    font.pixelSize: 17
+                                    font.weight: Font.Bold
+                                    font.features: { "tnum": 1 }
+                                }
+                            }
 
                             CalendarPopup {
                                 id: calendar
