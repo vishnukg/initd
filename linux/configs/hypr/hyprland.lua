@@ -486,15 +486,20 @@ hl.config({
 -- Rule opacity multiplies decoration.active/inactive_opacity unless each value
 -- carries `override`, and both multiply the client's own background alpha.
 
--- Both terminals: 0.80 focused or not (the active border is the only focus
--- cue), opaque fullscreen, on top of their own 0.92 background alpha (each
--- terminal's linux.conf), so they match.
+-- Ghostty, the dev box terminal: fully opaque with no blur behind it, so every
+-- keystroke echo is one plain surface update rather than a blurred composite of
+-- a 4K frame on this iGPU. `opaque` also tells Hyprland nothing under it needs
+-- drawing, whatever alpha the client reports. macOS keeps its glass.
 hl.window_rule({
     name = "ghostty-opacity",
     match = { class = "com.mitchellh.ghostty" },
-    opacity = "0.80 override 0.80 override 1.0 override",
+    opacity = "1.0 override 1.0 override 1.0 override",
+    opaque = true,
+    no_blur = true,
 })
 
+-- kitty: 0.80 focused or not (the active border is the only focus cue), opaque
+-- fullscreen, on top of its own 0.92 background alpha (kitty's linux.conf).
 hl.window_rule({
     name = "kitty-opacity",
     match = { class = "kitty" },
