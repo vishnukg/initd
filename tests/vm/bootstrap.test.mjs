@@ -279,7 +279,7 @@ function securityUpdatesFixture({ installed = true } = {}) {
     env.stub('apt-get');
     env.stub('systemctl');
     env.stub('dpkg-query', installed ? `echo 'install ok installed'` : '');
-    const conf = path.join(newHome('apt'), '99initd-security-updates');
+    const conf = path.join(newHome('apt'), 'zz-initd-security-updates');
     return { env, conf };
 }
 
@@ -343,4 +343,18 @@ test('drop_key_scope only warns about a leftover admin:public_key when nobody is
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout + result.stderr, /gh auth refresh -h github\.com -r admin:public_key/);
     assert.equal(env.calls().some(call => call.startsWith('gh auth refresh')), false);
+});
+
+test('the security-updates apt file loads after the image file that switches the timers off', () => {
+    // Arrange
+    const env = fixture();
+
+    // Act
+    const result = env.run('basename "$SECURITY_UPDATES_CONF"');
+
+    // Assert
+    assert.equal(result.status, 0, result.stderr);
+    const name = result.stdout.trim();
+    // apt's own order: byte-wise, so digits (99-...) sort BEFORE letters.
+    assert.ok(Buffer.compare(Buffer.from(name), Buffer.from('docker-disable-periodic-update')) > 0, name);
 });

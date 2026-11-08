@@ -121,9 +121,10 @@ ensure_trust_store() {
 # a VM gets security fixes only when vm/update.sh is run by hand. #clear drops
 # the stock origin list (which also carries the release pocket) so only the
 # security pockets install unattended; everything else still waits for
-# vm/update.sh. The file sorts after the image's docker-disable-periodic-update,
+# vm/update.sh. apt reads apt.conf.d in name order, digits before letters, so
+# the zz- prefix is what puts this after the image's docker-disable-periodic-update,
 # whose APT::Periodic::Enable "0" would otherwise switch the timers off again.
-SECURITY_UPDATES_CONF=/etc/apt/apt.conf.d/99initd-security-updates
+SECURITY_UPDATES_CONF=/etc/apt/apt.conf.d/zz-initd-security-updates
 SECURITY_UPDATE_UNITS=(apt-daily.timer apt-daily-upgrade.timer unattended-upgrades.service)
 
 ensure_security_updates() {
