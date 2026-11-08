@@ -43,7 +43,7 @@ resize-overlay = never
 
 # --- Background & Opacity ---
 background = #000000
-background-opacity = 0.58
+background-opacity = 1.0
 background-blur = false
 
 # --- Fonts ---
@@ -118,9 +118,6 @@ window-inherit-working-directory = true
 # Only what tmux cannot do. Note SUPER is claimed by Hyprland on Linux, so these
 # fire on macOS (super = Cmd) and are inert on Linux.
 
-# Opacity preset
-keybind = super+shift+o=toggle_background_opacity
-
 # New window — the compositor's and macOS's job, not tmux's.
 keybind = super+enter=new_window
 keybind = ctrl+enter=unbind
@@ -136,7 +133,7 @@ keybind = super+arrow_right=text:\x1b[F
 # --- Linux-only Overrides ---
 # `?` marks the include optional, so this is a no-op on macOS, where nothing
 # creates the file. On Linux, linux/setup.sh symlinks linux/configs/ghostty/
-# linux.conf into place beside this file; it carries background-opacity 0.92.
+# linux.conf into place beside this file (it currently carries no settings).
 #
 # Ghostty has no equivalent of kitty's `include ${KITTY_OS}.conf` — config-file
 # does no variable expansion — so the platform script places the file rather
