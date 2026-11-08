@@ -391,8 +391,9 @@ hl.config({
         },
     },
 
-    -- Light glass treatment applies compositor-wide, including clients that
-    -- do not expose their own transparency setting.
+    -- App windows are opaque (2026-11-09): 0.96 everywhere meant Hyprland
+    -- blurred and composited the 4K frame behind every window on this iGPU.
+    -- kitty keeps its glass by rule; the bar and panels keep theirs as layers.
     decoration = {
         rounding = 14,
         -- 2 is a circular corner; 3 flattens the curve into the squircle that
@@ -400,8 +401,8 @@ hl.config({
         rounding_power = 3,
         -- Same focused and unfocused: the active border is the only focus cue,
         -- so nothing else changes when focus moves.
-        active_opacity = 0.96,
-        inactive_opacity = 0.96,
+        active_opacity = 1.0,
+        inactive_opacity = 1.0,
         fullscreen_opacity = 1.0,
         blur = {
             enabled = true,
@@ -486,6 +487,16 @@ hl.config({
 -- Rule opacity multiplies decoration.active/inactive_opacity unless each value
 -- carries `override`, and both multiply the client's own background alpha.
 
+-- No blur behind any app window: they are opaque now, and a client that draws
+-- its own alpha (a GTK popover, a translucent app background) would otherwise
+-- still pull a 4K blur pass. kitty's rule below turns it back on for kitty, the
+-- one window that keeps its glass. Layers (bar, rofi, panels) are unaffected.
+hl.window_rule({
+    name = "no-blur-apps",
+    match = { class = ".*" },
+    no_blur = true,
+})
+
 -- Ghostty, the dev box terminal: fully opaque with no blur behind it, so every
 -- keystroke echo is one plain surface update rather than a blurred composite of
 -- a 4K frame on this iGPU. `opaque` also tells Hyprland nothing under it needs
@@ -498,12 +509,14 @@ hl.window_rule({
     no_blur = true,
 })
 
--- kitty: 0.80 focused or not (the active border is the only focus cue), opaque
--- fullscreen, on top of its own 0.92 background alpha (kitty's linux.conf).
+-- kitty: the one glass window. 0.80 focused or not (the active border is the
+-- only focus cue), opaque fullscreen, on top of its own 0.92 background alpha
+-- (kitty's linux.conf), and blurred - overriding no-blur-apps above.
 hl.window_rule({
     name = "kitty-opacity",
     match = { class = "kitty" },
     opacity = "0.80 override 0.80 override 1.0 override",
+    no_blur = false,
 })
 
 -- Blur the wallpaper behind Quickshell's translucent island while ignoring the

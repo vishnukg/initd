@@ -1,12 +1,8 @@
 /* Loaded by every GTK4/libadwaita app at launch (not live: restart an app to
-   see a change). Kept to a single rule; the theme itself stays stock Adwaita,
-   as in Omarchy.
+   see a change). The theme itself stays stock Adwaita, as in Omarchy.
 
-   Frosted glass, taken from Omarchy 4's Glassy mode (default/gtk/glass.css).
-   hyprland.lua already makes every window slightly see-through
-   (decoration.active_opacity/inactive_opacity) and blurs behind it; a
-   backdrop-filter is how GTK itself asks the compositor for that blur, so
-   GTK windows request it too instead of relying on the global default. */
-window {
-  backdrop-filter: blur(20px);
-}
+   Empty on purpose. It held Omarchy 4's Glassy-mode rule
+   (`window { backdrop-filter: blur(20px); }`) while hyprland.lua made every
+   window 0.96 opaque and blurred behind it. App windows have been fully opaque
+   with no blur since 2026-11-09 (only kitty keeps its glass), so a backdrop
+   blur would be work for nothing. Kept as the place for any GTK4-wide rule. */
