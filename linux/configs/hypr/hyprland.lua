@@ -49,6 +49,16 @@ hl.env("QT_QPA_PLATFORMTHEME", "gtk3")
 hl.env("GTK_A11Y", "none")
 hl.env("NO_AT_BRIDGE", "1")
 
+-- FreeType stem darkening, the macOS-style thickening of glyph strokes at
+-- small sizes. FreeType ships it off, so light-on-dark UI text (GTK, Firefox,
+-- rofi, the bar) renders thinner than the same font on a Mac. cff: covers OTF
+-- faces (Berkeley Mono); autofitter: covers TrueType faces such as Inter,
+-- because hintslight routes them through the autofitter. Measured with
+-- pango-view at this monitor's 1.33x: about 3% more ink, no change in glyph
+-- shape. Read when each app starts; exported in session_vars below so apps
+-- started by D-Bus and systemd get it too. Takes effect from the next login.
+hl.env("FREETYPE_PROPERTIES", "cff:no-stem-darkening=0 autofitter:no-stem-darkening=0")
+
 -- No realtime scheduling for the compositor. Since 0.57, Hyprland asks rtkit
 -- for SCHED_RR and in exchange accepts RLIMIT_RTTIME at rtkit's
 -- RTTimeUSecMax: 150 ms soft / 200 ms hard of CPU without blocking. Hotplugging
@@ -117,7 +127,7 @@ hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 -- but xdg-desktop-autostart.target is started by the session manager (GNOME
 -- does, Hyprland doesn't), so nm-applet's, blueman's and 1Password's
 -- /etc/xdg/autostart entries would otherwise be skipped.
-local session_vars = "WAYLAND_DISPLAY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORM QT_QPA_PLATFORMTHEME XCURSOR_THEME XCURSOR_SIZE GTK_A11Y NO_AT_BRIDGE"
+local session_vars = "WAYLAND_DISPLAY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORM QT_QPA_PLATFORMTHEME XCURSOR_THEME XCURSOR_SIZE GTK_A11Y NO_AT_BRIDGE FREETYPE_PROPERTIES"
 hl.on("hyprland.start", function()
     -- Make portals (screenshare, file pickers) and D-Bus- or systemd-started
     -- apps see the session environment (the QT_QPA_* pair included, so a
