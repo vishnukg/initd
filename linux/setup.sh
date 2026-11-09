@@ -12,7 +12,8 @@ set -euo pipefail
 #   - gsettings that GTK/portal apps read (theme, fonts, cursor, keyboard),
 #     kept in sync with hyprland.lua so GNOME and Hyprland feel the same
 #   - Session scripts linked to absolute ~/.config/ paths (the shell uses them)
-#   - Firefox profile glue (profile path is dynamic) and default browser
+#   - Firefox profile glue (profile path is dynamic)
+#   - Brave launcher/profile and default browser
 #
 # Wayland/Hyprland only — the old X11 fixes (xorg TearFree, autorandr, picom,
 # xsettingsd, Xresources) are gone; Hyprland handles compositing, monitors and
@@ -480,9 +481,10 @@ Usage: ${0##*/} [--firefox-only | --brave-only]
 Apply Linux system tweaks and managed configuration.
 
 Options:
-  --brave-only  Refresh Brave interface scaling, page zoom and font sizes.
+  --brave-only  Make Brave the default browser and refresh its interface
+                  scaling, page zoom and font sizes.
                   Close Brave first to allow profile settings to be updated.
-  --firefox-only  Make Firefox the default browser and refresh its text
+  --firefox-only  Refresh Firefox's text
                   size, density and window buttons (user.js, userChrome.css)
                   and default zoom, without the rest of setup.sh —
                   useful right after installing Firefox for the first time,

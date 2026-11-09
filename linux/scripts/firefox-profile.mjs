@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Make Firefox the default browser, discover/init its profile, link user.js
+// Discover/init Firefox's profile, link user.js
 // (text size, compact density) and chrome/userChrome.css (no window buttons),
 // and set the default page zoom. That is all that is managed in the profile:
 // theme, fonts and every other pref stay Firefox's own defaults.
@@ -51,27 +51,6 @@ export function profilePath(text) {
     if (install) return install.keys.get('default');
     const legacy = all.find(section => section.keys.get('default') === '1' && section.keys.get('path'));
     return legacy?.keys.get('path') || null;
-}
-
-// Fedora's packaged desktop ID. Firefox is the default browser; Brave stays
-// installed alongside it.
-export const BROWSER = 'org.mozilla.firefox.desktop';
-
-// xdg-settings writes ~/.config/mimeapps.list (text/html plus the http/https
-// handlers), which both Hyprland and GNOME read. Checked first so a re-run is a
-// no-op; skipped while Firefox is not installed, and a failure only warns.
-export function setDefaultBrowser({
-    desktop = path.join('/usr/share/applications', BROWSER), run = spawnSync, log = console.log, warn = console.warn,
-} = {}) {
-    if (!pathStat(desktop)?.isFile()) return;
-    const current = run('xdg-settings', ['get', 'default-web-browser'], { encoding: 'utf8' });
-    if (current.status === 0 && current.stdout?.trim() === BROWSER) {
-        log('Firefox is already the default browser.');
-        return;
-    }
-    const set = run('xdg-settings', ['set', 'default-web-browser', BROWSER], { encoding: 'utf8' });
-    if (set.status === 0) log('Firefox set as the default browser.');
-    else warn(`Could not make Firefox the default browser: ${set.stderr?.trim() || set.error?.message || `xdg-settings exited ${set.status}`}`);
 }
 
 const SETTING = 'browser.content.full-zoom';
@@ -171,10 +150,7 @@ export function configureFirefox({
 }
 
 function main([verb, file, ...extra]) {
-    if (verb === 'setup' && !file) {
-        setDefaultBrowser();
-        return configureFirefox();
-    }
+    if (verb === 'setup' && !file) return configureFirefox();
     if (!file || extra.length || !['path', 'zoom'].includes(verb)) throw new Error(usage);
     if (verb === 'path') {
         const found = profilePath(fs.readFileSync(file, 'utf8'));

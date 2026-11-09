@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dockerMenu } from '../../linux/scripts/docker-menu.mjs';
-import { configureFirefox, findProfileDirectory, setDefaultBrowser, BROWSER } from '../../linux/scripts/firefox-profile.mjs';
+import { configureFirefox, findProfileDirectory } from '../../linux/scripts/firefox-profile.mjs';
 import { configureLinks } from '../../linux/scripts/config-links.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -185,69 +185,6 @@ test('an unavailable Firefox install or failed initialization leaves the profile
     assert.equal(fs.existsSync(path.join(home, '.mozilla')), false);
 });
 
-function recorder(answers) {
-    const calls = [];
-    const run = (command, args) => {
-        calls.push([command, ...args]);
-        if (command === 'xdg-settings') return answers[args[0]];
-        return { status: 1 };
-    };
-    return { calls, run };
-}
-
-function installedFirefox(t) {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-firefox-desktop-'));
-    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-    const desktop = path.join(directory, BROWSER);
-    fs.writeFileSync(desktop, '[Desktop Entry]\n');
-    return desktop;
-}
-
-test('Firefox becomes the default browser when something else is', t => {
-    // Arrange
-    const desktop = installedFirefox(t);
-    const { calls, run } = recorder({ get: { status: 0, stdout: 'brave-browser.desktop\n' }, set: { status: 0 } });
-    const warnings = [];
-
-    // Act
-    setDefaultBrowser({ desktop, run, log() {}, warn: message => warnings.push(message) });
-
-    // Assert
-    assert.deepEqual(calls.at(-1), ['xdg-settings', 'set', 'default-web-browser', BROWSER]);
-    assert.deepEqual(warnings, []);
-});
-
-test('Default browser is left alone when Firefox already holds it', t => {
-    // Arrange
-    const desktop = installedFirefox(t);
-    const { calls, run } = recorder({ get: { status: 0, stdout: `${BROWSER}\n` } });
-
-    // Act
-    setDefaultBrowser({ desktop, run, log() {}, warn() {} });
-
-    // Assert
-    assert.deepEqual(calls, [['xdg-settings', 'get', 'default-web-browser']]);
-});
-
-test('Default browser is not touched while Firefox is not installed, and a failed change only warns', t => {
-    // Arrange
-    const desktop = installedFirefox(t);
-    const { calls, run } = recorder({ get: { status: 1 }, set: { status: 3, stderr: 'xdg-settings: boom\n' } });
-    const warnings = [];
-
-    // Act
-    setDefaultBrowser({ desktop: path.join(path.dirname(desktop), 'missing.desktop'), run, log() {}, warn() {} });
-
-    // Assert
-    assert.deepEqual(calls, []);
-
-    // Act
-    setDefaultBrowser({ desktop, run, log() {}, warn: message => warnings.push(message) });
-
-    // Assert
-    assert.deepEqual(warnings, ['Could not make Firefox the default browser: xdg-settings: boom']);
-});
-
 test('Firefox-only setup calls the JavaScript setup workflow through mise', t => {
     // Arrange
     const f = fixture(t);
@@ -255,13 +192,8 @@ test('Firefox-only setup calls the JavaScript setup workflow through mise', t =>
     fs.mkdirSync(registry, { recursive: true });
     fs.writeFileSync(path.join(registry, 'profiles.ini'), '[InstallTEST]\nDefault=profile\n');
 
-    const bin = path.join(f.home, 'bin');
-    fs.mkdirSync(bin);
-    fs.writeFileSync(path.join(bin, 'xdg-settings'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
-
     // Act
     const result = f.run(`
-export PATH="$HOME/bin:$PATH"
 mise() {
   [[ "$1" == -C && "$2" == "$ROOT_DIR" && "$3" == exec && "$4" == node@lts && "$5" == -- && "$6" == node ]] || return 98
   shift 6

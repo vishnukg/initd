@@ -228,8 +228,8 @@ hl.bind(mod .. " + SHIFT + s",  hl.dsp.exec_cmd("~/.config/screenshot.mjs region
 -- at the shared config's macOS value (0.58 for both terminals).
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
 hl.bind(mod .. " + t", hl.dsp.exec_cmd("ghostty"))
--- The browser follows the system default (xdg-settings, set to Firefox by
--- linux/scripts/firefox-profile.mjs) instead of naming one here, and launches
+-- The browser follows the system default (xdg-settings, set to Brave by
+-- linux/scripts/brave-profile.mjs) instead of naming one here, and launches
 -- through its .desktop entry so it gets the same flags as rofi and xdg-open
 -- links — for Brave, the 120% scaling in the shadowed launcher. Both Brave
 -- and Firefox open a new window when already running.

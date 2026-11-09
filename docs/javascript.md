@@ -39,7 +39,7 @@ Read the small config helpers before the long-running tmux watcher:
 | `linux/scripts/docker-menu.mjs` | Present container actions through rofi and kitty |
 | `linux/scripts/weather-popup.mjs` | Fetch weather and display a notification |
 | `linux/scripts/screenshot.mjs` | Capture the screen or a slurp region to ~/Pictures/Screenshots (region also to the clipboard) |
-| `linux/scripts/firefox-profile.mjs` | Set Firefox as default browser, discover/init a profile, link user.js, and update default zoom transactionally |
+| `linux/scripts/firefox-profile.mjs` | Discover/init a Firefox profile, link user.js, and update default zoom transactionally |
 | `linux/scripts/config-links.mjs` | Install Linux's special-case config and session-script links |
 | `linux/scripts/night-light-toggle.mjs` | Apply the night-light schedule and safely start/stop gamma control |
 | `shared/configs/tmux/.config/tmux/tmux.mjs` | Discover agent sessions, maintain caches, and publish tmux options |

@@ -184,7 +184,7 @@ Intel video decoding is configured by `ensure_video_codecs()` in `linux/bootstra
 - GTK theme + font/cursor gsettings (Fedora has no `fonts-ubuntu` or DMZ-cursor package, so this uses Inter from `rsms-inter-fonts` and the `Adwaita` cursor theme instead), plus matching keyboard gsettings so GNOME gets the same `ctrl:nocaps` and repeat rate as Hyprland
 - session scripts symlinked to absolute `~/.config/` paths that hyprland.lua/Quickshell invoke directly
 - the `hyprmoncfgd` user service for automatic monitor profile switching
-- special-case paths outside `~/.config/`: `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox `user.js` and `chrome/userChrome.css` (profile path is dynamic; Firefox itself is unmanaged by bootstrap.sh — install it however you like, this glue configures whatever it finds, sets it as the default browser and its default zoom)
+- special-case paths outside `~/.config/`: `~/.gtkrc-2.0`, `~/.icons/default/`, Firefox `user.js` and `chrome/userChrome.css` (profile path is dynamic; Firefox itself is unmanaged by bootstrap.sh — install it however you like, this glue configures whatever it finds and sets its default zoom)
 
 ## Adding a managed config
 
