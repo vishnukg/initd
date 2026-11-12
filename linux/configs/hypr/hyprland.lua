@@ -78,7 +78,10 @@ hl.env("HYPRLAND_NO_RT", "1")
 -- per-monitor scale. 1.33333 on the laptop panel (2560x1600, ~224 PPI) — a
 -- 1920x1200 logical workspace; adjust per monitor if needed. This was 1.5
 -- (tuned for the old machine's panel), then 1.25, which read a touch small.
-hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = "1.33333" })
+-- cm = "edid": the panel is DCI-P3 (EDID primaries, ~1.38x sRGB), so the
+-- default "srgb" preset sends sRGB values unconverted and every colour comes out
+-- oversaturated; "edid" maps sRGB into the panel's real gamut.
+hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = "1.33333", cm = "edid" })
 hl.monitor({ output = "",      mode = "preferred", position = "auto", scale = "1.33333" })
 -- The external monitors at the mode and scale their saved hyprmoncfg profiles
 -- use (keep these in step with linux/configs/hyprmoncfg/profiles/). The
