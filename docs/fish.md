@@ -179,8 +179,8 @@ The same rule applies to `conf.d/` files that define interactive-only behaviour.
 
 The config keeps startup fast by avoiding setup commands during shell startup:
 
-- mise shims provide PATH in every shell; interactive activation is deferred
-  until the first command, then keeps real tool binaries ahead of the shims.
+- mise shims provide PATH in every shell; interactive shells activate mise at
+  startup, which keeps real tool binaries ahead of the shims.
 - Starship and zoxide initialize from the currently selected binaries each
   interactive startup. There is no shared init cache, shim-mtime invalidation,
   or cached PATH. Failed initialization output is not sourced. This trades

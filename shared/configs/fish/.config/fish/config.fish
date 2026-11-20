@@ -13,7 +13,7 @@ end
 #
 # Mise: hybrid setup (see docs/mise.md). Shims are the baseline PATH for
 # every context (scripts, editors, non-interactive shells); interactive
-# shells additionally run `mise activate` (deferred - see below),
+# shells additionally run `mise activate` (at startup - see below),
 # which puts the real binaries first so launches skip the shim hop and
 # tools keep their own process name (e.g. tmux tabs show nvim, not mise).
 #
@@ -179,6 +179,26 @@ function __initd_tool_init
     or return
     printf '%s\n' $script | source
 end
+# mise first, so the two inits below run the real binaries. Activation puts
+# each tool's own directory ahead of the shims; without it `zoxide init` and
+# `starship init` each went through a shim, ~25 ms apiece on the Mac and
+# ~45-55 ms on the dev box against 1-4 ms direct - 80% of shell startup
+# (measured 2026-11-20). It used to be deferred to the first command, which
+# kept its ~36 ms off the first prompt but left that shim cost on every shell
+# and stalled the first command instead.
+#
+# No PWD hook (disable_arrow). mise's activate script otherwise re-evaluates
+# the whole toolset on every directory change AND again at the next prompt,
+# and the prompt hook alone is enough: fish_prompt handlers run before the
+# prompt is drawn, so the environment is current by the time anything can be
+# typed. Node still switches versions identically on entering and leaving a
+# project. cd + prompt is ~30 ms on 54 tools, of which ~23 ms is the hook-env
+# run itself: mise does a full re-evaluation on every directory change (it has
+# to schedule its enter/leave hooks there), so hook_env.cache_ttl and
+# hook_env.chpwd_only cannot skip it - both were measured at the same ~23 ms.
+# A prompt in the same directory takes the early-exit path, ~7 ms.
+set -g mise_fish_mode disable_arrow
+__initd_tool_init mise activate fish
 __initd_tool_init zoxide init fish
 __initd_tool_init starship init fish --print-full-init
 # starship.toml sets no right_format, but starship's init always defines
@@ -187,32 +207,6 @@ __initd_tool_init starship init fish --print-full-init
 # fish from autoloading anything in its place. If starship.toml ever gains a
 # right_format, delete this line.
 function fish_right_prompt; end
-# Interactive-only mise activation: prepends real tool bins to PATH via a
-# prompt hook so shims are only the non-interactive fallback.
-#
-# Deferred to the first command rather than run at startup: activation's
-# initial `mise hook-env` adds startup work but buys nothing until a command
-# runs - the shims above
-# already resolve every tool for the prompt itself. fish_preexec fires
-# before the first typed command executes, so that command (and every
-# prompt after it) sees the fully activated environment; only the empty
-# first prompt is drawn without it.
-function __initd_mise_activate --on-event fish_preexec
-    functions -e __initd_mise_activate
-    # No PWD hook. mise's activate script otherwise re-evaluates the whole
-    # toolset on every directory change AND again at the next prompt, and the
-    # prompt hook alone is enough: fish_prompt handlers run before the prompt
-    # is drawn, so the environment is current by the time anything can be
-    # typed. Node still switches versions identically on entering and
-    # leaving a project. cd + prompt is ~30 ms on 54 tools, of which ~23 ms
-    # is the hook-env run itself: mise does a full re-evaluation on every
-    # directory change (it has to schedule its enter/leave hooks there), so
-    # hook_env.cache_ttl and hook_env.chpwd_only cannot skip it - both were
-    # measured at the same ~23 ms. A prompt in the same directory takes the
-    # early-exit path, ~7 ms.
-    set -g mise_fish_mode disable_arrow
-    __initd_tool_init mise activate fish
-end
 
 # ── Local overrides (machine-specific, not committed) ─────────────────────────
 if test -f $__fish_config_dir/local.fish

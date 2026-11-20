@@ -74,25 +74,23 @@ This repo uses **both**, each where it is strongest:
   binary, like zoxide and starship, without a shared cache:
 
   ```fish
-  function __initd_mise_activate --on-event fish_preexec
-      functions -e __initd_mise_activate
-      set -g mise_fish_mode disable_arrow
-      __initd_tool_init mise activate fish
-  end
+  set -g mise_fish_mode disable_arrow
+  __initd_tool_init mise activate fish
+  __initd_tool_init zoxide init fish
+  __initd_tool_init starship init fish --print-full-init
   ```
 
   That registers a prompt hook which prepends the *real* tool `bin/`
   directories to PATH, ahead of the shims. Interactive launches therefore
   exec the actual binary directly.
 
-  It is deferred to the first command on purpose. Activation's initial
-  `mise hook-env` adds startup work that buys nothing until a command runs,
-  since the shims already
-  resolve every tool for the prompt itself. `fish_preexec` fires before the
-  first typed command executes, so that command and every prompt after it see
-  the activated environment; only the empty first prompt is drawn without it.
-  Startup timings depend on the selected binaries and machine; the old cached
-  startup measurements no longer describe the current configuration.
+  It runs at startup, before the zoxide and starship inits, so those two run
+  the real binaries. It used to be deferred to the first command, which kept
+  activation's `mise hook-env` (~24 ms on the Mac, ~44 ms on the dev box) off
+  the first prompt, but then each init went through a shim: ~25 ms apiece on
+  the Mac and ~45-55 ms on the dev box against 1-4 ms direct. Measured on the
+  Mac on 2026-11-20, from a shims-only PATH like a new tmux pane's: startup
+  59 → 50 ms, and startup plus the first command 93 → 48 ms.
 
   It also sets `mise_fish_mode disable_arrow` before sourcing. mise's script
   otherwise installs a PWD hook that re-evaluates the toolset on every `cd`
@@ -107,7 +105,7 @@ This repo uses **both**, each where it is strongest:
 Fish also sets `MISE_FISH_AUTO_ACTIVATE=0` in
 `~/.config/fish/conf.d/00-initd-env.fish`. mise's Homebrew formula ships a
 vendor conf.d hook that would run `mise activate fish | source` (uncached) on
-every shell; disabling it keeps the deferred call in `config.fish` as the single
+every shell; disabling it keeps the call in `config.fish` as the single
 activation path on both macOS and Linux.
 
 `config.fish` deliberately does **not** put any `~/.local/share/mise/installs/…`
@@ -135,8 +133,8 @@ with no mise tools at all.
 
 The hybrid costs and gains:
 
-- **Per interactive shell:** generate Starship/zoxide init at startup and
-  mise activation at first preexec. Fresh generation avoids cache races,
+- **Per interactive shell:** generate mise activation, then Starship/zoxide
+  init, at startup. Fresh generation avoids cache races,
   stale binary references after upgrades, and captured PATH from other shells.
 - **Per prompt:** one `mise hook-env` call — ~7 ms when the directory and
   config files are unchanged (early exit), ~23 ms after a `cd`. This replaces

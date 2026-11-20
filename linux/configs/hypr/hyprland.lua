@@ -223,12 +223,12 @@ hl.bind(mod .. " + SHIFT + s",  hl.dsp.exec_cmd("~/.config/screenshot.mjs region
 -- process owning every window is exactly what turns that leak into a
 -- session-wide problem; separate processes hand the memory back on close.
 --
--- No opacity flags on either: Linux's 0.92 is a tracked per-OS config file
+-- No opacity flags on either: both terminals are opaque in their shared
+-- configs, and anything Linux-only lives in a tracked per-OS config file
 -- (kitty's linux.conf via `include ${KITTY_OS}.conf`; Ghostty's via the
 -- linux.conf link linux/setup.sh places next to the shared config), so every
 -- launcher agrees — these binds, rofi, .desktop entries, docker-menu.mjs. A
--- flag would only reach windows opened by that one keybind and leave the rest
--- at the shared config's macOS value (0.58 for both terminals).
+-- flag would only reach windows opened by that one keybind.
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
 hl.bind(mod .. " + t", hl.dsp.exec_cmd("ghostty"))
 -- The browser follows the system default (xdg-settings, set to Brave by
@@ -406,7 +406,7 @@ hl.config({
 
     -- App windows are opaque (2026-11-09): 0.96 everywhere meant Hyprland
     -- blurred and composited the 4K frame behind every window on this iGPU.
-    -- kitty keeps its glass by rule; the bar and panels keep theirs as layers.
+    -- kitty followed on 2026-11-20; the bar and panels keep theirs as layers.
     decoration = {
         rounding = 14,
         -- 2 is a circular corner; 3 flattens the curve into the squircle that
@@ -502,8 +502,7 @@ hl.config({
 
 -- No blur behind any app window: they are opaque now, and a client that draws
 -- its own alpha (a GTK popover, a translucent app background) would otherwise
--- still pull a 4K blur pass. kitty's rule below turns it back on for kitty, the
--- one window that keeps its glass. Layers (bar, rofi, panels) are unaffected.
+-- still pull a 4K blur pass. Layers (bar, rofi, panels) are unaffected.
 hl.window_rule({
     name = "no-blur-apps",
     match = { class = ".*" },
@@ -513,7 +512,7 @@ hl.window_rule({
 -- Ghostty, the dev box terminal: fully opaque with no blur behind it, so every
 -- keystroke echo is one plain surface update rather than a blurred composite of
 -- a 4K frame on this iGPU. `opaque` also tells Hyprland nothing under it needs
--- drawing, whatever alpha the client reports. macOS keeps its glass.
+-- drawing, whatever alpha the client reports.
 hl.window_rule({
     name = "ghostty-opacity",
     match = { class = "com.mitchellh.ghostty" },
@@ -522,14 +521,15 @@ hl.window_rule({
     no_blur = true,
 })
 
--- kitty: the one glass window. 0.80 focused or not (the active border is the
--- only focus cue), opaque fullscreen, on top of its own 0.92 background alpha
--- (kitty's linux.conf), and blurred - overriding no-blur-apps above.
+-- kitty: opaque with no blur, the same rule as Ghostty. It was the one glass
+-- window (0.80 here on top of a 0.92 background alpha, blurred) until
+-- 2026-11-20; the active border is still the only focus cue.
 hl.window_rule({
     name = "kitty-opacity",
     match = { class = "kitty" },
-    opacity = "0.80 override 0.80 override 1.0 override",
-    no_blur = false,
+    opacity = "1.0 override 1.0 override 1.0 override",
+    opaque = true,
+    no_blur = true,
 })
 
 -- Blur the wallpaper behind Quickshell's translucent island while ignoring the

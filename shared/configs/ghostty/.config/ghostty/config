@@ -15,12 +15,12 @@ cursor-style = block
 cursor-style-blink = false
 cursor-color = #ffffff
 cursor-text = #141414
-# Cursor trail on jumps, matching kitty's cursor_trail. The path is relative to
-# this file. The default custom-shader-animation = true runs a render loop
-# only while the window is focused, which the trail needs to animate.
-# macOS only in practice: linux.conf clears it (`custom-shader =`), since at
-# 4K the per-frame redraw saturated the Linux laptop's iGPU.
-custom-shader = shaders/cursor-trail.glsl
+# No cursor trail (kitty, local, has one). Ghostty is the dev box terminal:
+# every keystroke is echoed from Sydney (~19 ms, measured 2026-11-20), and a
+# trail animating the cursor to its new cell on top of that made it visibly
+# arrive late. Linux dropped it first (2026-11-09): a custom shader redraws
+# every frame, which at 4K saturated that laptop's iGPU. The shader is still
+# in shaders/cursor-trail.glsl: `custom-shader = shaders/cursor-trail.glsl`.
 
 macos-titlebar-style = transparent
 # Just the ghost as the title. A fixed title also makes Ghostty ignore the ones
@@ -45,7 +45,10 @@ resize-overlay = never
 
 # --- Background & Opacity ---
 background = #000000
-background-opacity = 0.58
+# Opaque on both platforms, as kitty is. Linux went first
+# (2026-11-09, the blur composite behind every echoed keystroke lagged SSH
+# typing on its iGPU); macOS followed on 2026-11-20, from 0.58.
+background-opacity = 1
 background-blur = false
 
 # --- Fonts ---
@@ -138,7 +141,7 @@ keybind = super+arrow_right=text:\x1b[F
 # --- Linux-only Overrides ---
 # `?` marks the include optional, so this is a no-op on macOS, where nothing
 # creates the file. On Linux, linux/setup.sh symlinks linux/configs/ghostty/
-# linux.conf into place beside this file; it carries background-opacity 0.92.
+# linux.conf into place beside this file; it resets adjust-cell-width.
 #
 # Ghostty has no equivalent of kitty's `include ${KITTY_OS}.conf` — config-file
 # does no variable expansion — so the platform script places the file rather

@@ -55,17 +55,17 @@ test('Fish config parses and noninteractive shells load only environment overrid
     assert.equal(noninteractive, 'work');
     assert.equal(interactive, 'work yes');
 });
-test('tool init is fresh, rejects failed output, and defers mise until preexec', { skip: noFish }, t => {
+test('tool init is fresh, rejects failed output, and activates mise at startup', { skip: noFish }, t => {
     // Arrange
     const shell = fixture(t);
 
     // Act
-    const initialized = shell.run('echo $__initd_seen_starship $__initd_seen_zoxide; set -q __initd_seen_mise; and echo early; emit fish_preexec; echo $__initd_seen_mise');
+    const initialized = shell.run('echo $__initd_seen_starship $__initd_seen_zoxide $__initd_seen_mise');
     const updated = shell.run('echo $__initd_seen_starship', true, { INITD_TEST_VERSION: 'two' });
     const failed = shell.run('set -q __initd_seen_starship; and echo bad; true', true, { INITD_TEST_FAIL: '1' });
 
     // Assert
-    assert.equal(initialized, 'one one\none');
+    assert.equal(initialized, 'one one one');
     assert.equal(updated, 'two');
     assert.equal(failed, '');
     assert.deepEqual(cachedToolInit(shell), []);
