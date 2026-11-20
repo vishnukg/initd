@@ -10,6 +10,8 @@
 # same reason as on Fedora — mise installs and pins it.
 
 # ── Dev tools (equivalents of the Fedora packages.txt dev section) ───────────
+# tmux here is 3.4 and only the fallback: vm/scripts/tmux-install.sh (run by
+# vm/update.sh) puts the current release in ~/.local/bin, ahead of it on PATH.
 tmux
 tig
 git

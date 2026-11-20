@@ -105,6 +105,11 @@ github.com/settings/keys. The new run registers its own.
   also install on their own daily (unattended-upgrades, security pockets only,
   turned back on by bootstrap after exe.dev's image masks it); everything else
   waits for this.
+- tmux on the VM is the tmux project's own release build in `~/.local/bin`,
+  kept current by `vm/update.sh` (`vm/scripts/tmux-install.sh`); Ubuntu's 3.4
+  stays installed as the fallback. A new version only takes over when the
+  server restarts: `ssh dev tmux kill-server` ends every session on the box,
+  and the Ghostty window closes; open a new one.
 - exe.dev commands: `ssh exe.dev help`, `ssh exe.dev ls`, `ssh exe.dev rm <vm>`.
   Arguments with spaces need the whole command quoted:
   `ssh exe.dev "new --comment='a b'"`

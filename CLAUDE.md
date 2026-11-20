@@ -41,7 +41,7 @@ for f in bootstrap.sh \
   macos/bootstrap.sh macos/defaults.sh macos/update.sh macos/managed-links.sh \
   linux/bootstrap.sh linux/setup.sh linux/update.sh linux/managed-links.sh \
   linux/scripts/*.sh \
-  vm/bootstrap.sh vm/update.sh vm/managed-links.sh; do
+  vm/bootstrap.sh vm/update.sh vm/managed-links.sh vm/scripts/*.sh; do
   bash -n "$f" && echo "OK   $f" || echo "FAIL $f"
 done
 
@@ -127,6 +127,7 @@ initd/
     ├── bootstrap.sh          # bash bootstrap.sh vm (with no platform, all Linux goes to linux/)
     ├── packages.txt          # apt list: CLI tools + mise build deps
     ├── managed-links.sh      # FILTERS the shared list (drops terminals, Colima)
+    ├── scripts/              # tmux-install.sh: tmux's own release build → ~/.local/bin (apt has 3.4)
     └── update.sh
 ```
 
@@ -201,7 +202,7 @@ vm/bootstrap.sh                               # bash bootstrap.sh vm — never p
   ├─ shared/lib/agy-statusline.mjs
   ├─ ensure_fish (chsh + fisher)
   ├─ mise trust + mise install
-  └─ vm/update.sh                            # every run: full apt + mise upgrade (not fatal)
+  └─ vm/update.sh                            # every run: full apt + mise upgrade (not fatal), and vm/scripts/tmux-install.sh: the tmux project's static release build, sha256-verified, into ~/.local/bin ahead of apt's 3.4 (only 3.7+ honours an application's synchronized output, which is what stops Claude Code flickering in a pane; not through mise, whose shim costs ~34 ms a call against ~2 ms). A running server keeps its old binary until `tmux kill-server`
 ```
 
 ### Script sourcing chain

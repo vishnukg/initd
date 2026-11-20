@@ -15,6 +15,7 @@ Update apt packages and mise-managed tools on a headless VM.
 Runs:
   sudo apt-get update && sudo apt-get full-upgrade -y
   sudo apt-get autoremove -y
+  vm/scripts/tmux-install.sh   (tmux's own release build; apt has 3.4)
   mise self-update --yes
   mise -C "${ROOT_DIR}" upgrade --yes
   node shared/lib/dotnet-prune.mjs   (removes .NET runtimes no SDK uses)
@@ -44,6 +45,12 @@ main() {
 
   log "Removing obsolete packages..."
   sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 autoremove -y -q
+
+  # tmux comes from the tmux project's release builds, not apt (3.4) and not
+  # mise (shim cost); see vm/scripts/tmux-install.sh. Not fatal.
+  log "Updating tmux from its upstream release..."
+  "${ROOT_DIR}/vm/scripts/tmux-install.sh" \
+    || log_warn "tmux update failed; re-run vm/scripts/tmux-install.sh."
 
   require_command mise "to update mise and its managed tools"
   log "Updating mise..."
