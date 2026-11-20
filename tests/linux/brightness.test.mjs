@@ -13,6 +13,10 @@ import { spawnSync, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(new URL('../../linux/scripts/brightness.sh', import.meta.url));
+// flock is util-linux: absent on macOS, where these scripts never run. Without
+// it the lock is never taken and the tests that wait on it would spin forever.
+const noFlock = spawnSync('flock', ['--version']).status !== 0 && 'flock (util-linux) is not installed';
+
 
 const DETECT = `Invalid display
    I2C bus:          /dev/i2c-13
@@ -76,7 +80,7 @@ test('the laptop panel takes the backlight path; the keys ping the bar, the slid
     ]);
 });
 
-test('an external monitor is asked its level once, then stepped with absolute writes on its bus', () => {
+test('an external monitor is asked its level once, then stepped with absolute writes on its bus', { skip: noFlock }, () => {
     // Arrange
     const f = fixture({ focused: 'DP-1', level: 66 });
 
@@ -96,7 +100,7 @@ test('an external monitor is asked its level once, then stepped with absolute wr
     assert.equal(f.published(), 'DP-1 66\n');
 });
 
-test('the slider sets an external level absolutely and publishes it without raising the indicator', () => {
+test('the slider sets an external level absolutely and publishes it without raising the indicator', { skip: noFlock }, () => {
     // Arrange
     const f = fixture({ focused: 'DP-1' });
 
@@ -110,7 +114,7 @@ test('the slider sets an external level absolutely and publishes it without rais
     assert.equal(f.published(), 'DP-1 40\n');
 });
 
-test('a step past the ends is clamped to 0..100', () => {
+test('a step past the ends is clamped to 0..100', { skip: noFlock }, () => {
     // Arrange
     const high = fixture({ focused: 'DP-1', level: 98 });
     const low = fixture({ focused: 'DP-1', level: 3 });
@@ -124,7 +128,7 @@ test('a step past the ends is clamped to 0..100', () => {
     assert.ok(low.calls().some((c) => c.includes('setvcp 10 0 ')));
 });
 
-test('refresh re-asks the monitor even with a cached level, publishes, and writes nothing', () => {
+test('refresh re-asks the monitor even with a cached level, publishes, and writes nothing', { skip: noFlock }, () => {
     // Arrange: a stale cached level from an earlier step
     const f = fixture({ focused: 'DP-1', level: 30 });
     f.run('up'); // caches 35
@@ -140,7 +144,7 @@ test('refresh re-asks the monitor even with a cached level, publishes, and write
     assert.equal(f.published(), 'DP-1 30\n');
 });
 
-test('a failed write drops the cached bus and level so the next press detects and asks again', () => {
+test('a failed write drops the cached bus and level so the next press detects and asks again', { skip: noFlock }, () => {
     // Arrange
     const f = fixture({ focused: 'DP-1', writeFails: true });
 
@@ -154,7 +158,7 @@ test('a failed write drops the cached bus and level so the next press detects an
     assert.equal(f.calls().filter((c) => c.includes('getvcp')).length, 2);
 });
 
-test('a key press that lands while a write is in flight is dropped', async () => {
+test('a key press that lands while a write is in flight is dropped', { skip: noFlock }, async () => {
     // Arrange
     const f = fixture({ focused: 'DP-1', slowWrite: true });
 
@@ -169,7 +173,7 @@ test('a key press that lands while a write is in flight is dropped', async () =>
     assert.equal(f.calls().filter((c) => c.includes('setvcp')).length, 1);
 });
 
-test('a slider set that lands while a write is in flight waits and still lands', async () => {
+test('a slider set that lands while a write is in flight waits and still lands', { skip: noFlock }, async () => {
     // Arrange
     const f = fixture({ focused: 'DP-1', slowWrite: true });
 

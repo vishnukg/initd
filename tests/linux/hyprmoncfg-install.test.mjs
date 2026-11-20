@@ -36,7 +36,8 @@ function fixture({ installed = '1.17.0', copr = true, daemonActive = true, check
     stub('systemctl', `[ "$2" = is-active ] && exit ${daemonActive ? 0 : 3}; exit 0`);
     const run = () => spawnSync('bash', [script], {
         encoding: 'utf8',
-        env: { PATH: `${bin}:/usr/bin:/bin`, HYPRMONCFG_RELEASE_BASE: 'https://example.invalid/latest', HYPRMONCFG_ARCH: 'x86_64', HOME: root },
+        // /sbin: where macOS keeps sha256sum, so the suite also runs on a Mac.
+        env: { PATH: `${bin}:/usr/bin:/bin:/sbin`, HYPRMONCFG_RELEASE_BASE: 'https://example.invalid/latest', HYPRMONCFG_ARCH: 'x86_64', HOME: root },
     });
     const calls = () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n') : []);
     return { run, calls };

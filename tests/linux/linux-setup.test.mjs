@@ -10,6 +10,10 @@ import { configureFirefox, findProfileDirectory } from '../../linux/scripts/fire
 import { configureLinks } from '../../linux/scripts/config-links.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
+// setup.sh installs its system files with `install -D`, which on GNU creates
+// the target's parent directories. BSD install (macOS) reads -D differently
+// and fails, and setup.sh only ever runs on Fedora.
+const noGnuInstall = process.platform !== 'linux' && 'needs GNU install -D (Linux only)';
 function fixture(t) {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-linux-review-'));
     t.after(() => fs.rmSync(home, { recursive: true, force: true }));
@@ -229,7 +233,7 @@ disable_unused_daemons
     assert.doesNotMatch(result.stderr, /unexpected sudo/);
 });
 
-test('lid switch drop-in installs once, reloads logind without a restart, and is idempotent', t => {
+test('lid switch drop-in installs once, reloads logind without a restart, and is idempotent', { skip: noGnuInstall }, t => {
     // Arrange
     const shell = fixture(t);
     const dropins = path.join(shell.home, 'logind.conf.d');
@@ -260,7 +264,7 @@ configure_lid_switch
     assert.ok(sudoCalls.every(call => !/restart/.test(call)));
 });
 
-test('wakeup udev rule installs once, applies to the USB root hubs now, and is idempotent', t => {
+test('wakeup udev rule installs once, applies to the USB root hubs now, and is idempotent', { skip: noGnuInstall }, t => {
     // Arrange
     const shell = fixture(t);
     const rules = path.join(shell.home, 'rules.d');
@@ -290,7 +294,7 @@ configure_wakeup_sources
     assert.match(sudoCalls[2], /^udevadm trigger --action=add --subsystem-match=usb /);
 });
 
-test('Wi-Fi power save switch installs both files once, applies now, and is idempotent', t => {
+test('Wi-Fi power save switch installs both files once, applies now, and is idempotent', { skip: noGnuInstall }, t => {
     // Arrange
     const shell = fixture(t);
     const dispatcher = path.join(shell.home, 'dispatcher.d');
@@ -363,7 +367,7 @@ test('Wi-Fi power save script turns it off on AC, on on battery, and only for wi
     assert.deepEqual(run('eth0', 'up'), []);
 });
 
-test('initramfs Bluetooth drop-in installs once, rebuilds every kernel, and is idempotent', t => {
+test('initramfs Bluetooth drop-in installs once, rebuilds every kernel, and is idempotent', { skip: noGnuInstall }, t => {
     // Arrange
     const shell = fixture(t);
     const dropins = path.join(shell.home, 'dracut.conf.d');

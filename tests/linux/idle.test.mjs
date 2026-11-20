@@ -11,6 +11,10 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(new URL('../../linux/scripts/idle.sh', import.meta.url));
+// flock is util-linux: absent on macOS, where these scripts never run. Without
+// it the lock is never taken and the tests that wait on it would spin forever.
+const noFlock = spawnSync('flock', ['--version']).status !== 0 && 'flock (util-linux) is not installed';
+
 
 function fixture({ brightness = 44, supplies = {}, playing = false } = {}) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'initd-idle-'));
@@ -127,7 +131,7 @@ function lockFixture(statuses, { running = false } = {}) {
     return { root, env, run, launches };
 }
 
-test('lock restarts hyprlock after a crash or a kill, and stops at the unlock', () => {
+test('lock restarts hyprlock after a crash or a kill, and stops at the unlock', { skip: noFlock }, () => {
     // Arrange: segfault, then SIGTERM (a TTY pkill), then a normal unlock.
     const f = lockFixture([139, 143, 0, 0]);
     // Act
@@ -137,25 +141,25 @@ test('lock restarts hyprlock after a crash or a kill, and stops at the unlock', 
     assert.deepEqual(f.launches(), Array(3).fill('hyprlock --no-fade-in'));
 });
 
-test('lock does not retry an ordinary failure, such as another client holding the lock', () => {
+test('lock does not retry an ordinary failure, such as another client holding the lock', { skip: noFlock }, () => {
     const f = lockFixture([1, 0]);
     f.run();
     assert.equal(f.launches().length, 1);
 });
 
-test('lock gives up after five restarts of a client that keeps crashing', () => {
+test('lock gives up after five restarts of a client that keeps crashing', { skip: noFlock }, () => {
     const f = lockFixture(Array(10).fill(134));
     f.run();
     assert.equal(f.launches().length, 6);
 });
 
-test('lock starts nothing while a hyprlock is already running', () => {
+test('lock starts nothing while a hyprlock is already running', { skip: noFlock }, () => {
     const f = lockFixture([0], { running: true });
     f.run();
     assert.deepEqual(f.launches(), []);
 });
 
-test('lock runs one supervisor at a time', async () => {
+test('lock runs one supervisor at a time', { skip: noFlock }, async () => {
     // Arrange: the first client stays up until released, the way a real lock
     // screen does until the password is typed.
     const f = lockFixture([0]);
